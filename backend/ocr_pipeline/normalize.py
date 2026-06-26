@@ -95,8 +95,16 @@ def normalize_amount(amount: Any) -> float:
     if isinstance(amount, (int, float)):
         return float(amount)
     raw = str(amount).strip()
-    raw = re.sub(r'^(?:Rs\.?|INR|USD|EUR|GBP|₹|\$|€|£)\s*', '', raw, flags=re.IGNORECASE)
-    compacted = re.sub(r'(?<=\d)\s+(?=\d)', '', raw)
+    try:
+        # Attempt direct parsing first if it is a valid numeric string
+        direct_clean = re.sub(r'^(?:Rs\.?|INR|USD|EUR|GBP|₹|\$|€|£)\s*', '', raw, flags=re.IGNORECASE)
+        direct_clean = direct_clean.replace(',', '')
+        return float(direct_clean)
+    except (ValueError, TypeError):
+        pass
+
+    raw_sub = re.sub(r'^(?:Rs\.?|INR|USD|EUR|GBP|₹|\$|€|£)\s*', '', raw, flags=re.IGNORECASE)
+    compacted = re.sub(r'(?<=\d)\s+(?=\d)', '', raw_sub)
     ocr_fixed = compacted.translate(_OCR_DIGIT_MAP)
     try:
         cleaned = re.sub(r'[^\d.-]', '', ocr_fixed)

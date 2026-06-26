@@ -126,17 +126,16 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
         width_pts, height_pts = page.get_size()
 
         # ── 2. DYNAMIC DPI SELECTION & RENDER ──
-        # Small page is defined as width or height < 400 points
-        if width_pts < 400 or height_pts < 400:
-            selected_dpi = 200
-        else:
-            selected_dpi = 300
+        # Configurable rendering DPI via OCR_DEFAULT_DPI (default 350 DPI)
+        selected_dpi = dpi if dpi and dpi > 0 else int(os.getenv("OCR_DEFAULT_DPI", "350"))
 
         scale = selected_dpi / 72.0
+        t0_render = time.time()
         bitmap = page.render(
             scale=scale,
             rotation=0,
         )
+        render_duration_ms = int((time.time() - t0_render) * 1000)
         pil_image = bitmap.to_pil()
         
         # Convert PIL to OpenCV format (BGR) for initial check
@@ -147,15 +146,17 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
         gray_orig = cv2.cvtColor(img_cv_original, cv2.COLOR_BGR2GRAY)
         focus_score = float(cv2.Laplacian(gray_orig, cv2.CV_64F).var())
 
-        # Check for blur threshold upgrade (only if initially selected_dpi is 300)
+        # Check for blur threshold upgrade (only if initially selected_dpi is less than 400)
         blur_threshold = float(os.getenv("OCR_BLUR_THRESHOLD", "80.0"))
-        if selected_dpi == 300 and focus_score < blur_threshold:
+        if selected_dpi < 400 and focus_score < blur_threshold:
             selected_dpi = 400
             scale = selected_dpi / 72.0
+            t0_render = time.time()
             bitmap = page.render(
                 scale=scale,
                 rotation=0,
             )
+            render_duration_ms = int((time.time() - t0_render) * 1000)
             pil_image = bitmap.to_pil()
             open_cv_image = np.array(pil_image) 
             img_cv_original = open_cv_image[:, :, ::-1].copy()
@@ -163,6 +164,9 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
             gray_orig = cv2.cvtColor(img_cv_original, cv2.COLOR_BGR2GRAY)
             focus_score = float(cv2.Laplacian(gray_orig, cv2.CV_64F).var())
             logger.info(f"[OCR_DPI_UPGRADE] Blurry page detected (score={focus_score:.2f} < threshold={blur_threshold}). Upgraded to 400 DPI.")
+
+        # Log rendering telemetry
+        logger.info(f"[PDF_RENDER_TELEMETRY] selected_dpi={selected_dpi} width_px={pil_image.width} height_px={pil_image.height} width_pts={width_pts} height_pts={height_pts} duration_ms={render_duration_ms}")
 
         # Cleanup PDF resources
         page.close()
@@ -197,7 +201,9 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
         # ── 4. PADDLE OCR ENGINE ──
         t_start = time.time()
         
-        ocr_engine = PaddleOCR(use_angle_cls=False, lang='en', enable_mkldnn=False)
+        # Dynamically set det_limit_side_len to the maximum dimension of preprocessed image to prevent internal downscaling
+        max_side = max(img_cv_processed.shape[0], img_cv_processed.shape[1])
+        ocr_engine = PaddleOCR(use_angle_cls=False, lang='en', enable_mkldnn=False, det_limit_side_len=max_side)
         ocr_results = ocr_engine.ocr(img_cv_processed, cls=False)
         
         # ── 5. READING ORDER SORTING & NOISE FILTERING ──
@@ -214,9 +220,17 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
                 text = item[1][0]
                 conf = float(item[1][1])
 
+                x0 = min(box[0][0], box[3][0])
+                y0 = min(box[0][1], box[1][1])
+                x1 = max(box[1][0], box[2][0])
+                y1 = max(box[2][1], box[3][1])
+
                 ocr_blocks.append({
                     "text": text,
-                    "confidence": conf
+                    "confidence": conf,
+                    "bbox": box,
+                    "width": float(x1 - x0),
+                    "height": float(y1 - y0)
                 })
                 
                 # Noise Filtration:
@@ -225,11 +239,6 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
                 if len(text) < 2 and not text.isdigit():
                     continue
 
-                x0 = min(box[0][0], box[3][0])
-                y0 = min(box[0][1], box[1][1])
-                x1 = max(box[1][0], box[2][0])
-                y1 = max(box[2][1], box[3][1])
-                
                 raw_blocks.append({
                     "text": text,
                     "x0": x0,
@@ -271,17 +280,28 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
                     })
                     
             # Gap Analysis (Phases 1, 2, 3)
-            seen = set()
+            duplicate_drops = 0
             for line in lines:
-                # Sort blocks in the line horizontally
                 line_blocks = sorted(line['blocks'], key=lambda b: b['x0'])
                 
                 line_str = ""
                 for i, b in enumerate(line_blocks):
                     text = b['text']
-                    if text in seen:
+                    
+                    # Coordinate-based duplicate detection (horizontal check)
+                    is_dup = False
+                    for seen_b in line_blocks[:i]:
+                        if seen_b['text'] == text:
+                            # Calculate horizontal overlap
+                            overlap = max(0.0, min(b['x1'], seen_b['x1']) - max(b['x0'], seen_b['x0']))
+                            w_min = min(b['x1'] - b['x0'], seen_b['x1'] - seen_b['x0'])
+                            if w_min > 0 and overlap > 0.8 * w_min:
+                                is_dup = True
+                                break
+                    if is_dup:
+                        logger.info(f"[OCR_DEDUPLICATION_TELEMETRY] Duplicate block text='{text}' dropped on same line due to overlap.")
+                        duplicate_drops += 1
                         continue
-                    seen.add(text)
                     
                     if i > 0:
                         prev_b = line_blocks[i-1]
@@ -299,14 +319,14 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
                     
                 if line_str.strip():
                     extracted_lines.append(line_str.strip())
-
+ 
         final_text = "\n".join(extracted_lines).strip()
         duration_ms = int((time.time() - t_start) * 1000)
-
+ 
         # Telemetry requirement
         logger.info(f"[OCR_PROVIDER] provider=PaddleOCR")
-        logger.info(f"[OCR_RESULT] page={page_idx+1} char_count={len(final_text)} duration_ms={duration_ms}")
-
+        logger.info(f"[OCR_RESULT] page={page_idx+1} char_count={len(final_text)} duration_ms={duration_ms} duplicate_drops={duplicate_drops}")
+ 
         result_queue.put({
             "success": True,
             "image_bytes": img_bytes,
@@ -315,7 +335,11 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, result_queue: 
             "dpi": selected_dpi,
             "blur_score": focus_score,
             "width": width_pts,
-            "height": height_pts
+            "height": height_pts,
+            "duplicate_drops": duplicate_drops,
+            "image_width_px": pil_image.width,
+            "image_height_px": pil_image.height,
+            "compression_quality": quality
         })
         
     except Exception as e:

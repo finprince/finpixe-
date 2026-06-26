@@ -2853,6 +2853,10 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
             user_val = getattr(kwargs.get('request'), 'user', None)
         run_gst_validation_engine(record, user=user_val)
 
+        # Safeguard: Keep copy of authoritative values before vendor master matching
+        auth_gstin = record.gstin
+        auth_invoice = record.supplier_invoice_no
+
         # ⚫ FAST PATH: vendor_id already validated and stored in staging — skip re-validation.
         # Expand status list to include READY, FINALIZED, VOUCHER_CREATED to cover all valid states.
         if record.vendor_id and record.validation_status in [
@@ -2946,6 +2950,14 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
                 
                 # Proceed to Pending Purchase evaluation regardless of auto_save.
                 pass
+
+        # Safeguard: Ensure master-data matching does not overwrite correct extracted values
+        if record.gstin != auth_gstin:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] Overwrite of gstin from '{auth_gstin}' to '{record.gstin}' blocked.")
+            record.gstin = auth_gstin
+        if record.supplier_invoice_no != auth_invoice:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] Overwrite of invoice_no from '{auth_invoice}' to '{record.supplier_invoice_no}' blocked.")
+            record.supplier_invoice_no = auth_invoice
 
         # Sync vendor name from master if found
         # NOTE: keep the user-edited vendor_name from extracted_data for the ui_row
