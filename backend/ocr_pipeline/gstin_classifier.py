@@ -110,6 +110,7 @@ class GSTINOwnershipClassifier:
         if vendor_name and tenant_id:
             try:
                 vendor_objs = VendorMasterBasicDetail.objects.filter(tenant_id=tenant_id, vendor_name__iexact=vendor_name)
+                candidates_info_was_empty = len(candidates_info) == 0
                 for v in vendor_objs:
                     gst_details = VendorMasterGSTDetails.objects.filter(vendor_basic_detail=v)
                     for g in gst_details:
@@ -118,7 +119,7 @@ class GSTINOwnershipClassifier:
                             registered_vendor_gstins.append(g_canon)
                             if g_canon in candidates_info:
                                 candidates_info[g_canon]["scores"]["VENDOR"] += 100.0
-                            else:
+                            elif candidates_info_was_empty:
                                 candidates_info[g_canon] = {
                                     "scores": {"VENDOR": 100.0, "BUYER": 0.0, "CONSIGNEE": 0.0},
                                     "raw_values": {g.gstin}

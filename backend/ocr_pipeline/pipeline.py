@@ -2701,6 +2701,13 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
         branch_name = (canonical.get("branch") or record.branch or "").strip()
         tenant_id = str(record.tenant_id)
 
+        # [PHASE 9] Cache authoritative extracted fields before vendor/inventory matching
+        _authoritative_gstin = gstin
+        _authoritative_invoice_no = invoice_no
+        _authoritative_total_invoice_value = canonical.get("total_invoice_value")
+        _authoritative_total_amount = canonical.get("total_amount")
+        _authoritative_grand_total = canonical.get("grand_total")
+
         logger.info(
             f"[VENDOR_VALIDATION_SUCCESS] record={record.id} "
             f"gstin={gstin} invoice_no={invoice_no} branch={branch_name} "
@@ -2790,6 +2797,7 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
             record.id, invoice_no, len(items), (record.extracted_data or {}).get("item_status"), list((record.extracted_data or {}).keys())
         )
 
+        t_start_val = time.time()
         from .inventory_validation import InventoryItemValidationService
         v_id = record.vendor_id
         v_gst = gstin or record.gstin
@@ -2840,6 +2848,23 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
         # This ensures the GST engine at the next block uses the same items that were
         # persisted to extracted_data, not the stale pre-inventory-validation list.
         items = inv_val["items"]
+
+        # [PHASE 9] Restore authoritative fields if overwritten by registry matching
+        if record.gstin and record.gstin != _authoritative_gstin and _authoritative_gstin:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] field=gstin registry_value='{record.gstin}' restoring='{_authoritative_gstin}'")
+            record.gstin = _authoritative_gstin
+        if record.supplier_invoice_no and record.supplier_invoice_no != _authoritative_invoice_no and _authoritative_invoice_no:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] field=supplier_invoice_no registry_value='{record.supplier_invoice_no}' restoring='{_authoritative_invoice_no}'")
+            record.supplier_invoice_no = _authoritative_invoice_no
+        if canonical.get("total_invoice_value") != _authoritative_total_invoice_value:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] field=total_invoice_value registry_value='{canonical.get('total_invoice_value')}' restoring='{_authoritative_total_invoice_value}'")
+            canonical["total_invoice_value"] = _authoritative_total_invoice_value
+        if canonical.get("total_amount") != _authoritative_total_amount:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] field=total_amount registry_value='{canonical.get('total_amount')}' restoring='{_authoritative_total_amount}'")
+            canonical["total_amount"] = _authoritative_total_amount
+        if canonical.get("grand_total") != _authoritative_grand_total:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] field=grand_total registry_value='{canonical.get('grand_total')}' restoring='{_authoritative_grand_total}'")
+            canonical["grand_total"] = _authoritative_grand_total
         
         if "assembled_exports" in record.extracted_data and record.extracted_data["assembled_exports"]:
             record.extracted_data["assembled_exports"][0]["items"] = inv_val["items"]
@@ -2853,9 +2878,21 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
             user_val = getattr(kwargs.get('request'), 'user', None)
         run_gst_validation_engine(record, user=user_val)
 
+        val_duration_ms = int((time.time() - t_start_val) * 1000) if 't_start_val' in locals() else 0
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "Validator",
+            {"items_count": len(items)},
+            {"item_status": inv_val.get("item_status"), "validation_status": record.validation_status},
+            val_duration_ms
+        )
+
         # Safeguard: Keep copy of authoritative values before vendor master matching
         auth_gstin = record.gstin
         auth_invoice = record.supplier_invoice_no
+        auth_total_invoice_value = canonical.get("total_invoice_value")
+        auth_total_amount = canonical.get("total_amount")
+        auth_grand_total = canonical.get("grand_total")
 
         # ⚫ FAST PATH: vendor_id already validated and stored in staging — skip re-validation.
         # Expand status list to include READY, FINALIZED, VOUCHER_CREATED to cover all valid states.
@@ -2958,6 +2995,15 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
         if record.supplier_invoice_no != auth_invoice:
             logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] Overwrite of invoice_no from '{auth_invoice}' to '{record.supplier_invoice_no}' blocked.")
             record.supplier_invoice_no = auth_invoice
+        if canonical.get("total_invoice_value") != auth_total_invoice_value:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] Overwrite of total_invoice_value from '{canonical.get('total_invoice_value')}' to '{auth_total_invoice_value}' blocked.")
+            canonical["total_invoice_value"] = auth_total_invoice_value
+        if canonical.get("total_amount") != auth_total_amount:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] Overwrite of total_amount from '{canonical.get('total_amount')}' to '{auth_total_amount}' blocked.")
+            canonical["total_amount"] = auth_total_amount
+        if canonical.get("grand_total") != auth_grand_total:
+            logger.warning(f"[SAFEGUARD_OVERWRITE_PREVENTED] Overwrite of grand_total from '{canonical.get('grand_total')}' to '{auth_grand_total}' blocked.")
+            canonical["grand_total"] = auth_grand_total
 
         # Sync vendor name from master if found
         # NOTE: keep the user-edited vendor_name from extracted_data for the ui_row
@@ -3269,6 +3315,7 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
                     raise val_ex
 
                 # Save the voucher utilizing the canonical serializer which runs full posting, syncs inventory and vendor portal
+                t_start_db = time.time()
                 logger.info(f"[PURCHASE_DB_INSERT_START] record={record.id} vendor_id={vendor.id} invoice_no={invoice_no}")
                 try:
                     voucher_main = serializer.save(tenant_id=tenant_id)
@@ -3297,6 +3344,15 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
                     f"[POST_SAVE_VERIFICATION_STATUS] record={record.id} voucher_id={voucher_main.id} "
                     f"parent_exists={parent_exists} due_exists={due_exists} transit_exists={transit_exists} "
                     f"items_exists={items_exists} inr_exists={inr_exists} foreign_exists={foreign_exists}"
+                )
+
+                db_duration_ms = int((time.time() - t_start_db) * 1000) if 't_start_db' in locals() else 0
+                from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+                PipelineStageTelemetry.record_stage(
+                    "Database",
+                    serializer_data,
+                    {"voucher_id": voucher_main.id, "parent_exists": parent_exists},
+                    db_duration_ms
                 )
                 
                 if not parent_exists or not (due_exists and transit_exists and items_exists):

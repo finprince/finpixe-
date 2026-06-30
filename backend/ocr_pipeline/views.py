@@ -157,6 +157,8 @@ class CleanOCRStagingView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        import time
+        t_start_api = time.time()
         """
         PRODUCTION-HARDENED: 
         1. Deduplicate by hash
@@ -378,6 +380,15 @@ class CleanOCRStagingView(views.APIView):
         # Calculate estimated delay (assuming ~2s per invoice per worker)
         estimated_delay = (depth * 2) / max(int(os.getenv('AI_GLOBAL_CONCURRENCY', '20')), 1)
 
+        api_duration_ms = int((time.time() - t_start_api) * 1000) if 't_start_api' in locals() else 0
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "API",
+            {"files_received": len(files)},
+            {"success": True, "queued_count": queued_count, "duplicate_count": duplicate_count},
+            api_duration_ms
+        )
+
         return Response({
             "success": True,
             "job_id": str(job.id),
@@ -505,6 +516,25 @@ class CleanOCRStagingView(views.APIView):
         branch = fix_encoding_corruption(str(getattr(r, 'branch', None) or header.get("branch") or supplier.get("branch") or norm.get("branch") or "—"))
         bill_from = fix_encoding_corruption(norm.get("bill_from", ""))
         bill_to = fix_encoding_corruption(norm.get("bill_to", "") or norm.get("billing_address", ""))
+
+        # ── [BILL_TO_UI_FALLBACK] Apply window slicer if bill_to is empty but OCR text exists ──
+        if not bill_to:
+            _ocr_text = norm.get("_pdf_ocr_text") or norm.get("_raw_text") or ""
+            if _ocr_text:
+                try:
+                    import re as _re
+                    _start = r"(?:Buyer\s*\(Bill\s*to\)|Details\s*of\s*Receiver\s*\(Billed\s*to\)|Details\s*of\s*Receiver|Billed\s*to|Dtails\s*oi\s*Rocolvor\s*Dlcd\s*to|Dlcd\s*to|Bill\s*to)"
+                    _stop = r"(?:Place\s*of\s*Supply|Puce\s*ol\s*Supply|Dated|Delivery\s*Note|Invoice\s*No|Voucher\s*No|Total|Description|Sl\s*No|E-Way|E\s*WAY)"
+                    _m = _re.search(fr"{_start}(.*?){_stop}", _ocr_text, _re.DOTALL | _re.IGNORECASE)
+                    if not _m:
+                        _m = _re.search(fr"{_start}(.{{1,500}}?)", _ocr_text, _re.DOTALL | _re.IGNORECASE)
+                    if _m:
+                        from .normalize import _clean_bill_to_ocr_extract
+                        _raw_to = _clean_bill_to_ocr_extract(_m.group(1).strip())
+                        bill_to = fix_encoding_corruption(_raw_to)
+                        logger.info(f"[BILL_TO_UI_FALLBACK_HIT] record_id={getattr(r, 'id', None)} value={repr(bill_to[:80])}")
+                except Exception as _bte:
+                    logger.warning(f"[BILL_TO_UI_FALLBACK_FAILED] record_id={getattr(r, 'id', None)} err={_bte}")
         inv_no = (
             getattr(r, 'supplier_invoice_no', None) or 
             header.get("invoice_no") or 

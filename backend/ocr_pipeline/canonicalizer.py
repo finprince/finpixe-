@@ -307,6 +307,8 @@ class DocumentIdentityCanonicalizer:
         and repair confidence >= 0.95.
         Generates raw_* and canonical_* fields.
         """
+        import time
+        t_start_canon = time.time()
         import copy
         inv = copy.deepcopy(invoice)
         
@@ -421,4 +423,29 @@ class DocumentIdentityCanonicalizer:
             new_items.append(item)
             
         inv["items"] = new_items
+
+        # Log any field changes as [CANONICALIZER_MUTATION]
+        business_fields = ["invoice_no", "gstin", "invoice_date", "vendor_name"]
+        for f in business_fields:
+            orig = invoice.get(f, "")  # original invoice passed in
+            new_v = inv.get(f, "")
+            if str(orig) != str(new_v):
+                logger.info(f"[CANONICALIZER_MUTATION] field={f} before='{orig}' after='{new_v}'")
+        # Also log for HSN per item
+        for i, item in enumerate(inv.get("items", [])):
+            orig_items = invoice.get("items", [])
+            orig_item = orig_items[i] if i < len(orig_items) else {}
+            orig_hsn = orig_item.get("hsn_sac") or orig_item.get("hsn_code") or orig_item.get("hsn") or orig_item.get("sac") or ""
+            if str(orig_hsn).strip() != str(item.get("hsn_sac","")).strip():
+                logger.info(f"[CANONICALIZER_MUTATION] item={i} field=hsn_sac before='{orig_hsn}' after='{item.get('hsn_sac')}'")
+
+        canon_duration_ms = int((time.time() - t_start_canon) * 1000) if 't_start_canon' in locals() else 0
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "Canonicalizer",
+            invoice,
+            inv,
+            canon_duration_ms
+        )
+
         return inv

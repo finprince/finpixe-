@@ -223,13 +223,13 @@ For each line processed, maintain a internal state `last_line_was_amount`:
 ### OUTPUT FORMAT:
 Return an array of objects:
 [
-  {
+  {{
     "date": "YYYY-MM-DD",
     "narration": "Cleaned narration string",
     "debit": 123.45,
     "credit": null,
     "ref_no": "REF12345678"
-  }
+  }}
 ]
 
 Bank statement content:
@@ -319,10 +319,159 @@ def _call_qwen(text_payload: str | None, mime_type: str, file_bytes: bytes, file
     return raw
 
 
+def _call_qwen_hybrid(img_bytes: bytes, page_text: str, page_idx: int, file_name: str, total_pages: int, metrics: ExtractionMetrics) -> str:
+    from core.ai_proxy import api_key_manager, execute_with_retry
+    from ocr_pipeline.extraction import ai_concurrency_gate
+    
+    api_key = api_key_manager.get_healthy_key()
+    if not api_key:
+        raise RuntimeError("No healthy Qwen API keys available.")
+        
+    is_first = (page_idx == 0)
+    is_last = (page_idx == total_pages - 1)
+    
+    balance_hint = ""
+    if is_first:
+        balance_hint += "\n- This is the START of the statement. Extract the 'opening_balance' as a number."
+    if is_last:
+        balance_hint += "\n- This is the END of the statement. Extract the 'closing_balance' as a number."
+        
+    prompt_text = f"### [PAGE {page_idx + 1} OCR DATA]\n{page_text}\n\n{_PROMPT_BINARY}{balance_hint}"
+    
+    prompt = [
+        prompt_text,
+        {
+            'inline_data': {
+                'mime_type': 'image/jpeg',
+                'data': img_bytes
+            }
+        }
+    ]
+    
+    tenant_id = 'system'
+    logger.info(f"📡 AI Hybrid Dispatch: page={page_idx+1}/{total_pages}, file={file_name}, text_size={len(prompt_text)}")
+    
+    t_ai_start = time.monotonic()
+    with ai_concurrency_gate(tenant_id):
+        raw = execute_with_retry(
+            prompt=prompt,
+            request_data={
+                'type': 'extraction',
+                'prompt': prompt_text,
+                'page_index': page_idx + 1,
+                'total_pages': total_pages
+            },
+            api_key=api_key,
+        )
+    
+    if not raw:
+        raise ValueError(f"CRITICAL: Empty response received from AI for {file_name} page {page_idx+1}")
+        
+    return raw
+
+def _process_single_page_shared(page_idx: int, temp_pdf_path: str, file_name: str, total_pages: int, metrics: ExtractionMetrics):
+    from ocr_pipeline.isolated_ocr_service import run_isolated_page_extraction
+    
+    logger.info(f"Rendering & running OCR for page {page_idx+1}/{total_pages}...")
+    
+    dpi = int(os.getenv("OCR_DEFAULT_DPI", "350"))
+    iso_res = run_isolated_page_extraction(temp_pdf_path, page_idx, dpi=dpi)
+    
+    if not iso_res.get("success"):
+        raise RuntimeError(f"OCR isolation failure on page {page_idx+1}: {iso_res.get('error')}")
+        
+    img_bytes = iso_res["image_bytes"]
+    page_text = iso_res["text"]
+    
+    # Normalize layout whitespace
+    page_text = re.sub(r'[ \t]+', ' ', page_text).strip()
+    page_text = re.sub(r'(\r\n|\r|\n){2,}', '\n\n', page_text)
+    
+    raw_response = _call_qwen_hybrid(img_bytes, page_text, page_idx, file_name, total_pages, metrics)
+    page_rows = _parse_response(raw_response)
+    
+    return raw_response, page_rows
+
+def _extract_pdf_paged_shared(file_bytes: bytes, file_name: str, metrics: ExtractionMetrics) -> list:
+    import tempfile
+    import pypdfium2 as pdfium
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
+        temp_pdf.write(file_bytes)
+        temp_pdf_path = temp_pdf.name
+        
+    try:
+        pdf = pdfium.PdfDocument(temp_pdf_path)
+        total_pages = len(pdf)
+        pdf.close()
+        
+        metrics.total_pages = total_pages
+        metrics.total_chunks = total_pages
+        
+        all_results = [None] * total_pages
+        logger.info(f"🚀 Shared OCR Parallel Dispatch: {total_pages} pages with 3 workers")
+        
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_to_idx = {}
+            for i in range(total_pages):
+                future = executor.submit(
+                    _process_single_page_shared,
+                    i, temp_pdf_path, file_name, total_pages, metrics
+                )
+                future_to_idx[future] = i
+                
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    raw_response, page_rows = future.result()
+                    
+                    if idx == 0:
+                        metrics.opening_balance = _extract_balance_from_raw(raw_response, "opening")
+                    if idx == total_pages - 1:
+                        metrics.closing_balance = _extract_balance_from_raw(raw_response, "closing")
+                        
+                    all_results[idx] = page_rows
+                    metrics.successful_chunks += 1
+                    logger.info(f"📥 Page {idx+1}/{total_pages}: SUCCESS ({len(page_rows)} rows)")
+                except Exception as e:
+                    metrics.failed_chunks += 1
+                    logger.error(f"⚠️ Page {idx+1}/{total_pages}: FAILED - {e}", exc_info=True)
+                    all_results[idx] = []
+                    
+        if metrics.total_chunks > 0:
+            failure_rate = metrics.failed_chunks / metrics.total_chunks
+            if failure_rate > 0.3:
+                raise ValueError(f"CRITICAL: Shared OCR extraction failed for {failure_rate*100:.0f}% of document. Pipeline aborted.")
+                
+        merged_rows = []
+        for page_rows in all_results:
+            if page_rows:
+                merged_rows.extend(page_rows)
+                
+        return merged_rows
+        
+    finally:
+        if os.path.exists(temp_pdf_path):
+            try:
+                os.remove(temp_pdf_path)
+            except Exception as e:
+                logger.warning(f"Failed to remove temp file {temp_pdf_path}: {e}")
+
 def _extract_pdf_paged(file_bytes: bytes, file_name: str, metrics: ExtractionMetrics) -> list:
     """
     Split PDF into chunks and process in parallel with failure isolation.
+    Uses shared pypdfium2 / PaddleOCR engine when feature flagged.
     """
+    try:
+        from django.conf import settings
+        USE_SHARED_OCR = getattr(settings, "USE_SHARED_OCR_FOR_STATEMENTS", True)
+    except Exception:
+        USE_SHARED_OCR = os.getenv("USE_SHARED_OCR_FOR_STATEMENTS", "true").lower() == "true"
+
+    if USE_SHARED_OCR:
+        return _extract_pdf_paged_shared(file_bytes, file_name, metrics)
+
     import fitz
     from concurrent.futures import ThreadPoolExecutor, as_completed
     

@@ -689,6 +689,7 @@ Return ONLY valid JSON.
                 logger.warning(f"[FORENSIC_PAGE_DTO_LOG_ERR] {le}")
             return cached_res
 
+        t_start_pb = time.time()
         # Configurable routing mode (Digital vs Scanned vs Low-Confidence)
         routing_mode = os.getenv("OCR_ROUTING_MODE", "dynamic").lower()
         conf_threshold = float(os.getenv("OCR_CONFIDENCE_THRESHOLD", "0.85"))
@@ -716,16 +717,25 @@ Return ONLY valid JSON.
         else:
             page_isolated_prompt = f"{base_prompt}\n\n### [PAGE {page_idx+1} OCR DATA]\n{page_ocr_text}"
         
-        file_b64 = base64.b64encode(segment_bytes).decode('utf-8')
+        file_b64 = base64.b64encode(segment_bytes).decode('utf-8') if active_mode != "text" else None
         
         # Log payload telemetry
         width_px = iso_res.get('image_width_px', 'unknown') if iso_res else 'unknown'
         height_px = iso_res.get('image_height_px', 'unknown') if iso_res else 'unknown'
         image_resolution = f"{width_px}x{height_px}"
         compression_quality = iso_res.get('compression_quality', 'unknown') if iso_res else 'unknown'
-        payload_size_kb = len(file_b64) * 3 / 4 / 1024
+        payload_size_kb = (len(file_b64) * 3 / 4 / 1024) if file_b64 else (len(page_isolated_prompt) / 1024)
         
         logger.info(f"[QWEN_PAYLOAD_TELEMETRY] page={page_idx+1} payload_size_kb={payload_size_kb:.2f} resolution={image_resolution} compression_quality={compression_quality}")
+        
+        pb_duration_ms = int((time.time() - t_start_pb) * 1000)
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "Prompt Builder",
+            {"routing_mode": routing_mode, "active_mode": active_mode},
+            {"prompt_len": len(page_isolated_prompt)},
+            pb_duration_ms
+        )
         
         # ── [AI_PAYLOAD_CONTRACT_FIX] ──
         # Ensure ALL required fields propagate at the top level for UnifiedWorker routing.
@@ -736,7 +746,7 @@ Return ONLY valid JSON.
             'type': 'extraction',
             'prompt': page_isolated_prompt,
             'image_data': file_b64,
-            'mime_type': 'image/jpeg',
+            'mime_type': 'image/jpeg' if file_b64 else None,
             'voucher_type': voucher_type,
             'page_index': page_idx + 1,
             'page_number': page_idx + 1,
