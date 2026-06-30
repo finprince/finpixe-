@@ -95,8 +95,16 @@ def normalize_amount(amount: Any) -> float:
     if isinstance(amount, (int, float)):
         return float(amount)
     raw = str(amount).strip()
-    raw = re.sub(r'^(?:Rs\.?|INR|USD|EUR|GBP|₹|\$|€|£)\s*', '', raw, flags=re.IGNORECASE)
-    compacted = re.sub(r'(?<=\d)\s+(?=\d)', '', raw)
+    try:
+        # Attempt direct parsing first if it is a valid numeric string
+        direct_clean = re.sub(r'^(?:Rs\.?|INR|USD|EUR|GBP|₹|\$|€|£)\s*', '', raw, flags=re.IGNORECASE)
+        direct_clean = direct_clean.replace(',', '')
+        return float(direct_clean)
+    except (ValueError, TypeError):
+        pass
+
+    raw_sub = re.sub(r'^(?:Rs\.?|INR|USD|EUR|GBP|₹|\$|€|£)\s*', '', raw, flags=re.IGNORECASE)
+    compacted = re.sub(r'(?<=\d)\s+(?=\d)', '', raw_sub)
     ocr_fixed = compacted.translate(_OCR_DIGIT_MAP)
     try:
         cleaned = re.sub(r'[^\d.-]', '', ocr_fixed)
@@ -274,6 +282,34 @@ def lossless_preserve(existing: Any, incoming: Any, field_name: str = "") -> Any
     
     return existing
 
+def _clean_bill_to_ocr_extract(raw: str) -> str:
+    """
+    Post-processes an OCR-window-extracted bill_to string.
+    Handles two common low-quality OCR artifacts:
+      1. OCR prefix glued to company name  e.g. "NaneACCUTURN" → "ACCUTURN"
+      2. Trailing table-column noise words that bleed into the same text run
+         e.g. "ACCUTURN PVT LTD Wachillo No. Adess13nT Mode ol Transport..."
+    Only applies light transformations; does NOT modify if < 5 chars or empty.
+    """
+    if not raw or len(raw.strip()) < 5:
+        return raw
+    v = raw.strip()
+    # Strip known OCR-garbled label prefixes glued directly to the company name
+    v = re.sub(r'^(?:Nane?(?=[A-Z])|Name?(?=[A-Z])|Nam?e?:\s*|Nane:\s*)', '', v).strip()
+    # Strip trailing table column labels and noise that follow the company/address text
+    _BILL_TO_NOISE_STOP = (
+        r'\s+(?:'
+        r'Wach(?:illo|illo)?\s*No|Machine\s*No|'
+        r'Mode\s*(?:ol|of)\s*Transport|'
+        r'Adess\s*\d|Address\s*\d|'
+        r'GSTN(?:UD|:)|GSTIN\s*(?:UD|:)|'
+        r'Buyer\s*Order|E\s*WAY(?:OLL|BILL|\s*Bill)'
+        r')'
+    )
+    parts = re.split(_BILL_TO_NOISE_STOP, v, maxsplit=1, flags=re.IGNORECASE)
+    v = parts[0].strip().rstrip(' |,-')
+    return v
+
 def sanitize_address(addr: str, field_name: str = "address") -> str:
     """
     CRITICAL ADDRESS SANITIZATION (Non-Destructive)
@@ -323,6 +359,8 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
     STRICT CANONICAL NORMALIZER.
     Provides ONE authoritative snake_case record.
     """
+    import time
+    t_start_norm = time.time()
     tenant_gstin = None
     tenant_name = None
     tenant_address_keywords = set()
@@ -450,19 +488,20 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
 
             if is_empty(raw_to):
                 logger.info("[BILL_TO_WINDOW_ATTEMPT]")
-                # Buyer (Bill to) -> Stop Tokens
-                # Expanded end tokens to handle multiline/collapsed OCR better
-                stop_tokens = r"(?:Place\s*of\s*Supply|Dated|Delivery\s*Note|Invoice\s*No|Voucher\s*No|Total|Description|Sl\s*No)"
-                match = re.search(fr"Buyer\s*\(Bill\s*to\)(.*?){stop_tokens}", ocr_text, re.DOTALL | re.IGNORECASE)
+                # Buyer (Bill to) / Details of Receiver (Billed to) -> Stop Tokens
+                # Expanded start patterns and stop tokens to handle multiline/collapsed OCR better and handle OCR misreads
+                start_pattern = r"(?:Buyer\s*\(Bill\s*to\)|Details\s*of\s*Receiver\s*\(Billed\s*to\)|Details\s*of\s*Receiver|Billed\s*to|Dtails\s*oi\s*Rocolvor\s*Dlcd\s*to|Dlcd\s*to|Bill\s*to)"
+                stop_tokens = r"(?:Place\s*of\s*Supply|Puce\s*ol\s*Supply|Dated|Delivery\s*Note|Invoice\s*No|Voucher\s*No|Total|Description|Sl\s*No|E-Way|E\s*WAY)"
+                match = re.search(fr"{start_pattern}(.*?){stop_tokens}", ocr_text, re.DOTALL | re.IGNORECASE)
                 if match: 
-                    raw_to = match.group(1).strip()
-                    logger.info(f"[BILL_TO_WINDOW_HIT] len={len(raw_to)}")
+                    raw_to = _clean_bill_to_ocr_extract(match.group(1).strip())
+                    logger.info(f"[BILL_TO_WINDOW_HIT] raw_len={len(match.group(1).strip())} cleaned_len={len(raw_to)} value={repr(raw_to[:80])}")
                 else:
                     # Try a more desperate match if the above failed
-                    match = re.search(r"Buyer\s*\(Bill\s*to\)(.{1,500}?)", ocr_text, re.DOTALL | re.IGNORECASE)
+                    match = re.search(fr"{start_pattern}(.{{1,500}}?)", ocr_text, re.DOTALL | re.IGNORECASE)
                     if match:
-                        raw_to = match.group(1).strip()
-                        logger.info(f"[BILL_TO_WINDOW_DESPERATE_HIT] len={len(raw_to)}")
+                        raw_to = _clean_bill_to_ocr_extract(match.group(1).strip())
+                        logger.info(f"[BILL_TO_WINDOW_DESPERATE_HIT] raw_len={len(match.group(1).strip())} cleaned_len={len(raw_to)} value={repr(raw_to[:80])}")
 
     # ── [TENANT-BRANCH ISOLATION GUARD] ──
     # Wipe vendor address if it leaks customer (tenant) data
@@ -694,6 +733,15 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
     logger.info(f"[HSN_EXPORT_READY] inv={record.get('invoice_no')} hsn_sac='{record.get('hsn_sac')}'")
     logger.info(f"[EXPORT_FINAL_ROW] inv={record.get('invoice_no')} name={record.get('vendor_name')} total={record.get('total_invoice_value')}")
     
+    norm_duration_ms = int((time.time() - t_start_norm) * 1000) if 't_start_norm' in locals() else 0
+    from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+    PipelineStageTelemetry.record_stage(
+        "Normalizer",
+        invoice if isinstance(invoice, dict) else {},
+        record,
+        norm_duration_ms
+    )
+
     return record
 
 def resolve_uom(raw_uom: str, tenant_id: str = None) -> str:
@@ -960,6 +1008,8 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
                 invoice = unwrapped
 
     # ── [FORENSIC NORMALIZATION LOGS] ──
+    import time
+    t_start_trans = time.time()
     import hashlib
     input_hash = hashlib.md5(json.dumps(invoice, sort_keys=True, default=str).encode()).hexdigest()
     logger.info(f"[NORMALIZATION_START] record_id={invoice.get('record_id')} invoice_no={invoice.get('invoice_no')}")
@@ -1120,6 +1170,26 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
                 
     output_hash = hashlib.md5(json.dumps(canonical_record, sort_keys=True, default=str).encode()).hexdigest()
     logger.info(f"[NORMALIZATION_OUTPUT_HASH] {output_hash}")
+
+    # [PHASE 6] Translator Verification Diff
+    monitored_fields = ["invoice_no", "gstin", "vendor_name", "total_invoice_value", "total_cgst", "total_sgst", "total_igst"]
+    input_vals = {f: invoice.get(f) if isinstance(invoice, dict) else None for f in monitored_fields}
+    for f in monitored_fields:
+        in_v = input_vals.get(f)
+        out_v = canonical_record.get(f)
+        if str(in_v) != str(out_v):
+            logger.info(f"[TRANSLATOR_MUTATION] field={f} input='{in_v}' output='{out_v}'")
+        else:
+            logger.info(f"[TRANSLATOR_PASSTHROUGH] field={f} value='{out_v}'")
+
+    trans_duration_ms = int((time.time() - t_start_trans) * 1000) if 't_start_trans' in locals() else 0
+    from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+    PipelineStageTelemetry.record_stage(
+        "Translator",
+        {"input_keys_count": len(invoice) if isinstance(invoice, dict) else 0},
+        {"output_keys_count": len(canonical_record)},
+        trans_duration_ms
+    )
 
     return canonical_record
 

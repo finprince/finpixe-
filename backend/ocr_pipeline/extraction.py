@@ -3,7 +3,7 @@ import hashlib
 import logging
 import re
 import base64
-import fitz  # PyMuPDF
+# Unused fitz import removed for Phase 1
 import io
 import time
 import concurrent.futures
@@ -664,7 +664,7 @@ RULES:
 Return ONLY valid JSON.
 """
 
-    def _call_ai_for_page(segment_bytes, page_ocr_text, page_idx, total_pages, item_id, job_id=None, wait_for_result=True, tenant_id=None, is_rescan=False, rescan_history_id=None):
+    def _call_ai_for_page(segment_bytes, page_ocr_text, page_idx, total_pages, item_id, job_id=None, wait_for_result=True, tenant_id=None, is_rescan=False, rescan_history_id=None, native_text="", ocr_blocks=None, avg_conf=1.0, iso_res=None):
         """
         HARD ISOLATION RULE: ONE PAGE -> ONE OCR TEXT -> ONE IMAGE -> ONE REQUEST
         PHASE 9: CACHE AWARE.
@@ -689,11 +689,53 @@ Return ONLY valid JSON.
                 logger.warning(f"[FORENSIC_PAGE_DTO_LOG_ERR] {le}")
             return cached_res
 
-        # Ensure ONLY this page's OCR text is included. 
-        # Prefix caching requires base_prompt (rules & schema) to be placed BEFORE page_ocr_text.
-        page_isolated_prompt = f"{base_prompt}\n\n### [PAGE {page_idx+1} OCR DATA]\n{page_ocr_text}"
+        t_start_pb = time.time()
+        # Configurable routing mode (Digital vs Scanned vs Low-Confidence)
+        routing_mode = os.getenv("OCR_ROUTING_MODE", "dynamic").lower()
+        conf_threshold = float(os.getenv("OCR_CONFIDENCE_THRESHOLD", "0.85"))
+        min_digital_len = int(os.getenv("OCR_MIN_DIGITAL_TEXT_LEN", "20"))
         
-        file_b64 = base64.b64encode(segment_bytes).decode('utf-8')
+        active_mode = "hybrid" # default
+        
+        if routing_mode == "dynamic":
+            if native_text and len(native_text.strip()) >= min_digital_len:
+                active_mode = "text" # Digital PDF -> Native Text
+            elif not ocr_blocks or avg_conf < conf_threshold:
+                active_mode = "vision" # Scanned / Low confidence -> Vision Priority
+            else:
+                active_mode = "hybrid" # High confidence OCR -> Hybrid
+        else:
+            active_mode = routing_mode
+            
+        logger.info(f"[PROMPT_ROUTING] page={page_idx+1} routing_mode={routing_mode} avg_conf={avg_conf:.4f} native_len={len(native_text) if native_text else 0} active_mode={active_mode}")
+        
+        if active_mode == "text":
+            prompt_text = native_text if native_text.strip() else page_ocr_text
+            page_isolated_prompt = f"{base_prompt}\n\n### [PAGE {page_idx+1} NATIVE TEXT]\n{prompt_text}"
+        elif active_mode == "vision":
+            page_isolated_prompt = base_prompt
+        else:
+            page_isolated_prompt = f"{base_prompt}\n\n### [PAGE {page_idx+1} OCR DATA]\n{page_ocr_text}"
+        
+        file_b64 = base64.b64encode(segment_bytes).decode('utf-8') if active_mode != "text" else None
+        
+        # Log payload telemetry
+        width_px = iso_res.get('image_width_px', 'unknown') if iso_res else 'unknown'
+        height_px = iso_res.get('image_height_px', 'unknown') if iso_res else 'unknown'
+        image_resolution = f"{width_px}x{height_px}"
+        compression_quality = iso_res.get('compression_quality', 'unknown') if iso_res else 'unknown'
+        payload_size_kb = (len(file_b64) * 3 / 4 / 1024) if file_b64 else (len(page_isolated_prompt) / 1024)
+        
+        logger.info(f"[QWEN_PAYLOAD_TELEMETRY] page={page_idx+1} payload_size_kb={payload_size_kb:.2f} resolution={image_resolution} compression_quality={compression_quality}")
+        
+        pb_duration_ms = int((time.time() - t_start_pb) * 1000)
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "Prompt Builder",
+            {"routing_mode": routing_mode, "active_mode": active_mode},
+            {"prompt_len": len(page_isolated_prompt)},
+            pb_duration_ms
+        )
         
         # ── [AI_PAYLOAD_CONTRACT_FIX] ──
         # Ensure ALL required fields propagate at the top level for UnifiedWorker routing.
@@ -704,7 +746,7 @@ Return ONLY valid JSON.
             'type': 'extraction',
             'prompt': page_isolated_prompt,
             'image_data': file_b64,
-            'mime_type': 'image/jpeg',
+            'mime_type': 'image/jpeg' if file_b64 else None,
             'voucher_type': voucher_type,
             'page_index': page_idx + 1,
             'page_number': page_idx + 1,
@@ -712,6 +754,10 @@ Return ONLY valid JSON.
             'wait_for_result': wait_for_result,
             '_pdf_ocr_text': page_ocr_text,
             'file_hash': parent_hash,
+            'dpi': iso_res.get('dpi') if iso_res else None,
+            'image_width_px': width_px,
+            'image_height_px': height_px,
+            'compression_quality': compression_quality,
             
             # Forensic Fields
             'item_id': item_id,
@@ -958,8 +1004,8 @@ Return ONLY valid JSON.
             # Rendering and text extraction are offloaded to a subprocess.
             from .isolated_ocr_service import run_isolated_page_extraction
             
-            # Using 300 DPI natively for all pages, as per PaddleOCR integration requirements
-            dpi = 300
+            # Configurable rendering DPI via OCR_DEFAULT_DPI (default 350 DPI)
+            dpi = int(os.getenv("OCR_DEFAULT_DPI", "350"))
             
             logger.info(f"[ISOLATED_START] page={i+1} dpi={dpi}")
             from core.observability import metrics
@@ -979,14 +1025,37 @@ Return ONLY valid JSON.
             page_text = re.sub(r'[ \t]+', ' ', page_text).strip()
             page_text = re.sub(r'(\r\n|\r|\n){2,}', '\n\n', page_text) # Normalize multiple newlines
             
+            # Extract native text from PDF page for digital PDF routing
+            native_text = ""
+            try:
+                import pypdf
+                if file_path:
+                    with open(file_path, "rb") as f:
+                        reader = pypdf.PdfReader(f)
+                        if i < len(reader.pages):
+                            native_text = reader.pages[i].extract_text() or ""
+            except Exception as e:
+                logger.warning(f"[NATIVE_TEXT_ERR] Failed to extract native text on page {i+1}: {e}")
+
+            # Calculate avg_conf from ocr_blocks
+            ocr_blocks = iso_res.get("ocr_blocks") or []
+            avg_conf = 1.0
+            if ocr_blocks:
+                avg_conf = sum(b.get("confidence", 0.0) for b in ocr_blocks) / len(ocr_blocks)
+
             # ── [PHASE 9] MULTI-INVOICE DETECTION HINT ──
             if len(page_text) > 1000:
                 gst_matches = len(re.findall(r'\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}', page_text))
                 if gst_matches > 1:
                     logger.info(f"[MULTI_INVOICE_DETECTED] page={i+1} GST_count={gst_matches}")
 
-            # 3. Call Qwen/AI
-            res = _call_ai_for_page(img_bytes, page_text, i, page_count, item_id, job_id=job_id, wait_for_result=wait_for_result, tenant_id=tenant_id, is_rescan=is_rescan, rescan_history_id=rescan_history_id)
+            # 3. Call Qwen/AI with native text and confidence metadata
+            res = _call_ai_for_page(
+                img_bytes, page_text, i, page_count, item_id, 
+                job_id=job_id, wait_for_result=wait_for_result, tenant_id=tenant_id, 
+                is_rescan=is_rescan, rescan_history_id=rescan_history_id,
+                native_text=native_text, ocr_blocks=ocr_blocks, avg_conf=avg_conf, iso_res=iso_res
+            )
             
             # ── [PHASE 4] RELAXED VALIDATION & STATUS ──
             final_status = "EXTRACTED"
@@ -1103,7 +1172,8 @@ Return ONLY valid JSON.
             # ... render page ...
             from .isolated_ocr_service import run_isolated_page_extraction
             
-            dpi = 300
+            # Configurable rendering DPI via OCR_DEFAULT_DPI (default 350 DPI)
+            dpi = int(os.getenv("OCR_DEFAULT_DPI", "350"))
             
             iso_res = run_isolated_page_extraction(file_path, idx, dpi=dpi)
             
@@ -1119,12 +1189,29 @@ Return ONLY valid JSON.
             # Save the text for E2E verification
             with open(f"page{idx+1}_ocr.txt", "w", encoding="utf-8") as f:
                 f.write(page_text)
+
+            # Native text extraction for digital pages
+            native_text = ""
+            try:
+                import pypdf
+                if file_path:
+                    with open(file_path, "rb") as f:
+                        reader = pypdf.PdfReader(f)
+                        if idx < len(reader.pages):
+                            native_text = reader.pages[idx].extract_text() or ""
+            except Exception as e:
+                logger.warning(f"[NATIVE_TEXT_ERR] Failed to extract native text on page {idx+1}: {e}")
                 
             batch_data.append({
                 'img_bytes': iso_res["image_bytes"],
                 'ocr_text': page_text,
                 'ocr_blocks': iso_res.get("ocr_blocks") or [],
-                'idx': idx
+                'idx': idx,
+                'native_text': native_text,
+                'width_px': iso_res.get("image_width_px"),
+                'height_px': iso_res.get("image_height_px"),
+                'compression_quality': iso_res.get("compression_quality"),
+                'dpi': iso_res.get("dpi")
             })
             
         # 2. Call Batch AI

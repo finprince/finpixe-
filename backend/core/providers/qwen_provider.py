@@ -301,6 +301,19 @@ class QwenProvider(BaseAIProvider):
             f"images={len(batch_images) if batch_images else (1 if image_b64 else 0)}"
         )
 
+        image_b64_len = len(image_b64) if image_b64 else sum(len(img.get("data","")) for img in (batch_images or []))
+        payload_size_approx_kb = (image_b64_len * 3 / 4 / 1024) + (len(prompt_text) / 1024)
+        logger.info(f"[QWEN_PAYLOAD_TELEMETRY] BEFORE REQUEST attempt={attempt_label} model={model_name} payload_size_kb={payload_size_approx_kb:.2f} image_b64_bytes={image_b64_len} images={len(batch_images) if batch_images else (1 if image_b64 else 0)} prompt_tokens=PENDING completion_tokens=PENDING")
+
+        # Record Qwen Request telemetry
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "Qwen Request",
+            {"model": model_name, "prompt_len": len(prompt_text)},
+            {"payload_size_kb": payload_size_approx_kb},
+            0
+        )
+
         t_start = time.time()
         try:
             response = client.chat.completions.create(
@@ -311,6 +324,12 @@ class QwenProvider(BaseAIProvider):
             )
         except Exception as e:
             latency = time.time() - t_start
+            PipelineStageTelemetry.record_stage(
+                "Qwen Response",
+                {"status": "error", "error": str(e)[:100]},
+                {},
+                int(latency * 1000)
+            )
             logger.error(
                 f"[QWEN_API_ERROR] {attempt_label} model={model_name} "
                 f"latency={latency:.2f}s error={str(e)[:200]}"
@@ -320,12 +339,27 @@ class QwenProvider(BaseAIProvider):
             raise  # Retryable — propagate for execute_with_retry() to handle
 
         latency = time.time() - t_start
+        content_text = response.choices[0].message.content or "" if response.choices else ""
+        PipelineStageTelemetry.record_stage(
+            "Qwen Response",
+            {"status": "success"},
+            {"response_len": len(content_text), "choices_count": len(response.choices) if response.choices else 0},
+            int(latency * 1000)
+        )
         logger.info(f"[QWEN_REQUEST_END] {attempt_label}")
         logger.info(f"[QWEN_DURATION] {latency:.2f}s")
         logger.info(f"[QWEN_MODEL] {model_name}")
         logger.info(
             f"[QWEN_REQUEST_COMPLETE] {attempt_label} model={model_name} "
             f"latency={latency:.2f}s"
+        )
+
+        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+        PipelineStageTelemetry.record_stage(
+            "Qwen",
+            {"prompt_len": len(prompt_text), "has_image": bool(image_b64)},
+            {"response_len": len(response.choices[0].message.content or "") if response.choices else 0},
+            int(latency * 1000)
         )
 
         # ── TOKEN ACCOUNTING ──
@@ -413,6 +447,8 @@ class QwenProvider(BaseAIProvider):
                     f"finish_reason={response.choices[0].finish_reason} "
                     f"compute_mode={compute_mode}"
                 )
+
+                logger.info(f"[QWEN_PAYLOAD_TELEMETRY] AFTER REQUEST attempt={attempt_label} model={model_name} prompt_tokens={usage.prompt_tokens} completion_tokens={usage.completion_tokens} total_tokens={usage.total_tokens} latency_s={latency:.2f}")
 
                 # ── GPU-ONLY PRODUCTION GUARD ────────────────────────────────────────
                 # If compute mode is CPU, abort the request immediately.
