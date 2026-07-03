@@ -1,6 +1,6 @@
 # Failed Invoice RCA Report — Sprint 3
-Generated: 2026-06-21 10:29:41 UTC
-Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
+Generated: 2026-07-02 08:02:01 UTC
+Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
 
 > **Amendment 4**: Validation ran to completion across all 22 invoices.
 > All failures collected here — pipeline was NOT stopped on first failure.
@@ -8,34 +8,23 @@ Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
 ## 1. Failure Summary
 | Category | Count |
 |---|---|
-| Upload Failure | 20 |
-| Timeout | 2 |
-| Unknown | 1 |
+| Timeout | 23 |
 | **Total** | **23** |
 
 ## 2. Failure Detail by Category
-
-### Upload Failure
-
-- **IMG_20260319_0003.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0004.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0005.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0006.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0007.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0008.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0009.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0010.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0011.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
-- **IMG_20260319_0012.pdf**: {"success":false,"error_code":"token_not_valid","message":"{'detail': ErrorDetail(string='Given token not valid for any token type', code='token_not_valid'), 'code': ErrorDetail(string='token_not_valid', code='token_not_valid'), 'messages': [{'token_class': ErrorDetail(string='AccessToken', code='token_not_valid'), 'token_type': ErrorDetail(string='access', code='token_not_valid'), 'message': ErrorDetail(string='Token is expired', code='token_not_valid')}]}","details":{},"field":null}
 
 ### Timeout
 
 - **IMG_20260319_0001.pdf**: Pipeline timed out after 10 minutes
 - **IMG_20260319_0002.pdf**: Pipeline timed out after 10 minutes
-
-### Unknown
-
-- **N/A**: DB record in FAILED state
+- **IMG_20260319_0003.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0004.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0005.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0006.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0007.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0008.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0009.pdf**: Pipeline timed out after 10 minutes
+- **IMG_20260319_0010.pdf**: Pipeline timed out after 10 minutes
 
 ## 3. Log Evidence
 Refer to `WORKER_STABILITY_RAW.json` and `REDIS_FORENSICS_RAW.json` for raw log lines.

@@ -1,15 +1,15 @@
 # OCR Batch Validation Report — Sprint 3
-Generated: 2026-06-21 10:29:41 UTC
-Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
+Generated: 2026-07-02 08:02:01 UTC
+Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
 
 ---
 
 ## 1. Corpus Summary
 | Metric | Value |
 |---|---|
-| Total invoice files | 22 |
-| Total pages | 228 |
-| Total corpus size | 169.76 MB |
+| Total invoice files | 23 |
+| Total pages | 243 |
+| Total corpus size | 179.88 MB |
 
 ## 2. OCR Engine Configuration
 | Setting | Value |

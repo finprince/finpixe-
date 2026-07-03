@@ -146,11 +146,12 @@ class QwenProvider(BaseAIProvider):
         attempt_label: str = "Attempt 1",
     ) -> str:
         """
-        Execute a single Qwen-VL extraction call.
+        Execute a single Qwen extraction call.
 
-        Supports two modes:
-          1. Single-image:  image_b64 + prompt_text
-          2. Batch-images:  batch_images list + prompt_text
+        Supports three modes (controlled by QWEN_INPUT_MODE env var):
+          1. multimodal  (default) — image_b64/batch_images + prompt_text  [vision]
+          2. text        (A/B exp) — prompt_text only; no image attached    [text-only]
+          3. Single-image fallback when only image_b64 is set.
 
         Returns:
             Raw model response text (JSON string).
@@ -251,6 +252,23 @@ class QwenProvider(BaseAIProvider):
         TerminalTaskError = _get_terminal_error()
         client = self._get_client(api_key)
 
+        # ── A/B INPUT MODE GATE ──────────────────────────────────────────────────
+        # QWEN_INPUT_MODE controls whether images are included in the Qwen request.
+        # "multimodal" (default): image + OCR text — existing production behaviour.
+        # "text":                 OCR text only — A/B experiment mode.
+        # No other behaviour changes when mode is "multimodal".
+        qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
+        if qwen_input_mode == "text":
+            # Strip all image payloads — force text-only path
+            image_b64 = None
+            batch_images = None
+        logger.info(
+            f"[QWEN_INPUT_MODE] mode={qwen_input_mode} "
+            f"image_attached={'yes' if (image_b64 or batch_images) else 'no'} "
+            f"prompt_chars={len(prompt_text)} "
+            f"ocr_text_chars={len(request_data.get('_pdf_ocr_text', '') or '')}"
+        )
+
         # ── BUILD MESSAGE CONTENT ──
         # OpenAI vision format: content is a list of typed parts
         user_content = []
@@ -295,15 +313,27 @@ class QwenProvider(BaseAIProvider):
             }
         ]
 
+        image_attached = bool(image_b64 or batch_images)
         logger.info(
             f"[QWEN_REQUEST_START] {attempt_label} model={model_name} "
-            f"mode={'batch' if batch_images else 'single'} "
+            f"input_mode={qwen_input_mode} "
+            f"image_attached={'yes' if image_attached else 'no'} "
+            f"mode={'batch' if batch_images else ('single' if image_b64 else 'text-only')} "
             f"images={len(batch_images) if batch_images else (1 if image_b64 else 0)}"
         )
 
         image_b64_len = len(image_b64) if image_b64 else sum(len(img.get("data","")) for img in (batch_images or []))
         payload_size_approx_kb = (image_b64_len * 3 / 4 / 1024) + (len(prompt_text) / 1024)
-        logger.info(f"[QWEN_PAYLOAD_TELEMETRY] BEFORE REQUEST attempt={attempt_label} model={model_name} payload_size_kb={payload_size_approx_kb:.2f} image_b64_bytes={image_b64_len} images={len(batch_images) if batch_images else (1 if image_b64 else 0)} prompt_tokens=PENDING completion_tokens=PENDING")
+        logger.info(
+            f"[QWEN_PAYLOAD_TELEMETRY] BEFORE REQUEST "
+            f"attempt={attempt_label} model={model_name} "
+            f"input_mode={qwen_input_mode} "
+            f"image_attached={'yes' if image_attached else 'no'} "
+            f"payload_size_kb={payload_size_approx_kb:.2f} "
+            f"image_b64_bytes={image_b64_len} "
+            f"images={len(batch_images) if batch_images else (1 if image_b64 else 0)} "
+            f"prompt_tokens=PENDING completion_tokens=PENDING"
+        )
 
         # Record Qwen Request telemetry
         from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
@@ -357,7 +387,11 @@ class QwenProvider(BaseAIProvider):
         from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
         PipelineStageTelemetry.record_stage(
             "Qwen",
-            {"prompt_len": len(prompt_text), "has_image": bool(image_b64)},
+            {
+                "prompt_len": len(prompt_text),
+                "input_mode": qwen_input_mode,
+                "has_image": image_attached,
+            },
             {"response_len": len(response.choices[0].message.content or "") if response.choices else 0},
             int(latency * 1000)
         )

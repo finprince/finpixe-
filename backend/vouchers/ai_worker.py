@@ -372,11 +372,19 @@ class AIWorker(BaseWorker):
                         if not parsed:
                             raise ValueError("StructuredParseError: parsed output is empty")
                         logger.info(f"[PARSER_VARIABLE_INIT] record={record_id} page={page_idx} stage=retries")
-                        
+
+                        # [PHASE 5: PROPAGATE OCR CONTEXT FOR DETERMINISTIC NORMALIZER]
+                        # Inject raw OCR text keys so the normalizer's window slicer has access to them
+                        if isinstance(parsed, dict) and isinstance(payload, dict):
+                            for k, v in payload.items():
+                                if k.startswith("_") and k not in parsed:
+                                    parsed[k] = v
+
                         canonical_payload = await loop.run_in_executor(
                             self.executor,
                             lambda: get_canonical_export_record(parsed, tenant_id=tenant_id)
                         )
+
 
                         if self._is_dto_valid(canonical_payload):
                             text_str = json.dumps(canonical_payload)
@@ -592,15 +600,18 @@ class AIWorker(BaseWorker):
                     parsed['upload_session_id'] = str(session_id)
                     parsed['tenant_id'] = str(tenant_id)
                     
-                    # [QWEN_ITEM_CLASSIFICATION] Telemetry
-                    pre_norm_items = parsed.get("items") or parsed.get("sections", {}).get("items") or []
-                    for itm in pre_norm_items:
-                        logger.info(f"[QWEN_ITEM_CLASSIFICATION] record={record_id} page={page_idx} description='{itm.get('description', '')}' quantity={itm.get('quantity')} rate={itm.get('rate')} amount={itm.get('amount')}")
-                    
+                    # [PHASE 5: PROPAGATE OCR CONTEXT FOR DETERMINISTIC NORMALIZER]
+                    # Inject raw OCR text keys so the normalizer's window slicer has access to them
+                    if isinstance(parsed, dict) and isinstance(payload, dict):
+                        for k, v in payload.items():
+                            if k.startswith("_") and k not in parsed:
+                                parsed[k] = v
+
                     canonical_payload = await loop.run_in_executor(
                         self.executor,
                         lambda: get_canonical_export_record(parsed, tenant_id=tenant_id)
                     )
+
                     
                     # Double-ensure they are in the final payload
                     canonical_payload['record_id'] = str(record_id)

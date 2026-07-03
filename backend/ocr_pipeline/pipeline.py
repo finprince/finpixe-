@@ -403,6 +403,21 @@ def sync_record_flattened_fields(record: InvoiceTempOCR, data: Dict[str, Any], c
             logger.debug(f"[CONTRACT_MISMATCH] Field '{field_name}' not found in {record.__class__.__name__}. Skipping flattening.")
 
     # 4. Preserve full data (Source of Truth for UI Modal)
+    if isinstance(data, dict) and isinstance(canonical, dict):
+        for key in [
+            "invoice_no", "invoice_date", "vendor_name", "buyer_name", "gstin",
+            "raw_gstin", "canonical_gstin", "branch", "bill_from", "bill_to",
+            "place_of_supply", "total_taxable_value", "total_igst", "total_cgst",
+            "total_sgst", "total_cess", "round_off", "total_invoice_value",
+            "buyer_gstin", "vendor_gstin", "consignee_gstin", "ship_to_gstin",
+            "bill_to_gstin", "cgst_rate", "sgst_rate", "igst_rate", "subtotal"
+        ]:
+            if key in canonical:
+                data[key] = canonical[key]
+        if "items" in canonical:
+            data["items"] = canonical["items"]
+            data["line_items"] = canonical["items"]
+
     record.extracted_data = data
     if 'extracted_data' in valid_fields:
         update_fields.append('extracted_data')
@@ -2686,7 +2701,13 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool = False, **kwar
             canonical_data_src = assembled_first
             logger.info(f"[ASSEMBLED_EXPORTS_UNWRAP] record={record.id} — using assembled_exports[0] as canonical data source")
 
+        if isinstance(canonical_data_src, dict) and isinstance(data, dict):
+            for k in ("_pdf_ocr_text", "_raw_text"):
+                if k not in canonical_data_src and data.get(k):
+                    canonical_data_src[k] = data[k]
+
         sections = canonical_data_src.get("sections", {})
+
         supplier = sections.get("supplier_details", {})
         supply = sections.get("supply_details", {})
         due = sections.get("due_details", {})

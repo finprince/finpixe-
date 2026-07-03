@@ -45,6 +45,7 @@ class CanonicalInvoiceSchema(BaseModel):
     invoice_no: str = ""
     invoice_date: str = "" # Format: DD-MM-YYYY
     vendor_name: str = ""
+    buyer_name: str = ""
     gstin: str = ""
     raw_gstin: str = ""
     canonical_gstin: str = ""
@@ -75,11 +76,14 @@ class CanonicalInvoiceSchema(BaseModel):
     canonical_invoice_date: str = ""
     raw_vendor_name: str = ""
     canonical_vendor_name: str = ""
+    raw_buyer_name: str = ""
+    canonical_buyer_name: str = ""
     
     # Address & Logistics
     bill_from: str = ""
     bill_to: str = ""
     place_of_supply: str = ""
+
     
     # Totals
     total_taxable_value: float = 0.0

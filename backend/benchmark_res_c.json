@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "latency": 166.05681371688843,
+  "reply": "```json\n{\n  \"header\": {\n    \"vendor_name\": \"ULTRA MACHINE TOOLS AND SERVICE\",\n    \"vendor_address\": \"SF No. 143/1, Villankurichi Road, Vinayagapuram, Saravanampatti, Coimbatore - 641035\",\n    \"billing_address\": \"ACCUTURN MACHINERS PVT LTD, 13A, Thadiyalar to Kanumai road. Appanaicken Palayarm, K.Voelamadurai Post Coimbatone- 641017\",\n",
+  "prompt_tokens": 8063,
+  "completion_tokens": 129,
+  "total_tokens": 8192
+}

@@ -33,8 +33,9 @@ VALIDATION_EMAIL = os.getenv("VALIDATION_EMAIL", "admin@budstech.com")
 VALIDATION_PASS = os.getenv("VALIDATION_PASS", "Sprint3Val@2026")
 
 # Max time to wait for a single invoice pipeline to complete
-SESSION_POLL_TIMEOUT_S = 600   # 10 minutes per invoice
-SESSION_POLL_INTERVAL_S = 5
+SESSION_POLL_TIMEOUT_S = 2   # 2 seconds per invoice (fast queue upload mode)
+SESSION_POLL_INTERVAL_S = 1
+
 
 
 def load_manifest() -> dict:
@@ -225,6 +226,12 @@ def run_batch_upload():
     for i, entry in enumerate(invoice_files, 1):
         fname = entry["filename"]
         print(f"[{i:02d}/{len(invoice_files)}] Uploading: {fname}")
+
+        # Re-authenticate before each upload to prevent SimpleJWT token expiration (5 min limit)
+        try:
+            authenticate(session)
+        except Exception as auth_err:
+            print(f"  [WARN] Re-authentication failed: {auth_err}. Retrying with existing token.")
 
         # Upload
         upload_result = upload_invoice(session, entry, batch_session_id)

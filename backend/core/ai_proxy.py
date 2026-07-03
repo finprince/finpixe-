@@ -1066,7 +1066,26 @@ def process_ai_request(request_data: dict) -> dict:
                 response_text = "Sorry, I am having trouble connecting to the AI. Please try again."
         else:
             prompt_text = request_data.get('prompt', 'Extract data')
-            if 'batch_images' in request_data:
+
+            # ── A/B INPUT MODE GATE ──────────────────────────────────────────────
+            # When QWEN_INPUT_MODE=text, strip all image payloads so that Qwen
+            # operates purely as a text-to-JSON model.  The prompt_text already
+            # embeds the OCR content built by extraction.py.
+            # When QWEN_INPUT_MODE=multimodal (default), the existing behaviour
+            # is fully preserved — no change to the request structure.
+            _qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
+            logger.info(
+                f"[AI_PROXY_INPUT_MODE] mode={_qwen_input_mode} "
+                f"image_data_present={'yes' if request_data.get('image_data') else 'no'} "
+                f"batch_images_present={'yes' if request_data.get('batch_images') else 'no'} "
+                f"ocr_text_chars={len(request_data.get('_pdf_ocr_text', '') or '')} "
+                f"prompt_chars={len(prompt_text)}"
+            )
+
+            if _qwen_input_mode == "text":
+                # Text-only: build a plain string prompt, ignore any image payloads
+                prompt = prompt_text
+            elif 'batch_images' in request_data:
                 # Batch mode — build Gemini-style list for backward compat with execute_with_retry
                 prompt = [prompt_text]
                 for img in request_data['batch_images']:
@@ -1093,6 +1112,7 @@ def process_ai_request(request_data: dict) -> dict:
             observability.ai_metric(event="PARALLEL_AI_EXECUTION", tenant_id=tenant_id, status="START")
             response_text = execute_with_retry(prompt, request_data, api_key)
         
+
         # Shadow mode comparison and logging
         if bypass_payload and SIMPLE_INVOICE_BYPASS_SHADOW_MODE:
             try:

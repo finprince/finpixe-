@@ -75,6 +75,105 @@ def normalize_gstin_safe(gstin: Any) -> str:
     logger.warning(f"[GSTIN_INVALID] checksum/regex failed for '{raw}'")
     return raw
 
+def recover_buyer_gstin(invoice: Any, current_val: str) -> Optional[str]:
+    """
+    Production Phase 3: Deterministic Buyer GSTIN Recovery.
+    Recovers GSTIN from the Buyer OCR block using checksum and regex verification.
+    """
+    import os
+    # 1. Verification of Flag
+    if not os.getenv("NORMALIZER_BUYER_RECOVERY", "false").lower() == "true":
+        return None
+
+    # 2. Prefer existing structured extraction metadata first.
+    address_str = ""
+    if isinstance(invoice, dict):
+        address_str = (invoice.get("billing_address") or invoice.get("buyer_address") or 
+                       invoice.get("header", {}).get("billing_address") or 
+                       invoice.get("header", {}).get("buyer_address") or "")
+    
+    if address_str:
+        cleaned_addr = re.sub(r'[^A-Z0-9]', '', str(address_str).upper())
+        for idx in range(len(cleaned_addr) - 14):
+            cand = cleaned_addr[idx:idx+15]
+            if GSTIN_PATTERN.match(cand) and validate_gstin_checksum(cand):
+                logger.info(f"[BUYER_GSTIN_RECOVERY_ADDR_HIT] recovered='{cand}'")
+                return cand
+
+    # 3. Retrieve raw OCR text for layout search
+    ocr_text = ""
+    if isinstance(invoice, dict):
+        ocr_text = invoice.get("_pdf_ocr_text") or invoice.get("_raw_text") or ""
+    
+    if not ocr_text:
+        return None
+
+    # 4. Extract Buyer OCR region using boundary regex tokens
+    start_pattern = r"(?:Buyer\s*\(Bill\s*to\)|Details\s*of\s*Receiver\s*\(Billed\s*to\)|Details\s*of\s*Receiver|Billed\s*to|Dtails\s*oi\s*Rocolvor\s*Dlcd\s*to|Dlcd\s*to|Bill\s*to)"
+    stop_tokens = r"(?:Place\s*of\s*Supply|Puce\s*ol\s*Supply|Dated|Delivery\s*Note|Invoice\s*No|Voucher\s*No|Total|Description|Sl\s*No|E-Way|E\s*WAY)"
+    match = re.search(fr"{start_pattern}(.*?){stop_tokens}", ocr_text, re.DOTALL | re.IGNORECASE)
+    
+    buyer_block = ""
+    if match:
+        buyer_block = match.group(1).strip()
+        logger.info(f"[BUYER_GSTIN_RECOVERY_BLOCK_HIT] block_len={len(buyer_block)}")
+    else:
+        match_desperate = re.search(fr"{start_pattern}(.{{1,500}}?)", ocr_text, re.DOTALL | re.IGNORECASE)
+        if match_desperate:
+            buyer_block = match_desperate.group(1).strip()
+            logger.info(f"[BUYER_GSTIN_RECOVERY_DESPERATE_HIT] block_len={len(buyer_block)}")
+        else:
+            logger.info("[BUYER_GSTIN_RECOVERY_ABORT] Buyer OCR block could not be isolated.")
+            return None
+
+    # 5. Clean whitespace, punctuation, separators, and OCR artefacts
+    cleaned = re.sub(r'[^a-zA-Z0-9]', '', buyer_block).upper()
+
+    # 6. Scan for contiguous 15-character sequences and test substitutions
+    for i in range(len(cleaned) - 14):
+        cand = cleaned[i:i+15]
+        
+        if GSTIN_PATTERN.match(cand) and validate_gstin_checksum(cand):
+            logger.info(f"[BUYER_GSTIN_RECOVERY_RAW_HIT] recovered='{cand}'")
+            return cand
+            
+        cand_list = list(cand)
+        for pos in [0, 1]:
+            if cand_list[pos] in ('O', 'o'): cand_list[pos] = '0'
+            elif cand_list[pos] in ('I', 'l', 'L'): cand_list[pos] = '1'
+            elif cand_list[pos] == 'S': cand_list[pos] = '5'
+            elif cand_list[pos] == 'B': cand_list[pos] = '8'
+            elif cand_list[pos] == 'Z': cand_list[pos] = '2'
+        for pos in range(2, 7):
+            if cand_list[pos] == '0': cand_list[pos] = 'O'
+            elif cand_list[pos] == '1': cand_list[pos] = 'I'
+            elif cand_list[pos] == '5': cand_list[pos] = 'S'
+            elif cand_list[pos] == '8': cand_list[pos] = 'B'
+            elif cand_list[pos] == '2': cand_list[pos] = 'Z'
+        for pos in range(7, 11):
+            if cand_list[pos] in ('O', 'o'): cand_list[pos] = '0'
+            elif cand_list[pos] in ('I', 'l', 'L'): cand_list[pos] = '1'
+            elif cand_list[pos] == 'S': cand_list[pos] = '5'
+            elif cand_list[pos] == 'B': cand_list[pos] = '8'
+            elif cand_list[pos] == 'Z': cand_list[pos] = '2'
+        if cand_list[11] == '0': cand_list[11] = 'O'
+        elif cand_list[11] == '1': cand_list[11] = 'I'
+        elif cand_list[11] == '5': cand_list[11] = 'S'
+        elif cand_list[11] == '8': cand_list[11] = 'B'
+        elif cand_list[11] == '2': cand_list[11] = 'Z'
+        if cand_list[13] != 'Z':
+            if cand_list[13] in ('2', '7', 'S', 's'):
+                cand_list[13] = 'Z'
+                
+        corrected = "".join(cand_list)
+        if GSTIN_PATTERN.match(corrected) and validate_gstin_checksum(corrected):
+            logger.info(f"[BUYER_GSTIN_RECOVERY_CORRECTED_HIT] original='{cand}' corrected='{corrected}'")
+            return corrected
+
+    logger.info("[BUYER_GSTIN_RECOVERY_ABORT] No valid GSTIN candidates found.")
+    return None
+
+
 EMPTY_VALUES = [None, "", [], {}, 0, 0.0, "0.0", "0.00", "—", "N/A", "null", "MISSING", "nan", "NaN"]
 
 # ── UTILITIES ────────────────────────────────────────────────────────────────
@@ -285,18 +384,89 @@ def lossless_preserve(existing: Any, incoming: Any, field_name: str = "") -> Any
 def _clean_bill_to_ocr_extract(raw: str) -> str:
     """
     Post-processes an OCR-window-extracted bill_to string.
-    Handles two common low-quality OCR artifacts:
+
+    Handles three common OCR artifacts:
       1. OCR prefix glued to company name  e.g. "NaneACCUTURN" → "ACCUTURN"
       2. Trailing table-column noise words that bleed into the same text run
          e.g. "ACCUTURN PVT LTD Wachillo No. Adess13nT Mode ol Transport..."
+      3. Markdown pipe-table rows from Mistral OCR multi-column layout.
+         Mistral OCR renders the buyer block as a two-column table:
+           Left col  → Name, Address lines (buyer info)
+           Right col → Vehicle No., Mode of Transport, E-Way Bill (transport)
+         This stage extracts only left-column cells and discards right-column
+         transport metadata, producing a clean buyer address string.
+
     Only applies light transformations; does NOT modify if < 5 chars or empty.
+    Returns empty string if the input is a pipe-table with no usable content.
     """
     if not raw or len(raw.strip()) < 5:
         return raw
     v = raw.strip()
-    # Strip known OCR-garbled label prefixes glued directly to the company name
+
+    # ── STAGE 1: PIPE-TABLE PARSER (Mistral OCR Markdown Table Output) ────────
+    # Activated only when '|' is present.  Iterates each markdown table row,
+    # collects left-column buyer cells, discards right-column transport cells.
+    if '|' in v:
+        # Right-column transport / routing keywords to discard
+        _TRANSPORT_RE = re.compile(
+            r'(?:Vehicle\s*No|Mode\s*(?:ol|of)\s*Transport|'
+            r'E[\s\-]*WAY[\s\-]*BILL|LR\s*No|Dispatch|'
+            r'Name\s*of\s*(?:the\s*)?[Tt]ransport|'
+            r'Buyer\s*Order|E\.?\s*Way\s*Bill|'
+            r'Lorry\s*Receipt|Consignment)',
+            re.IGNORECASE
+        )
+        # Field-label prefixes to strip from cell text (Name:, Address:)
+        _LABEL_RE = re.compile(
+            r'^(?:Name\s*:\s*|Address\s*:\s*|Addr\s*:\s*)',
+            re.IGNORECASE
+        )
+        # Skip cells that look like GSTIN values (state-code + alpha)
+        _GSTIN_CELL_RE = re.compile(r'^\d{2}[A-Z0-9]{3,}', re.IGNORECASE)
+        # Skip cells that are purely State / Code metadata rows
+        _STATE_CODE_RE = re.compile(
+            r'^State\s*(?:Code|:)|^State\s*:\s*State\s*Code',
+            re.IGNORECASE
+        )
+
+        collected = []
+        for line in v.split('\n'):
+            if '|' not in line:
+                stripped = line.strip()
+                if stripped and not _TRANSPORT_RE.search(stripped):
+                    collected.append(stripped)
+                continue
+            # Markdown table row — iterate cells
+            cells = [c.strip() for c in line.split('|')]
+            for cell in cells:
+                if not cell or cell == '---' or set(cell) <= {'-', ' '}:
+                    continue
+                # Discard cells that ARE transport keywords
+                if _TRANSPORT_RE.search(cell):
+                    continue
+                # Strip field-label prefix (Name:, Address:)
+                cleaned = _LABEL_RE.sub('', cell).strip()
+                if not cleaned:
+                    continue
+                # Skip GSTIN-like values (not part of postal address)
+                if _GSTIN_CELL_RE.match(cleaned):
+                    continue
+                # Skip pure State / Code metadata
+                if _STATE_CODE_RE.match(cleaned):
+                    continue
+                collected.append(cleaned)
+
+        if collected:
+            v = ', '.join(collected)
+        else:
+            # Pipe-table had no usable left-column content; return empty so
+            # the caller falls back to a different source rather than storing noise.
+            return ''
+
+    # ── STAGE 2: LEGACY NOISE STRIPPING (non-table or post-table cleanup) ────
+    # Strip OCR-garbled label prefixes glued directly to the company name
     v = re.sub(r'^(?:Nane?(?=[A-Z])|Name?(?=[A-Z])|Nam?e?:\s*|Nane:\s*)', '', v).strip()
-    # Strip trailing table column labels and noise that follow the company/address text
+    # Strip trailing transport-column labels that bleed into a text run
     _BILL_TO_NOISE_STOP = (
         r'\s+(?:'
         r'Wach(?:illo|illo)?\s*No|Machine\s*No|'
@@ -474,11 +644,34 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
         return default, "NONE"
 
     # ── [SEMANTIC OWNERSHIP FIX] ──
-    # 'billing_address' means 'Customer Billing Address' (Bill To). 
+    # 'billing_address' means 'Customer Billing Address' (Bill To).
     # It must NEVER be used to populate the Vendor/Supplier Address (Bill From).
     raw_from, _ = get_strict(["bill_address_from", "bill_from", "vendor_address", "supplier_address", "seller_address"])
     raw_to, _ = get_strict(["bill_address_to", "bill_to", "customer_address", "billing_address_to", "billing_address"])
-    
+
+    # ── [PIPE_TABLE_GARBAGE_DETECT] ─────────────────────────────────────────────
+    # Mistral OCR renders the buyer block as a multi-column Markdown table.
+    # When Qwen returns billing_address as a pipe-table string (e.g.
+    #   "| | | | Vehicle No. : | | | | | Name : ACCUTURN MACHINERS PVT LTD")
+    # the value is noise as a postal address but may contain a buyer name.
+    # Strategy:
+    #   1. Extract buyer name candidate from the 'Name :' label.
+    #   2. Reset raw_to to empty so the OCR window slicer can recover
+    #      the full multi-line address block from the raw OCR text.
+    # This variable is consumed by the buyer_name fallback below.
+    _qwen_buyer_name_candidate = ""
+    if not is_empty(raw_to) and '|' in str(raw_to):
+        _name_m = re.search(r'Name\s*:\s*([A-Z][^|\n]{2,80})', str(raw_to), re.IGNORECASE)
+        if _name_m:
+            _qwen_buyer_name_candidate = _name_m.group(1).strip().rstrip(', |')
+            logger.info(f"[PIPE_TABLE_BUYER_NAME_EXTRACTED] candidate='{_qwen_buyer_name_candidate}'")
+        logger.info(
+            f"[PIPE_TABLE_GARBAGE_RESET] billing_address is pipe-table noise; "
+            f"resetting raw_to so window slicer recovers full address. "
+            f"buyer_name_candidate='{_qwen_buyer_name_candidate}'"
+        )
+        raw_to = ""  # reset: triggers OCR window slicer below
+
     # ── [PHASE 11.9] WINDOW_SLICER FALLBACK (HARDENED) ──
     if is_empty(raw_from) or is_empty(raw_to):
         ocr_text = invoice.get("_pdf_ocr_text") if isinstance(invoice, dict) else ""
@@ -586,11 +779,38 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
     if classification.get("vendor_gstin"):
         gstin_val = classification["vendor_gstin"]
 
+    buyer_name_val, _ = get_strict(["buyer_name", "customer_name", "bill_to_name"])
+    buyer_name_val = fix_encoding_corruption(str(buyer_name_val)) if buyer_name_val else ""
+    if not buyer_name_val:
+        # Priority 1: Use candidate saved from Qwen's pipe-table billing_address
+        # (extracted before raw_to was reset for the window slicer).
+        if _qwen_buyer_name_candidate:
+            buyer_name_val = fix_encoding_corruption(_qwen_buyer_name_candidate)
+            logger.info(f"[BUYER_NAME_PIPE_TABLE] value='{buyer_name_val}'")
+
+        # Priority 2: Extract 'Name :' label from the cleaned bill_to string.
+        # Covers cases where the window slicer recovered a pipe-table row
+        # that still contains an inline 'Name : VALUE' label.
+        if not buyer_name_val and bill_to:
+            _name_m = re.search(r'Name\s*:\s*([A-Z][^,;\n|]{2,80})', str(bill_to), re.IGNORECASE)
+            if _name_m:
+                buyer_name_val = fix_encoding_corruption(_name_m.group(1).strip())
+                logger.info(f"[BUYER_NAME_LABEL] value='{buyer_name_val}'")
+
+        # Priority 3: Original comma/semicolon/newline split (guarded against pipe noise).
+        if not buyer_name_val and bill_to:
+            parts = re.split(r'[,;\n]', str(bill_to))
+            if parts:
+                cand = parts[0].strip()
+                if cand and not re.match(r'^\d', cand) and '|' not in cand:
+                    buyer_name_val = cand
+
     from vendors.vendor_validation_logic import canonicalize_gstin_ocr
     record = {
         "invoice_no": fix_encoding_corruption(str(get_strict(["invoice_no", "invoice_number", "bill_no", "supplier_invoice_no"])[0])),
         "invoice_date": normalize_date(get_strict(["invoice_date", "date", "bill_date", "supplier_invoice_date"])[0]),
         "vendor_name": vendor_name_val,
+        "buyer_name": buyer_name_val,
         "gstin": gstin_val,
         "raw_gstin": classification.get("raw_vendor_gstin") or gstin_val,
         "canonical_gstin": canonicalize_gstin_ocr(gstin_val),
@@ -627,6 +847,37 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
         "canonical_bill_to_gstin": classification.get("canonical_bill_to_gstin") or "",
         "canonical_ship_to_gstin": classification.get("canonical_ship_to_gstin") or "",
     }
+
+    # ── [HEADER_GST_RATE_ENRICHMENT] ────────────────────────────────────────────
+    # Evidence: items correctly carry cgst_rate=9.0 but no top-level header
+    # cgst_rate/sgst_rate key exists in extracted_data, causing forensic reports
+    # to score header GST rate as 0.
+    # Fix: derive header rates from (total_cgst / total_taxable_value) * 100,
+    # snapped to the nearest standard GST rate.
+    # This is strictly additive — it never overwrites any Qwen-extracted value.
+    _h_taxable = record.get("total_taxable_value", 0.0) or 0.0
+    _h_cgst    = record.get("total_cgst", 0.0) or 0.0
+    _h_sgst    = record.get("total_sgst", 0.0) or 0.0
+    _h_igst    = record.get("total_igst", 0.0) or 0.0
+    if _h_taxable > 0:
+        if _h_cgst > 0 and _h_igst == 0:
+            record["header_cgst_rate"] = snap_to_standard_gst_rate((_h_cgst / _h_taxable) * 100)
+            record["header_sgst_rate"] = snap_to_standard_gst_rate((_h_sgst / _h_taxable) * 100)
+            record["cgst_rate"] = record["header_cgst_rate"]
+            record["sgst_rate"] = record["header_sgst_rate"]
+            logger.info(
+                f"[HEADER_GST_RATE] cgst_rate={record['header_cgst_rate']}% "
+                f"sgst_rate={record['header_sgst_rate']}% "
+                f"(from total_cgst={_h_cgst}/total_taxable={_h_taxable})"
+            )
+        elif _h_igst > 0:
+            record["header_igst_rate"] = snap_to_standard_gst_rate((_h_igst / _h_taxable) * 100)
+            record["igst_rate"] = record["header_igst_rate"]
+            logger.info(
+                f"[HEADER_GST_RATE] igst_rate={record['header_igst_rate']}% "
+                f"(from total_igst={_h_igst}/total_taxable={_h_taxable})"
+            )
+
 
     # ── [TOTALS & POS OCR REGION EXTRACTION FALLBACK] (Requirement D) ──
     if isinstance(invoice, dict):
@@ -1020,13 +1271,113 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
 
     raw_header = get_normalized_export_record(invoice, tenant_id=tenant_id)
     raw_items = get_normalized_items(invoice, tenant_id=tenant_id)
+
+    # ── [PHASE 3: DETERMINISTIC RECOVERY & PROPAGATION] ──
+    import os
+    hsn_prop_enabled = os.getenv("NORMALIZER_HSN_PROPAGATION", "true").lower() == "true"
+    buyer_rec_enabled = os.getenv("NORMALIZER_BUYER_RECOVERY", "true").lower() == "true"
+    
+    # 1. Buyer GSTIN Recovery
+    if buyer_rec_enabled:
+        current_buyer_gstin = raw_header.get("buyer_gstin") or ""
+        if not (current_buyer_gstin and len(current_buyer_gstin) == 15 and validate_gstin_checksum(current_buyer_gstin)):
+            recovered = recover_buyer_gstin(invoice, current_buyer_gstin)
+            if recovered:
+                raw_header["buyer_gstin"] = recovered
+                raw_header["canonical_buyer_gstin"] = recovered
+                raw_header["bill_to_gstin"] = recovered
+                raw_header["canonical_bill_to_gstin"] = recovered
+                logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {json.dumps({
+                    'prefix': '[AUDIT_DETERMINISTIC_CORRECTION]',
+                    'timestamp': datetime.now().isoformat() + 'Z',
+                    'invoice_id': str(invoice.get('record_id') or invoice.get('id') or ''),
+                    'page_number': int(invoice.get('page_number') or invoice.get('page_index') or 1),
+                    'line_number': 0,
+                    'feature': 'BUYER_RECOVERY',
+                    'before_value': current_buyer_gstin,
+                    'after_value': recovered,
+                    'reason': 'Recovered from Buyer block with checksum verification',
+                    'feature_flag': 'NORMALIZER_BUYER_RECOVERY'
+                })}")
+
+    # 2. HSN Propagation
+    if hsn_prop_enabled and raw_items:
+        valid_hsns = []
+        for item in raw_items:
+            h = str(item.get("hsn_sac") or item.get("hsn_code") or "").strip()
+            if h and h not in ('"', "''", "tt", "11", "None", "null") and len(h) >= 2:
+                valid_hsns.append(h)
+        unique_valid_hsns = list(set(valid_hsns))
+        
+        prev_hsn = None
+        for idx, item in enumerate(raw_items):
+            if not isinstance(item, dict):
+                continue
+            hsn = str(item.get("hsn_sac") or item.get("hsn_code") or "").strip()
+            is_empty_hsn = not hsn or hsn in ("None", "null")
+            is_ditto = hsn in ('"', "''", "tt", "11")
+            
+            desc = str(item.get("description") or "").lower()
+            is_boundary = any(keyword in desc for keyword in ["total", "subtotal", "tax taxable", "round off", "cgst", "sgst", "igst", "net amount"])
+            
+            if is_boundary or not desc.strip():
+                prev_hsn = None
+                continue
+                
+            if not is_empty_hsn and not is_ditto:
+                if len(hsn) >= 2:
+                    prev_hsn = hsn
+                else:
+                    prev_hsn = None
+                continue
+                
+            allowed = False
+            reason = ""
+            if is_ditto:
+                allowed = True
+                reason = f"Explicit ditto OCR match ('{hsn}')"
+            elif is_empty_hsn:
+                if len(unique_valid_hsns) == 1:
+                    allowed = True
+                    reason = "Single HSN invoice implicit propagation"
+                else:
+                    reason = "Skipped: multiple HSN regions exist without explicit ditto"
+                    
+            if allowed and prev_hsn:
+                orig_hsn = hsn
+                item["hsn_sac"] = prev_hsn
+                item["hsn_code"] = prev_hsn
+                if "raw_hsn" in item:
+                    item["raw_hsn"] = prev_hsn
+                if "canonical_hsn" in item:
+                    item["canonical_hsn"] = prev_hsn
+                    
+                logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {json.dumps({
+                    'prefix': '[AUDIT_DETERMINISTIC_CORRECTION]',
+                    'timestamp': datetime.now().isoformat() + 'Z',
+                    'invoice_id': str(invoice.get('record_id') or invoice.get('id') or ''),
+                    'page_number': int(invoice.get('page_number') or invoice.get('page_index') or 1),
+                    'line_number': idx + 1,
+                    'feature': 'HSN_PROPAGATION',
+                    'before_value': orig_hsn,
+                    'after_value': prev_hsn,
+                    'reason': reason,
+                    'feature_flag': 'NORMALIZER_HSN_PROPAGATION'
+                })}")
+            else:
+                prev_hsn = None
     
     # Create raw/intermediate schema dict first
+
     schema_data = {
         "invoice_no": str(raw_header.get("invoice_no", "")),
         "invoice_date": str(raw_header.get("invoice_date", "")),
         "vendor_name": str(raw_header.get("vendor_name", "")),
+        "buyer_name": str(raw_header.get("buyer_name", "") or raw_header.get("customer_name", "")),
+        "raw_buyer_name": str(raw_header.get("raw_buyer_name") or raw_header.get("buyer_name") or ""),
+        "canonical_buyer_name": str(raw_header.get("canonical_buyer_name") or raw_header.get("buyer_name") or ""),
         "gstin": str(raw_header.get("gstin", "")),
+
         "raw_gstin": str(raw_header.get("raw_gstin", "")),
         "canonical_gstin": str(raw_header.get("canonical_gstin", "")),
         "branch": str(raw_header.get("branch", "")),
@@ -1043,6 +1394,13 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
         "irn": str(raw_header.get("irn", "")),
         "ack_no": str(raw_header.get("ack_no", "")),
         "ack_date": str(raw_header.get("ack_date", "")),
+        "cgst_rate": normalize_amount(raw_header.get("cgst_rate", 0)),
+        "sgst_rate": normalize_amount(raw_header.get("sgst_rate", 0)),
+        "igst_rate": normalize_amount(raw_header.get("igst_rate", 0)),
+        "header_cgst_rate": normalize_amount(raw_header.get("header_cgst_rate", 0)),
+        "header_sgst_rate": normalize_amount(raw_header.get("header_sgst_rate", 0)),
+        "header_igst_rate": normalize_amount(raw_header.get("header_igst_rate", 0)),
+
         
         # Explicit GSTIN Role Fields
         "vendor_gstin": str(raw_header.get("vendor_gstin", "")),
@@ -1064,9 +1422,75 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
         "items": [copy.deepcopy(item) for item in raw_items],
         "warnings": invoice.get("_warning_flags", []) if isinstance(invoice, dict) else []
     }
+
+    # 3. Deterministic Tax Distribution
+    if os.getenv("NORMALIZER_TAX_DISTRIBUTION", "true").lower() == "true":
+        total_taxable = schema_data.get("total_taxable_value", 0.0)
+        total_cgst = schema_data.get("total_cgst", 0.0)
+        total_sgst = schema_data.get("total_sgst", 0.0)
+        total_igst = schema_data.get("total_igst", 0.0)
+        
+        sum_taxables = sum(normalize_amount(item.get("taxable_value")) for item in schema_data.get("items", []))
+        tolerance_val = float(os.getenv("NORMALIZER_TAX_TOLERANCE", "1.00"))
+        
+        taxables_match = abs(total_taxable - sum_taxables) <= tolerance_val
+        
+        all_taxes_zero = all(
+            normalize_amount(item.get("cgst")) == 0.0 and 
+            normalize_amount(item.get("sgst")) == 0.0 and 
+            normalize_amount(item.get("igst")) == 0.0 and
+            normalize_amount(item.get("cgst_rate")) == 0.0 and 
+            normalize_amount(item.get("sgst_rate")) == 0.0 and 
+            normalize_amount(item.get("igst_rate")) == 0.0
+            for item in schema_data.get("items", [])
+        )
+        
+        is_igst = total_igst > 0
+        has_items = len(schema_data.get("items", [])) > 0
+        
+        if (total_cgst > 0 and total_sgst > 0 and total_taxable > 0 and 
+            taxables_match and all_taxes_zero and not is_igst and has_items):
+            
+            raw_cgst_rate = (total_cgst / total_taxable) * 100
+            raw_sgst_rate = (total_sgst / total_taxable) * 100
+            
+            cgst_rate = snap_to_standard_gst_rate(raw_cgst_rate)
+            sgst_rate = snap_to_standard_gst_rate(raw_sgst_rate)
+            
+            # Strict snap verify: calculated rate must snap precisely within 0.1% of standard rate
+            if abs(cgst_rate - raw_cgst_rate) <= 0.1 and abs(sgst_rate - raw_sgst_rate) <= 0.1:
+                logger.info(f"[TAX_DISTRIBUTION_ELIGIBLE] cgst_rate={cgst_rate} sgst_rate={sgst_rate}")
+                for idx, item in enumerate(schema_data.get("items", [])):
+                    orig_cgst = item.get("cgst", 0.0)
+                    orig_sgst = item.get("sgst", 0.0)
+                    orig_cgst_rate = item.get("cgst_rate", 0.0)
+                    orig_sgst_rate = item.get("sgst_rate", 0.0)
+                    
+                    item_taxable = normalize_amount(item.get("taxable_value"))
+                    item["cgst_rate"] = cgst_rate
+                    item["sgst_rate"] = sgst_rate
+                    item["cgst"] = round(item_taxable * (cgst_rate / 100.0), 2)
+                    item["sgst"] = round(item_taxable * (sgst_rate / 100.0), 2)
+                    item["total_amount"] = item_taxable + item["cgst"] + item["sgst"]
+                    
+                    logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {json.dumps({
+                        'prefix': '[AUDIT_DETERMINISTIC_CORRECTION]',
+                        'timestamp': datetime.now().isoformat() + 'Z',
+                        'invoice_id': str(invoice.get('record_id') or invoice.get('id') or ''),
+                        'page_number': int(invoice.get('page_number') or invoice.get('page_index') or 1),
+                        'line_number': idx + 1,
+                        'feature': 'TAX_DISTRIBUTION',
+                        'before_value': f"CGST={orig_cgst}({orig_cgst_rate}%), SGST={orig_sgst}({orig_sgst_rate}%)",
+                        'after_value': f"CGST={item['cgst']}({item['cgst_rate']}%), SGST={item['sgst']}({item['sgst_rate']}%)",
+                        'reason': f"Distributed header rates (calculated={raw_cgst_rate:.2f}%, snapped={cgst_rate}%)",
+                        'feature_flag': 'NORMALIZER_TAX_DISTRIBUTION'
+                    })}")
+            else:
+                logger.warning(f"[TAX_DISTRIBUTION_ABORT] Snapped rates cgst={cgst_rate}% sgst={sgst_rate}% deviate too far from raw values ({raw_cgst_rate:.2f}%, {raw_sgst_rate:.2f}%)")
     
     # Promote HSN/SAC from the first item if missing in header
     primary_item = raw_items[0] if raw_items else {}
+
     logger.info(f"[HSN_TRACE_INPUT] primary_item_keys={list(primary_item.keys())}")
     
     if is_empty(schema_data.get("hsn_sac")):

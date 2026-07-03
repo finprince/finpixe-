@@ -73,7 +73,7 @@ def generate_ocr_report():
         "## 2. OCR Engine Configuration",
         f"| Setting | Value |",
         f"|---|---|",
-        f"| OCR Engine | PaddleOCR |",
+        f"| OCR Engine | Mistral OCR (mistral-ocr-latest) |",
         f"| Base DPI (normal) | 300 |",
         f"| Base DPI (small page <400pt) | 200 |",
         f"| Blur upgrade DPI | 400 |",
@@ -637,7 +637,7 @@ def generate_failed_rca_report():
         qs = InvoiceTempOCR.objects.filter(
             upload_session_id=session_id,
             status__in=["FAILED", "ERROR"]
-        ).values("id", "status", "file_path", "vendor_name", "created_at", "extracted_data")
+        ).values("id", "status", "file_path", "created_at", "extracted_data")
         failed_records = list(qs)
     except Exception as e:
         failed_records = [{"id": "N/A", "status": "ERROR", "error_detail": str(e)}]
@@ -725,7 +725,7 @@ def generate_failed_rca_report():
         "| Category | Proposed Fix |",
         "|---|---|",
         "| Upload Failure | Increase API timeout, check multipart size limits |",
-        "| OCR Failure | Verify PaddleOCR subprocess memory limit |",
+        "| OCR Failure | Verify MISTRAL_API_KEY and Mistral API connectivity |",
         "| AI/Qwen Failure | Check Ollama GPU availability, increase retry count |",
         "| Timeout | Increase SESSION_POLL_TIMEOUT_S, check queue backlog |",
         "| Assembly Failure | Verify barrier convergence logic |",

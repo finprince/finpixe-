@@ -389,7 +389,18 @@ def _repair_json(raw: str, record_id=None, page=None) -> tuple:
     # ── Stage 4: Repair invalid escape sequences ──
     text = re.sub(r'\\(?!["\\bfnrt/u])', r'\\\\', text)
 
+    # ── Stage 4.5: Bare Hyphen Repair ──
+    # If the LLM tries to write a hyphen as a numeric placeholder (e.g. "quantity": -,)
+    # replace it with null to preserve JSON validity.
+    text_hyphen, hyphen_replaced = re.subn(r':\s*-\s*([,}\]])', r': null\1', text)
+
+    if hyphen_replaced > 0:
+        text = text_hyphen
+        strategy = "HYPHEN_REPAIR" if strategy == "NONE" else strategy + "+HYPHEN_REPAIR"
+        logger.info(f"[JSON_REPAIR_APPLIED] record={record_id} page={page} field=<numeric> original='-' repaired='null' reason=BARE_HYPHEN")
+
     # ── Stage 5: ARITHMETIC EXPRESSION REPAIR (TASK 3) ──
+
     # Repair BEFORE attempting json.loads() so we avoid triggering a 141s Qwen retry
     # just because the model output "54644.4 + 10928.88 = 65573.2" in a string value.
     text_arith, arith_repairs = _sanitize_arithmetic_expressions(text, record_id=record_id, page=page)
@@ -656,11 +667,14 @@ Return a JSON object with a "pages" key containing a list of {count} results in 
 
 RULES:
 1. vendor_address = "Consignee/Ship To" block; billing_address = "Buyer/Bill To" block only. Never mix them. Null if absent.
-2. invoice_no: prefer label "Invoice No"/"Bill No", near top/date, must have ≥1 digit, 3-25 chars.
+2. invoice_no: prefer label "Invoice No"/"Bill No", near top/date, must have ≥ 1 digit, 3-25 chars.
 3. total_amount = taxable_value + cgst + sgst + igst. item amount = taxable_value + taxes.
 4. HSN/SAC and UOM per item if visible.
 5. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
 6. Missing field → null. No hallucination. All numeric fields must be numbers.
+7. OCR text is the primary source of truth. Extract values exactly as they appear unless a rule above requires transformation.
+8. Do not invent or infer values that are not supported by the OCR text. If a field is ambiguous or absent, return null.
+9. Preserve line-item order exactly as it appears in the document.
 Return ONLY valid JSON.
 """
 
@@ -707,7 +721,13 @@ Return ONLY valid JSON.
         else:
             active_mode = routing_mode
             
+        # Force hybrid mode if vision was selected but Qwen is in text-only mode
+        _qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
+        if _qwen_input_mode == "text" and active_mode == "vision":
+            active_mode = "hybrid"
+            
         logger.info(f"[PROMPT_ROUTING] page={page_idx+1} routing_mode={routing_mode} avg_conf={avg_conf:.4f} native_len={len(native_text) if native_text else 0} active_mode={active_mode}")
+
         
         if active_mode == "text":
             prompt_text = native_text if native_text.strip() else page_ocr_text
@@ -737,11 +757,22 @@ Return ONLY valid JSON.
             pb_duration_ms
         )
         
+        # ── EXTRACTION TELEMETRY: INPUT MODE ─────────────────────────────────────
+        _active_qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
+        logger.info(
+            f"[EXTRACTION_INPUT_MODE] page={page_idx+1} "
+            f"qwen_input_mode={_active_qwen_input_mode} "
+            f"active_routing_mode={active_mode} "
+            f"image_will_be_sent={'yes' if (active_mode != 'text' and _active_qwen_input_mode != 'text') else 'no'} "
+            f"prompt_chars={len(page_isolated_prompt)} "
+            f"ocr_text_chars={len(page_ocr_text) if page_ocr_text else 0}"
+        )
+
         # ── [AI_PAYLOAD_CONTRACT_FIX] ──
         # Ensure ALL required fields propagate at the top level for UnifiedWorker routing.
         from core.middleware import get_correlation_id
         corr_id = get_correlation_id()
-        
+
         request_data = {
             'type': 'extraction',
             'prompt': page_isolated_prompt,

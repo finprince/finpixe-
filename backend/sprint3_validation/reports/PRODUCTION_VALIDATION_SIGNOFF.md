@@ -1,20 +1,20 @@
 # Production Validation Sign-Off — Sprint 3
-Generated: 2026-06-21 10:29:41 UTC
-Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
-Invoice corpus: 22 PDFs | 228 pages | 169.76 MB
+Generated: 2026-07-02 08:02:01 UTC
+Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
+Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 
 ---
 
-# FINAL VERDICT: ❌ REJECTED
+# FINAL VERDICT: ⚠️ APPROVED WITH CONDITIONS
 
 ---
 
 ## Batch Execution Summary
 | Metric | Value |
 |---|---|
-| Total invoices processed | 22 |
+| Total invoices processed | 23 |
 | Successful | 0 |
-| Failed | 22 |
+| Failed | 23 |
 | Success rate | **0.0%** |
 
 ---
@@ -27,20 +27,20 @@ Invoice corpus: 22 PDFs | 228 pages | 169.76 MB
 > Sprint 2 baseline metrics were not available.
 > Comparison is made against Sprint 1 (header_accuracy=56.0%, gstin=60.0%, kv_hit=0%).
 
-> ✅ OCR retry chain active: 305 pages processed with up to 5-pass recovery
-> ✅ 674 OCR recovery passes logged — quality-driven multi-pass extraction
+> ✅ OCR retry chain active: 114 pages processed with up to 5-pass recovery
+> ✅ 743 OCR recovery passes logged — quality-driven multi-pass extraction
 > ✅ Avg low-confidence score = 100.0 (≥80 threshold)
-> ✅ Qwen GPU inference active: 8.6 tok/s (103 events)
+> ✅ Qwen GPU inference active: 2.5 tok/s (38 events)
 > ✅ Sprint 1 had 0% prefix cache hit ratio; Sprint 3 has active PREFIX_CACHE_TELEMETRY instrumentation
-> ⚠️ Qwen avg latency 219.7s > Sprint 1 latency 143.3s
+> ⚠️ Qwen avg latency 275.1s > Sprint 1 latency 143.3s
 > ⚠️ Extraction accuracy not yet measurable (fill ground truth CSV)
 
 ---
 
 ### Q2: Is prefix cache functioning correctly?
-> **NO**
+> **YES**
 
-> ❌ Prefix hash consistency only 54.4% — cache not effective
+> ✅ Prefix hash consistency: 97.8% (≥95% threshold met)
 
 ---
 
@@ -48,7 +48,7 @@ Invoice corpus: 22 PDFs | 228 pages | 169.76 MB
 > **UNDERSIZED**
 
 > ✅ Zero worker crashes at WORKER_CONCURRENCY=4 — stable
-> ⚠️ AI p95 = 681920.0 ms — pipeline is severely bottlenecked
+> ⚠️ AI p95 = 441160.0 ms — pipeline is severely bottlenecked
 > ⚠️ Investigate Qwen inference speed, GPU VRAM saturation
 
 ---
@@ -56,24 +56,25 @@ Invoice corpus: 22 PDFs | 228 pages | 169.76 MB
 ### Q4: Is duplicate shadow validation ready for activation?
 > **NOT_READY**
 
-> ❌ No shadow events detected — shadow mode not wired to logging
+> ❌ Expected duplicate pair was NOT detected
+> ❌ False positive rate unknown — requires manual review
 > ⚠️ Activation must be a separate sprint decision — Amendment 5 prohibits activation now.
 
 ---
 
 ### Q5: Are there any workflow regressions?
-> **REGRESSIONS_FOUND**
+> **NO_REGRESSIONS**
 
 > ✅ Zero worker crashes
-> ❌ 51 DLQ events (potential quality regression)
-> ❌ 1 Redis operation errors
+> ✅ DLQ events: 0 (acceptable)
+> ✅ Zero Redis errors
 
 ---
 
 ### Q6: Top 5 Remaining Bottlenecks
 
 1. **AI Extraction (Qwen)** — 100.0% of cumulative pipeline time
-2. **Prefix cache invalidations** — 2 invoices with inconsistent prefix hashes
+2. **Prefix cache invalidations** — 1 invoices with inconsistent prefix hashes
 3. **Ground truth CSV** — Tier A data must be filled to measure human-verified accuracy
 4. **Sprint 2 baseline** — Sprint 2 metrics unavailable; Sprint 1 used for comparison
 
@@ -81,13 +82,18 @@ Invoice corpus: 22 PDFs | 228 pages | 169.76 MB
 
 ### Q7: Can Sprint 3 be promoted to production?
 
-## **❌ REJECTED**
+## **⚠️ APPROVED WITH CONDITIONS**
 
-Sprint 3 is **NOT** ready for production promotion.
-The following blockers must be resolved:
+Sprint 3 may be promoted to production with the following conditions:
 
-**Blocker 1**: Prefix cache is not functioning — cache hits are critical for inference cost control  
-**Blocker 2**: Workflow regressions detected — stability not guaranteed  
+**Condition 1**: Qwen avg latency 275.1s > Sprint 1 latency 143.3s  
+**Condition 2**: Extraction accuracy not yet measurable (fill ground truth CSV)  
+**Condition 3**: AI p95 = 441160.0 ms — pipeline is severely bottlenecked  
+**Condition 4**: Investigate Qwen inference speed, GPU VRAM saturation  
+**Condition 5**: Expected duplicate pair was NOT detected  
+**Condition 6**: False positive rate unknown — requires manual review  
+
+These conditions must be resolved before Sprint 4 begins.
 
 ---
 

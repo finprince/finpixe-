@@ -1,12 +1,12 @@
 # Pipeline Performance Breakdown Report — Sprint 3
-Generated: 2026-06-21 10:29:41 UTC  *(Amendment 2)*
-Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
+Generated: 2026-07-02 08:02:01 UTC  *(Amendment 2)*
+Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
 
 ## 1. Per-Stage Latency Statistics (ms)
 | Stage | Events (n) | Avg | Median | p95 | p99 | Max |
 |---|---|---|---|---|---|---|
 | OCR | N/A | N/A | N/A | N/A | N/A | N/A |
-| AI Extraction (Qwen) | 103 | 219685.6 | 140010.0 | 681920.0 | 1048350.0 | 1167950.0 |
+| AI Extraction (Qwen) | 38 | 275108.7 | 295005.0 | 441160.0 | 561500.0 | 561500.0 |
 | Assembly | N/A | N/A | N/A | N/A | N/A | N/A |
 | Finalization | N/A | N/A | N/A | N/A | N/A | N/A |
 | **Total Pipeline** | N/A | N/A | N/A | N/A | N/A | N/A |
@@ -14,7 +14,7 @@ Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
 ## 2. Bottleneck Ranking (by Cumulative Processing Time)
 | Rank | Stage | Cumulative Time (ms) | % of Total |
 |---|---|---|---|
-| 1 | AI Extraction (Qwen) | 22,627,620 | **100.0%** |
+| 1 | AI Extraction (Qwen) | 10,454,130 | **100.0%** |
 | 2 | OCR | 0 | **0.0%** |
 | 3 | Assembly | 0 | **0.0%** |
 | 4 | Finalization | 0 | **0.0%** |
@@ -31,7 +31,7 @@ Session ID: `c1311ebd-e123-411b-91fb-7451ba3a0705`
 | Metric | Value |
 |---|---|
 | Configured concurrency | 4 |
-| AI p95 latency | 681920.0 ms |
+| AI p95 latency | 441160.0 ms |
 | Total pipeline p95 | N/A ms |
 
 > If AI p95 latency > 60,000 ms, concurrency of 4 is a throughput bottleneck.

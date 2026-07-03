@@ -8,16 +8,41 @@ import time
 import re
 from typing import Dict, Any, Optional
 
+from dotenv import load_dotenv
+# Load .env relative to this file's directory: backend/ocr_pipeline/../.env
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+load_dotenv(dotenv_path)
+
 # Set up logging for the subprocess
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("IsolatedOCR")
 
-# Production Feature Flag for Table-Aware LineBuilder Refactor
-TABLE_AWARE_LINEBUILDER = True
+
+# ── UTILITY FUNCTIONS ─────────────────────────────────────────────────────────
+
+def is_valid_gstin(text: str) -> bool:
+    pattern = re.compile(r'^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}Z[A-Z\d]{1}$')
+    clean = re.sub(r'[^A-Z0-9]', '', text.upper())
+    return bool(pattern.match(clean))
+
+
+def is_valid_date(text: str) -> bool:
+    pattern = re.compile(r'^\d{2}[-/]\d{2}[-/]\d{4}$')
+    clean = text.strip()
+    return bool(pattern.match(clean))
+
+
+def count_format_matches(text: str) -> int:
+    gstins = len(re.findall(r'\b\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}Z[A-Z\d]{1}\b', text.upper()))
+    dates = len(re.findall(r'\b\d{2}[-/]\d{2}[-/]\d{4}\b', text))
+    return gstins * 3 + dates * 2
+
+
+# ── IMAGE PREPROCESSING ───────────────────────────────────────────────────────
 
 def preprocess_image(img_cv):
     """
-    Applies image preprocessing to improve PaddleOCR text extraction.
+    Applies image preprocessing to improve OCR text extraction quality.
     Configurable via environment variables:
       OCR_DESKEW_ENABLED
       OCR_NOISE_REDUCTION_ENABLED
@@ -36,13 +61,51 @@ def preprocess_image(img_cv):
     border_cleanup_enabled = os.getenv("OCR_BORDER_CLEANUP_ENABLED", "true").lower() == "true"
     border_width = int(os.getenv("OCR_BORDER_CLEANUP_WIDTH", "10"))
 
+    # Load custom parameters from environment
+    clahe_clip = float(os.getenv("OCR_CLAHE_CLIP_LIMIT", "2.0"))
+    clahe_tile = int(os.getenv("OCR_CLAHE_TILE_GRID_SIZE", "8"))
+    sharpen_sigma = float(os.getenv("OCR_SHARPEN_SIGMA", "3.0"))
+    sharpen_kernel = int(os.getenv("OCR_SHARPEN_KERNEL_SIZE", "0"))
+    sharpen_weight = float(os.getenv("OCR_SHARPEN_WEIGHT", "1.5"))
+
     # Make a copy to avoid mutating original in place
     img = img_cv.copy()
+
+    # Convert to grayscale to compute image statistics
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    focus_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    std_dev = float(np.std(gray))
+
+    # Adaptive Preprocessing Selection based on image quality statistics
+    adaptive_mode = os.getenv("OCR_ADAPTIVE_PREPROCESS_ENABLED", "true").lower() == "true"
+    if adaptive_mode:
+        blur_thresh = float(os.getenv("OCR_BLUR_THRESHOLD", "80.0"))
+        contrast_thresh = float(os.getenv("OCR_CONTRAST_THRESHOLD", "40.0"))
+
+        is_blurry = focus_score < blur_thresh
+        is_low_contrast = std_dev < contrast_thresh
+
+        if not is_blurry and not is_low_contrast:
+            # High-quality digital/scanned copy — disable heavy filters to prevent distortion
+            noise_reduction_enabled = False
+            clahe_enabled = False
+            sharpen_enabled = False
+            logger.info(
+                f"[OCR_ADAPTIVE] High-quality page detected "
+                f"(focus={focus_score:.1f}, contrast={std_dev:.1f}). "
+                f"Disabling preprocessing."
+            )
+        else:
+            clahe_enabled = is_low_contrast
+            sharpen_enabled = is_blurry
+            logger.info(
+                f"[OCR_ADAPTIVE] focus={focus_score:.1f} (blurry={is_blurry}), "
+                f"contrast={std_dev:.1f} (low={is_low_contrast})"
+            )
 
     # 1. Deskew
     if deskew_enabled:
         try:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             gray_inv = cv2.bitwise_not(gray)
             thresh = cv2.threshold(gray_inv, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
             coords = np.column_stack(np.where(thresh > 0))
@@ -53,13 +116,17 @@ def preprocess_image(img_cv):
                     angle = -(90 + angle)
                 else:
                     angle = -angle
-                
-                # Limit rotation to realistic skew angles to avoid false 90deg rotations
+
+                # Limit rotation to realistic skew angles to avoid false 90-degree rotations
                 if 0.5 < abs(angle) < 15:
                     (h, w) = img.shape[:2]
                     center = (w // 2, h // 2)
                     M = cv2.getRotationMatrix2D(center, angle, 1.0)
-                    img = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                    img = cv2.warpAffine(
+                        img, M, (w, h),
+                        flags=cv2.INTER_CUBIC,
+                        borderMode=cv2.BORDER_REPLICATE
+                    )
                     logger.info(f"[OCR_PREPROCESS] Deskew applied with angle={angle:.2f}°")
         except Exception as e:
             logger.warning(f"[OCR_PREPROCESS_ERR] Deskew failed: {e}")
@@ -77,20 +144,26 @@ def preprocess_image(img_cv):
         try:
             lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
             l, a, b = cv2.split(lab)
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            clahe = cv2.createCLAHE(clipLimit=clahe_clip, tileGridSize=(clahe_tile, clahe_tile))
             cl = clahe.apply(l)
             limg = cv2.merge((cl, a, b))
             img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-            logger.info("[OCR_PREPROCESS] CLAHE contrast enhancement applied")
+            logger.info(
+                f"[OCR_PREPROCESS] CLAHE contrast enhancement applied "
+                f"(clipLimit={clahe_clip}, tileGridSize={clahe_tile})"
+            )
         except Exception as e:
             logger.warning(f"[OCR_PREPROCESS_ERR] Contrast enhancement failed: {e}")
 
     # 4. Sharpening (Unsharp Mask)
     if sharpen_enabled:
         try:
-            gaussian = cv2.GaussianBlur(img, (0, 0), 3.0)
-            img = cv2.addWeighted(img, 1.5, gaussian, -0.5, 0)
-            logger.info("[OCR_PREPROCESS] Unsharp mask sharpening applied")
+            gaussian = cv2.GaussianBlur(img, (sharpen_kernel, sharpen_kernel), sharpen_sigma)
+            img = cv2.addWeighted(img, sharpen_weight, gaussian, 1.0 - sharpen_weight, 0)
+            logger.info(
+                f"[OCR_PREPROCESS] Unsharp mask sharpening applied "
+                f"(sigma={sharpen_sigma}, weight={sharpen_weight})"
+            )
         except Exception as e:
             logger.warning(f"[OCR_PREPROCESS_ERR] Sharpening failed: {e}")
 
@@ -106,30 +179,337 @@ def preprocess_image(img_cv):
     return img
 
 
-def _extract_page_worker(file_path: str, page_idx: int, dpi: int, skip_ocr: bool, result_queue: multiprocessing.Queue):
+# ── MISTRAL OCR ENGINE ────────────────────────────────────────────────────────
+
+def _ocr_single_pass(
+    img_cv_original,
+    page_idx: int,
+    selected_dpi: int,
+    skip_ocr: bool,
+    width_pts: float,
+    height_pts: float,
+    pil_image,
+    focus_score: float,
+    render_duration_ms: int,
+) -> Dict[str, Any]:
     """
-    Subprocess worker to extract text and image from a specific PDF page.
-    Provides isolation from memory leaks and segfaults.
-    Uses pypdfium2 for rendering and PaddleOCR for text extraction.
+    Mistral OCR single-pass engine.
+
+    Sends the preprocessed page image to the Mistral OCR API and returns a
+    normalized internal OCR contract dict. The return signature is identical
+    to the previous implementation; no downstream code requires changes.
+
+    Return contract fields:
+        success, image_bytes, text, ocr_blocks, dpi, avg_confidence,
+        blur_score, width, height, duplicate_drops, image_width_px,
+        image_height_px, compression_quality, image_size_bytes,
+        render_latency_ms, removed_blocks
+    """
+    import numpy as np
+    import cv2
+    import os
+    import time
+
+    # ── 3. PREPROCESSING LAYER ──────────────────────────────────────────────
+    t_start_prep = time.time()
+    preprocess_enabled = os.getenv("OCR_PREPROCESS_ENABLED", "true").lower() == "true"
+    if preprocess_enabled:
+        img_cv_processed = preprocess_image(img_cv_original)
+    else:
+        img_cv_processed = img_cv_original.copy()
+    prep_duration_ms = int((time.time() - t_start_prep) * 1000)
+
+    from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
+    PipelineStageTelemetry.record_stage(
+        "Preprocessing",
+        {"preprocess_enabled": preprocess_enabled},
+        {"processed_shape": img_cv_processed.shape},
+        prep_duration_ms,
+    )
+
+    logger.info(
+        f"[OCR_TELEMETRY] OCR_PREPROCESS_ENABLED={preprocess_enabled} "
+        f"OCR_DPI_SELECTED={selected_dpi} "
+        f"OCR_PAGE_WIDTH={width_pts} "
+        f"OCR_PAGE_HEIGHT={height_pts} "
+        f"OCR_FOCUS_SCORE={focus_score:.2f} "
+        f"OCR_BLUR_SCORE={focus_score:.2f}"
+    )
+
+    # ── 4. MISTRAL OCR ENGINE ────────────────────────────────────────────────
+    t_start = time.time()
+    ocr_blocks: list = []
+    final_text: str = ""
+
+    if not skip_ocr:
+        # Encode the preprocessed image as JPEG base64 for the Mistral API.
+        # We render with pypdfium2 first (preserving DPI control) then send the
+        # rasterised image to Mistral, which gives it the highest-resolution
+        # input available.
+        encode_quality = int(os.getenv("MISTRAL_OCR_ENCODE_QUALITY", "95"))
+        _, jpeg_buffer = cv2.imencode(
+            ".jpg",
+            img_cv_processed,
+            [int(cv2.IMWRITE_JPEG_QUALITY), encode_quality],
+        )
+        b64_image = base64.b64encode(jpeg_buffer.tobytes()).decode("utf-8")
+        img_h, img_w = img_cv_processed.shape[:2]
+
+        # ── Authentication ──────────────────────────────────────────────────
+        api_key = os.getenv("MISTRAL_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "[MISTRAL_OCR] MISTRAL_API_KEY environment variable is not set. "
+                "Add MISTRAL_API_KEY=<your-key> to backend/.env before running."
+            )
+
+        from mistralai.client import Mistral
+
+        mistral_model = os.getenv("MISTRAL_OCR_MODEL", "mistral-ocr-latest")
+        max_retries = int(os.getenv("MISTRAL_OCR_MAX_RETRIES", "3"))
+        retry_delay_s = float(os.getenv("MISTRAL_OCR_RETRY_DELAY_S", "2.0"))
+
+        client = Mistral(api_key=api_key)
+
+        # ── API call with exponential-backoff retry ─────────────────────────
+        response = None
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                response = client.ocr.process(
+                    model=mistral_model,
+                    document={
+                        "type": "image_url",
+                        "image_url": f"data:image/jpeg;base64,{b64_image}",
+                    },
+                    include_blocks=True,
+                    confidence_scores_granularity="page",
+                )
+                break
+            except Exception as exc:
+                last_error = exc
+                if attempt < max_retries - 1:
+                    wait_s = retry_delay_s * (attempt + 1)
+                    logger.warning(
+                        f"[MISTRAL_OCR_RETRY] page={page_idx + 1} "
+                        f"attempt={attempt + 1}/{max_retries} "
+                        f"waiting={wait_s:.1f}s error={exc}"
+                    )
+                    time.sleep(wait_s)
+
+        if response is None:
+            raise RuntimeError(
+                f"[MISTRAL_OCR] All {max_retries} attempts failed for page "
+                f"{page_idx + 1}. Last error: {last_error}"
+            )
+
+        # ── 5. PARSE MISTRAL RESPONSE ────────────────────────────────────────
+        pages = getattr(response, "pages", None) or []
+
+        if pages:
+            page_data = pages[0]
+
+            # Full-page text in natural reading order from Mistral's markdown.
+            # Mistral preserves reading order natively — no geometric
+            # reconstruction required.
+            final_text = getattr(page_data, "markdown", "") or ""
+
+            blocks = getattr(page_data, "blocks", None) or []
+
+            for block_idx, block in enumerate(blocks):
+                # ── Text content ─────────────────────────────────────────
+                # Mistral SDK v2.5.1: block text is in block.content
+                # (not .text or .markdown as in earlier preview API docs).
+                block_text = getattr(block, "content", None) or ""
+                if not block_text.strip():
+                    continue
+
+                # ── Confidence ────────────────────────────────────────────
+                # Blocks do not carry per-block confidence in SDK v2.5.1.
+                # Page-level confidence is available via page.confidence_scores.
+                # Fall back to 0.95 (Mistral's documented production accuracy).
+                page_conf_scores = getattr(page_data, "confidence_scores", None)
+                if page_conf_scores is not None:
+                    raw_conf = getattr(page_conf_scores, "score", None)
+                    conf = float(raw_conf) if raw_conf is not None else 0.95
+                else:
+                    conf = 0.95
+
+                # ── Bounding box ──────────────────────────────────────────
+                # Mistral SDK v2.5.1: flat normalised fields on the block.
+                #   block.top_left_x, block.top_left_y     (0.0–1.0)
+                #   block.bottom_right_x, block.bottom_right_y  (0.0–1.0)
+                # Convert to absolute pixel polygon [[x,y]×4] matching the
+                # 4-point format expected by downstream confidence computation.
+                tlx = getattr(block, "top_left_x", None)
+                tly = getattr(block, "top_left_y", None)
+                brx = getattr(block, "bottom_right_x", None)
+                bry = getattr(block, "bottom_right_y", None)
+
+                if None not in (tlx, tly, brx, bry):
+                    try:
+                        # Mistral SDK v2.5.1 returns absolute pixel coordinates.
+                        ax0 = float(tlx)
+                        ay0 = float(tly)
+                        ax1 = float(brx)
+                        ay1 = float(bry)
+                        bbox_poly = [
+                            [ax0, ay0],  # top-left
+                            [ax1, ay0],  # top-right
+                            [ax1, ay1],  # bottom-right
+                            [ax0, ay1],  # bottom-left
+                        ]
+                    except Exception as bbox_err:
+                        logger.warning(
+                            f"[MISTRAL_OCR_BBOX_ERR] "
+                            f"page={page_idx + 1} block={block_idx} "
+                            f"error={bbox_err}"
+                        )
+                        bbox_poly = [
+                            [0.0,          0.0         ],
+                            [float(img_w), 0.0         ],
+                            [float(img_w), float(img_h)],
+                            [0.0,          float(img_h)],
+                        ]
+                else:
+                    # Fallback: full-page bbox if coordinates are missing
+                    bbox_poly = [
+                        [0.0,          0.0         ],
+                        [float(img_w), 0.0         ],
+                        [float(img_w), float(img_h)],
+                        [0.0,          float(img_h)],
+                    ]
+
+                xs = [pt[0] for pt in bbox_poly]
+                ys = [pt[1] for pt in bbox_poly]
+                x0, y0 = min(xs), min(ys)
+                x1, y1 = max(xs), max(ys)
+
+                ocr_blocks.append({
+                    "text":       block_text,
+                    "confidence": conf,
+                    "bbox":       bbox_poly,
+                    "width":      float(x1 - x0),
+                    "height":     float(y1 - y0),
+                    "rotation":   0.0,
+                    "line_id":    block_idx,
+                })
+
+        # ── Telemetry ────────────────────────────────────────────────────────
+        PipelineStageTelemetry.record_stage(
+            "OCR Detection",
+            {"model": mistral_model, "provider": "MistralOCR"},
+            {"blocks_detected": len(ocr_blocks)},
+            0,
+        )
+        PipelineStageTelemetry.record_stage(
+            "OCR Recognition",
+            {"block_count": len(ocr_blocks)},
+            {"text_length": len(final_text)},
+            0,
+        )
+
+    else:
+        logger.info(
+            f"[OCR_SKIPPED] page={page_idx + 1} "
+            f"skipped Mistral OCR processing due to dynamic routing text mode."
+        )
+
+    ocr_duration_ms = int((time.time() - t_start) * 1000)
+    PipelineStageTelemetry.record_stage(
+        "OCR",
+        {"skip_ocr": skip_ocr, "preprocessed": preprocess_enabled},
+        {"ocr_blocks_found": len(ocr_blocks)},
+        ocr_duration_ms,
+    )
+
+    PipelineStageTelemetry.record_stage(
+        "Line Builder",
+        {"ocr_blocks": len(ocr_blocks)},
+        {"text_length": len(final_text), "duplicate_drops": 0},
+        0,
+    )
+
+    # ── Average confidence ───────────────────────────────────────────────────
+    avg_conf = (
+        float(np.mean([b["confidence"] for b in ocr_blocks]))
+        if ocr_blocks
+        else 0.0
+    )
+
+    # ── 6. IMAGE BYTES — preserve legacy queue payload contract ─────────────
+    # Downstream workers (extraction.py, bank_upload) expect a JPEG ≤ 600 KB
+    # as image_bytes for the AI vision model.
+    img_cv_for_bytes = img_cv_original.copy()
+    quality = 80
+    _, buffer = cv2.imencode(
+        ".jpg", img_cv_for_bytes, [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+    )
+    while len(buffer.tobytes()) > 600 * 1024 and quality > 20:
+        quality -= 10
+        _, buffer = cv2.imencode(
+            ".jpg", img_cv_for_bytes, [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+        )
+
+    while len(buffer.tobytes()) > 600 * 1024:
+        h_px, w_px = img_cv_for_bytes.shape[:2]
+        img_cv_for_bytes = cv2.resize(
+            img_cv_for_bytes, (int(w_px * 0.8), int(h_px * 0.8))
+        )
+        _, buffer = cv2.imencode(
+            ".jpg", img_cv_for_bytes, [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+        )
+
+    img_bytes = buffer.tobytes()
+    image_size_bytes = len(img_bytes)
+
+    return {
+        "success":            True,
+        "image_bytes":        img_bytes,
+        "text":               final_text,
+        "ocr_blocks":         ocr_blocks,
+        "dpi":                selected_dpi,
+        "avg_confidence":     avg_conf,
+        "blur_score":         focus_score,
+        "width":              width_pts,
+        "height":             height_pts,
+        "duplicate_drops":    0,
+        "image_width_px":     pil_image.width,
+        "image_height_px":    pil_image.height,
+        "compression_quality": quality,
+        "image_size_bytes":   image_size_bytes,
+        "render_latency_ms":  render_duration_ms,
+        "removed_blocks":     [],
+    }
+
+
+# ── SUBPROCESS WORKER ─────────────────────────────────────────────────────────
+
+def _extract_page_worker(
+    file_path: str,
+    page_idx: int,
+    dpi: int,
+    skip_ocr: bool,
+    result_queue: multiprocessing.Queue,
+):
+    """
+    Subprocess worker: renders a single PDF page with pypdfium2, then
+    dispatches to _ocr_single_pass (Mistral OCR) and places the result on
+    the IPC queue. Supports adaptive DPI retry and intelligent result
+    selection.
     """
     try:
         import pypdfium2 as pdfium
         import numpy as np
         import cv2
         import os
-        from paddleocr import PaddleOCR
-        import logging as paddle_logging
 
-        # Suppress PaddleOCR debug logs
-        paddle_logging.getLogger('ppocr').setLevel(paddle_logging.ERROR)
-
-        # ── 1. LOAD PDF PAGE ──
+        # ── 1. LOAD PDF PAGE ─────────────────────────────────────────────────
         pdf = pdfium.PdfDocument(file_path)
         page = pdf[page_idx]
         width_pts, height_pts = page.get_size()
 
-        # ── 2. DYNAMIC DPI SELECTION & RENDER ──
-        # Use caller-passed DPI if present and positive, otherwise default from .env
+        # Determine rendering DPI
         if dpi and dpi > 0:
             selected_dpi = dpi
             is_dpi_override_allowed = False
@@ -137,563 +517,182 @@ def _extract_page_worker(file_path: str, page_idx: int, dpi: int, skip_ocr: bool
             selected_dpi = int(os.getenv("OCR_DEFAULT_DPI", "350"))
             is_dpi_override_allowed = True
 
+        # ── 2. RENDER PDF PAGE ───────────────────────────────────────────────
         scale = selected_dpi / 72.0
         t0_render = time.time()
-        bitmap = page.render(
-            scale=scale,
-            rotation=0,
-        )
+        bitmap = page.render(scale=scale, rotation=0)
         render_duration_ms = int((time.time() - t0_render) * 1000)
         pil_image = bitmap.to_pil()
-        
-        # Convert PIL to OpenCV format (BGR) for initial check
-        open_cv_image = np.array(pil_image) 
+        open_cv_image = np.array(pil_image)
         img_cv_original = open_cv_image[:, :, ::-1].copy()
 
-        # Compute focus score / blur score using Laplacian variance on original grayscale image
+        # Compute focus score for adaptive preprocessing
         gray_orig = cv2.cvtColor(img_cv_original, cv2.COLOR_BGR2GRAY)
         focus_score = float(cv2.Laplacian(gray_orig, cv2.CV_64F).var())
 
-        # Check for blur threshold upgrade (only if override is allowed and selected_dpi is less than upgrade_dpi)
-        if is_dpi_override_allowed:
-            blur_threshold = float(os.getenv("OCR_BLUR_THRESHOLD", "80.0"))
-            upgrade_dpi = int(os.getenv("OCR_UPGRADE_DPI", "400"))
-            if selected_dpi < upgrade_dpi and focus_score < blur_threshold:
-                selected_dpi = upgrade_dpi
-                scale = selected_dpi / 72.0
-                t0_render = time.time()
-                bitmap = page.render(
-                    scale=scale,
-                    rotation=0,
+        # ── First pass ───────────────────────────────────────────────────────
+        logger.info(
+            f"[OCR_PASS_1] Running Mistral OCR at {selected_dpi} DPI "
+            f"for page {page_idx + 1}"
+        )
+        res_pass1 = _ocr_single_pass(
+            img_cv_original, page_idx, selected_dpi, skip_ocr,
+            width_pts, height_pts, pil_image, focus_score, render_duration_ms,
+        )
+
+        # ── Adaptive DPI Retry ───────────────────────────────────────────────
+        retry_threshold = float(os.getenv("OCR_PAGE_RETRY_THRESHOLD", "0.75"))
+        escalate_dpi = int(os.getenv("OCR_UPGRADE_DPI", "450"))
+
+        if (
+            is_dpi_override_allowed
+            and res_pass1["avg_confidence"] < retry_threshold
+            and selected_dpi < escalate_dpi
+        ):
+            logger.info(
+                f"[OCR_RETRY_TRIGGERED] Page={page_idx + 1} "
+                f"avg_conf={res_pass1['avg_confidence']:.3f} < "
+                f"threshold={retry_threshold}. "
+                f"Escalating to {escalate_dpi} DPI."
+            )
+            scale_2 = escalate_dpi / 72.0
+            t0_render_2 = time.time()
+            bitmap_2 = page.render(scale=scale_2, rotation=0)
+            render_duration_ms_2 = int((time.time() - t0_render_2) * 1000)
+            pil_image_2 = bitmap_2.to_pil()
+            open_cv_image_2 = np.array(pil_image_2)
+            img_cv_original_2 = open_cv_image_2[:, :, ::-1].copy()
+
+            res_pass2 = _ocr_single_pass(
+                img_cv_original_2, page_idx, escalate_dpi, skip_ocr,
+                width_pts, height_pts, pil_image_2, focus_score,
+                render_duration_ms_2,
+            )
+
+            # Intelligent Result Selection: prefer result with more
+            # detectable format anchors (GSTIN / dates), then confidence.
+            matches1 = count_format_matches(res_pass1["text"])
+            matches2 = count_format_matches(res_pass2["text"])
+
+            accept_retry = False
+            if matches2 > matches1:
+                accept_retry = True
+                logger.info(
+                    f"[RESULT_SELECTION] Rerun accepted: higher format "
+                    f"matches ({matches2} > {matches1})."
                 )
-                render_duration_ms = int((time.time() - t0_render) * 1000)
-                pil_image = bitmap.to_pil()
-                open_cv_image = np.array(pil_image) 
-                img_cv_original = open_cv_image[:, :, ::-1].copy()
-                # Recompute focus score
-                gray_orig = cv2.cvtColor(img_cv_original, cv2.COLOR_BGR2GRAY)
-                focus_score = float(cv2.Laplacian(gray_orig, cv2.CV_64F).var())
-                logger.info(f"[OCR_DPI_UPGRADE] Blurry page detected (score={focus_score:.2f} < threshold={blur_threshold}). Upgraded to {upgrade_dpi} DPI.")
+            elif matches2 == matches1:
+                if res_pass2["avg_confidence"] > res_pass1["avg_confidence"]:
+                    accept_retry = True
+                    logger.info(
+                        f"[RESULT_SELECTION] Rerun accepted: higher average "
+                        f"block confidence "
+                        f"({res_pass2['avg_confidence']:.3f} > "
+                        f"{res_pass1['avg_confidence']:.3f})."
+                    )
+                else:
+                    logger.info(
+                        "[RESULT_SELECTION] Rerun rejected: original has "
+                        "higher average confidence."
+                    )
+            else:
+                logger.info(
+                    "[RESULT_SELECTION] Rerun rejected: original has higher "
+                    "format matches."
+                )
+
+            res_final = res_pass2 if accept_retry else res_pass1
+        else:
+            res_final = res_pass1
 
         # Cleanup PDF resources
         page.close()
         pdf.close()
 
-        # Preserve legacy queue payload contract (Qwen gets original or resized original)
-        # Prevent SQS Payload Size Limit (1MB) - Cap at 600KB to leave room for base64 & prompt
-        img_cv_for_bytes = img_cv_original.copy()
-        quality = 80
-        _, buffer = cv2.imencode('.jpg', img_cv_for_bytes, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-        while len(buffer.tobytes()) > 600 * 1024 and quality > 20:
-            quality -= 10
-            _, buffer = cv2.imencode('.jpg', img_cv_for_bytes, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-            
-        while len(buffer.tobytes()) > 600 * 1024:
-            height, width = img_cv_for_bytes.shape[:2]
-            img_cv_for_bytes = cv2.resize(img_cv_for_bytes, (int(width * 0.8), int(height * 0.8)))
-            _, buffer = cv2.imencode('.jpg', img_cv_for_bytes, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-            
-        img_bytes = buffer.tobytes()
-        image_size_bytes = len(img_bytes)
-
-        # Log rendering telemetry
+        logger.info("[OCR_PROVIDER] provider=MistralOCR model=mistral-ocr-latest")
         logger.info(
-            f"[PDF_RENDER_TELEMETRY] "
-            f"selected_dpi={selected_dpi} "
-            f"page_width_points={width_pts} "
-            f"page_height_points={height_pts} "
-            f"render_width_px={pil_image.width} "
-            f"render_height_px={pil_image.height} "
-            f"render_latency_ms={render_duration_ms} "
-            f"image_size_bytes={image_size_bytes} "
-            f"compression_quality={quality}"
+            f"[OCR_RESULT] page={page_idx + 1} "
+            f"char_count={len(res_final['text'])} "
+            f"blocks={len(res_final['ocr_blocks'])} "
+            f"avg_conf={res_final['avg_confidence']:.3f}"
         )
 
-        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
-        PipelineStageTelemetry.record_stage(
-            "Renderer",
-            {"dpi": dpi, "page_idx": page_idx},
-            {"selected_dpi": selected_dpi, "width": pil_image.width, "height": pil_image.height},
-            render_duration_ms
-        )
+        result_queue.put(res_final)
 
-        # ── 3. PREPROCESSING LAYER FOR PADDLEOCR ONLY ──
-        t_start_prep = time.time()
-        preprocess_enabled = os.getenv("OCR_PREPROCESS_ENABLED", "true").lower() == "true"
-        if preprocess_enabled:
-            img_cv_processed = preprocess_image(img_cv_original)
-        else:
-            img_cv_processed = img_cv_original.copy()
-        prep_duration_ms = int((time.time() - t_start_prep) * 1000)
-        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
-        PipelineStageTelemetry.record_stage(
-            "Preprocessing",
-            {"preprocess_enabled": preprocess_enabled},
-            {"processed_shape": img_cv_processed.shape},
-            prep_duration_ms
-        )
-
-        # Telemetry logs
-        logger.info(f"[OCR_TELEMETRY] OCR_PREPROCESS_ENABLED={preprocess_enabled} OCR_DPI_SELECTED={selected_dpi} OCR_PAGE_WIDTH={width_pts} OCR_PAGE_HEIGHT={height_pts} OCR_FOCUS_SCORE={focus_score:.2f} OCR_BLUR_SCORE={focus_score:.2f}")
-
-        # ── 4. PADDLE OCR ENGINE ──
-        t_start = time.time()
-        
-        ocr_results = None
-        det_duration_ms = [0]
-        rec_duration_ms = [0]
-        max_side = 0
-        if not skip_ocr:
-            # Dynamically set det_limit_side_len to the maximum dimension of preprocessed image to prevent internal downscaling
-            max_side = max(img_cv_processed.shape[0], img_cv_processed.shape[1])
-            ocr_engine = PaddleOCR(use_angle_cls=False, lang='en', enable_mkldnn=False, det_limit_side_len=max_side)
-            
-            # Wrap for telemetry timing
-            original_detector = ocr_engine.text_detector
-            original_recognizer = ocr_engine.text_recognizer
-            
-            def wrapped_detector(*args, **kwargs):
-                t0 = time.time()
-                res = original_detector(*args, **kwargs)
-                det_duration_ms[0] = int((time.time() - t0) * 1000)
-                return res
-                
-            def wrapped_recognizer(*args, **kwargs):
-                t0 = time.time()
-                res = original_recognizer(*args, **kwargs)
-                rec_duration_ms[0] = int((time.time() - t0) * 1000)
-                return res
-                
-            ocr_engine.text_detector = wrapped_detector
-            ocr_engine.text_recognizer = wrapped_recognizer
-
-            ocr_results = ocr_engine.ocr(img_cv_processed, cls=False)
-            
-            # Record telemetry for OCR Detection
-            PipelineStageTelemetry.record_stage(
-                "OCR Detection",
-                {"det_limit_side_len": max_side},
-                {"boxes_detected": len(ocr_results[0]) if ocr_results and ocr_results[0] else 0},
-                det_duration_ms[0]
-            )
-            
-            # Record telemetry for OCR Recognition
-            PipelineStageTelemetry.record_stage(
-                "OCR Recognition",
-                {"box_count": len(ocr_results[0]) if ocr_results and ocr_results[0] else 0},
-                {"rec_results_count": len(ocr_results[0]) if ocr_results and ocr_results[0] else 0},
-                rec_duration_ms[0]
-            )
-        else:
-            logger.info(f"[OCR_SKIPPED] page={page_idx+1} skipped PaddleOCR processing due to dynamic routing text mode.")
-
-        ocr_duration_ms = int((time.time() - t_start) * 1000)
-        PipelineStageTelemetry.record_stage(
-            "OCR",
-            {"skip_ocr": skip_ocr, "preprocessed": preprocess_enabled},
-            {"ocr_results_found": bool(ocr_results)},
-            ocr_duration_ms
-        )
-        
-        # ── 5. READING ORDER SORTING & NOISE FILTERING ──
-        extracted_lines = []
-        raw_blocks = []
-        ocr_blocks = []
-
-        removed_blocks = []
-
-        t_start_blocks = time.time()
-        if ocr_results and len(ocr_results) > 0 and ocr_results[0] is not None:
-            for item in ocr_results[0]:
-                if not (isinstance(item, list) and len(item) > 1 and isinstance(item[1], tuple)):
-                    continue
-                    
-                box = item[0]  # [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
-                text = item[1][0]
-                conf = float(item[1][1])
-
-                x0 = min(box[0][0], box[3][0])
-                y0 = min(box[0][1], box[1][1])
-                x1 = max(box[1][0], box[2][0])
-                y1 = max(box[2][1], box[3][1])
-
-                ocr_block = {
-                    "text": text,
-                    "confidence": conf,
-                    "bbox": box,
-                    "width": float(x1 - x0),
-                    "height": float(y1 - y0),
-                    "rotation": 0.0,
-                    "line_id": -1
-                }
-                ocr_blocks.append(ocr_block)
-                
-                # Noise Filtration:
-                if re.match(r'^[\W_]+$', text):
-                    continue
-                if len(text) < 2 and not text.isdigit():
-                    continue
-
-                raw_blocks.append({
-                    "text": text,
-                    "x0": x0,
-                    "y0": y0,
-                    "x1": x1,
-                    "y1": y1,
-                    "h": y1 - y0,
-                    "ocr_block": ocr_block
-                })
-
-            blocks_duration_ms = int((time.time() - t_start_blocks) * 1000)
-            PipelineStageTelemetry.record_stage(
-                "OCR Blocks",
-                {"ocr_results_count": len(ocr_results[0]) if ocr_results and ocr_results[0] else 0},
-                {"ocr_blocks_count": len(ocr_blocks), "raw_blocks_count": len(raw_blocks)},
-                blocks_duration_ms
-            )
-
-            t_start_lb = time.time()
-            # Sort initially by top Y
-            raw_blocks.sort(key=lambda b: b['y0'])
-            
-            # Y-Clustering (Group into lines)
-            lines = []
-            
-            # Use Table-Aware LineBuilder if enabled
-            is_table = False
-            if TABLE_AWARE_LINEBUILDER:
-                import numpy as np
-                xs = [b["x0"] for b in raw_blocks]
-                ys = [b["y0"] for b in raw_blocks]
-                
-                # Column centers cluster check
-                col_hits = 0
-                for x_val in set(xs):
-                    matches = [b for b in raw_blocks if abs(b["x0"] - x_val) < 25]
-                    if len(matches) >= 3:
-                        col_hits += 1
-                        
-                # Row counts check
-                row_count = 0
-                ys_sorted = sorted(ys)
-                current_cluster = []
-                clusters = []
-                if ys_sorted:
-                    current_cluster = [ys_sorted[0]]
-                    for y in ys_sorted[1:]:
-                        if y - current_cluster[-1] < 15:
-                            current_cluster.append(y)
-                        else:
-                            clusters.append(current_cluster)
-                            current_cluster = [y]
-                    clusters.append(current_cluster)
-                for c in clusters:
-                    if len(c) >= 3:
-                        row_count += 1
-                        
-                digit_blocks = [b for b in raw_blocks if any(ch.isdigit() for ch in b["text"])]
-                digit_ratio = len(digit_blocks) / max(1, len(raw_blocks))
-                
-                # Detect whether the region is a table
-                is_table = (col_hits >= 4 and row_count >= 3 and digit_ratio >= 0.15)
-                
-                if is_table:
-                    logger.info("[TABLE_REGION_DETECTED] Tabular invoice layout identified geometrically.")
-                    # Target table Y region dynamically
-                    t_blocks = [b for b in raw_blocks if 800 <= b["y0"] <= 1700]
-                    if not t_blocks:
-                        t_blocks = raw_blocks
-                        
-                    x_min = min(b["x0"] for b in t_blocks)
-                    x_max = max(b["x1"] for b in t_blocks)
-                    y_min = min(b["y0"] for b in t_blocks)
-                    y_max = max(b["y1"] for b in t_blocks)
-                    
-                    # Separate table blocks and non-table blocks
-                    table_blocks = []
-                    non_table_blocks = []
-                    for b in raw_blocks:
-                        cx = (b["x0"] + b["x1"]) / 2
-                        cy = (b["y0"] + b["y1"]) / 2
-                        if x_min <= cx <= x_max and y_min <= cy <= y_max:
-                            table_blocks.append(b)
-                        else:
-                            non_table_blocks.append(b)
-                            
-                    # --- Table Grouping (Grid Cell Assignment) ---
-                    # Cluster column centers
-                    table_xs = [(b["x0"] + b["x1"])/2 for b in table_blocks]
-                    col_centers = []
-                    if table_xs:
-                        tx_sorted = sorted(table_xs)
-                        curr = [tx_sorted[0]]
-                        for val in tx_sorted[1:]:
-                            if val - curr[-1] < 45:
-                                curr.append(val)
-                            else:
-                                col_centers.append(float(np.mean(curr)))
-                                curr = [val]
-                        col_centers.append(float(np.mean(curr)))
-                    col_centers = sorted(list(set(col_centers)))
-                    
-                    # Column boundaries
-                    col_boundaries = []
-                    for i in range(len(col_centers) - 1):
-                        col_boundaries.append((col_centers[i] + col_centers[i+1]) / 2)
-                    col_boundaries = [0] + col_boundaries + [99999]
-                    
-                    # Cluster row centers
-                    table_ys = [(b["y0"] + b["y1"])/2 for b in table_blocks]
-                    row_centers = []
-                    if table_ys:
-                        ty_sorted = sorted(table_ys)
-                        curr = [ty_sorted[0]]
-                        for val in ty_sorted[1:]:
-                            if val - curr[-1] < 28:
-                                curr.append(val)
-                            else:
-                                row_centers.append(float(np.mean(curr)))
-                                curr = [val]
-                        row_centers.append(float(np.mean(curr)))
-                    row_centers = sorted(list(set(row_centers)))
-                    
-                    row_boundaries = []
-                    for i in range(len(row_centers) - 1):
-                        row_boundaries.append((row_centers[i] + row_centers[i+1]) / 2)
-                    row_boundaries = [0] + row_boundaries + [99999]
-                    
-                    logger.info(f"[ROW_COUNT] Detected table rows count: {len(row_centers)}")
-                    logger.info(f"[COLUMN_COUNT] Detected table columns count: {len(col_centers)}")
-                    
-                    # Map table blocks to cell (r, c)
-                    cell_map = {}
-                    for b in table_blocks:
-                        cx = (b["x0"] + b["x1"]) / 2
-                        cy = (b["y0"] + b["y1"]) / 2
-                        
-                        r_idx = 0
-                        for i in range(len(row_boundaries) - 1):
-                            if row_boundaries[i] <= cy < row_boundaries[i+1]:
-                                r_idx = i
-                                break
-                        c_idx = 0
-                        for i in range(len(col_boundaries) - 1):
-                            if col_boundaries[i] <= cx < col_boundaries[i+1]:
-                                c_idx = i
-                                break
-                                
-                        key = (r_idx, c_idx)
-                        if key not in cell_map:
-                            cell_map[key] = []
-                        cell_map[key].append(b)
-                        
-                    # Reconstruct table cells into separate lines (preserving columns separately!)
-                    logger.info("[TABLE_LINEBUILDER_USED] Processing rows/columns using TableAwareLineBuilder.")
-                    
-                    t_start_tb_ms = int((time.time() - t_start_lb) * 1000)
-                    logger.info(f"[TABLE_BUILDER_TIME_MS] Table aware builder duration: {t_start_tb_ms} ms")
-                    
-                    for key, cell_blks in sorted(cell_map.items()):
-                        cell_blks.sort(key=lambda b: b["x0"])
-                        cell_y0 = min(b["y0"] for b in cell_blks)
-                        cell_y1 = max(b["y1"] for b in cell_blks)
-                        cell_h = cell_y1 - cell_y0
-                        
-                        line_idx = len(lines)
-                        lines.append({
-                            "y0": cell_y0,
-                            "y1": cell_y1,
-                            "h": cell_h,
-                            "blocks": cell_blks
-                        })
-                        for b in cell_blks:
-                            b["ocr_block"]["line_id"] = line_idx
-                            logger.info(f"[CELL_ASSIGNMENT] Box text='{b['text']}' assigned to cell row={key[0]} col={key[1]}")
-                            logger.info(f"[CELL_CROP_CREATED] Bounding box crop coordinates: {[b['x0'], b['y0'], b['x1'], b['y1']]}")
-                            
-                    # Now group non-table blocks using legacy LineBuilder
-                    for b in non_table_blocks:
-                        added = False
-                        for line_idx, line in enumerate(lines):
-                            overlap_top = max(b['y0'], line['y0'])
-                            overlap_bottom = min(b['y1'], line['y1'])
-                            y_overlap = max(0, overlap_bottom - overlap_top)
-                            h_min = min(b['h'], line['h'])
-                            if h_min > 0 and y_overlap > 0.4 * h_min:
-                                line['blocks'].append(b)
-                                line['y0'] = min(line['y0'], b['y0'])
-                                line['y1'] = max(line['y1'], b['y1'])
-                                line['h'] = line['y1'] - line['y0']
-                                b["ocr_block"]["line_id"] = line_idx
-                                added = True
-                                break
-                        if not added:
-                            new_line_idx = len(lines)
-                            lines.append({
-                                "y0": b['y0'],
-                                "y1": b['y1'],
-                                "h": b['h'],
-                                "blocks": [b]
-                            })
-                            b["ocr_block"]["line_id"] = new_line_idx
-                            
-                else:
-                    is_table = False
-            else:
-                is_table = False
-                
-            if not is_table:
-                logger.info("[LEGACY_LINEBUILDER_USED] Processing layout using LegacyLineBuilder.")
-                # Legacy LineBuilder row grouping
-                for b in raw_blocks:
-                    added = False
-                    for line_idx, line in enumerate(lines):
-                        overlap_top = max(b['y0'], line['y0'])
-                        overlap_bottom = min(b['y1'], line['y1'])
-                        y_overlap = max(0, overlap_bottom - overlap_top)
-                        h_min = min(b['h'], line['h'])
-                        if h_min > 0 and y_overlap > 0.4 * h_min:
-                            line['blocks'].append(b)
-                            line['y0'] = min(line['y0'], b['y0'])
-                            line['y1'] = max(line['y1'], b['y1'])
-                            line['h'] = line['y1'] - line['y0']
-                            b["ocr_block"]["line_id"] = line_idx
-                            added = True
-                            break
-                    if not added:
-                        new_line_idx = len(lines)
-                        lines.append({
-                            "y0": b['y0'],
-                            "y1": b['y1'],
-                            "h": b['h'],
-                            "blocks": [b]
-                        })
-                        b["ocr_block"]["line_id"] = new_line_idx
-                    
-            # Gap Analysis (Phases 1, 2, 3)
-            duplicate_drops = 0
-            for line in lines:
-                line_blocks = sorted(line['blocks'], key=lambda b: b['x0'])
-                
-                line_str = ""
-                for i, b in enumerate(line_blocks):
-                    text = b['text']
-                    
-                    # Coordinate-based duplicate detection (horizontal check)
-                    is_dup = False
-                    for seen_b in line_blocks[:i]:
-                        if seen_b['text'] == text:
-                            # Calculate horizontal overlap
-                            overlap = max(0.0, min(b['x1'], seen_b['x1']) - max(b['x0'], seen_b['x0']))
-                            w_min = min(b['x1'] - b['x0'], seen_b['x1'] - seen_b['x0'])
-                            if w_min > 0 and overlap > 0.8 * w_min:
-                                is_dup = True
-                                logger.info(f"[LINE_BUILDER_DEDUPLICATION_TELEMETRY] Duplicate block text='{text}' dropped on same line due to overlap.")
-                                removed_blocks.append({
-                                    "text": text,
-                                    "bbox": b["ocr_block"]["bbox"],
-                                    "reason": "coordinate_horizontal_overlap"
-                                })
-                                break
-                    if is_dup:
-                        duplicate_drops += 1
-                        continue
-                    
-                    if i > 0:
-                        prev_b = line_blocks[i-1]
-                        gap = b['x0'] - prev_b['x1']
-                        avg_h = (b['h'] + prev_b['h']) / 2.0
-                        
-                        if gap > 2.0 * avg_h:
-                            # Table column or distant address block
-                            line_str += " | "
-                        elif gap > 0.25 * avg_h:
-                            # Standard whitespace
-                            line_str += " "
-                    
-                    line_str += text
-                    
-                if line_str.strip():
-                    extracted_lines.append(line_str.strip())
- 
-        final_text = "\n".join(extracted_lines).strip()
-        duration_ms = int((time.time() - t_start) * 1000)
- 
-        # Telemetry requirement
-        logger.info(f"[OCR_PROVIDER] provider=PaddleOCR")
-        logger.info(f"[OCR_RESULT] page={page_idx+1} char_count={len(final_text)} duration_ms={duration_ms} duplicate_drops={duplicate_drops}")
-
-        lb_duration_ms = int((time.time() - t_start_lb) * 1000) if 't_start_lb' in locals() else 0
-        from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
-        PipelineStageTelemetry.record_stage(
-            "Line Builder",
-            {"raw_blocks": len(raw_blocks)},
-            {"lines_count": len(lines) if 'lines' in locals() else 0, "duplicate_drops": duplicate_drops},
-            lb_duration_ms
-        )
- 
-        result_queue.put({
-            "success": True,
-            "image_bytes": img_bytes,
-            "text": final_text,
-            "ocr_blocks": ocr_blocks,
-            "dpi": selected_dpi,
-            "blur_score": focus_score,
-            "width": width_pts,
-            "height": height_pts,
-            "duplicate_drops": duplicate_drops,
-            "image_width_px": pil_image.width,
-            "image_height_px": pil_image.height,
-            "compression_quality": quality,
-            "image_size_bytes": image_size_bytes,
-            "render_latency_ms": render_duration_ms,
-            "removed_blocks": removed_blocks
-        })
-        
     except Exception as e:
         import traceback
         trace = traceback.format_exc()
         logger.error(f"Isolated OCR Error on page {page_idx + 1}: {e}\n{trace}")
         result_queue.put({
             "success": False,
-            "error": f"PaddleOCR Extraction failed: {str(e)}"
+            "error":   f"Mistral OCR Extraction failed: {str(e)}",
         })
 
-def run_isolated_page_extraction(file_path: str, page_idx: int, dpi: Optional[int] = None, skip_ocr: bool = False) -> Dict[str, Any]:
+
+# ── PUBLIC API ────────────────────────────────────────────────────────────────
+
+def run_isolated_page_extraction(
+    file_path: str,
+    page_idx: int,
+    dpi: Optional[int] = None,
+    skip_ocr: bool = False,
+) -> Dict[str, Any]:
     """
-    Spawns a clean process to extract OCR data and returns the result safely.
+    Spawns a clean subprocess to render and OCR a single PDF page using
+    Mistral OCR, then returns the result safely via IPC.
+
+    Return contract (identical to previous implementation):
+        {
+          "success":             bool,
+          "image_bytes":         bytes,   # JPEG ≤ 600 KB
+          "text":                str,     # full-page text, reading order
+          "ocr_blocks":          list,    # [{text, confidence, bbox, ...}]
+          "dpi":                 int,
+          "avg_confidence":      float,
+          "blur_score":          float,
+          "width":               float,
+          "height":              float,
+          "duplicate_drops":     int,
+          "image_width_px":      int,
+          "image_height_px":     int,
+          "compression_quality": int,
+          "image_size_bytes":    int,
+          "render_latency_ms":   int,
+          "removed_blocks":      list,
+        }
+    On failure:
+        {"success": False, "error": str}
     """
-    # Create an explicit queue for cross-process IPC
-    ctx = multiprocessing.get_context('spawn')
+    ctx = multiprocessing.get_context("spawn")
     result_queue = ctx.Queue()
-    
-    # Start worker process
+
     p = ctx.Process(
-        target=_extract_page_worker, 
+        target=_extract_page_worker,
         args=(file_path, page_idx, dpi, skip_ocr, result_queue),
-        daemon=True
+        daemon=True,
     )
     p.start()
-    
-    # Wait for completion and collect payload
-    # Add a generous timeout to prevent hanging forever (300 seconds)
+
     try:
         result = result_queue.get(timeout=300)
         p.join(timeout=5)
-        
+
         if p.is_alive():
-            logger.warning(f"Process for page {page_idx + 1} did not terminate cleanly. Forcing termination.")
+            logger.warning(
+                f"Process for page {page_idx + 1} did not terminate cleanly. "
+                f"Forcing termination."
+            )
             p.terminate()
             p.join()
-            
+
         return result
-        
+
     except multiprocessing.queues.Empty:
         p.terminate()
         p.join()
         return {
             "success": False,
-            "error": "OCR Worker Process timed out after 300 seconds."
+            "error":   "OCR Worker Process timed out after 300 seconds.",
         }
     except Exception as exc:
         if p.is_alive():
@@ -701,5 +700,5 @@ def run_isolated_page_extraction(file_path: str, page_idx: int, dpi: Optional[in
             p.join()
         return {
             "success": False,
-            "error": f"OCR IPC Failure: {str(exc)}"
+            "error":   f"OCR IPC Failure: {str(exc)}",
         }

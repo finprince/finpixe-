@@ -461,7 +461,7 @@ def _extract_pdf_paged_shared(file_bytes: bytes, file_name: str, metrics: Extrac
 def _extract_pdf_paged(file_bytes: bytes, file_name: str, metrics: ExtractionMetrics) -> list:
     """
     Split PDF into chunks and process in parallel with failure isolation.
-    Uses shared pypdfium2 / PaddleOCR engine when feature flagged.
+    Uses shared pypdfium2 / Mistral OCR engine when feature flagged.
     """
     try:
         from django.conf import settings

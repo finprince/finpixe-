@@ -25,7 +25,7 @@ def rule_parse_invoice(file_bytes: bytes, mime_type: str, pre_extracted_text: st
         # 1. Extract Text
         text = pre_extracted_text or ""
         if not text:
-            # Fallback parsing requires pre-extracted text from PaddleOCR
+            # Fallback parsing requires pre-extracted text from Mistral OCR
             logger.warning("Rule parser skipped because pre_extracted_text is empty")
             return result
 

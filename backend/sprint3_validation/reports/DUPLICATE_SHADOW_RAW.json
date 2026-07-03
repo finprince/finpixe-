@@ -1,15 +1,25 @@
 {
-  "mined_at": "2026-06-21T10:29:41.440769+00:00",
+  "mined_at": "2026-07-02T08:02:01.590285+00:00",
   "shadow_mode_active": true,
   "blocking_activated": false,
   "summary": {
-    "total_shadow_check_events": 0,
+    "total_shadow_check_events": 1,
     "shadow_matches": 0,
     "shadow_mismatches": 0,
     "total_duplicate_found_events": 0,
     "expected_pair_0006_detected": false
   },
-  "shadow_events": [],
+  "shadow_events": [
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-01 11:27:46,950 pipeline 29008 11440 [DUPLICATE_SHADOW_CHECK] record_id=1008123 invoice_no='VMT25-26/147' normalized_invoice_no='VMT2526147' old_match=False new_match=False"
+    }
+  ],
   "shadow_matches_detail": [],
   "duplicate_found_events": [],
   "expected_duplicate_pair": {

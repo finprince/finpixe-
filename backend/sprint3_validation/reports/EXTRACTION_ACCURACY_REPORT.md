@@ -1,5 +1,5 @@
 # Extraction Accuracy Report — Sprint 3
-Generated: 2026-06-21 10:29:41 UTC
+Generated: 2026-07-02 08:02:01 UTC
 
 > **Amendment 1 Implementation**: Two-tier accuracy validation.
 > Tier A = Human verified ground truth (10 invoices).

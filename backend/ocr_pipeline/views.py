@@ -515,7 +515,12 @@ class CleanOCRStagingView(views.APIView):
         
         branch = fix_encoding_corruption(str(getattr(r, 'branch', None) or header.get("branch") or supplier.get("branch") or norm.get("branch") or "—"))
         bill_from = fix_encoding_corruption(norm.get("bill_from", ""))
-        bill_to = fix_encoding_corruption(norm.get("bill_to", "") or norm.get("billing_address", ""))
+        bill_to = fix_encoding_corruption(
+            norm.get("header", {}).get("billing_address", "") or
+            norm.get("header", {}).get("bill_to", "") or
+            norm.get("bill_to", "") or
+            norm.get("billing_address", "")
+        )
 
         # ── [BILL_TO_UI_FALLBACK] Apply window slicer if bill_to is empty but OCR text exists ──
         if not bill_to:
@@ -535,6 +540,20 @@ class CleanOCRStagingView(views.APIView):
                         logger.info(f"[BILL_TO_UI_FALLBACK_HIT] record_id={getattr(r, 'id', None)} value={repr(bill_to[:80])}")
                 except Exception as _bte:
                     logger.warning(f"[BILL_TO_UI_FALLBACK_FAILED] record_id={getattr(r, 'id', None)} err={_bte}")
+
+        # ── [BILL_TO_PIPE_CLEANUP] Legacy DB records may still have pipe-table noise ──
+        # When the normalizer stored a pipe-table string (pre-fix), clean it at the UI
+        # layer so existing records show the correct buyer address immediately.
+        if bill_to and '|' in bill_to:
+            try:
+                from .normalize import _clean_bill_to_ocr_extract
+                _cleaned = fix_encoding_corruption(_clean_bill_to_ocr_extract(bill_to))
+                if _cleaned:  # only replace if parser produced something useful
+                    logger.info(f"[BILL_TO_PIPE_CLEANUP] record_id={getattr(r, 'id', None)} before={repr(bill_to[:60])} after={repr(_cleaned[:60])}")
+                    bill_to = _cleaned
+            except Exception as _bte:
+                logger.warning(f"[BILL_TO_PIPE_CLEANUP_FAILED] record_id={getattr(r, 'id', None)} err={_bte}")
+
         inv_no = (
             getattr(r, 'supplier_invoice_no', None) or 
             header.get("invoice_no") or 
@@ -680,9 +699,36 @@ class CleanOCRStagingView(views.APIView):
             f"item_status={item_status}"
         )
 
+        buyer_name = (
+            norm.get("buyer_name") or
+            norm.get("customer_name") or
+            norm.get("header", {}).get("buyer_name") or
+            norm.get("header", {}).get("customer_name") or
+            ""
+        )
+        if not buyer_name and bill_to:
+            import re as _re
+            # Priority 1: Extract 'Name :' label from bill_to.
+            # This recovers buyer name from pipe-table remnants and cleaned
+            # OCR address strings that still contain the inline 'Name : VALUE' label.
+            _name_m = _re.search(r'Name\s*:\s*([A-Z][^,;\n|]{2,80})', str(bill_to), _re.IGNORECASE)
+            if _name_m:
+                buyer_name = _name_m.group(1).strip()
+                logger.info(f"[BUYER_NAME_UI_LABEL] record_id={getattr(r, 'id', None)} value='{buyer_name}'")
+
+            # Priority 2: Split on comma/semicolon/newline (original fallback).
+            # Guarded against pipe characters so pipe-table garbage is skipped.
+            if not buyer_name:
+                parts = _re.split(r'[,;\n]', str(bill_to))
+                if parts:
+                    cand = parts[0].strip()
+                    if cand and not _re.match(r'^\d', cand) and '|' not in cand:
+                        buyer_name = cand
+
         res = {
             "id": getattr(r, 'id', None),
             "file_hash": getattr(r, 'file_hash', None) or norm.get("file_hash", None),
+            "buyer_name": buyer_name,
             "file_path": getattr(r, 'file_path', None) or norm.get("file_path", None),
             "tenant_id": getattr(r, 'tenant_id', None),
             "invoice_no": inv_no,

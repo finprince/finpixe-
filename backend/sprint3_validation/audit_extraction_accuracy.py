@@ -146,7 +146,7 @@ def query_extracted_records(session_id: str) -> dict:
             filename_map[fname] = {
                 "record_id": str(r.id),
                 "status": r.status,
-                "vendor_name": r.vendor_name or header.get("vendor_name", ""),
+                "vendor_name": header.get("vendor_name", ""),
                 "gstin": r.gstin or header.get("vendor_gstin", header.get("gstin", "")),
                 "invoice_no": r.supplier_invoice_no or header.get("invoice_no", ""),
                 "invoice_date": header.get("invoice_date", ""),
