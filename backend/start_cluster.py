@@ -40,33 +40,13 @@ def validate_dependencies():
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
 
-    # ── Step 0: GPU-ONLY ENFORCEMENT ──────────────────────────────────────────
-    # This MUST be the first check. If GPU is unavailable, we refuse to start.
-    # CPU inference is FORBIDDEN. The cluster will not launch without RTX 4050.
-    try:
-        from core.gpu_validator import validate_gpu_on_startup
-        model_name = os.getenv('QWEN_MODEL', 'qwen2.5vl:7b')
-        logger.info(f"[CLUSTER_GPU_CHECK] Validating GPU for model={model_name}...")
-        gpu_evidence = validate_gpu_on_startup(model_name)
-        logger.info(
-            f"[CLUSTER_GPU_CONFIRMED] "
-            f"gpu={gpu_evidence.get('gpu_name', 'unknown')} | "
-            f"vram={gpu_evidence.get('vram_used_mib_after_load', gpu_evidence.get('vram_used_mib', 0)):.0f} MiB | "
-            f"smoke_tps={gpu_evidence.get('smoke_tokens_per_second', 0):.2f} | "
-            f"compute_mode=GPU_ONLY"
-        )
-    except RuntimeError as gpu_err:
-        logger.critical(
-            f"[CLUSTER_GPU_FATAL] GPU validation failed. Cluster CANNOT start without GPU.\n{gpu_err}"
-        )
-        raise RuntimeError(
-            f"GPU validation failed. Refusing CPU inference. Cluster aborted.\n{gpu_err}"
-        ) from gpu_err
-    except Exception as gpu_exc:
-        logger.critical(f"[CLUSTER_GPU_ERROR] Unexpected GPU validator error: {gpu_exc}")
-        raise RuntimeError(
-            f"GPU validation failed. Refusing CPU inference. Cluster aborted.\n{gpu_exc}"
-        ) from gpu_exc
+    # ── Step 0: MISTRAL API ENFORCEMENT ──────────────────────────────────────────
+    # Verify that MISTRAL_API_KEY is present before booting cluster.
+    api_key = os.getenv('MISTRAL_API_KEY')
+    if not api_key:
+        logger.critical("[CLUSTER_MISTRAL_FATAL] MISTRAL_API_KEY is not set. Cluster cannot start.")
+        sys.exit(1)
+    logger.info("[CLUSTER_MISTRAL_CHECK] Mistral API Key confirmed. Compute offloaded to Cloud.")
 
     # A. Redis
     try:

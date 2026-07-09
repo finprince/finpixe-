@@ -657,7 +657,7 @@ def generate_failed_rca_report():
     # Group by failure category
     categories = {
         "OCR Failure": [],
-        "AI/Qwen Failure": [],
+        "AI/Mistral Failure": [],
         "Queue Failure": [],
         "Assembly Failure": [],
         "Finalize Failure": [],
@@ -726,7 +726,7 @@ def generate_failed_rca_report():
         "|---|---|",
         "| Upload Failure | Increase API timeout, check multipart size limits |",
         "| OCR Failure | Verify MISTRAL_API_KEY and Mistral API connectivity |",
-        "| AI/Qwen Failure | Check Ollama GPU availability, increase retry count |",
+        "| AI/Mistral Failure | Check Mistral API key, rate limits, or response quality |",
         "| Timeout | Increase SESSION_POLL_TIMEOUT_S, check queue backlog |",
         "| Assembly Failure | Verify barrier convergence logic |",
         "",
@@ -777,7 +777,7 @@ def generate_pipeline_performance_report():
         "| Stage | Events (n) | Avg | Median | p95 | p99 | Max |",
         "|---|---|---|---|---|---|---|",
         f"| OCR | {ocr[0]} | {ocr[1]} | {ocr[2]} | {ocr[3]} | {ocr[4]} | {ocr[5]} |",
-        f"| AI Extraction (Qwen) | {ai[0]} | {ai[1]} | {ai[2]} | {ai[3]} | {ai[4]} | {ai[5]} |",
+        f"| AI Extraction (Mistral) | {ai[0]} | {ai[1]} | {ai[2]} | {ai[3]} | {ai[4]} | {ai[5]} |",
         f"| Assembly | {asm[0]} | {asm[1]} | {asm[2]} | {asm[3]} | {asm[4]} | {asm[5]} |",
         f"| Finalization | {fin[0]} | {fin[1]} | {fin[2]} | {fin[3]} | {fin[4]} | {fin[5]} |",
         f"| **Total Pipeline** | {total[0]} | {total[1]} | {total[2]} | {total[3]} | {total[4]} | {total[5]} |",
@@ -800,7 +800,7 @@ def generate_pipeline_performance_report():
         top = bottlenecks[0]
         lines.append(f"> **Primary bottleneck: {top.get('stage', 'N/A')}** "
                      f"({top.get('pct', 0)}% of cumulative pipeline time)")
-        if top.get("stage", "") == "AI Extraction (Qwen)":
+        if top.get("stage", "") == "AI Extraction (Mistral)":
             lines += [
                 "> ",
                 "> AI extraction dominates pipeline time. Optimization paths:",

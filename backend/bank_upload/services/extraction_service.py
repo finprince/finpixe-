@@ -103,7 +103,7 @@ def extract_transactions(file_obj) -> tuple[list, dict]:
             if not text_payload and not mime_type.startswith('image/'):
                 raise ValueError(f"CRITICAL: Failed to extract text from {file_name}")
 
-            raw = _call_qwen(text_payload, mime_type, file_bytes, file_name)
+            raw = _call_ai_provider(text_payload, mime_type, file_bytes, file_name)
             rows = _parse_response(raw)
             metrics.total_chunks = 1
             metrics.successful_chunks = 1 if rows else 0
@@ -263,13 +263,13 @@ Return an array of objects:
 """
 
 
-def _call_qwen(text_payload: str | None, mime_type: str, file_bytes: bytes, file_name: str, is_first: bool = False, is_last: bool = False) -> str:
+def _call_ai_provider(text_payload: str | None, mime_type: str, file_bytes: bytes, file_name: str, is_first: bool = False, is_last: bool = False) -> str:
     """
-    Call Qwen/AI with strict prompt injection, logging, and balance extraction flags.
+    Call AI Provider with strict prompt injection, logging, and balance extraction flags.
     """
     api_key = api_key_manager.get_healthy_key()
     if not api_key:
-        raise RuntimeError("No healthy Qwen API keys available.")
+        raise RuntimeError("No healthy AI API keys available.")
 
     # Enhance prompt for first/last chunks to capture balances
     balance_hint = ""
@@ -319,13 +319,13 @@ def _call_qwen(text_payload: str | None, mime_type: str, file_bytes: bytes, file
     return raw
 
 
-def _call_qwen_hybrid(img_bytes: bytes, page_text: str, page_idx: int, file_name: str, total_pages: int, metrics: ExtractionMetrics) -> str:
+def _call_mistral_hybrid(img_bytes: bytes, page_text: str, page_idx: int, file_name: str, total_pages: int, metrics: ExtractionMetrics) -> str:
     from core.ai_proxy import api_key_manager, execute_with_retry
     from ocr_pipeline.extraction import ai_concurrency_gate
     
     api_key = api_key_manager.get_healthy_key()
     if not api_key:
-        raise RuntimeError("No healthy Qwen API keys available.")
+        raise RuntimeError("No healthy AI API keys available.")
         
     is_first = (page_idx == 0)
     is_last = (page_idx == total_pages - 1)
@@ -387,7 +387,7 @@ def _process_single_page_shared(page_idx: int, temp_pdf_path: str, file_name: st
     page_text = re.sub(r'[ \t]+', ' ', page_text).strip()
     page_text = re.sub(r'(\r\n|\r|\n){2,}', '\n\n', page_text)
     
-    raw_response = _call_qwen_hybrid(img_bytes, page_text, page_idx, file_name, total_pages, metrics)
+    raw_response = _call_mistral_hybrid(img_bytes, page_text, page_idx, file_name, total_pages, metrics)
     page_rows = _parse_response(raw_response)
     
     return raw_response, page_rows
@@ -461,87 +461,9 @@ def _extract_pdf_paged_shared(file_bytes: bytes, file_name: str, metrics: Extrac
 def _extract_pdf_paged(file_bytes: bytes, file_name: str, metrics: ExtractionMetrics) -> list:
     """
     Split PDF into chunks and process in parallel with failure isolation.
-    Uses shared pypdfium2 / Mistral OCR engine when feature flagged.
+    Uses shared pypdfium2 / Mistral OCR engine.
     """
-    try:
-        from django.conf import settings
-        USE_SHARED_OCR = getattr(settings, "USE_SHARED_OCR_FOR_STATEMENTS", True)
-    except Exception:
-        USE_SHARED_OCR = os.getenv("USE_SHARED_OCR_FOR_STATEMENTS", "true").lower() == "true"
-
-    if USE_SHARED_OCR:
-        return _extract_pdf_paged_shared(file_bytes, file_name, metrics)
-
-    import fitz
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
-    total_pages = len(doc)
-    metrics.total_pages = total_pages
-    
-    # CHUNK_SIZE = 2 for maximum focus and reliability
-    CHUNK_SIZE = 2 
-    chunks = []
-    for i in range(0, total_pages, CHUNK_SIZE):
-        end_page = min(i + CHUNK_SIZE, total_pages)
-        chunk_doc = fitz.open()
-        chunk_doc.insert_pdf(doc, from_page=i, to_page=end_page - 1)
-        chunks.append({
-            'bytes': chunk_doc.tobytes(),
-            'name': f"{file_name}_part_{i+1}",
-            'range': (i+1, end_page)
-        })
-        chunk_doc.close()
-
-    metrics.total_chunks = len(chunks)
-    all_results = [None] * len(chunks) # Pre-allocate for page order preservation
-
-    logger.info(f"🚀 Parallel Dispatch: {len(chunks)} chunks with 5 workers")
-    
-    # Parallel execution with failure isolation
-    with ThreadPoolExecutor(max_workers=5) as executor:
-
-        future_to_idx = {}
-        for idx, chunk in enumerate(chunks):
-            is_first = (idx == 0)
-            is_last  = (idx == len(chunks) - 1)
-            future = executor.submit(_call_qwen, None, 'application/pdf', chunk['bytes'], chunk['name'], is_first, is_last)
-            future_to_idx[future] = idx
-        
-        for future in as_completed(future_to_idx):
-            idx = future_to_idx[future]
-            chunk_range = chunks[idx]['range']
-            try:
-                raw_response = future.result()
-                chunk_rows = _parse_response(raw_response)
-                
-                # Retry once if 0 rows found in a non-empty page range
-                if not chunk_rows:
-                    logger.warning(f"🔍 Chunk {chunk_range[0]}-{chunk_range[1]}: 0 rows found. Retrying with explicit scan...")
-                    raw_response = _call_qwen(
-                        "RETRY INSTRUCTION: Previous scan found 0 transactions. Please perform an explicit, row-by-row scan of the tables on this page. I need EVERY transaction.", 
-                        'application/pdf', chunks[idx]['bytes'], chunks[idx]['name']
-                    )
-                    chunk_rows = _parse_response(raw_response)
-
-                # Check for balances in the response if it's first or last
-                if idx == 0:
-                    metrics.opening_balance = _extract_balance_from_raw(raw_response, "opening")
-                if idx == len(chunks) - 1:
-                    metrics.closing_balance = _extract_balance_from_raw(raw_response, "closing")
-
-                all_results[idx] = chunk_rows
-                metrics.successful_chunks += 1
-                logger.info(f"📥 Chunk {chunk_range[0]}-{chunk_range[1]}: SUCCESS ({len(chunk_rows)} rows)")
-                if not chunk_rows:
-                    logger.debug(f"DEBUG: Raw response for empty chunk: {raw_response[:500]}...")
-            except Exception as e:
-                metrics.failed_chunks += 1
-                logger.error(f"⚠️ Chunk {chunk_range[0]}-{chunk_range[1]}: FAILED - {e}", exc_info=True)
-                all_results[idx] = [] 
-
-
-    doc.close()
+    return _extract_pdf_paged_shared(file_bytes, file_name, metrics)
 
     # Integrity Check: Reject if failure rate is too high (Threshold: 30%)
     if metrics.total_chunks > 0:

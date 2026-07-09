@@ -73,7 +73,9 @@ def assess_q1_ocr(ocr_data: dict, acc_data: dict) -> tuple:
     total_low_conf = s.get("total_low_confidence_events", 0)
     avg_confidence = s.get("avg_confidence_score")
     qwen_events = s.get("total_qwen_inference_events", 0)
+    mistral_events = s.get("total_mistral_inference_events", 0) or qwen_events
     avg_qwen_lat = s.get("avg_qwen_latency_s", 0)
+    avg_mistral_lat = s.get("avg_mistral_latency_s", 0) or avg_qwen_lat
     avg_tps = s.get("avg_tokens_per_second", 0)
     total_recovery = s.get("total_ocr_recovery_passes", 0)
 
@@ -100,17 +102,19 @@ def assess_q1_ocr(ocr_data: dict, acc_data: dict) -> tuple:
     elif avg_confidence is not None:
         concerns.append(f"Avg confidence score = {avg_confidence} (below 80 threshold)")
 
-    # Qwen speed vs Sprint 1
-    if qwen_events > 0:
-        if avg_qwen_lat < sprint1_latency:
+    # Mistral speed vs Sprint 1
+    effective_events = mistral_events or qwen_events
+    effective_lat = avg_mistral_lat or avg_qwen_lat
+    if effective_events > 0:
+        if effective_lat < sprint1_latency:
             improvements.append(
-                f"Qwen avg latency {avg_qwen_lat}s < Sprint 1 latency {sprint1_latency}s"
+                f"Mistral avg latency {effective_lat}s < Sprint 1 latency {sprint1_latency}s"
             )
         else:
             concerns.append(
-                f"Qwen avg latency {avg_qwen_lat}s > Sprint 1 latency {sprint1_latency}s"
+                f"Mistral avg latency {effective_lat}s > Sprint 1 latency {sprint1_latency}s"
             )
-        improvements.append(f"Qwen GPU inference active: {avg_tps:.1f} tok/s ({qwen_events} events)")
+        improvements.append(f"Mistral OCR inference active: {effective_events} events")
 
     # Sprint 1 had 0% prefix cache hit ratio
     improvements.append("Sprint 1 had 0% prefix cache hit ratio; Sprint 3 has active PREFIX_CACHE_TELEMETRY instrumentation")
@@ -174,7 +178,7 @@ def assess_q3_concurrency(timing_data: dict, worker_data: dict) -> tuple:
     else:
         return "UNDERSIZED", notes, [
             f"AI p95 = {ai_p95} ms — pipeline is severely bottlenecked",
-            "Investigate Qwen inference speed, GPU VRAM saturation"
+            "Investigate Mistral OCR API latency and rate limits"
         ]
 
 

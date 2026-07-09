@@ -1,6 +1,6 @@
 # OCR Batch Validation Report — Sprint 3
-Generated: 2026-07-02 08:02:01 UTC
-Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
+Generated: 2026-07-08 10:08:55 UTC
+Session ID: `78385acd-fa96-4966-b5d5-76b34d7cb3b1`
 
 ---
 
@@ -14,7 +14,7 @@ Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
 ## 2. OCR Engine Configuration
 | Setting | Value |
 |---|---|
-| OCR Engine | PaddleOCR |
+| OCR Engine | Mistral OCR (mistral-ocr-latest) |
 | Base DPI (normal) | 300 |
 | Base DPI (small page <400pt) | 200 |
 | Blur upgrade DPI | 400 |

@@ -1,5 +1,5 @@
 # Prefix Cache Effectiveness Report — Sprint 3
-Generated: 2026-07-02 08:02:01 UTC
+Generated: 2026-07-08 10:08:55 UTC
 
 ## Background
 The prefix cache works by sharing a common prompt prefix across all pages of the same invoice.
@@ -15,22 +15,20 @@ Page 3 → PREFIX_HASH=A
 ## 1. Cache Event Summary
 | Metric | Value |
 |---|---|
-| Total PREFIX_CACHE_TELEMETRY events | 45 |
-| Invoices with cache telemetry | 12 |
-| Cache-consistent invoices | 8 |
-| Cache-invalidated invoices | 1 |
-| Single-page invoices (undetermined) | 3 |
-| Global unique prefix hashes | 2 |
-| Identical prefix ratio | **97.8%** |
+| Total PREFIX_CACHE_TELEMETRY events | 0 |
+| Invoices with cache telemetry | 0 |
+| Cache-consistent invoices | 0 |
+| Cache-invalidated invoices | 0 |
+| Single-page invoices (undetermined) | 0 |
+| Global unique prefix hashes | 0 |
+| Identical prefix ratio | **0%** |
 
 ## 2. Cache Effectiveness Assessment
-> ✅ **Cache is functioning correctly.** 97.8% of prompts share identical prefix hashes.
+> ⚠️ **No PREFIX_CACHE_TELEMETRY events found.** Cache may not be enabled or logs are empty.
 
 ## 3. Cache-Invalidated Invoices
-| Invoice ID | Pages | Unique Prefix Hashes | Root Cause |
-|---|---|---|---|
-| 1008123 | 2 | 2 | Prompt content differs between pages |
+*No cache invalidations detected.*
 
 ## 4. Verdict
-> Sprint 3 prefix cache: **WORKING**
-> Consistent invoices: 8 / 9
+> Sprint 3 prefix cache: **NEEDS INVESTIGATION**
+> Consistent invoices: 0 / 0

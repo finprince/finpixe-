@@ -1,59 +1,59 @@
 {
   "capture_label": "POST_BATCH",
-  "captured_at": "2026-07-02T08:01:57.335091+00:00",
-  "captured_at_epoch": 1782979317.335091,
+  "captured_at": "2026-07-08T10:08:49.245048+00:00",
+  "captured_at_epoch": 1783505329.245048,
   "redis": {
     "status": "UP",
     "host": "localhost",
     "port": 6379,
-    "used_memory_mb": 0.95,
-    "used_memory_human": "973.46K",
-    "peak_memory_mb": 1.06,
-    "ops_per_sec": 5,
-    "connected_clients": 15,
-    "total_key_count": 34,
+    "used_memory_mb": 1.11,
+    "used_memory_human": "1.11M",
+    "peak_memory_mb": 1.23,
+    "ops_per_sec": 1,
+    "connected_clients": 21,
+    "total_key_count": 263,
     "lock_key_count": 0,
-    "session_key_count": 7,
-    "assembly_key_count": 0,
+    "session_key_count": 24,
+    "assembly_key_count": 201,
     "worker_heartbeat_key_count": 6,
     "redis_version": "3.0.504",
-    "uptime_seconds": 10596,
-    "keyspace_hits": 5615,
-    "keyspace_misses": 131,
+    "uptime_seconds": 16727,
+    "keyspace_hits": 15397,
+    "keyspace_misses": 608,
     "latency_latest": "{}"
   },
   "sqs": {
     "status": "OK",
     "queue_depths": {
-      "ingestion": 38,
-      "ai": 1,
+      "ingestion": 0,
+      "ai": 0,
       "assembly": 0,
-      "finalize": 0,
+      "finalize": 11,
       "export": 0,
       "materialization": 0,
       "dlq": 0
     },
-    "total_depth": 39
+    "total_depth": 11
   },
   "gpu": {
     "status": "GPU_AVAILABLE",
     "gpu_name": "NVIDIA GeForce RTX 4050 Laptop GPU",
-    "vram_used_mib": 5885,
-    "vram_free_mib": 37,
+    "vram_used_mib": 0,
+    "vram_free_mib": 5921,
     "vram_total_mib": 6141,
-    "vram_used_pct": 95.8,
-    "gpu_utilization_pct": 100,
-    "temperature_c": 62
+    "vram_used_pct": 0.0,
+    "gpu_utilization_pct": 0,
+    "temperature_c": 46
   },
   "cpu": {
     "status": "OK",
-    "cpu_utilization_pct": 14.5,
+    "cpu_utilization_pct": 8.6,
     "cpu_count_logical": 16,
     "cpu_count_physical": 10,
     "ram_total_gb": 23.71,
-    "ram_used_gb": 10.83,
-    "ram_available_gb": 12.88,
-    "ram_used_pct": 45.7
+    "ram_used_gb": 13.94,
+    "ram_available_gb": 9.77,
+    "ram_used_pct": 58.8
   },
   "workers": {
     "alive_count": 6,
@@ -61,11 +61,11 @@
     "workers": {
       "INGESTION": {
         "alive": true,
-        "ttl_seconds": 87
+        "ttl_seconds": 86
       },
       "AI": {
         "alive": true,
-        "ttl_seconds": 80
+        "ttl_seconds": 88
       },
       "ASSEMBLY": {
         "alive": true,
@@ -73,15 +73,15 @@
       },
       "FINALIZE": {
         "alive": true,
-        "ttl_seconds": 81
+        "ttl_seconds": 89
       },
       "EXPORT": {
         "alive": true,
-        "ttl_seconds": 84
+        "ttl_seconds": 80
       },
       "MATERIALIZE": {
         "alive": true,
-        "ttl_seconds": 86
+        "ttl_seconds": 82
       }
     }
   }

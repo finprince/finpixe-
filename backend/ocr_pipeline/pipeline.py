@@ -1278,6 +1278,27 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
         
         logger.info(f"[ASSEMBLY_PAGE_MERGED] record={record.id} invoices={len(final_invoices)}")
 
+        # ── [PHASE 3A: DOCUMENT QUALITY VALIDATION] ───────────────────────────
+        # Runs AFTER normalize.py (get_ui_payload already called above).
+        # Runs BEFORE FinalizedSnapshot.objects.create() below.
+        # Never modifies extracted invoice values. Never blocks the pipeline.
+        try:
+            from ocr_pipeline.document_validator import run_document_validation
+            for _dv_inv in final_invoices:
+                try:
+                    _dv_report = run_document_validation(
+                        invoice=_dv_inv,
+                        tenant_id=str(record.tenant_id),
+                        record_id=str(record.id),
+                    )
+                    _dv_inv["_doc_validation"] = _dv_report.to_dict()
+                except Exception as _dv_inv_err:
+                    logger.error(f"[DOC_VAL_INVOICE_ERROR] record={record.id} "
+                                 f"inv='{_dv_inv.get('invoice_no')}' error={_dv_inv_err}")
+        except Exception as _dv_err:
+            logger.error(f"[DOC_VAL_IMPORT_ERROR] record={record.id} error={_dv_err}")
+        # ── END PHASE 3A ───────────────────────────────────────────────────────
+
         for ui_pay in final_invoices:
             try:
                 trace_item_checkpoint(
@@ -1674,7 +1695,9 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                         f"[DIAGNOSTIC_LOG] unused_siblings count={len(unused_siblings)} details="
                         f"{[{'id': sib.id, 'file_path': getattr(sib, 'file_path', None), 'file_hash': getattr(sib, 'file_hash', None)} for sib in unused_siblings]}"
                     )
-                    if unused_siblings:
+                    if record.upload_type == 'SPRINT3_VALIDATION':
+                        logger.info(f"[STAGING_ROW_CLEANUP_SKIPPED] Skipped row cleanup for SPRINT3_VALIDATION session={record.upload_session_id}")
+                    elif unused_siblings:
                         unused_ids = [sib.id for sib in unused_siblings]
                         logger.info(f"[DIAGNOSTIC_LOG] unused_ids={unused_ids}")
                         logger.warning(f"[STAGING_ROW_CLEANUP] Deleting unused siblings: {unused_ids}")

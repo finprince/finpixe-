@@ -1,14 +1,14 @@
 {
-  "mined_at": "2026-07-02T08:02:00.566335+00:00",
+  "mined_at": "2026-07-08T10:08:53.129047+00:00",
   "aggregate_events": {
-    "worker_lock_refresh": 613,
-    "record_created": 62,
-    "queue_push_success": 906,
-    "queue_forward_success": 206,
-    "downstream_enqueue_success": 63,
-    "upload_accepted": 60,
-    "slot_acquired": 91,
-    "slot_released": 84
+    "upload_accepted": 23,
+    "record_created": 23,
+    "queue_push_success": 246,
+    "queue_forward_success": 202,
+    "downstream_enqueue_success": 37,
+    "worker_lock_refresh": 207,
+    "slot_acquired": 71,
+    "slot_released": 69
   },
   "log_results": {
     "ingestion": {
@@ -54,34 +54,30 @@
       "size_bytes": 0
     },
     "cluster": {
-      "log": "cluster",
       "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\cluster.log",
-      "status": "OK",
-      "size_bytes": 26115,
+      "status": "EMPTY",
       "events": {},
-      "crashes": [],
-      "dlq_events": [],
-      "push_by_queue": {}
+      "size_bytes": 0
     },
     "debug": {
       "log": "debug",
       "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\debug.log",
       "status": "OK",
-      "size_bytes": 16528057,
+      "size_bytes": 45505305,
       "events": {
-        "worker_lock_refresh": 613,
-        "record_created": 62,
-        "queue_push_success": 906,
-        "queue_forward_success": 206,
-        "downstream_enqueue_success": 63,
-        "upload_accepted": 60,
-        "slot_acquired": 91,
-        "slot_released": 84
+        "upload_accepted": 23,
+        "record_created": 23,
+        "queue_push_success": 246,
+        "queue_forward_success": 202,
+        "downstream_enqueue_success": 37,
+        "worker_lock_refresh": 207,
+        "slot_acquired": 71,
+        "slot_released": 69
       },
       "crashes": [],
       "dlq_events": [],
       "push_by_queue": {
-        "null": 906
+        "null": 246
       }
     }
   },
@@ -90,15 +86,15 @@
   "summary": {
     "total_worker_starts": 0,
     "total_worker_crashes": 0,
-    "total_queue_pushes": 906,
+    "total_queue_pushes": 246,
     "total_dlq_events": 0,
     "total_zombie_messages": 0,
-    "total_lock_refreshes": 613,
-    "total_upload_accepted": 60,
-    "total_records_created": 62,
-    "total_downstream_success": 63,
+    "total_lock_refreshes": 207,
+    "total_upload_accepted": 23,
+    "total_records_created": 23,
+    "total_downstream_success": 37,
     "total_downstream_failed": 0,
-    "total_slots_acquired": 91,
-    "total_slots_released": 84
+    "total_slots_acquired": 71,
+    "total_slots_released": 69
   }
 }

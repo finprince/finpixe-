@@ -30,7 +30,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-Ulaganathan123}
       - REDIS_URL=
       - DJANGO_SECRET=${DJANGO_SECRET}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
     ports:
       - "8000:8000"
     depends_on:

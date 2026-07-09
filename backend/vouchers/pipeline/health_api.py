@@ -21,7 +21,7 @@ class HealthCheckView(APIView):
         from .health import SystemHealth
         h = SystemHealth.get()
         ready = h['healthy']
-        message = 'ok' if ready else 'AI Model unavailable – check QWEN_API_KEY and QWEN_API_BASE'
+        message = 'ok' if ready else 'AI Model unavailable – check MISTRAL_API_KEY'
         return Response({
             'status':  'healthy' if ready else 'degraded',
             'ai':      h['ai'],

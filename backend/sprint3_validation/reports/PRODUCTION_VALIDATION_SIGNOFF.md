@@ -1,6 +1,6 @@
 # Production Validation Sign-Off — Sprint 3
-Generated: 2026-07-02 08:02:01 UTC
-Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
+Generated: 2026-07-08 10:08:55 UTC
+Session ID: `78385acd-fa96-4966-b5d5-76b34d7cb3b1`
 Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 
 ---
@@ -13,9 +13,9 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 | Metric | Value |
 |---|---|
 | Total invoices processed | 23 |
-| Successful | 0 |
-| Failed | 23 |
-| Success rate | **0.0%** |
+| Successful | 19 |
+| Failed | 1 |
+| Success rate | **82.6%** |
 
 ---
 
@@ -27,37 +27,35 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 > Sprint 2 baseline metrics were not available.
 > Comparison is made against Sprint 1 (header_accuracy=56.0%, gstin=60.0%, kv_hit=0%).
 
-> ✅ OCR retry chain active: 114 pages processed with up to 5-pass recovery
-> ✅ 743 OCR recovery passes logged — quality-driven multi-pass extraction
-> ✅ Avg low-confidence score = 100.0 (≥80 threshold)
-> ✅ Qwen GPU inference active: 2.5 tok/s (38 events)
+> ✅ OCR retry chain active: 174 pages processed with up to 5-pass recovery
+> ✅ 188 OCR recovery passes logged — quality-driven multi-pass extraction
+> ✅ Avg low-confidence score = 99.9 (≥80 threshold)
+> ✅ Mistral avg latency 7.39s < Sprint 1 latency 143.3s
+> ✅ Mistral OCR inference active: 186 events
 > ✅ Sprint 1 had 0% prefix cache hit ratio; Sprint 3 has active PREFIX_CACHE_TELEMETRY instrumentation
-> ⚠️ Qwen avg latency 275.1s > Sprint 1 latency 143.3s
 > ⚠️ Extraction accuracy not yet measurable (fill ground truth CSV)
 
 ---
 
 ### Q2: Is prefix cache functioning correctly?
-> **YES**
+> **INSUFFICIENT_DATA**
 
-> ✅ Prefix hash consistency: 97.8% (≥95% threshold met)
+> ✅ No PREFIX_CACHE_TELEMETRY events found in logs
 
 ---
 
 ### Q3: Is WORKER_CONCURRENCY=4 optimal?
-> **UNDERSIZED**
+> **YES_OPTIMAL**
 
+> ✅ AI p95 = 12110.0 ms (< 30s threshold)
 > ✅ Zero worker crashes at WORKER_CONCURRENCY=4 — stable
-> ⚠️ AI p95 = 441160.0 ms — pipeline is severely bottlenecked
-> ⚠️ Investigate Qwen inference speed, GPU VRAM saturation
 
 ---
 
 ### Q4: Is duplicate shadow validation ready for activation?
 > **NOT_READY**
 
-> ❌ Expected duplicate pair was NOT detected
-> ❌ False positive rate unknown — requires manual review
+> ❌ No shadow events detected — shadow mode not wired to logging
 > ⚠️ Activation must be a separate sprint decision — Amendment 5 prohibits activation now.
 
 ---
@@ -73,10 +71,9 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 
 ### Q6: Top 5 Remaining Bottlenecks
 
-1. **AI Extraction (Qwen)** — 100.0% of cumulative pipeline time
-2. **Prefix cache invalidations** — 1 invoices with inconsistent prefix hashes
-3. **Ground truth CSV** — Tier A data must be filled to measure human-verified accuracy
-4. **Sprint 2 baseline** — Sprint 2 metrics unavailable; Sprint 1 used for comparison
+1. **AI Extraction (Mistral)** — 100.0% of cumulative pipeline time
+2. **Ground truth CSV** — Tier A data must be filled to measure human-verified accuracy
+3. **Sprint 2 baseline** — Sprint 2 metrics unavailable; Sprint 1 used for comparison
 
 ---
 
@@ -86,12 +83,8 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 
 Sprint 3 may be promoted to production with the following conditions:
 
-**Condition 1**: Qwen avg latency 275.1s > Sprint 1 latency 143.3s  
-**Condition 2**: Extraction accuracy not yet measurable (fill ground truth CSV)  
-**Condition 3**: AI p95 = 441160.0 ms — pipeline is severely bottlenecked  
-**Condition 4**: Investigate Qwen inference speed, GPU VRAM saturation  
-**Condition 5**: Expected duplicate pair was NOT detected  
-**Condition 6**: False positive rate unknown — requires manual review  
+**Condition 1**: Extraction accuracy not yet measurable (fill ground truth CSV)  
+**Condition 2**: No shadow events detected — shadow mode not wired to logging  
 
 These conditions must be resolved before Sprint 4 begins.
 

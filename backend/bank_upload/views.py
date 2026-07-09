@@ -112,7 +112,7 @@ class BankUploadView(APIView):
     POST /api/bank-upload/upload/
 
     Accepts a bank statement file.
-    1. Passes it to extraction_service (Qwen/AI).
+    1. Passes it to extraction_service (AI).
     2. Saves result to BankStatementStagingFile (STAGING ONLY).
     3. Enforces 15 record limit and 24h TTL.
     """
@@ -155,7 +155,7 @@ class BankUploadView(APIView):
                 status=status.HTTP_402_PAYMENT_REQUIRED
             )
 
-        # ── Step 1: Extract via Qwen/AI ──
+        # ── Step 1: Extract via AI ──
         logger.info(f"📤 BankUpload (Staging): tenant={tenant_id}, file={file_obj.name}")
         try:
             rows, metrics = extract_transactions(file_obj)

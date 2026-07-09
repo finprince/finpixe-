@@ -1232,7 +1232,7 @@ const App: React.FC = () => {
             } else {
               // LLM returned a JSON envelope instead of plain text.
               // Extract the human-readable message from all known response shapes:
-              //   { response: "text" }                   ← Qwen most common
+              //   { response: "text" }                   ← structured OCR most common
               //   { response: { message: "text" } }
               //   { message: "text" }
               //   { reply: "text" }

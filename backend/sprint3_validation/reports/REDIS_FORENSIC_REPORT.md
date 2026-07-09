@@ -1,14 +1,14 @@
 # Redis Forensic Report — Sprint 3
-Generated: 2026-07-02 08:02:01 UTC
+Generated: 2026-07-08 10:08:55 UTC
 
 ## 1. Redis Instance Health
 | Metric | Pre-Batch Baseline | Post-Batch |
 |---|---|---|
-| Memory used | 0.79 MB | OK |
-| Total key count | 28 | (live) |
+| Memory used | 0.92 MB | OK |
+| Total key count | 14 | (live) |
 | Lock key count | 0 | — |
-| Session key count | 7 | — |
-| Connected clients | 7 | — |
+| Session key count | 0 | — |
+| Connected clients | 14 | — |
 
 ## 2. Barrier Latency
 | Statistic | Value (ms) |
@@ -23,14 +23,14 @@ Generated: 2026-07-02 08:02:01 UTC
 ## 3. Lock Contention & Orchestration
 | Metric | Count |
 |---|---|
-| Finalize lock acquisitions | 1 |
+| Finalize lock acquisitions | 15 |
 | Finalize lock rejections (contention) | 0 |
-| Fair-share throttle events | 0 |
+| Fair-share throttle events | 184 |
 | Barrier timeouts | 0 |
 | Barrier corruption events | 0 |
 | Backward state transitions blocked | 0 |
-| Lifecycle rejections | 1 |
-| Window leaks (watchdog cleanup) | 2 |
+| Lifecycle rejections | 19 |
+| Window leaks (watchdog cleanup) | 0 |
 
 ## 4. Connection Health
 | Metric | Count |
@@ -41,25 +41,21 @@ Generated: 2026-07-02 08:02:01 UTC
 | Orphaned tasks rescued | 0 |
 
 ## 5. Slow Commands
-| ID | Duration (μs) | Command |
-|---|---|---|
-| 2 | 139855 | `b'HSET worker_polling_activity AI_local 1782979242.373718'` |
-| 1 | 10959 | `b'HSET worker_polling_activity EXPORT_local 1782973024.82149` |
-| 0 | 24414 | `b'EVAL \n        local global_key = KEYS[1]\n        local t` |
+*No slow commands recorded in Redis slow log.*
 
 ## 6. Top Commands by Call Count
 | Command | Calls | μs/call |
 |---|---|---|
-| expire | 4789 | 13.71 |
-| hset | 4469 | 42.92 |
-| client | 3142 | 4.51 |
-| zrem | 1215 | 4.35 |
-| zremrangebyscore | 1116 | 5.65 |
-| zcard | 772 | 1.04 |
-| eval | 425 | 213.96 |
-| set | 251 | 22.5 |
-| sadd | 226 | 10.27 |
-| zadd | 176 | 24.44 |
+| expire | 9404 | 8.93 |
+| hset | 7913 | 7.75 |
+| client | 4442 | 3.55 |
+| hget | 4058 | 2.65 |
+| zcard | 1465 | 1.28 |
+| zremrangebyscore | 1083 | 3.16 |
+| zrem | 748 | 5.73 |
+| zadd | 713 | 5.07 |
+| hgetall | 708 | 7.22 |
+| set | 620 | 8.32 |
 
 ## 7. Barrier Bottleneck Events
 *No barrier timeouts detected.*
