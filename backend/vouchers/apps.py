@@ -1,3 +1,4 @@
+
 """
 Vouchers Django App Config
 ============================
@@ -32,6 +33,6 @@ class VouchersConfig(AppConfig):
             if ok:
                 logger.info("[STARTUP] [OK] AI Model Connection: SUCCESS")
             else:
-                logger.warning("[STARTUP] [WARNING] AI Model is not available. Check QWEN_API_KEY and QWEN_API_BASE.")
+                logger.warning("[STARTUP] [WARNING] AI Model is not available. Check MISTRAL_API_KEY.")
         except Exception as e:
             logger.error(f"[STARTUP] AI check error: {e}")

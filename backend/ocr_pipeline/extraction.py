@@ -342,7 +342,7 @@ def _repair_json(raw: str, record_id=None, page=None) -> tuple:
       2. Isolate first JSON object via brace balancing
       3. Remove trailing commas
       4. Repair invalid escape sequences
-      5. ARITHMETIC EXPRESSION REPAIR (NEW — prevents wasted Qwen retries)
+      5. ARITHMETIC EXPRESSION REPAIR (NEW — prevents wasted AI retries)
       6. First parse attempt
       7. Quote normalisation
       8. Final quarantine log
@@ -401,7 +401,7 @@ def _repair_json(raw: str, record_id=None, page=None) -> tuple:
 
     # ── Stage 5: ARITHMETIC EXPRESSION REPAIR (TASK 3) ──
 
-    # Repair BEFORE attempting json.loads() so we avoid triggering a 141s Qwen retry
+    # Repair BEFORE attempting json.loads() so we avoid triggering a 141s AI retry
     # just because the model output "54644.4 + 10928.88 = 65573.2" in a string value.
     text_arith, arith_repairs = _sanitize_arithmetic_expressions(text, record_id=record_id, page=page)
     if arith_repairs:
@@ -721,9 +721,9 @@ Return ONLY valid JSON.
         else:
             active_mode = routing_mode
             
-        # Force hybrid mode if vision was selected but Qwen is in text-only mode
-        _qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
-        if _qwen_input_mode == "text" and active_mode == "vision":
+        # Force hybrid mode if vision was selected but provider is in text-only mode
+        _ocr_input_mode = os.getenv("OCR_INPUT_MODE", "multimodal").strip().lower()
+        if _ocr_input_mode == "text" and active_mode == "vision":
             active_mode = "hybrid"
             
         logger.info(f"[PROMPT_ROUTING] page={page_idx+1} routing_mode={routing_mode} avg_conf={avg_conf:.4f} native_len={len(native_text) if native_text else 0} active_mode={active_mode}")
@@ -746,7 +746,7 @@ Return ONLY valid JSON.
         compression_quality = iso_res.get('compression_quality', 'unknown') if iso_res else 'unknown'
         payload_size_kb = (len(file_b64) * 3 / 4 / 1024) if file_b64 else (len(page_isolated_prompt) / 1024)
         
-        logger.info(f"[QWEN_PAYLOAD_TELEMETRY] page={page_idx+1} payload_size_kb={payload_size_kb:.2f} resolution={image_resolution} compression_quality={compression_quality}")
+        logger.info(f"[OCR_PAYLOAD_TELEMETRY] page={page_idx+1} payload_size_kb={payload_size_kb:.2f} resolution={image_resolution} compression_quality={compression_quality}")
         
         pb_duration_ms = int((time.time() - t_start_pb) * 1000)
         from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
@@ -758,12 +758,12 @@ Return ONLY valid JSON.
         )
         
         # ── EXTRACTION TELEMETRY: INPUT MODE ─────────────────────────────────────
-        _active_qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
+        _active_ocr_input_mode = os.getenv("OCR_INPUT_MODE", "multimodal").strip().lower()
         logger.info(
             f"[EXTRACTION_INPUT_MODE] page={page_idx+1} "
-            f"qwen_input_mode={_active_qwen_input_mode} "
+            f"ocr_input_mode={_active_ocr_input_mode} "
             f"active_routing_mode={active_mode} "
-            f"image_will_be_sent={'yes' if (active_mode != 'text' and _active_qwen_input_mode != 'text') else 'no'} "
+            f"image_will_be_sent={'yes' if (active_mode != 'text' and _active_ocr_input_mode != 'text') else 'no'} "
             f"prompt_chars={len(page_isolated_prompt)} "
             f"ocr_text_chars={len(page_ocr_text) if page_ocr_text else 0}"
         )
@@ -1080,7 +1080,7 @@ Return ONLY valid JSON.
                 if gst_matches > 1:
                     logger.info(f"[MULTI_INVOICE_DETECTED] page={i+1} GST_count={gst_matches}")
 
-            # 3. Call Qwen/AI with native text and confidence metadata
+            # 3. Call AI with native text and confidence metadata
             res = _call_ai_for_page(
                 img_bytes, page_text, i, page_count, item_id, 
                 job_id=job_id, wait_for_result=wait_for_result, tenant_id=tenant_id, 

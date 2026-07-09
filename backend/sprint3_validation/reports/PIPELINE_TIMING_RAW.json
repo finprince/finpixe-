@@ -1,5 +1,5 @@
 {
-  "mined_at": "2026-07-02T08:02:01.246061+00:00",
+  "mined_at": "2026-07-08T10:08:54.469729+00:00",
   "stage_statistics": {
     "ocr_ms": {
       "count": 0,
@@ -11,13 +11,13 @@
       "min": 0
     },
     "ai_ms": {
-      "count": 38,
-      "avg": 275108.7,
-      "median": 295005.0,
-      "p95": 441160.0,
-      "p99": 561500.0,
-      "max": 561500.0,
-      "min": 89190.0
+      "count": 186,
+      "avg": 7387.7,
+      "median": 7340.0,
+      "p95": 12110.0,
+      "p99": 24550.0,
+      "max": 28480.0,
+      "min": 350.0
     },
     "assembly_ms": {
       "count": 0,
@@ -49,8 +49,8 @@
   },
   "bottleneck_ranking": [
     {
-      "stage": "AI Extraction (Qwen)",
-      "total_ms": 10454130,
+      "stage": "AI Extraction (Mistral)",
+      "total_ms": 1374120,
       "pct": 100.0
     },
     {
@@ -72,7 +72,7 @@
   "record_timings": [],
   "raw_counts": {
     "ocr_events": 0,
-    "ai_events": 38,
+    "ai_events": 186,
     "assembly_record_count": 0,
     "finalize_record_count": 0
   }

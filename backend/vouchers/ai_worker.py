@@ -25,7 +25,7 @@ GLOBAL_AI_SEMAPHORE = asyncio.Semaphore(int(os.getenv('AI_GLOBAL_CONCURRENCY', '
 # Pass 2: Adaptive threshold
 # Pass 3: Sharpen kernel
 # Pass 4: Contrast enhancement
-# Provider: Qwen-VL (self-hosted OpenAI-compatible API)
+# Provider: Mistral Structured OCR (Cloud API)
 MAX_IMAGE_PASSES = 5
 PASS_NAMES = [
     "original image",
@@ -37,11 +37,11 @@ PASS_NAMES = [
 
 class AIWorker(BaseWorker):
     """
-    Handles Qwen-VL AI extraction, normalization, and page persistence.
+    Handles Mistral AI extraction, normalization, and page persistence.
     Role: AI
     Queue: ai
 
-    QWEN-ONLY: No Tesseract, no local OCR fallback, no secondary engines.
+    MISTRAL-ONLY: No Tesseract, no local OCR fallback, no secondary engines.
     Failure → deterministic mark-as-failed → forward to assembly.
     """
     def __init__(self):
@@ -52,7 +52,7 @@ class AIWorker(BaseWorker):
     def _apply_image_transformation(self, payload: Dict[str, Any], pass_idx: int) -> Dict[str, Any]:
         """
         Applies OpenCV image transformations for AI preprocessing.
-        Provider-agnostic: same transforms work for Qwen-VL as they did for Gemini.
+        Provider-agnostic: same transforms work for Mistral as they did for Gemini.
         """
         import copy
         import base64
@@ -131,6 +131,14 @@ class AIWorker(BaseWorker):
                     from core.redis_orchestrator import orchestrator
                     logger.info(f"[SLOT_FORCE_RELEASE] record={record_id} page={page_idx} session={session_id}")
                     orchestrator.release_ai_slot(str(record_id), page_idx, session_id=str(session_id), release_reason="FINALLY_BLOCK_CLEANUP", tenant_id=str(tenant_id))
+                    
+                    # Ensure trigger_next_fanout is automatically invoked after the slot release to prevent sliding window stalls!
+                    from ocr_pipeline.pipeline import trigger_next_fanout
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(
+                        self.executor,
+                        lambda: trigger_next_fanout(record_id)
+                    )
                 except Exception as e:
                     logger.error(f"[SLOT_FORCE_RELEASE_ERROR] {e}")
 
@@ -316,7 +324,7 @@ class AIWorker(BaseWorker):
                     lambda pi=pass_idx: self._apply_image_transformation(payload, pi)
                 )
 
-                # Run Qwen extraction (SOLE OCR ENGINE)
+                # Run AI extraction (SOLE OCR ENGINE)
                 result = None
                 try:
                     result = await loop.run_in_executor(
@@ -349,8 +357,8 @@ class AIWorker(BaseWorker):
                         # ── TASK 7: REPAIR-BEFORE-RETRY GATE ──────────────────────────────
                         # If the repair pipeline fixed an arithmetic expression (or any other
                         # structural issue) and json.loads() now succeeds, we accept the
-                        # repaired payload IMMEDIATELY — no new 141s Qwen inference needed.
-                        # Only trigger a new Qwen pass when:
+                        # repaired payload IMMEDIATELY — no new AI inference needed.
+                        # Only trigger a new AI pass when:
                         #   - HTTP failure / timeout        → result is None
                         #   - Completely empty response     → raw_reply is empty
                         #   - REPAIR_FAILED strategy        → repair could not salvage the JSON
@@ -364,7 +372,7 @@ class AIWorker(BaseWorker):
                             logger.info(
                                 f"[REPAIR_SAVED_RETRY] record={record_id} page={page_idx} "
                                 f"pass={pass_idx+1} strategy={repair_strategy} "
-                                f"avoided_qwen_retry=True estimated_saved_seconds=141"
+                                f"avoided_ai_retry=True"
                             )
                         # ──────────────────────────────────────────────────────────────────
 
@@ -379,6 +387,12 @@ class AIWorker(BaseWorker):
                             for k, v in payload.items():
                                 if k.startswith("_") and k not in parsed:
                                     parsed[k] = v
+                            # Propagate page metadata
+                            for pk in ['page_number', 'page_index', '_page_number', '_page_index']:
+                                if pk in payload and pk not in parsed:
+                                    parsed[pk] = payload[pk]
+                                elif pk == '_page_number' and 'page_number' in payload:
+                                    parsed[pk] = payload['page_number']
 
                         canonical_payload = await loop.run_in_executor(
                             self.executor,
@@ -449,14 +463,14 @@ class AIWorker(BaseWorker):
 
                                 break
                             else:
-                                # ── TASK 7: only retry Qwen if repair did NOT fix the issue ──
+                                # ── TASK 7: only retry AI if repair did NOT fix the issue ──
                                 if repair_succeeded:
                                     logger.warning(
                                         f"[OCR_RECOVERY_FAILED] pass={pass_idx+1} record={record_id} "
                                         f"page={page_idx} reason=low_density_or_missing_anchors "
                                         f"density={density:.2f} char_count={char_count} "
                                         f"repair_strategy={repair_strategy} "
-                                        f"note=QWEN_RETRY_TRIGGERED_despite_repair"
+                                        f"note=AI_RETRY_TRIGGERED_despite_repair"
                                     )
                                 else:
                                     logger.warning(f"[OCR_RECOVERY_FAILED] pass={pass_idx+1} record={record_id} page={page_idx} reason=low_density_or_missing_anchors density={density:.2f} char_count={char_count}")
@@ -728,7 +742,16 @@ class AIWorker(BaseWorker):
     def _is_dto_valid(self, payload, is_final=False):
         record_id = payload.get('record_id') or "unknown"
         logger.info(f"[DTO_PRE_VALIDATION] record={record_id} keys={list(payload.keys())}")
-        required = ['vendor_name', 'invoice_no']
+        
+        # Continuation page check: skip invoice_no / vendor_name requirement for page_number > 1
+        page_num = payload.get('_page_number') or payload.get('page_number') or 1
+        if isinstance(page_num, str) and page_num.isdigit():
+            page_num = int(page_num)
+        
+        required = []
+        if page_num == 1:
+            required = ['vendor_name', 'invoice_no']
+            
         missing = [f for f in required if not payload.get(f)]
         if 'items' not in payload or payload.get('items') is None:
             missing.append('items')

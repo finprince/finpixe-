@@ -96,21 +96,14 @@ def check_preconditions():
     else:
         print(f"[WARN] .env not found at {env_path}")
 
-    # Check Ollama / Qwen
-    try:
-        import requests
-        resp = requests.get("http://localhost:11434/api/tags", timeout=5)
-        if resp.status_code == 200:
-            models = [m.get("name", "") for m in resp.json().get("models", [])]
-            qwen_models = [m for m in models if "qwen" in m.lower()]
-            if qwen_models:
-                print(f"[OK] Ollama running | Qwen models: {qwen_models}")
-            else:
-                print(f"[WARN] Ollama running but no Qwen models found. Available: {models[:5]}")
-        else:
-            print(f"[WARN] Ollama health check returned HTTP {resp.status_code}")
-    except Exception as e:
-        print(f"[WARN] Ollama not reachable: {e}")
+    # Check Mistral API key
+    from dotenv import load_dotenv
+    load_dotenv(env_path)
+    mistral_key = os.getenv("MISTRAL_API_KEY", "")
+    if mistral_key:
+        print(f"[OK] MISTRAL_API_KEY found (length={len(mistral_key)})")
+    else:
+        print("[WARN] MISTRAL_API_KEY not set in .env — Mistral calls will fail")
 
     # Check Redis
     try:
@@ -174,6 +167,21 @@ def main():
     print_phase(0, TOTAL_PHASES, "Pre-Flight Checks")
     check_preconditions()
     timeline.append({"phase": "Pre-flight", "status": "OK"})
+
+    # Truncate logs to ensure a clean validation session free from stale logs/events
+    if not skip_manifest:
+        print("\n[INFO] Truncating all log files in logs/ to ensure clean, session-specific data...")
+        log_dir = os.path.join(BACKEND_DIR, "logs")
+        if os.path.isdir(log_dir):
+            for f in os.listdir(log_dir):
+                if f.endswith(".log"):
+                    path = os.path.join(log_dir, f)
+                    try:
+                        with open(path, "r+") as fh:
+                            fh.truncate(0)
+                        print(f"  Truncated: {f}")
+                    except Exception as e:
+                        print(f"  [WARN] Failed to truncate {f}: {e}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # PHASE 0: MANIFEST
@@ -260,13 +268,26 @@ def main():
     # ─────────────────────────────────────────────────────────────────────────
     print_phase(6, TOTAL_PHASES, "Extraction Accuracy Audit (Amendment 1)")
 
-    # Get session_id from manifest
+    # Get session_id: cli override → manifest → live DB (most recent session)
     session_id = args.session_id
     if not session_id:
         manifest_path = os.path.join(OUTPUT_DIR, "REAL_BATCH_MANIFEST.json")
         if os.path.isfile(manifest_path):
             with open(manifest_path) as f:
                 session_id = json.load(f).get("session_id", "")
+    if not session_id:
+        # Fallback: query DB for the most recent upload_session_id
+        try:
+            import django
+            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+            django.setup()
+            from ocr_pipeline.models import InvoiceTempOCR
+            latest = InvoiceTempOCR.objects.order_by("-created_at").values_list("upload_session_id", flat=True).first()
+            if latest:
+                session_id = str(latest)
+                print(f"[INFO] Session ID resolved from DB: {session_id}")
+        except Exception as db_err:
+            print(f"[WARN] DB session lookup failed: {db_err}")
 
     from sprint3_validation.audit_extraction_accuracy import run_extraction_accuracy_audit
     run_phase(lambda: run_extraction_accuracy_audit(session_id), "Extraction Accuracy Audit")

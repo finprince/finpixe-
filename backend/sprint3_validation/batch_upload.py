@@ -20,6 +20,14 @@ from datetime import datetime, timezone
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BACKEND_DIR)
 
+# Initialize Django before any model imports
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
+try:
+    import django
+    django.setup()
+except RuntimeError:
+    pass  # Already configured (e.g., when run inside a management command)
+
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "reports")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -30,11 +38,11 @@ SUPPORTED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".tif"}
 API_BASE = os.getenv("VALIDATION_API_BASE", "http://localhost:8000")
 VALIDATION_USER = os.getenv("VALIDATION_USER", "admin")
 VALIDATION_EMAIL = os.getenv("VALIDATION_EMAIL", "admin@budstech.com")
-VALIDATION_PASS = os.getenv("VALIDATION_PASS", "Sprint3Val@2026")
+VALIDATION_PASS = os.getenv("VALIDATION_PASS", "admin123")
 
-# Max time to wait for a single invoice pipeline to complete
-SESSION_POLL_TIMEOUT_S = 2   # 2 seconds per invoice (fast queue upload mode)
-SESSION_POLL_INTERVAL_S = 1
+# Max time to wait for the ENTIRE SESSION to complete (all invoices)
+SESSION_POLL_TIMEOUT_S = 1800  # 30 minutes for a full 23-invoice batch
+SESSION_POLL_INTERVAL_S = 5    # Check every 5 seconds
 
 
 
@@ -142,55 +150,78 @@ def upload_invoice(session: requests.Session, file_entry: dict, upload_session_i
             }
 
 
-def poll_job_status(session: requests.Session, job_id: str, filename: str) -> dict:
-    """Poll /api/ocr-job-status/<job_id>/ until terminal or timeout."""
-    if not job_id:
-        return {"final_status": "NO_JOB_ID", "terminal": True, "poll_count": 0}
+def wait_for_session_completion(session_id: str, record_ids: list[str]) -> dict:
+    """Wait for ALL uploaded invoice records to reach a terminal state.
+    
+    DESIGN RATIONALE:
+    The finalize_worker uses a session-level barrier that requires ALL invoices
+    in a session to complete before finalizing any. Sequential upload + per-invoice
+    polling causes a deadlock. This function uploads everything first, then waits
+    for the session to converge as a whole.
+    
+    Terminal statuses: FINALIZED, FAILED, ASSEMBLY_ABORTED, ERROR, CANCELLED
+    """
+    from ocr_pipeline.models import InvoiceTempOCR
+    TERMINAL_STATUSES = {"FINALIZED", "FAILED", "ASSEMBLY_ABORTED", "ERROR", "CANCELLED"}
 
-    url = f"{API_BASE}/api/ocr-job-status/{job_id}/"
     deadline = time.time() + SESSION_POLL_TIMEOUT_S
-    last_status = "UNKNOWN"
     poll_count = 0
-    TERMINAL_STATES = {"COMPLETED", "FAILED", "ERROR", "HYDRATION_READY",
-                       "VOUCHER_CREATED", "SUCCESS", "CANCELLED"}
+    total_records = len(record_ids)
+
+    print(f"\n  Waiting for session {session_id[:8]}... ({total_records} records, max {SESSION_POLL_TIMEOUT_S//60} min)")
 
     while time.time() < deadline:
         try:
-            resp = session.get(url, timeout=15)
-            if resp.status_code == 200:
-                data = resp.json()
-                last_status = (data.get("status") or data.get("pipeline_status",
-                               data.get("state", "UNKNOWN"))).upper()
-                terminal = data.get("terminal", last_status in TERMINAL_STATES)
-                progress = data.get("progress", data.get("completion_pct", 0))
+            statuses = dict(
+                InvoiceTempOCR.objects
+                .filter(id__in=record_ids)
+                .values_list('id', 'status')
+            )
+            terminal_count = sum(1 for s in statuses.values() if s in TERMINAL_STATUSES)
+            finalized_count = sum(1 for s in statuses.values() if s == 'FINALIZED')
+            failed_count = sum(1 for s in statuses.values() if s in {'FAILED', 'ASSEMBLY_ABORTED', 'ERROR'})
 
-                if poll_count % 12 == 0:   # Print every 60s
-                    print(f"    [{filename}] job={job_id[:8]}... status={last_status} "
-                          f"progress={progress}% terminal={terminal}")
+            if poll_count % 12 == 0:  # Print every 60s
+                print(f"  Session progress: {terminal_count}/{total_records} terminal "
+                      f"(FINALIZED={finalized_count} FAILED={failed_count})")
+                # Print status of all non-terminal records
+                for rid, st in sorted(statuses.items()):
+                    if st not in TERMINAL_STATUSES:
+                        print(f"    record={rid} status={st}")
 
-                if terminal or last_status in TERMINAL_STATES:
-                    return {
-                        "final_status": last_status,
-                        "terminal": True,
-                        "poll_count": poll_count,
-                        "session_data": data,
-                    }
-            elif resp.status_code == 404:
-                # Job might use record_id-based status endpoint
-                return {"final_status": "JOB_NOT_FOUND", "terminal": True,
-                        "poll_count": poll_count, "session_data": {}}
+            if terminal_count >= total_records:
+                print(f"  All {total_records} records terminal! FINALIZED={finalized_count} FAILED={failed_count}")
+                # Return per-record outcomes
+                return {
+                    "final_statuses": dict(statuses),
+                    "terminal": True,
+                    "poll_count": poll_count,
+                    "finalized_count": finalized_count,
+                    "failed_count": failed_count,
+                }
         except Exception as e:
             if poll_count % 12 == 0:
-                print(f"    [{filename}] Poll error: {e}")
+                print(f"  Session poll error: {e}")
 
         time.sleep(SESSION_POLL_INTERVAL_S)
         poll_count += 1
 
+    # Timeout — gather final statuses
+    try:
+        statuses = dict(
+            InvoiceTempOCR.objects
+            .filter(id__in=record_ids)
+            .values_list('id', 'status')
+        )
+    except Exception:
+        statuses = {}
+
     return {
-        "final_status": "TIMEOUT",
+        "final_statuses": statuses,
         "terminal": False,
         "poll_count": poll_count,
-        "session_data": {},
+        "finalized_count": sum(1 for s in statuses.values() if s == 'FINALIZED'),
+        "failed_count": sum(1 for s in statuses.values() if s in {'FAILED', 'ASSEMBLY_ABORTED', 'ERROR'}),
     }
 
 
@@ -220,52 +251,107 @@ def run_batch_upload():
     print()
 
     results = []
+    record_map = {}   # filename -> record_id
+    job_map = {}      # filename -> job_id
     success_count = 0
     failure_count = 0
+
+    # ── PHASE 1: FIRE-AND-FORGET UPLOAD ALL INVOICES ──
+    # Upload all invoices without waiting between them.
+    # The finalize_worker uses a session-level barrier requiring ALL invoices
+    # to complete before finalizing any. Sequential polling deadlocks.
+    print(f"\n{'-'*60}")
+    print("PHASE 1: Uploading all invoices (fire-and-forget)")
+    print(f"{'-'*60}")
 
     for i, entry in enumerate(invoice_files, 1):
         fname = entry["filename"]
         print(f"[{i:02d}/{len(invoice_files)}] Uploading: {fname}")
 
-        # Re-authenticate before each upload to prevent SimpleJWT token expiration (5 min limit)
-        try:
-            authenticate(session)
-        except Exception as auth_err:
-            print(f"  [WARN] Re-authentication failed: {auth_err}. Retrying with existing token.")
+        # Re-authenticate every 4 uploads to prevent SimpleJWT token expiration (5 min limit)
+        # but avoid hitting the login rate limiter (429 throttle).
+        if i == 1 or i % 4 == 1:
+            try:
+                authenticate(session)
+            except Exception as auth_err:
+                print(f"  [WARN] Re-authentication skipped: {auth_err}. Retrying with existing token.")
 
-        # Upload
         upload_result = upload_invoice(session, entry, batch_session_id)
         upload_status = upload_result.get("upload_status", "UNKNOWN")
         print(f"  Upload: {upload_status} (HTTP {upload_result.get('http_status', '-')}) "
               f"in {upload_result.get('upload_elapsed_s', '?')}s")
 
-        pipeline_result = {}
-        if upload_status == "OK":
-            job_id = upload_result.get("job_id") or upload_result.get("record_id", "")
-            print(f"  Polling job {job_id[:8] if job_id else 'N/A'}... (max {SESSION_POLL_TIMEOUT_S//60} min)")
-            pipeline_result = poll_job_status(session, str(job_id), fname)
-            final_status = pipeline_result.get("final_status", "UNKNOWN")
-            print(f"  Pipeline: {final_status} (polls={pipeline_result.get('poll_count', 0)})")
+        job_id = upload_result.get("job_id", "")
+        record_id = ""
+        if upload_status == "OK" and job_id:
+            try:
+                from ocr_pipeline.models import OCRTask
+                # Wait briefly for the OCRTask to be created
+                time.sleep(1)
+                task = OCRTask.objects.filter(job_id=job_id, result_id__isnull=False).first()
+                if task and task.result_id:
+                    record_id = str(task.result_id)
+                    print(f"  record_id={record_id}")
+                else:
+                    time.sleep(2)
+                    task = OCRTask.objects.filter(job_id=job_id, result_id__isnull=False).first()
+                    if task and task.result_id:
+                        record_id = str(task.result_id)
+                        print(f"  record_id={record_id} (retry)")
+            except Exception as te:
+                print(f"  [WARN] Could not resolve record_id: {te}")
 
-            if final_status in {"COMPLETED", "HYDRATION_READY", "SUCCESS", "VOUCHER_CREATED"}:
-                success_count += 1
-            else:
-                failure_count += 1
-                print(f"  [WARN] Invoice did not complete successfully: {final_status}")
-        else:
-            failure_count += 1
-
-        record = {
+        record_map[fname] = record_id
+        job_map[fname] = job_id
+        results.append({
             "index": i,
             "filename": fname,
             "file_hash": entry["file_hash_sha256"],
             "page_count": entry["page_count"],
             "upload": upload_result,
-            "pipeline": pipeline_result,
+            "record_id": record_id,
+            "pipeline": {},  # filled in PHASE 2
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-        results.append(record)
+        })
+
+        if upload_status != "OK":
+            failure_count += 1
+            print(f"  [WARN] Upload failed: {upload_status}")
+
         print()
+
+    # ── PHASE 2: WAIT FOR WHOLE SESSION TO CONVERGE ──
+    all_record_ids = [r for r in record_map.values() if r]
+    print(f"\n{'-'*60}")
+    print(f"PHASE 2: Waiting for session {batch_session_id[:8]}... to converge")
+    print(f"  Tracking {len(all_record_ids)} record IDs across {len(invoice_files)} invoices")
+    print(f"{'-'*60}")
+
+    if all_record_ids:
+        session_result = wait_for_session_completion(batch_session_id, all_record_ids)
+        final_statuses = session_result.get("final_statuses", {})
+        success_count = session_result.get("finalized_count", 0)
+        # Failed = records that are terminal but not FINALIZED + uploads that had no record_id
+        terminal_failed = session_result.get("failed_count", 0)
+        no_record_failed = sum(1 for fname, rid in record_map.items() if not rid
+                               and any(r["filename"] == fname and r["upload"]["upload_status"] == "OK"
+                                       for r in results))
+        failure_count += terminal_failed + no_record_failed
+
+        # Annotate per-file results with final status
+        for result in results:
+            rid = result.get("record_id", "")
+            if rid:
+                result["pipeline"] = {
+                    "final_status": final_statuses.get(int(rid), "UNKNOWN"),
+                    "terminal": True,
+                    "poll_count": session_result.get("poll_count", 0),
+                }
+            elif result["upload"]["upload_status"] == "OK":
+                result["pipeline"] = {"final_status": "NO_RECORD_ID", "terminal": False, "poll_count": 0}
+    else:
+        print("  [WARN] No record IDs resolved. Session wait skipped.")
+        session_result = {"terminal": False, "finalized_count": 0, "failed_count": 0, "poll_count": 0}
 
     # Write results
     batch_results = {

@@ -36,8 +36,7 @@ TS_PAT = re.compile(r"^(?:INFO|DEBUG|WARNING|ERROR|CRITICAL) (\d{4}-\d{2}-\d{2} 
 STAGE_PATTERNS = {
     "ingestion_start": re.compile(r"\[SYNC_INGESTION_START\].*?record[_\-]id[=:](\S+)"),
     "ocr_complete": re.compile(r"\[OCR_RESULT\]\s+page=(\d+).*?duration_ms=(\d+)"),
-    "ai_start": re.compile(r"\[QWEN_REQUEST_START\].*?(?:record[_\-]id[=:](\S+))?"),
-    "ai_complete": re.compile(r"\[QWEN_REQUEST_COMPLETE\].*?latency=(?P<lat>[\d.]+)s"),
+    "ai_perf_direct": re.compile(r"\[MISTRAL_PERF\].*?latency=([\d.]+)s"),
     "assembly_start": re.compile(r"\[ASSEMBLY_START\].*?record[_\-]id[=:](\S+)"),
     "assembly_complete": re.compile(r"\[ASSEMBLY_COMPLETE\].*?record[_\-]id[=:](\S+)"),
     "finalize_start": re.compile(r"\[FINALIZE_START\].*?record[_\-]id[=:](\S+)"),
@@ -45,7 +44,6 @@ STAGE_PATTERNS = {
     # Alternative / pipeline-level tags
     "ingestion_start_alt": re.compile(r"\[UPLOAD_ACCEPTED\].*?file=(\S+)"),
     "barrier_complete": re.compile(r"\[BARRIER_COMPLETE\]\s+record=(\S+)"),
-    "ai_duration_direct": re.compile(r"\[QWEN_INFERENCE_PERF\].*?latency_s=(?P<lat>[\d.]+).*?total_tokens=(?P<tok>\d+)"),
 }
 
 
@@ -106,18 +104,11 @@ def parse_pipeline_timing():
                 ocr_durations.append(duration_ms)
                 continue
 
-            # AI inference perf (direct duration)
-            m = STAGE_PATTERNS["ai_duration_direct"].search(line_s)
+            # Mistral AI perf (direct duration from MISTRAL_PERF)
+            m = STAGE_PATTERNS["ai_perf_direct"].search(line_s)
             if m:
-                lat_s = float(m.group("lat"))
+                lat_s = float(m.group(1))
                 ai_durations.append(lat_s * 1000)  # Convert to ms
-                continue
-
-            # AI complete
-            m = STAGE_PATTERNS["ai_complete"].search(line_s)
-            if m:
-                lat = float(m.group("lat"))
-                record_events["_ai"]["ai_complete"].append({"ts": ts_epoch, "latency_s": lat})
                 continue
 
             # Assembly start
@@ -216,7 +207,7 @@ def parse_pipeline_timing():
 
     bottleneck_ranking = sorted([
         {"stage": "OCR", "total_ms": round(total_ocr_ms), "pct": pct(total_ocr_ms)},
-        {"stage": "AI Extraction (Qwen)", "total_ms": round(total_ai_ms), "pct": pct(total_ai_ms)},
+        {"stage": "AI Extraction (Mistral)", "total_ms": round(total_ai_ms), "pct": pct(total_ai_ms)},
         {"stage": "Assembly", "total_ms": round(total_assembly_ms), "pct": pct(total_assembly_ms)},
         {"stage": "Finalization", "total_ms": round(total_finalize_ms), "pct": pct(total_finalize_ms)},
     ], key=lambda x: x["total_ms"], reverse=True)

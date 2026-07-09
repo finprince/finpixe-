@@ -829,7 +829,7 @@ class RescanHistory(models.Model):
 
 class AIUsageAccounting(models.Model):
     """
-    Tracks token counts and costs associated with Qwen/AI extraction calls.
+    Tracks token counts and costs associated with AI extraction calls.
     Links back to the staging record and optionally the specific rescan run.
     """
     invoice_temp_ocr = models.ForeignKey(

@@ -42,11 +42,9 @@ PATTERNS = {
     ),
     # Generic low-confidence tag catch-all
     "LOW_CONFIDENCE_ANY": re.compile(r"\[LOW_CONFIDENCE"),
-    # Qwen inference perf as OCR timing proxy
-    "QWEN_PERF": re.compile(
-        r"\[QWEN_INFERENCE_PERF\].*?latency_s=([\d.]+).*?"
-        r"prompt_tokens=(\d+).*?completion_tokens=(\d+).*?total_tokens=(\d+).*?"
-        r"tokens_per_second=([\d.]+)"
+    # Mistral OCR inference perf
+    "MISTRAL_PERF": re.compile(
+        r"\[MISTRAL_PERF\].*?model=([\w.-]+).*?latency=([\d.]+)s.*?cost=\$([\d.]+)"
     ),
     # Slot-level events give us page-level processing view
     "SLOT_ACQUIRED": re.compile(r"\[SLOT_ACQUIRED\].*?record_id=(\S+).*?page_number=(\d+)"),
@@ -79,7 +77,7 @@ def parse_ocr_telemetry():
     ocr_recovery_passes = []    # [OCR_RECOVERY_PASS]
     ocr_pages_processed = set() # unique (record, page) tuples
     low_confidence_events = []  # [LOW_CONFIDENCE_SCORE_BREAKDOWN]
-    qwen_perf_records = []      # [QWEN_INFERENCE_PERF]
+    mistral_perf_records = []   # [MISTRAL_PERF]
     slot_acquisitions = []      # [SLOT_ACQUIRED]
     low_confidence_count = 0
     # Legacy tags (may appear in fresh batch run)
@@ -131,16 +129,14 @@ def parse_ocr_telemetry():
                 low_confidence_count += 1
                 continue
 
-            m = PATTERNS["QWEN_PERF"].search(line)
+            m = PATTERNS["MISTRAL_PERF"].search(line)
             if m:
                 ts_m = TIMESTAMP_PAT.match(line)
-                qwen_perf_records.append({
+                mistral_perf_records.append({
                     "timestamp": ts_m.group(1) if ts_m else "",
-                    "latency_s": float(m.group(1)),
-                    "prompt_tokens": int(m.group(2)),
-                    "completion_tokens": int(m.group(3)),
-                    "total_tokens": int(m.group(4)),
-                    "tokens_per_sec": float(m.group(5)),
+                    "model": m.group(1),
+                    "latency_s": float(m.group(2)),
+                    "cost_usd": float(m.group(3)),
                 })
                 continue
 
@@ -169,11 +165,10 @@ def parse_ocr_telemetry():
     total_retry_events = len(ocr_retry_starts)
     total_recovery_passes = len(ocr_recovery_passes)
 
-    qwen_latencies = [r["latency_s"] for r in qwen_perf_records]
-    avg_qwen_latency = round(sum(qwen_latencies) / len(qwen_latencies), 1) if qwen_latencies else 0
-    max_qwen_latency = round(max(qwen_latencies), 1) if qwen_latencies else 0
-    avg_prompt_tokens = round(sum(r["prompt_tokens"] for r in qwen_perf_records) / len(qwen_perf_records)) if qwen_perf_records else 0
-    avg_tps = round(sum(r["tokens_per_sec"] for r in qwen_perf_records) / len(qwen_perf_records), 2) if qwen_perf_records else 0
+    mistral_latencies = [r["latency_s"] for r in mistral_perf_records]
+    avg_mistral_latency = round(sum(mistral_latencies) / len(mistral_latencies), 2) if mistral_latencies else 0
+    max_mistral_latency = round(max(mistral_latencies), 2) if mistral_latencies else 0
+    total_mistral_cost = round(sum(r["cost_usd"] for r in mistral_perf_records), 4)
 
     conf_scores = [r["confidence_score"] for r in low_confidence_events]
     avg_confidence = round(sum(conf_scores) / len(conf_scores), 1) if conf_scores else None
@@ -184,7 +179,7 @@ def parse_ocr_telemetry():
         "mined_at": datetime.now(timezone.utc).isoformat(),
         "log_file": LOG_PATH,
         "log_size_mb": round(file_size_mb, 2),
-        "data_source_note": "Using OCR_RETRY_CHAIN_START, LOW_CONFIDENCE_SCORE_BREAKDOWN, QWEN_INFERENCE_PERF (actual log tags). Legacy OCR_TELEMETRY/OCR_RESULT not present in this log version.",
+        "data_source_note": "Using OCR_RETRY_CHAIN_START, LOW_CONFIDENCE_SCORE_BREAKDOWN, MISTRAL_PERF (Mistral OCR provider log tags).",
         "summary": {
             "unique_pages_with_ocr_retry": unique_pages_processed,
             "unique_records_with_ocr_retry": unique_records_with_ocr,
@@ -193,19 +188,18 @@ def parse_ocr_telemetry():
             "total_low_confidence_events": low_confidence_count,
             "avg_confidence_score": avg_confidence,
             "avg_vendor_score": avg_vendor_score,
-            "total_qwen_inference_events": len(qwen_perf_records),
-            "avg_qwen_latency_s": avg_qwen_latency,
-            "max_qwen_latency_s": max_qwen_latency,
-            "avg_prompt_tokens": int(avg_prompt_tokens),
-            "avg_tokens_per_second": avg_tps,
+            "total_mistral_inference_events": len(mistral_perf_records),
+            "avg_mistral_latency_s": avg_mistral_latency,
+            "max_mistral_latency_s": max_mistral_latency,
+            "total_mistral_cost_usd": total_mistral_cost,
             "total_slot_acquisitions": len(slot_acquisitions),
-            # Legacy tags (will populate when fresh batch run produces them)
+            # Legacy tags
             "legacy_ocr_telemetry_events": len(telemetry_records),
             "legacy_dpi_upgrade_events": len(dpi_upgrades),
             "legacy_ocr_result_events": len(ocr_results),
         },
         "low_confidence_events_sample": low_confidence_events[:20],
-        "qwen_perf_sample": qwen_perf_records[:20],
+        "mistral_perf_sample": mistral_perf_records[:20],
         "ocr_retry_sample": ocr_retry_starts[:20],
     }
 
@@ -220,10 +214,10 @@ def parse_ocr_telemetry():
     print(f"  Low confidence events        : {low_confidence_count}")
     print(f"  Avg confidence score         : {avg_confidence}")
     print(f"  Avg vendor score             : {avg_vendor_score}")
-    print(f"  Qwen inference events        : {len(qwen_perf_records)}")
-    print(f"  Avg Qwen latency             : {avg_qwen_latency}s")
-    print(f"  Max Qwen latency             : {max_qwen_latency}s")
-    print(f"  Avg tokens/sec               : {avg_tps}")
+    print(f"  Mistral inference events     : {len(mistral_perf_records)}")
+    print(f"  Avg Mistral latency          : {avg_mistral_latency}s")
+    print(f"  Max Mistral latency          : {max_mistral_latency}s")
+    print(f"  Total Mistral cost           : ${total_mistral_cost}")
     print(f"[OK] OCR telemetry written: {out_path}")
 
     return data

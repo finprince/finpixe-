@@ -1,6 +1,6 @@
 # Worker Stability Report — Sprint 3
-Generated: 2026-07-02 08:02:01 UTC
-Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
+Generated: 2026-07-08 10:08:55 UTC
+Session ID: `78385acd-fa96-4966-b5d5-76b34d7cb3b1`
 
 ## 1. Worker Fleet Status
 | Worker Role | Starts Detected | Crashes | Status |
@@ -15,19 +15,19 @@ Session ID: `820189ef-6b9a-42b2-bbe5-a93408281973`
 ## 2. Pipeline Throughput
 | Metric | Count |
 |---|---|
-| Files uploaded (UPLOAD_ACCEPTED) | 60 |
-| Records created in DB | 62 |
-| Queue push successes | 906 |
-| Downstream enqueue success | 63 |
+| Files uploaded (UPLOAD_ACCEPTED) | 23 |
+| Records created in DB | 23 |
+| Queue push successes | 246 |
+| Downstream enqueue success | 37 |
 | Downstream enqueue failures | 0 |
 | DLQ events | 0 |
 | Zombie messages | 0 |
-| Worker lock refreshes | 613 |
+| Worker lock refreshes | 207 |
 
 ## 3. Success Rates
 | Stage | Success Rate |
 |---|---|
-| Upload → Ingestion queue | 105.0% |
+| Upload → Ingestion queue | 160.9% |
 | Ingestion → AI queue | See ingestion.log |
 | DLQ contamination rate | 0.0% |
 

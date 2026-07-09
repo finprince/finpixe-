@@ -32,14 +32,14 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # ── PROVIDER CONFIGURATION ──
-AI_MODEL_NAME = os.getenv("QWEN_MODEL", "qwen-vl-max")
+AI_MODEL_NAME = os.getenv("MISTRAL_OCR_MODEL", "mistral-ocr-latest")
 
 logger = logging.getLogger(__name__)
 
 # ── PROVIDER SINGLETON ──
 # Instantiated once at module load. All workers share this instance.
-from core.providers.qwen_provider import QwenProvider
-_ai_provider = QwenProvider()
+from core.providers.mistral_structured_provider import MistralStructuredProvider
+_ai_provider = MistralStructuredProvider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -130,10 +130,9 @@ class APIKeyManager:
         self._sync_keys()
 
     def _sync_keys(self):
-        raw_keys = os.getenv('QWEN_API_KEY', 'EMPTY')
+        raw_keys = os.getenv('MISTRAL_API_KEY')
         if not raw_keys:
-            # Self-hosted servers often require no auth — use placeholder
-            self.api_keys = ['EMPTY']
+            self.api_keys = []
             return
         self.api_keys = [k.strip() for k in raw_keys.split(',') if k.strip()]
         if not self.api_keys:
@@ -363,223 +362,49 @@ concurrency_governor = DistributedConcurrencyManager(
 # STARTUP VALIDATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def ensure_qwen_context_limit(api_base: str, model_name: str) -> bool:
-    """
-    Ensures the Ollama Qwen model is configured for GPU-only execution on RTX 4050.
 
-    Key parameters:
-      num_ctx  4096  — Reduced from 8192 to prevent VRAM overflow on 6 GB GPU.
-                       At 8192 tokens, KV-cache overhead causes 66% CPU spillover
-                       and 203+ second latency. At 4096 the model fits fully in VRAM.
-      num_gpu  99    — Forces all model layers to GPU. Ollama caps at actual layer count.
-
-    For OCR of 1-2 page invoices, 4096 context is more than sufficient.
-    """
-    import urllib.parse
-    import requests
-    import subprocess
-    import tempfile
-
-    # GPU-safe target values for RTX 4050 (6 GB VRAM)
-    TARGET_NUM_CTX = 8192
-    TARGET_NUM_GPU = 99  # Forces all layers to GPU (Ollama caps at actual count)
-
-    try:
-        parsed = urllib.parse.urlparse(api_base)
-        native_base = f"{parsed.scheme}://{parsed.netloc}"
-        show_url = f"{native_base}/api/show"
-
-        logger.info(f"[OLLAMA_CONTEXT_CHECK] Querying {show_url} for model {model_name}...")
-        resp = requests.post(show_url, json={"model": model_name}, timeout=5.0)
-        if resp.status_code != 200:
-            logger.warning(f"[OLLAMA_CONTEXT_CHECK_FAIL] Model show API returned status {resp.status_code}")
-            return False
-
-        data = resp.json()
-        parameters = data.get("parameters", "")
-
-        num_ctx = None
-        num_gpu = None
-        if parameters:
-            for line in parameters.split("\n"):
-                parts = line.split()
-                if len(parts) >= 2:
-                    try:
-                        key = parts[0].lower()
-                        val = int(parts[1])
-                        if key == "num_ctx":
-                            num_ctx = val
-                        elif key == "num_gpu":
-                            num_gpu = val
-                    except ValueError:
-                        pass
-
-        logger.info(f"[OLLAMA_CONTEXT_CHECK] Model {model_name} current num_ctx={num_ctx} num_gpu={num_gpu}")
-
-        needs_rebuild = (
-            num_ctx is None or num_ctx != TARGET_NUM_CTX or
-            num_gpu is None or num_gpu < TARGET_NUM_GPU
-        )
-
-        if needs_rebuild:
-            logger.warning(
-                f"[OLLAMA_CONFIG_INSUFFICIENT] num_ctx={num_ctx} num_gpu={num_gpu}. "
-                f"Expected num_ctx={TARGET_NUM_CTX} num_gpu={TARGET_NUM_GPU}. "
-                f"Auto-rebuilding model for GPU-only execution..."
-            )
-
-            modelfile_content = (
-                f"FROM {model_name}\n"
-                f"PARAMETER num_ctx {TARGET_NUM_CTX}\n"
-                f"PARAMETER num_gpu {TARGET_NUM_GPU}\n"
-                f"PARAMETER temperature 0.0001\n"
-            )
-
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='_Modelfile') as f:
-                f.write(modelfile_content)
-                temp_path = f.name
-
-            try:
-                logger.info(f"[OLLAMA_REBUILD] Running: ollama create {model_name} -f {temp_path}")
-                res = subprocess.run(
-                    ["ollama", "create", model_name, "-f", temp_path],
-                    capture_output=True,
-                    text=True,
-                    timeout=60.0
-                )
-                if res.returncode == 0 or "success" in res.stdout.lower():
-                    logger.info(
-                        f"[OLLAMA_REBUILD_SUCCESS] Model {model_name} rebuilt: "
-                        f"num_ctx={TARGET_NUM_CTX} num_gpu={TARGET_NUM_GPU}"
-                    )
-                    return True
-                else:
-                    logger.error(f"[OLLAMA_REBUILD_FAILED] Return code: {res.returncode}. Stderr: {res.stderr}")
-                    return False
-            finally:
-                try:
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
-                except Exception as cleanup_err:
-                    logger.warning(f"[OLLAMA_TEMP_CLEANUP_ERR] {cleanup_err}")
-        else:
-            logger.info(
-                f"[OLLAMA_CONFIG_OK] Model {model_name} is configured for GPU-only: "
-                f"num_ctx={num_ctx} num_gpu={num_gpu}"
-            )
-            return True
-
-    except Exception as e:
-        logger.warning(f"[OLLAMA_CONTEXT_CHECK_ERR] Failed to verify or update Ollama GPU config: {e}")
-        return False
 
 
 
 
 def validate_ai_on_startup() -> bool:
     """
-    Called at Django startup / worker startup to verify AI provider configuration and endpoint.
-    Refuses provider initialization if required Qwen config is missing or the endpoint is invalid.
-
-    GPU Enforcement:
-        After endpoint validation, this function runs a 3-phase GPU audit:
-          Phase 1 — nvidia-smi: Confirm RTX 4050 is present with ≥4 GB VRAM
-          Phase 2 — Ollama /api/ps: Confirm model is loaded on GPU processor
-          Phase 3 — Smoke test: Confirm tok/s proves GPU execution
-
-        If ANY phase fails, raises RuntimeError immediately.
-        Startup is ABORTED. CPU inference is FORBIDDEN.
+    Called at Django startup / worker startup to verify Mistral API key configuration and endpoint.
+    Refuses provider initialization if required Mistral config is missing or the endpoint is invalid.
     """
-    api_base = os.getenv('QWEN_API_BASE')
-    if not api_base:
-        logger.error("[AI_PROVIDER_STARTUP_FAILURE] QWEN_API_BASE environment variable is missing.")
-        _ai_provider.mark_invalid("MISSING_CONFIG", "QWEN_API_BASE environment variable is missing.")
+    api_key = os.getenv('MISTRAL_API_KEY')
+    if not api_key:
+        logger.error("[AI_PROVIDER_STARTUP_FAILURE] MISTRAL_API_KEY environment variable is missing.")
+        _ai_provider.mark_invalid("MISSING_CONFIG", "MISTRAL_API_KEY environment variable is missing.")
         return False
-
-    model_name = os.getenv('QWEN_MODEL')
-    if not model_name:
-        logger.error("[AI_PROVIDER_STARTUP_FAILURE] QWEN_MODEL config missing. Set QWEN_MODEL in .env")
-        _ai_provider.mark_invalid("MISSING_CONFIG", "QWEN_MODEL config missing. Set QWEN_MODEL in .env")
-        return False
-
-    # Dynamic self-healing context window check/rebuild for local Ollama models
-    ensure_qwen_context_limit(api_base, model_name)
 
     api_key_manager._sync_keys()
 
-    from core.providers.qwen_provider import check_endpoint_health
-    primary_key = api_key_manager.get_healthy_key()
-    health = check_endpoint_health(api_base, primary_key)
+    model_name = _ai_provider.get_model_name()
+    health = _ai_provider.recheck_key_health(api_key, model_name)
 
     health_log = (
         f"[AI_PROVIDER_HEALTHCHECK]\n"
-        f"provider=Qwen\n"
-        f"endpoint={health['endpoint_used']}\n"
-        f"result={health['classification']}\n"
-        f"latency_ms={health['latency_ms']:.1f}"
+        f"provider=Mistral\n"
+        f"model={model_name}\n"
+        f"result={'SUCCESS' if health else 'FAILED'}"
     )
     logger.info(health_log)
     print(health_log)
 
-    if not health['valid']:
+    if not health:
         logger.error(
-            f"[QWEN_ENDPOINT_INVALID] endpoint={health['endpoint_used']} "
-            f"classification={health['classification']} error={health['error_msg']}"
+            f"[MISTRAL_API_INVALID] API key check failed. Key is invalid or unreachable."
         )
         logger.error(
-            f"[AI_PROVIDER_STARTUP_FAILURE] reason=Endpoint health check failed: {health['classification']}"
+            f"[AI_PROVIDER_STARTUP_FAILURE] reason=Endpoint health check failed."
         )
-        _ai_provider.mark_invalid(health['classification'], health['error_msg'])
+        _ai_provider.mark_invalid("API_UNREACHABLE", "Mistral API health check failed.")
         return False
 
     logger.info(
-        f"[QWEN_ENDPOINT_VALIDATED] endpoint={health['endpoint_used']} latency_ms={health['latency_ms']:.1f}"
-    )
-
-    # ── GPU-ONLY STARTUP VALIDATION ─────────────────────────────────────────────
-    # Verify that the RTX 4050 GPU is present and Qwen is running on GPU.
-    # If GPU is unavailable or the model runs on CPU, this RAISES a fatal
-    # RuntimeError — the cluster REFUSES to start. CPU inference is forbidden.
-    # [FIX] Skip GPU validation for Django runserver (web process) to prevent startup hangs.
-    import sys
-    is_runserver = any('runserver' in arg.lower() for arg in sys.argv)
-    if is_runserver:
-        logger.info("[GPU_STARTUP_SKIPPED] Skipping hardware GPU validation and smoke test for web server process.")
-    else:
-        try:
-            from core.gpu_validator import validate_gpu_on_startup
-            gpu_evidence = validate_gpu_on_startup(model_name)
-            logger.info(
-                f"[GPU_STARTUP_VALIDATED] "
-                f"gpu={gpu_evidence.get('gpu_name', 'unknown')} | "
-                f"vram={gpu_evidence.get('vram_used_mib_after_load', gpu_evidence.get('vram_used_mib', 0)):.0f} MiB | "
-                f"smoke_tps={gpu_evidence.get('smoke_tokens_per_second', 0):.2f} | "
-                f"compute_mode=GPU_ONLY"
-            )
-        except RuntimeError as gpu_err:
-            # GPU validation explicitly failed — do NOT allow startup
-            logger.critical(
-                f"[GPU_STARTUP_FATAL] GPU validation failed. Refusing CPU inference.\n{gpu_err}"
-            )
-            _ai_provider.mark_invalid("GPU_UNAVAILABLE", str(gpu_err))
-            raise RuntimeError(
-                f"GPU validation failed. Refusing CPU inference.\n{gpu_err}"
-            ) from gpu_err
-        except Exception as gpu_exc:
-            # Unexpected error in GPU validator itself — fail safely
-            logger.critical(
-                f"[GPU_STARTUP_ERROR] Unexpected GPU validator error: {gpu_exc}. Refusing startup."
-            )
-            _ai_provider.mark_invalid("GPU_VALIDATOR_ERROR", str(gpu_exc))
-            raise RuntimeError(
-                f"GPU validation failed. Refusing CPU inference.\n{gpu_exc}"
-            ) from gpu_exc
-    # ── END GPU-ONLY STARTUP VALIDATION ─────────────────────────────────────────
-
-    logger.info(
-        f"[AI_PROVIDER_READY] provider=Qwen model={os.getenv('QWEN_MODEL')} "
-        f"base_url={api_base} keys={len(api_key_manager.api_keys)} "
-        f"compute_mode=GPU_ONLY"
+        f"[AI_PROVIDER_READY] provider=Mistral model={model_name} "
+        f"keys={len(api_key_manager.api_keys)}"
     )
     _ai_provider.mark_valid()
     return True
@@ -655,7 +480,7 @@ def execute_with_retry(prompt: Any, request_data: dict, api_key: str) -> str:
     attempt = 0
 
     logger.info(
-        f"[AI_MODEL_SELECTED] provider=Qwen model={current_model} "
+        f"[AI_MODEL_SELECTED] provider=Mistral model={current_model} "
         f"tenant_id={tenant_id} record_id={record_id} page_number={page_number}"
     )
 
@@ -712,7 +537,7 @@ def execute_with_retry(prompt: Any, request_data: dict, api_key: str) -> str:
             return result
         except TerminalTaskError as e:
             logger.error(
-                f"[AI_TERMINAL_FAILURE] provider=Qwen model={current_model} "
+                f"[AI_TERMINAL_FAILURE] provider=Mistral model={current_model} "
                 f"tenant_id={tenant_id} record_id={record_id} page_number={page_number} "
                 f"error={str(e)[:100]}"
             )
@@ -722,14 +547,14 @@ def execute_with_retry(prompt: Any, request_data: dict, api_key: str) -> str:
             retryable = is_retryable_ai_error(e)
 
             logger.info(
-                f"[AI_ERROR_CLASSIFIED] provider=Qwen model={current_model} "
+                f"[AI_ERROR_CLASSIFIED] provider=Mistral model={current_model} "
                 f"tenant_id={tenant_id} record_id={record_id} page_number={page_number} "
                 f"retryable={retryable} error={str(e)[:100]}"
             )
 
             if not retryable:
                 logger.error(
-                    f"[AI_TERMINAL_FAILURE] provider=Qwen model={current_model} "
+                    f"[AI_TERMINAL_FAILURE] provider=Mistral model={current_model} "
                     f"error={str(e)[:100]}"
                 )
                 raise TerminalTaskError(str(e))
@@ -737,7 +562,7 @@ def execute_with_retry(prompt: Any, request_data: dict, api_key: str) -> str:
             if attempt < MAX_ATTEMPTS - 1:
                 delay = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
                 logger.warning(
-                    f"[AI_RETRY] Qwen/{current_model} Attempt {attempt+1} failed: {e}. "
+                    f"[AI_RETRY] Mistral/{current_model} Attempt {attempt+1} failed: {e}. "
                     f"Retrying in {delay:.2f}s..."
                 )
                 observability.ai_metric(event="AI_RETRY", attempt=attempt + 1, error=str(e)[:100])
@@ -751,130 +576,7 @@ def execute_with_retry(prompt: Any, request_data: dict, api_key: str) -> str:
     raise last_error
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SHADOW MODE COMPARISON & DRIFT TELEMETRY
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def compare_bypass_vs_qwen(bypass_payload: dict, qwen_payload: dict) -> Tuple[bool, List[str]]:
-    from typing import Tuple, List
-    reasons = []
-    
-    b_h = bypass_payload.get('header', {}) or {}
-    q_h = qwen_payload.get('header', {}) or {}
-    
-    # Header fields comparison
-    b_vn = str(b_h.get('vendor_name') or "").strip().lower()
-    q_vn = str(q_h.get('vendor_name') or "").strip().lower()
-    if b_vn != q_vn:
-        reasons.append(f"vendor_name_drift: bypass='{b_vn}' qwen='{q_vn}'")
-        
-    b_gst = str(b_h.get('vendor_gstin') or "").strip().lower()
-    q_gst = str(q_h.get('vendor_gstin') or "").strip().lower()
-    if b_gst != q_gst:
-        reasons.append(f"gstin_drift: bypass='{b_gst}' qwen='{q_gst}'")
-        
-    b_inv = str(b_h.get('invoice_no') or "").strip().lower()
-    q_inv = str(q_h.get('invoice_no') or "").strip().lower()
-    b_inv_norm = re.sub(r'[\/\-\.]', '', b_inv)
-    q_inv_norm = re.sub(r'[\/\-\.]', '', q_inv)
-    if b_inv_norm != q_inv_norm:
-        reasons.append(f"invoice_no_drift: bypass='{b_inv}' qwen='{q_inv}'")
-        
-    b_date = str(b_h.get('invoice_date') or "").strip().lower()
-    q_date = str(q_h.get('invoice_date') or "").strip().lower()
-    if b_date != q_date:
-        reasons.append(f"invoice_date_drift: bypass='{b_date}' qwen='{q_date}'")
-        
-    def get_float(val) -> float:
-        if val is None:
-            return 0.0
-        try:
-            return round(float(str(val).replace(',', '')), 2)
-        except ValueError:
-            return 0.0
-
-    b_tax = get_float(b_h.get('taxable_value'))
-    q_tax = get_float(q_h.get('taxable_value'))
-    if abs(b_tax - q_tax) > 2.0:
-        reasons.append(f"taxable_value_drift: bypass={b_tax} qwen={q_tax}")
-        
-    b_tot = get_float(b_h.get('total_amount'))
-    q_tot = get_float(q_h.get('total_amount'))
-    if abs(b_tot - q_tot) > 2.0:
-        reasons.append(f"total_amount_drift: bypass={b_tot} qwen={q_tot}")
-        
-    b_cgst = get_float(b_h.get('cgst'))
-    q_cgst = get_float(q_h.get('cgst'))
-    if abs(b_cgst - q_cgst) > 1.0:
-        reasons.append(f"cgst_drift: bypass={b_cgst} qwen={q_cgst}")
-        
-    b_sgst = get_float(b_h.get('sgst'))
-    q_sgst = get_float(q_h.get('sgst'))
-    if abs(b_sgst - q_sgst) > 1.0:
-        reasons.append(f"sgst_drift: bypass={b_sgst} qwen={q_sgst}")
-        
-    b_igst = get_float(b_h.get('igst'))
-    q_igst = get_float(q_h.get('igst'))
-    if abs(b_igst - q_igst) > 1.0:
-        reasons.append(f"igst_drift: bypass={b_igst} qwen={q_igst}")
-        
-    # Item fields comparison
-    b_items = bypass_payload.get('items', []) or []
-    q_items = qwen_payload.get('items', []) or []
-    
-    if len(b_items) != len(q_items):
-        reasons.append(f"item_count_drift: bypass={len(b_items)} qwen={len(q_items)}")
-    else:
-        for idx in range(len(b_items)):
-            bi = b_items[idx]
-            qi = q_items[idx]
-            
-            b_qty = get_float(bi.get('quantity'))
-            q_qty = get_float(qi.get('quantity'))
-            if abs(b_qty - q_qty) > 0.1:
-                reasons.append(f"item_{idx}_qty_drift: bypass={b_qty} qwen={q_qty}")
-                
-            b_rt = get_float(bi.get('rate'))
-            q_rt = get_float(qi.get('rate'))
-            if abs(b_rt - q_rt) > 0.1:
-                reasons.append(f"item_{idx}_rate_drift: bypass={b_rt} qwen={q_rt}")
-                
-            b_amt = get_float(bi.get('amount') or bi.get('taxable_value'))
-            q_amt = get_float(qi.get('amount') or qi.get('taxable_value'))
-            if abs(b_amt - q_amt) > 2.0:
-                reasons.append(f"item_{idx}_amount_drift: bypass={b_amt} qwen={q_amt}")
-                
-    is_match = len(reasons) == 0
-    return is_match, reasons
-
-def log_shadow_mode_drift(record_id: int, page_number: int, is_match: bool, reasons: List[str]):
-    from datetime import datetime
-    import json
-    import os
-    drift_file = r"C:\Users\ulaganathan\.gemini\antigravity-ide\brain\318cbd76-d3fd-4ad6-9ae2-fc757a249593\shadow_mode_drift.json"
-    
-    entries = []
-    if os.path.exists(drift_file):
-        try:
-            with open(drift_file, 'r') as f:
-                entries = json.load(f)
-        except Exception:
-            entries = []
-            
-    entries.append({
-        'record_id': record_id,
-        'page_number': page_number,
-        'is_match': is_match,
-        'reasons': reasons,
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    try:
-        os.makedirs(os.path.dirname(drift_file), exist_ok=True)
-        with open(drift_file, 'w') as f:
-            json.dump(entries, f, indent=2)
-    except Exception as e:
-        logger.warning(f"Failed to write shadow mode drift to file: {e}")
+# [SHADOW_MODE_REMOVED] Legacy shadow mode and bypass validation functions deleted.
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -936,7 +638,7 @@ def process_ai_request(request_data: dict) -> dict:
 
         # Real bypass: return candidate directly (Forbidden during Sprint 1, kept as structured safeguard)
         if bypass_payload and SIMPLE_INVOICE_BYPASS_ACTIVE and not SIMPLE_INVOICE_BYPASS_SHADOW_MODE:
-            logger.critical(f"[SIMPLE_INVOICE_BYPASS_ACTIVE_TRIGGERED] record={record_id} Bypassing Qwen VL completely!")
+            logger.critical(f"[SIMPLE_INVOICE_BYPASS_ACTIVE_TRIGGERED] record={record_id} Bypassing AI completely!")
             return {'reply': json.dumps(bypass_payload)}
 
     # ── OVERLOAD SHEDDING ──
@@ -1045,24 +747,31 @@ def process_ai_request(request_data: dict) -> dict:
                 agent_messages.append({"role": role, "content": h.get('text', '')})
             agent_messages.append({"role": "user", "content": user_message})
 
-            from openai import OpenAI
-            qwen_base = os.getenv('QWEN_API_BASE', '')
-            qwen_key = api_key if api_key and api_key.strip() else 'EMPTY'
-            agent_client = OpenAI(api_key=qwen_key, base_url=qwen_base, timeout=120.0)
+            from mistralai.client import Mistral
+            mistral_key = api_key if api_key and api_key.strip() else os.getenv("MISTRAL_API_KEY")
+            agent_client = Mistral(api_key=mistral_key)
 
             t_ai_start = time.time()
             observability.ai_metric(event="PARALLEL_AI_EXECUTION", tenant_id=tenant_id, status="START")
 
             try:
-                agent_resp = agent_client.chat.completions.create(
-                    model=os.getenv('QWEN_MODEL', 'qwen2.5:7b'),
-                    messages=agent_messages,
+                # Map roles correctly: Mistral expects user, assistant, system
+                mistral_messages = []
+                for msg in agent_messages:
+                    role = msg.get("role")
+                    if role == "assistant":
+                        role = "assistant"
+                    mistral_messages.append({"role": role, "content": msg.get("content", "")})
+
+                agent_resp = agent_client.chat.complete(
+                    model=os.getenv('MISTRAL_CHAT_MODEL', 'mistral-large-latest'),
+                    messages=mistral_messages,
                     max_tokens=1024,
                     temperature=0.7,
                 )
                 response_text = (agent_resp.choices[0].message.content or '').strip()
             except Exception as agent_err:
-                logger.error(f"[AGENT_QWEN_ERROR] {agent_err}")
+                logger.error(f"[AGENT_MISTRAL_ERROR] {agent_err}")
                 response_text = "Sorry, I am having trouble connecting to the AI. Please try again."
         else:
             prompt_text = request_data.get('prompt', 'Extract data')
@@ -1073,7 +782,7 @@ def process_ai_request(request_data: dict) -> dict:
             # embeds the OCR content built by extraction.py.
             # When QWEN_INPUT_MODE=multimodal (default), the existing behaviour
             # is fully preserved — no change to the request structure.
-            _qwen_input_mode = os.getenv("QWEN_INPUT_MODE", "multimodal").strip().lower()
+            _qwen_input_mode = os.getenv("OCR_INPUT_MODE", "multimodal").strip().lower()
             logger.info(
                 f"[AI_PROXY_INPUT_MODE] mode={_qwen_input_mode} "
                 f"image_data_present={'yes' if request_data.get('image_data') else 'no'} "
@@ -1111,30 +820,7 @@ def process_ai_request(request_data: dict) -> dict:
             t_ai_start = time.time()
             observability.ai_metric(event="PARALLEL_AI_EXECUTION", tenant_id=tenant_id, status="START")
             response_text = execute_with_retry(prompt, request_data, api_key)
-        
-
-        # Shadow mode comparison and logging
-        if bypass_payload and SIMPLE_INVOICE_BYPASS_SHADOW_MODE:
-            try:
-                from ocr_pipeline.extraction import _repair_json
-                page_num = request_data.get('page_number') or 1
-                repaired, _, _ = _repair_json(response_text, record_id=record_id, page=page_num)
-                qwen_payload = json.loads(repaired)
-                
-                is_match, reasons = compare_bypass_vs_qwen(bypass_payload, qwen_payload)
-                
-                # Telemetry [SIMPLE_BYPASS_DRIFT]
-                drift_log = {
-                    'record_id': record_id,
-                    'page_number': page_num,
-                    'is_match': is_match,
-                    'reasons': reasons
-                }
-                logger.info(f"[SIMPLE_BYPASS_DRIFT] {json.dumps(drift_log)}")
-                
-                log_shadow_mode_drift(record_id, page_num, is_match, reasons)
-            except Exception as shadow_err:
-                logger.error(f"[SHADOW_MODE_RECONCILIATION_ERR] record={record_id} err={shadow_err}")
+                # [SHADOW_MODE_DISABLED] Shadow mode execution and comparison removed.
 
         ai_latency = time.time() - t_ai_start
         observability.ai_metric(
@@ -1265,7 +951,7 @@ class AIServiceProxy:
             'circuit_breaker_open': circuit_breaker.is_open(),
             'api_keys_total': len(api_key_manager.api_keys),
             'api_keys_unhealthy': len(api_key_manager.unhealthy_keys),
-            'provider': 'Qwen',
+            'provider': 'Mistral',
             'model': AI_MODEL_NAME,
         }
 
