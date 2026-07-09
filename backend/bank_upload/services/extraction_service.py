@@ -308,7 +308,8 @@ def _call_ai_provider(text_payload: str | None, mime_type: str, file_bytes: byte
         prompt=prompt,
         request_data={
             'type': 'extraction',
-            'prompt': prompt_text # Ensure ai_proxy logs this correctly
+            'prompt': prompt_text, # Ensure ai_proxy logs this correctly
+            'document_type': 'bank_statement'
         },
         api_key=api_key,
     )
@@ -338,15 +339,7 @@ def _call_mistral_hybrid(img_bytes: bytes, page_text: str, page_idx: int, file_n
         
     prompt_text = f"### [PAGE {page_idx + 1} OCR DATA]\n{page_text}\n\n{_PROMPT_BINARY}{balance_hint}"
     
-    prompt = [
-        prompt_text,
-        {
-            'inline_data': {
-                'mime_type': 'image/jpeg',
-                'data': img_bytes
-            }
-        }
-    ]
+    prompt = prompt_text
     
     tenant_id = 'system'
     logger.info(f"📡 AI Hybrid Dispatch: page={page_idx+1}/{total_pages}, file={file_name}, text_size={len(prompt_text)}")
@@ -359,7 +352,8 @@ def _call_mistral_hybrid(img_bytes: bytes, page_text: str, page_idx: int, file_n
                 'type': 'extraction',
                 'prompt': prompt_text,
                 'page_index': page_idx + 1,
-                'total_pages': total_pages
+                'total_pages': total_pages,
+                'document_type': 'bank_statement'
             },
             api_key=api_key,
         )

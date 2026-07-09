@@ -266,7 +266,7 @@ def _ocr_single_pass(
         from mistralai.client import Mistral
 
         mistral_model = os.getenv("MISTRAL_OCR_MODEL", "mistral-ocr-latest")
-        max_retries = int(os.getenv("MISTRAL_OCR_MAX_RETRIES", "3"))
+        max_retries = int(os.getenv("MISTRAL_OCR_MAX_RETRIES", "5"))
         retry_delay_s = float(os.getenv("MISTRAL_OCR_RETRY_DELAY_S", "2.0"))
 
         client = Mistral(api_key=api_key)
@@ -289,11 +289,13 @@ def _ocr_single_pass(
             except Exception as exc:
                 last_error = exc
                 if attempt < max_retries - 1:
-                    wait_s = retry_delay_s * (attempt + 1)
+                    import random
+                    base_delay = retry_delay_s * (2 ** attempt)
+                    wait_s = base_delay * random.uniform(0.5, 1.5)
                     logger.warning(
                         f"[MISTRAL_OCR_RETRY] page={page_idx + 1} "
                         f"attempt={attempt + 1}/{max_retries} "
-                        f"waiting={wait_s:.1f}s error={exc}"
+                        f"waiting={wait_s:.2f}s error={exc}"
                     )
                     time.sleep(wait_s)
 

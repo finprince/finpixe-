@@ -1,15 +1,133 @@
 {
-  "mined_at": "2026-07-08T10:08:55.143894+00:00",
+  "mined_at": "2026-07-09T11:47:17.371130+00:00",
   "shadow_mode_active": true,
   "blocking_activated": false,
   "summary": {
-    "total_shadow_check_events": 0,
+    "total_shadow_check_events": 13,
     "shadow_matches": 0,
     "shadow_mismatches": 0,
     "total_duplicate_found_events": 0,
     "expected_pair_0006_detected": false
   },
-  "shadow_events": [],
+  "shadow_events": [
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:14:26,264 pipeline 14932 26152 [DUPLICATE_SHADOW_CHECK] record_id=1008615 invoice_no='LC/1746/25-26' normalized_invoice_no='LC17462526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:14:56,644 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008615 invoice_no='LC/1746/25-26' normalized_invoice_no='LC17462526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:14:56,737 pipeline 14932 26152 [DUPLICATE_SHADOW_CHECK] record_id=1008618 invoice_no='LC/1664/25-26' normalized_invoice_no='LC16642526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:15:18,836 pipeline 14932 26152 [DUPLICATE_SHADOW_CHECK] record_id=1008619 invoice_no='LC/1631/25-26' normalized_invoice_no='LC16312526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:15:19,573 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008618 invoice_no='LC/1664/25-26' normalized_invoice_no='LC16642526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:15:40,103 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008619 invoice_no='LC/1631/25-26' normalized_invoice_no='LC16312526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:15:57,164 pipeline 14932 26152 [DUPLICATE_SHADOW_CHECK] record_id=1008622 invoice_no='LC/1790/25-26' normalized_invoice_no='LC17902526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:15:59,298 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008620 invoice_no='LC/1751/25-26' normalized_invoice_no='LC17512526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:16:16,066 pipeline 14932 26152 [DUPLICATE_SHADOW_CHECK] record_id=1008623 invoice_no='LC/1824/25-26' normalized_invoice_no='LC18242526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:16:21,313 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008622 invoice_no='LC/1790/25-26' normalized_invoice_no='LC17902526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:16:46,209 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008623 invoice_no='LC/1824/25-26' normalized_invoice_no='LC18242526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:17:05,015 pipeline 14932 5876 [DUPLICATE_SHADOW_CHECK] record_id=1008624 invoice_no='LC/1904/25-26' normalized_invoice_no='LC19042526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-09 17:17:14,718 pipeline 14932 26152 [DUPLICATE_SHADOW_CHECK] record_id=1008633 invoice_no='25-26/473' normalized_invoice_no='2526473' old_match=False new_match=False"
+    }
+  ],
   "shadow_matches_detail": [],
   "duplicate_found_events": [],
   "expected_duplicate_pair": {

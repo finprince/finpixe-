@@ -78,6 +78,20 @@ class MistralStructuredInvoiceSchema(BaseModel):
     items: List[MistralInvoiceItemSchema]
 
 
+# ── SCHEMAS FOR STRUCTURED BANK STATEMENT EXTRACTION ───────────────────────
+
+class MistralBankTransactionSchema(BaseModel):
+    date: Optional[str] = Field(default="", description="The transaction date in YYYY-MM-DD format")
+    narration: Optional[str] = Field(default="", description="Description/narration/particulars of the transaction")
+    debit: Optional[float] = Field(default=None, description="Debit amount (money withdrawn/outflow)")
+    credit: Optional[float] = Field(default=None, description="Credit amount (money deposited/inflow)")
+    balance: Optional[float] = Field(default=None, description="Running balance amount")
+    ref_no: Optional[str] = Field(default=None, description="Cheque/Reference/UTR number")
+
+class MistralStructuredBankStatementSchema(BaseModel):
+    transactions: List[MistralBankTransactionSchema]
+
+
 class MistralStructuredProvider(BaseAIProvider):
     """
     Mistral Structured OCR & Chat completions provider.
@@ -160,11 +174,15 @@ class MistralStructuredProvider(BaseAIProvider):
                     }
                     page_count = len(batch_images)
 
-                logger.info(f"📡 Mistral OCR dispatch: model={mistral_model} pages={page_count}")
+                schema_to_use = MistralStructuredInvoiceSchema
+                if request_data and request_data.get("document_type") == "bank_statement":
+                    schema_to_use = MistralStructuredBankStatementSchema
+
+                logger.info(f"📡 Mistral OCR dispatch: model={mistral_model} pages={page_count} schema={schema_to_use.__name__}")
                 response = client.ocr.process(
                     model=mistral_model,
                     document=document_payload,
-                    document_annotation_format=response_format_from_pydantic_model(MistralStructuredInvoiceSchema),
+                    document_annotation_format=response_format_from_pydantic_model(schema_to_use),
                     document_annotation_prompt=prompt_text
                 )
 
@@ -190,6 +208,8 @@ class MistralStructuredProvider(BaseAIProvider):
             else:
                 # ── Text Completion Mode (NLP Reports view & Bank Statements text chunks) ──
                 mistral_model = model_name or os.getenv("MISTRAL_CHAT_MODEL", "mistral-large-latest")
+                if mistral_model == "mistral-ocr-latest":
+                    mistral_model = os.getenv("MISTRAL_CHAT_MODEL", "mistral-large-latest")
                 logger.info(f"📡 Mistral Chat completions dispatch: model={mistral_model}")
 
                 messages = [{"role": "user", "content": prompt_text}]

@@ -1,6 +1,6 @@
 # Failed Invoice RCA Report — Sprint 3
-Generated: 2026-07-08 10:08:55 UTC
-Session ID: `78385acd-fa96-4966-b5d5-76b34d7cb3b1`
+Generated: 2026-07-09 11:47:17 UTC
+Session ID: `0880bd29-3f55-4858-a495-2960ba29bb89`
 
 > **Amendment 4**: Validation ran to completion across all 22 invoices.
 > All failures collected here — pipeline was NOT stopped on first failure.
@@ -8,15 +8,14 @@ Session ID: `78385acd-fa96-4966-b5d5-76b34d7cb3b1`
 ## 1. Failure Summary
 | Category | Count |
 |---|---|
-| Unknown | 2 |
-| **Total** | **2** |
+| Unknown | 1 |
+| **Total** | **1** |
 
 ## 2. Failure Detail by Category
 
 ### Unknown
 
 - **IMG_20260406_0006_TEST.pdf**: Pipeline status: FAILED
-- **1008424**: DB record in FAILED state
 
 ## 3. Log Evidence
 Refer to `WORKER_STABILITY_RAW.json` and `REDIS_FORENSICS_RAW.json` for raw log lines.
@@ -31,5 +30,5 @@ Refer to `WORKER_STABILITY_RAW.json` and `REDIS_FORENSICS_RAW.json` for raw log 
 | Assembly Failure | Verify barrier convergence logic |
 
 ## 5. Verdict
-> Total failures: **2** out of 22 invoices.
+> Total failures: **1** out of 22 invoices.
 > ⚠️ **Minor failure rate — investigate specific invoices.**

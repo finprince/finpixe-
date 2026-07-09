@@ -1,14 +1,14 @@
 {
-  "mined_at": "2026-07-08T10:08:53.129047+00:00",
+  "mined_at": "2026-07-09T11:47:13.295162+00:00",
   "aggregate_events": {
+    "worker_lock_refresh": 369,
     "upload_accepted": 23,
     "record_created": 23,
-    "queue_push_success": 246,
-    "queue_forward_success": 202,
-    "downstream_enqueue_success": 37,
-    "worker_lock_refresh": 207,
-    "slot_acquired": 71,
-    "slot_released": 69
+    "queue_push_success": 324,
+    "queue_forward_success": 263,
+    "downstream_enqueue_success": 42,
+    "slot_acquired": 135,
+    "slot_released": 131
   },
   "log_results": {
     "ingestion": {
@@ -63,21 +63,21 @@
       "log": "debug",
       "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\debug.log",
       "status": "OK",
-      "size_bytes": 45505305,
+      "size_bytes": 83144009,
       "events": {
+        "worker_lock_refresh": 369,
         "upload_accepted": 23,
         "record_created": 23,
-        "queue_push_success": 246,
-        "queue_forward_success": 202,
-        "downstream_enqueue_success": 37,
-        "worker_lock_refresh": 207,
-        "slot_acquired": 71,
-        "slot_released": 69
+        "queue_push_success": 324,
+        "queue_forward_success": 263,
+        "downstream_enqueue_success": 42,
+        "slot_acquired": 135,
+        "slot_released": 131
       },
       "crashes": [],
       "dlq_events": [],
       "push_by_queue": {
-        "null": 246
+        "null": 324
       }
     }
   },
@@ -86,15 +86,15 @@
   "summary": {
     "total_worker_starts": 0,
     "total_worker_crashes": 0,
-    "total_queue_pushes": 246,
+    "total_queue_pushes": 324,
     "total_dlq_events": 0,
     "total_zombie_messages": 0,
-    "total_lock_refreshes": 207,
+    "total_lock_refreshes": 369,
     "total_upload_accepted": 23,
     "total_records_created": 23,
-    "total_downstream_success": 37,
+    "total_downstream_success": 42,
     "total_downstream_failed": 0,
-    "total_slots_acquired": 71,
-    "total_slots_released": 69
+    "total_slots_acquired": 135,
+    "total_slots_released": 131
   }
 }

@@ -1213,7 +1213,40 @@ Return ONLY valid JSON.
             logger.info(f"[OCR_DURATION] page={idx+1} duration_ms={int((ocr_t1 - ocr_t0)*1000)}")
             
             if not iso_res["success"]:
-                 continue
+                # ── [DEFECT-2 FIX] DURABLE BARRIER ACK FOR OCR ISOLATION FAILURE ──
+                # Previously this was a silent `continue`, causing the page to be
+                # omitted from batch_data and results_map. The barrier counter was
+                # never incremented, so the record would stall in EXTRACTING forever.
+                # Now we register the page as a terminal failure so the barrier can
+                # converge, matching the error-path handler below (lines ~1149-1166).
+                logger.error(f"[OCR_ISOLATION_FAILED] record={record_id} page={idx+1} reason={iso_res.get('error', 'unknown')}")
+                if record_id:
+                    try:
+                        from .models import InvoicePageResult, SessionFinalizationState
+                        from django.utils import timezone as _tz
+                        InvoicePageResult.objects.update_or_create(
+                            record_id=record_id,
+                            page_number=idx + 1,
+                            defaults={
+                                'session_id': upload_session_id or 'error_sync',
+                                'is_failed': True,
+                                'canonical_payload': {
+                                    'status': 'OCR_FAILED',
+                                    'error': iso_res.get('error', 'isolated_ocr_service returned success=False'),
+                                    '_page_no': idx + 1,
+                                    'header': {},
+                                    'items': [],
+                                }
+                            }
+                        )
+                        SessionFinalizationState.objects.filter(id=str(record_id)).update(
+                            failed_pages=models.F('failed_pages') + 1,
+                            updated_at=_tz.now()
+                        )
+                        logger.warning(f"[DB_BARRIER_INCREMENT] record={record_id} page={idx+1} status=FAILED (OCR_ISOLATION_FAILURE)")
+                    except Exception as db_err:
+                        logger.error(f"[DB_BARRIER_FAIL] record={record_id} page={idx+1}: {db_err}")
+                continue
             
             page_text = re.sub(r'\s+', ' ', iso_res["text"]).strip()
             

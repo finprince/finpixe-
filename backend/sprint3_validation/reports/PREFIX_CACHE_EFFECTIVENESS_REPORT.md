@@ -1,5 +1,5 @@
 # Prefix Cache Effectiveness Report — Sprint 3
-Generated: 2026-07-08 10:08:55 UTC
+Generated: 2026-07-09 11:47:17 UTC
 
 ## Background
 The prefix cache works by sharing a common prompt prefix across all pages of the same invoice.

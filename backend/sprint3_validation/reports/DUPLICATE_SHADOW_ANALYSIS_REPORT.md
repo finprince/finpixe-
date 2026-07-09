@@ -1,12 +1,12 @@
 # Duplicate Shadow Analysis Report — Sprint 3
-Generated: 2026-07-08 10:08:55 UTC
+Generated: 2026-07-09 11:47:17 UTC
 
 > ⚠️ **Shadow Mode Only.** Duplicate blocking is NOT activated (Amendment 5).
 
 ## 1. Shadow Validation Summary
 | Metric | Value |
 |---|---|
-| Total shadow check events | 0 |
+| Total shadow check events | 13 |
 | Shadow matches (would-be blocked) | 0 |
 | Shadow mismatches | 0 |
 | Duplicate found events | 0 |
@@ -30,4 +30,4 @@ Generated: 2026-07-08 10:08:55 UTC
 | False negatives (real duplicates missed) | — | IMG_0006 pair is the test case |
 
 ## 5. Production Readiness Assessment
-> ❌ **No shadow events detected.** Shadow mode may not be wired to logging.
+> ⚠️ **Expected duplicate pair was NOT detected.** Shadow detection may have issues.

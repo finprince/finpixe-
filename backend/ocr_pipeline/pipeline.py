@@ -1985,6 +1985,7 @@ def trigger_next_fanout(record_id):
         record = InvoiceTempOCR.objects.get(id=record_id)
         orchestrator.clean_stale_slots(str(record_id), session_id=str(record.upload_session_id))
         
+        should_retry = False
         with transaction.atomic():
             barrier = SessionFinalizationState.objects.select_for_update().get(id=str(record_id))
             
@@ -2019,11 +2020,14 @@ def trigger_next_fanout(record_id):
                     page_idx = next_start + i
                     page_num = page_idx + 1
                     
+
+                    
                     # Try to acquire AI slot atomically in Redis
                     slot_acquired = orchestrator.acquire_ai_slot(str(record_id), page_num, session_id=str(record.upload_session_id), tenant_id=str(record.tenant_id))
                     
                     if not slot_acquired:
                         logger.warning(f"[SLOT_ACQUIRE_FAILED] record={record_id} page={page_num} — failed to acquire slot")
+                        should_retry = True
                         break
                     
                     try:
@@ -2098,6 +2102,18 @@ def trigger_next_fanout(record_id):
                 logger.info(f"[FANOUT_WINDOW_STATUS] record={record_id} current={inflight}")
     except Exception as e:
         logger.error(f"[FANOUT_GOVERNOR_ERROR] record={record_id}: {e}")
+    finally:
+        # Prevent database connection leaks in background threads
+        try:
+            from django.db import connections
+            connections.close_all()
+        except Exception as db_close_err:
+            logger.error(f"[DB_CLOSE_ERR] {db_close_err}")
+            
+        if 'should_retry' in locals() and should_retry:
+            logger.info(f"[SLOT_ACQUIRE_RETRY_SCHEDULE] record={record_id} — scheduling fanout retry in 5.0 seconds")
+            import threading
+            threading.Timer(5.0, trigger_next_fanout, args=[record_id]).start()
 
 
 def force_reconcile_stale_barriers():
