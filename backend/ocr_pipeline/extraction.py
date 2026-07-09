@@ -1251,8 +1251,8 @@ Return ONLY valid JSON.
             page_text = re.sub(r'\s+', ' ', iso_res["text"]).strip()
             
             # Save the text for E2E verification
-            with open(f"page{idx+1}_ocr.txt", "w", encoding="utf-8") as f:
-                f.write(page_text)
+            # with open(f"page{idx+1}_ocr.txt", "w", encoding="utf-8") as f:
+            #     f.write(page_text)
 
             # Native text extraction for digital pages
             native_text = ""
