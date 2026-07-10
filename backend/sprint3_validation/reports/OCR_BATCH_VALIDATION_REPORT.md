@@ -1,6 +1,6 @@
 # OCR Batch Validation Report — Sprint 3
-Generated: 2026-07-09 11:47:17 UTC
-Session ID: `0880bd29-3f55-4858-a495-2960ba29bb89`
+Generated: 2026-07-10 08:15:03 UTC
+Session ID: `f46bcfc9-28d8-4623-abef-a5ca828181f3`
 
 ---
 

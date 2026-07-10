@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 import logging
 import json
 import uuid
@@ -118,22 +119,26 @@ class AIWorker(BaseWorker):
         return new_payload
 
     async def handle_task(self, task: Dict[str, Any]):
+        payload = task.get('payload', {})
+        record_id = payload.get('record_id')
+        page_idx = payload.get('page_number') or payload.get('page_index') or task.get('page_number')
+        
+        logger.info(f"[FORENSIC_AI_RECEIVE] record={record_id} page={page_idx} timestamp={time.time():.6f}")
         try:
             await self._handle_task_inner(task)
         finally:
-            payload = task.get('payload', {})
-            record_id = payload.get('record_id')
-            page_idx = payload.get('page_number') or payload.get('page_index') or task.get('page_number')
             session_id = task.get('session_id')
             tenant_id = task.get('tenant_id')
             if record_id:
                 try:
                     from core.redis_orchestrator import orchestrator
+                    logger.info(f"[FORENSIC_AI_SLOT_RELEASE] record={record_id} page={page_idx} release_reason=FINALLY_BLOCK_CLEANUP timestamp={time.time():.6f}")
                     logger.info(f"[SLOT_FORCE_RELEASE] record={record_id} page={page_idx} session={session_id}")
                     orchestrator.release_ai_slot(str(record_id), page_idx, session_id=str(session_id), release_reason="FINALLY_BLOCK_CLEANUP", tenant_id=str(tenant_id))
                     
                     # Ensure trigger_next_fanout is automatically invoked after the slot release to prevent sliding window stalls!
                     from ocr_pipeline.pipeline import trigger_next_fanout
+                    logger.info(f"[FORENSIC_AI_FANOUT_TRIGGER] record={record_id} page={page_idx} timestamp={time.time():.6f}")
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(
                         self.executor,
@@ -232,6 +237,7 @@ class AIWorker(BaseWorker):
 
             loop = asyncio.get_running_loop()
 
+            logger.info(f"[FORENSIC_AI_START] record={record_id} page={page_idx} timestamp={time.time():.6f}")
             logger.info(f"[OCR_RETRY_CHAIN_START] record={record_id} page={page_idx} max_passes={MAX_IMAGE_PASSES}")
 
             # ── [PHASE 4: OCR RESPONSE CACHE] ──
@@ -240,11 +246,13 @@ class AIWorker(BaseWorker):
             if file_hash:
                 try:
                     from ocr_pipeline.ocr_cache import OCRResponseCache
+                    logger.info(f"[FORENSIC_AI_CACHE_CHECK] record={record_id} page={page_idx} file_hash={file_hash} timestamp={time.time():.6f}")
                     cached_payload = await loop.run_in_executor(
                         self.executor,
                         lambda: OCRResponseCache.get(file_hash, page_idx)
                     )
                     if cached_payload:
+                        logger.info(f"[FORENSIC_AI_CACHE_CHECK] record={record_id} page={page_idx} hit=True timestamp={time.time():.6f}")
                         logger.info(
                             f"[OCR_CACHE_HIT_FASTPATH] record={record_id} page={page_idx} "
                             f"file_hash={file_hash} invoice_no={cached_payload.get('invoice_no')} "
@@ -501,6 +509,7 @@ class AIWorker(BaseWorker):
             # Validation & persistence — ONCE, after retry chain completes
             final_task = {**task, 'payload': current_payload}
             await self._process_result(final_task, final_result)
+            logger.info(f"[FORENSIC_AI_COMPLETED] record={record_id} page={page_idx} success={success} timestamp={time.time():.6f}")
 
         except Exception as e:
             if e.__class__.__name__ == 'ProviderSaturatedError':

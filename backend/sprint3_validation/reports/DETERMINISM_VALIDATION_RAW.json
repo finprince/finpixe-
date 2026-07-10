@@ -1,0 +1,215 @@
+{
+  "sessions": [
+    "52a295f6-c9be-48fd-9178-f36e7422713d",
+    "09f92942-0058-48c7-a79c-3f80908bc89c",
+    "196c7dde-7327-445d-8db0-7ae415dd05c1"
+  ],
+  "total_files": 23,
+  "matches": 2,
+  "mismatches": 21,
+  "details": [
+    {
+      "filename": "0094ab82e84ce61469281e14ed273f48c2eaad8fed3a6f0110be9031efb32a7e_IMG_20260319_0003.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='26001102', run2='4464/25-26', run3='1068'"
+      ]
+    },
+    {
+      "filename": "0f374a8980b478047724f14dbd392bdf5c5cdc8b4ab55009269aa8ebae7cecff_IMG_20260406_0001_Part2.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='EIS/25-26/926', run2='LC/2196/25-26', run3='ABC/2526001583'"
+      ]
+    },
+    {
+      "filename": "13a114883f82ebe463ac4b70166e3e0c80868ee6cd1eb550b5cf40abd09a7a9f_stress_test_15pages.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='', run2=None, run3=None"
+      ]
+    },
+    {
+      "filename": "2cc576679ed7f9de26f6cc8102477813783e50d07f436487fff6dd2061b654f9_IMG_20260319_0014.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='SD/25-26/243', run2='LC/1904/25-26', run3='035'"
+      ]
+    },
+    {
+      "filename": "33f8828846ba6ecaac6673d749d4874f53867380d75752459676dbb7f9141256_IMG_20260406_0001_Part1.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='EIS/25-26/934', run2='LC/2122/25-26', run3='329'"
+      ]
+    },
+    {
+      "filename": "3a5f035f6ab9d6cb80248022c20f3724422261d3180fa0209196ffa8b1115378_IMG_20260319_0011.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='3112503859', run2='LC/1507/25-26', run3='CBE25-26/483'"
+      ]
+    },
+    {
+      "filename": "44858132b364f916c4b0f081c907c23531b5559aa8b824a50cc21828ab13c6aa_IMG_20260319_0013.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='SD/LC/25-26/265', run2='LC/1824/25-26', run3=None"
+      ]
+    },
+    {
+      "filename": "4703312bdd26f19e4a18ae50545d4814e4d18b6a11892aed334d4041107391ea_IMG_20260319_0002.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='26001280', run2='4913/25-26', run3='1344'"
+      ]
+    },
+    {
+      "filename": "48b7b5067a7fe1c612753b6787634b93258ed709ac5ec6fd3cefb6c43ce3cada_IMG_20260319_0012.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='JWS/25-26/103', run2='LC/1790/25-26', run3='CBE25-26/468'"
+      ]
+    },
+    {
+      "filename": "4df296254b97ed7c8e04763262ac147db3f4cda909d4b7ceddb2b8e403bebb87_IMG_20260319_0008.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='LC-048(2025-26)', run2='LC/1664/25-26', run3='V0647/25-26'"
+      ]
+    },
+    {
+      "filename": "57da3a2b604c6513ece37079b1dc6b5357a0abeecbd6b8f4a8ebb0572485be3e_IMG_20260406_0006.pdf",
+      "ocr_match": true,
+      "header_match": true,
+      "items_match": true,
+      "diffs": []
+    },
+    {
+      "filename": "598cb3a1706e45b5b6a9f4d38e947c1f30c858d5a9a2aca7f7788eecbc9d22b3_IMG_20260319_0004.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='26001012', run2='4216/25-26', run3='V01889/25-26'"
+      ]
+    },
+    {
+      "filename": "676e64c38aa3a2d3a91c16ac0a203e138b434afa0f58b2c0798c684218b41359_IMG_20260319_0001.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='26001298', run2='5081/25-26', run3='1540'"
+      ]
+    },
+    {
+      "filename": "6997e718a124377eca6878719255306835780d39288580176af3e55be8099483_IMG_20260319_0009.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='INV-26-G-003862', run2='LC/1631/25-26', run3='V0585/25-26'"
+      ]
+    },
+    {
+      "filename": "7ff8fd5836249fc863d43a02d65543f668ecfbdfd478f0eaf156a6ae969e2a60_IMG_20260406_0005.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='5202/25-26', run2='5202/25-26', run3=None"
+      ]
+    },
+    {
+      "filename": "91a4135f5f1c6b1161b49e33f8e00ea65d07b2076ba6af432b8ac2e85d3104cd_IMG_20260406_0002.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='26001308', run2='26001308', run3=None"
+      ]
+    },
+    {
+      "filename": "9e672a849470ffbd893de38f6507bfd1783fb44dc542c07d0f5fc3b2575ba554_IMG_20260319_0005.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='26000933', run2='3528/25-26', run3='V0908/25-26'"
+      ]
+    },
+    {
+      "filename": "a82f92be30e49a0c34d6b737e2f657b7c12d32dfc31610fe54d75767c8c2b1f0_IMG_20260406_0001_Part3.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='EIS/25-26/698', run2='TN2507000597', run3='TN2507000597'"
+      ]
+    },
+    {
+      "filename": "b25c1006f989aafcf30e6d9cb8dc71671195b4e9d8f374efdbf0410ec6bb3747_IMG_20260319_0006.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='26000926', run2='S 058', run3='1576'"
+      ]
+    },
+    {
+      "filename": "c2ab2f6b5da0b8f9d2e1a86cb4b88c1549439c1bdbe3df267d59c689f529675a_IMG_20260406_0003.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='GST2526CH11026', run2='', run3=None"
+      ]
+    },
+    {
+      "filename": "d66c448fc991e46859ba1c21ef5ecf272770de6f3aabbd2d0cab982dfc7ce405_IMG_20260319_0007.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": false,
+      "diffs": [
+        "supplier_invoice_no: run1='LC-049(2025-26)', run2='S 060', run3='V0682/25-26'"
+      ]
+    },
+    {
+      "filename": "eed6f8514c01b99123bc079ab5776b99681aa2028235d59772c6b3fd4018e1bd_IMG_20260319_0010.pdf",
+      "ocr_match": true,
+      "header_match": false,
+      "items_match": true,
+      "diffs": [
+        "supplier_invoice_no: run1='JWS/25-26/147', run2='LC/1751/25-26', run3='HO25-26/12873'"
+      ]
+    },
+    {
+      "filename": "f15795e53561f8722286282aabe3856b4be6b403362f206cbbb19ce2e123aeaa_IMG_20260406_0006_TEST.pdf",
+      "ocr_match": true,
+      "header_match": true,
+      "items_match": true,
+      "diffs": []
+    }
+  ]
+}

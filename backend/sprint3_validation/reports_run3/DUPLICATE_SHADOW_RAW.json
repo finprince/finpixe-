@@ -1,0 +1,87 @@
+{
+  "mined_at": "2026-07-10T06:53:08.810293+00:00",
+  "shadow_mode_active": true,
+  "blocking_activated": false,
+  "summary": {
+    "total_shadow_check_events": 7,
+    "shadow_matches": 0,
+    "shadow_mismatches": 0,
+    "total_duplicate_found_events": 0,
+    "expected_pair_0006_detected": false
+  },
+  "shadow_events": [
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 11:52:37,869 pipeline 19100 29976 [DUPLICATE_SHADOW_CHECK] record_id=1008669 invoice_no='VMT25-26/1A7' normalized_invoice_no='VMT25261A7' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 11:54:05,492 pipeline 19100 11492 [DUPLICATE_SHADOW_CHECK] record_id=1008664 invoice_no='TDI/78' normalized_invoice_no='TDI78' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 11:54:46,714 pipeline 19100 11492 [DUPLICATE_SHADOW_CHECK] record_id=1008668 invoice_no='CBE25-26/46INFO 2026-07-10 11:54:46,713 worker_base 12392 2952 [QUEUE_MESSAGE_PROCESSING] correlation_id=743cbd8b-dfc6-413a-acac-c94e0eb2987b session_id=196c7dde-7327-445d-8db0-7ae415dd05c1 worke"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 11:55:17,232 pipeline 19100 11492 [DUPLICATE_SHADOW_CHECK] record_id=1008669 invoice_no='VMT25-26/1A7' normalized_invoice_no='VMT25261A7' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 12:01:12,681 pipeline 19100 18116 [DUPLICATE_SHADOW_CHECK] record_id=1008657 invoice_no='1899/25-26' normalized_invoice_no='18992526' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 12:01:34,971 pipeline 19100 18116 [DUPLICATE_SHADOW_CHECK] record_id=1008665 invoice_no='4272' normalized_invoice_no='4272' old_match=False new_match=False"
+    },
+    {
+      "timestamp": "",
+      "file": "unknown",
+      "hash": "unknown",
+      "old_result": "unknown",
+      "normalized_result": "unknown",
+      "shadow_match": "unknown",
+      "raw": "INFO 2026-07-10 12:04:01,625 pipeline 19100 30472 [DUPLICATE_SHADOW_CHECK] record_id=1008674 invoice_no='26001308' normalized_invoice_no='26001308' old_match=False new_match=False"
+    }
+  ],
+  "shadow_matches_detail": [],
+  "duplicate_found_events": [],
+  "expected_duplicate_pair": {
+    "files": [
+      "IMG_20260406_0006",
+      "IMG_20260406_0006_TEST"
+    ],
+    "expected_behavior": "Shadow match logged, NO blocking applied",
+    "detected": false
+  }
+}

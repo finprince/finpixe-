@@ -1476,7 +1476,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                 logger.info(f"[MATERIALIZATION_START] session={record.upload_session_id} tenant={record.tenant_id}")
 
                 # A. Explosion (Bulk Create / Reuse)
-                existing_siblings = list(InvoiceTempOCR.objects.filter(upload_session_id=record.upload_session_id).exclude(id=record.id))
+                existing_siblings = list(InvoiceTempOCR.objects.filter(upload_session_id=record.upload_session_id, file_path=record.file_path).exclude(id=record.id))
                 logger.info(
                     f"[DIAGNOSTIC_LOG] existing_siblings count={len(existing_siblings)} details="
                     f"{[{'id': sib.id, 'file_path': getattr(sib, 'file_path', None), 'file_hash': getattr(sib, 'file_hash', None)} for sib in existing_siblings]}"
@@ -1987,15 +1987,30 @@ def trigger_next_fanout(record_id):
         
         should_retry = False
         with transaction.atomic():
+            t_select_start = time.time()
             barrier = SessionFinalizationState.objects.select_for_update().get(id=str(record_id))
+            t_select_end = time.time()
+            
+            from django.db import connection as dj_conn
+            isolation_level = dj_conn.cursor().connection.isolation_level if hasattr(dj_conn.cursor().connection, 'isolation_level') else "unknown"
+            
+            logger.info(
+                f"[FORENSIC_FANOUT_INVOCATION] timestamp={time.time():.6f} record={record_id} "
+                f"expected={barrier.expected_pages} completed={barrier.completed_pages} failed={barrier.failed_pages} "
+                f"total_pages_completed={barrier.total_pages_completed} db_select_ms={int((t_select_end - t_select_start)*1000)} "
+                f"isolation_level={isolation_level}"
+            )
             
             # Check expected pages
             if barrier.total_pages_completed >= barrier.expected_pages:
+                logger.info(f"[FORENSIC_FANOUT_RETURN] record={record_id} reason=FANOUT_COMPLETE expected={barrier.expected_pages} total_pages_completed={barrier.total_pages_completed} timestamp={time.time():.6f}")
                 logger.debug(f"[FANOUT_COMPLETE] record={record_id} reached limit {barrier.expected_pages}")
                 return
 
             # Fetch actual inflight count from Redis
             inflight = orchestrator.get_active_slots_count(str(record_id))
+            redis_slots = orchestrator.redis.hgetall(f"active_slots:{record_id}")
+            redis_slots_str = ",".join([f"{(k.decode() if isinstance(k, bytes) else k)}:{(v.decode() if isinstance(v, bytes) else v)}" for k, v in redis_slots.items()]) if redis_slots else "empty"
             
             MAX_WINDOW = 5
             if inflight < MAX_WINDOW:
@@ -2004,7 +2019,19 @@ def trigger_next_fanout(record_id):
                 remaining = barrier.expected_pages - next_start
                 batch_size = min(to_enqueue, remaining)
                 
+                # Fetch enqueued page numbers from Redis
+                enqueued_pages_list = list(orchestrator.redis.smembers(f"assembly:{record_id}:enqueued_success_pages"))
+                enqueued_pages_str = ",".join([(p.decode() if isinstance(p, bytes) else p) for p in enqueued_pages_list]) if enqueued_pages_list else "none"
+                
+                logger.info(
+                    f"[FORENSIC_FANOUT_SCHEDULING] record={record_id} inflight={inflight} "
+                    f"to_enqueue={to_enqueue} next_start={next_start} remaining={remaining} "
+                    f"batch_size={batch_size} redis_slots={redis_slots_str} enqueued_in_redis={enqueued_pages_str} "
+                    f"timestamp={time.time():.6f}"
+                )
+                
                 if batch_size <= 0:
+                    logger.info(f"[FORENSIC_FANOUT_RETURN] record={record_id} reason=BATCH_SIZE_ZERO timestamp={time.time():.6f}")
                     return
 
                 logger.debug(f"[FANOUT_FILL] record={record_id} inflight={inflight} filling={batch_size} next={next_start+1}")
@@ -2020,10 +2047,9 @@ def trigger_next_fanout(record_id):
                     page_idx = next_start + i
                     page_num = page_idx + 1
                     
-
-                    
                     # Try to acquire AI slot atomically in Redis
                     slot_acquired = orchestrator.acquire_ai_slot(str(record_id), page_num, session_id=str(record.upload_session_id), tenant_id=str(record.tenant_id))
+                    logger.info(f"[FORENSIC_SLOT_ACQUIRE] record={record_id} page={page_num} slot_acquired={slot_acquired} timestamp={time.time():.6f}")
                     
                     if not slot_acquired:
                         logger.warning(f"[SLOT_ACQUIRE_FAILED] record={record_id} page={page_num} — failed to acquire slot")
@@ -2032,6 +2058,9 @@ def trigger_next_fanout(record_id):
                     
                     try:
                         logger.debug(f"[SLIDING_WINDOW_ENQUEUE] record={record_id} page={page_num}")
+                        
+                        # Capture SQS publish timestamp
+                        t_sqs_start = time.time()
                         extract_invoice(
                             None, 
                             record_id=record.id,
@@ -2044,6 +2073,8 @@ def trigger_next_fanout(record_id):
                             limit=1,
                             voucher_type=record.voucher_type or 'Purchase'
                         )
+                        logger.info(f"[FORENSIC_SQS_PUBLISH_FANOUT] record={record_id} page={page_num} duration_ms={int((time.time() - t_sqs_start)*1000)} timestamp={time.time():.6f}")
+                        
                         # Redundant success register upon successful call
                         try:
                             rec_id_str = str(record_id)
@@ -2073,10 +2104,18 @@ def trigger_next_fanout(record_id):
                             logger.error(f"[BARRIER_FAILED_INCREMENT] record={record_id} page={page_num}")
                             # Reconcile failure
                             from django.utils import timezone
+                            
+                            before_fail_val = SessionFinalizationState.objects.filter(id=str(record_id)).values('total_pages_completed').first()
+                            logger.info(f"[FORENSIC_DB_FAIL_UPDATE_BEFORE] record={record_id} page={page_num} total_pages_completed={before_fail_val.get('total_pages_completed') if before_fail_val else None} timestamp={time.time():.6f}")
+                            
                             SessionFinalizationState.objects.filter(id=str(record_id)).update(
                                 total_pages_completed=models.F('total_pages_completed') + 1,
                                 updated_at=timezone.now()
                             )
+                            
+                            after_fail_val = SessionFinalizationState.objects.filter(id=str(record_id)).values('total_pages_completed').first()
+                            logger.info(f"[FORENSIC_DB_FAIL_UPDATE_AFTER] record={record_id} page={page_num} total_pages_completed={after_fail_val.get('total_pages_completed') if after_fail_val else None} timestamp={time.time():.6f}")
+                            
                             orchestrator.release_ai_slot(str(record_id), page_num, session_id=str(record.upload_session_id), release_reason="ENQUEUE_FAIL", tenant_id=str(record.tenant_id))
                             
                             from vouchers.coordinator import terminalize_page_state, check_and_trigger_assembly
@@ -2098,6 +2137,7 @@ def trigger_next_fanout(record_id):
                                 item_id=None
                             )
             else:
+                logger.info(f"[FORENSIC_FANOUT_RETURN] record={record_id} reason=WINDOW_FULL inflight={inflight} timestamp={time.time():.6f}")
                 logger.debug(f"[FANOUT_STALLED] record={record_id} window_full={inflight}")
                 logger.info(f"[FANOUT_WINDOW_STATUS] record={record_id} current={inflight}")
     except Exception as e:

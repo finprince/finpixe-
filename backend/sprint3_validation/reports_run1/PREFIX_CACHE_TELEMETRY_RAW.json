@@ -1,0 +1,16 @@
+{
+  "mined_at": "2026-07-10T05:42:11.122751+00:00",
+  "summary": {
+    "total_prefix_cache_events": 0,
+    "total_invoices_with_cache_data": 0,
+    "cache_consistent_invoices": 0,
+    "cache_invalidated_invoices": 0,
+    "single_page_invoices": 0,
+    "global_unique_prefix_hashes": 0,
+    "modal_prefix_hash": "N/A...",
+    "modal_prefix_occurrence_count": 0,
+    "identical_prefix_ratio_pct": 0
+  },
+  "invoice_analysis": [],
+  "invalidated_invoices": []
+}

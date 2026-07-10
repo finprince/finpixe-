@@ -1319,6 +1319,30 @@ Return ONLY valid JSON.
     MAX_INITIAL_FANOUT = 5
     batches_to_enqueue = batches[:MAX_INITIAL_FANOUT]
     
+    from django.db import transaction as dj_tx, connection as dj_conn
+    in_tx = dj_conn.in_atomic_block
+    logger.info(f"[FORENSIC_INGESTION_START] record={record_id} expected_pages={page_count} start_page={start_page} in_transaction={in_tx}")
+    
+    # ── [PHASE 10: BARRIER STATE SYNC (PRE-INCREMENT)] ──
+    # Increment total_pages_completed BEFORE enqueuing to prevent AI workers from
+    # reading a stale 0 count when they complete the first pages concurrently.
+    if not wait_for_result and record_id:
+        from .models import SessionFinalizationState
+        enqueued_count = sum(len(b) for b in batches_to_enqueue)
+        with dj_tx.atomic():
+            before_val = SessionFinalizationState.objects.select_for_update().filter(id=str(record_id)).values('total_pages_completed').first()
+            logger.info(f"[FORENSIC_DB_UPDATE_BEFORE] record={record_id} total_pages_completed={before_val.get('total_pages_completed') if before_val else None} timestamp={time.time():.6f}")
+            
+            t_db_start = time.time()
+            SessionFinalizationState.objects.filter(id=str(record_id)).update(
+                total_pages_completed=models.F('total_pages_completed') + enqueued_count
+            )
+            t_db_end = time.time()
+            
+            after_val = SessionFinalizationState.objects.filter(id=str(record_id)).values('total_pages_completed').first()
+            logger.info(f"[FORENSIC_DB_UPDATE_AFTER] record={record_id} total_pages_completed={after_val.get('total_pages_completed') if after_val else None} duration_ms={int((t_db_end - t_db_start)*1000)} timestamp={time.time():.6f}")
+            logger.info(f"[BOUNDED_FANOUT_SYNC] record={record_id} newly_enqueued={enqueued_count}")
+            
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(len(batches_to_enqueue), 5))) as executor:
         futures = [executor.submit(process_batch, b) for b in batches_to_enqueue]
         for future in concurrent.futures.as_completed(futures):
@@ -1326,6 +1350,7 @@ Return ONLY valid JSON.
             for idx, res in batch_res:
                 results_map[idx] = res
                 if not wait_for_result:
+                     logger.info(f"[FORENSIC_SQS_PUBLISH] record={record_id} page_number={idx+1} timestamp={time.time():.6f}")
                      logger.info(f"[FANOUT_QUEUED] record_id={record_id} page_number={idx+1} session={upload_session_id}")
                      if record_id:
                          try:
@@ -1337,14 +1362,6 @@ Return ONLY valid JSON.
                              orchestrator.redis.expire(f"assembly:{rec_id_str}:enqueued_success_pages", 86400)
                          except Exception as redis_err:
                              logger.error(f"[REDIS_BACKEND_ENQUEUE_ERR] {redis_err}")
-    
-    # ── [PHASE 10: BARRIER STATE SYNC] ──
-    if not wait_for_result and record_id:
-        from .models import SessionFinalizationState
-        SessionFinalizationState.objects.filter(id=str(record_id)).update(
-            total_pages_completed=models.F('total_pages_completed') + len(results_map) # Tracking enqueued count
-        )
-        logger.info(f"[BOUNDED_FANOUT_SYNC] record={record_id} newly_enqueued={len(results_map)}")
     
     if limit is None and len(results_map) != page_count:
         logger.error(f"[FANOUT_MISMATCH] record_id={record_id} expected={page_count} actual={len(results_map)}")

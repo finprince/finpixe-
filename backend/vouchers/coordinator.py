@@ -2,6 +2,7 @@ import logging
 import asyncio
 import threading
 import traceback
+import time
 from django.db import transaction
 from django.utils import timezone
 from django.db import models
@@ -37,6 +38,7 @@ def check_and_trigger_assembly(record_id, tenant_id, session_id, correlation_id,
     from copy import deepcopy
 
     if not record_id or record_id == 'unknown':
+        logger.info(f"[ASSEMBLY_RETURN_INVALID_ID] record={record_id} reason=INVALID_OR_MISSING_RECORD_ID")
         return
 
     log_forensic_trace("check_and_trigger_assembly_BEFORE", record_id, {
@@ -60,6 +62,11 @@ def check_and_trigger_assembly(record_id, tenant_id, session_id, correlation_id,
             db_failed = barrier.failed_pages or 0
             expected = barrier.expected_pages or 0
             barrier_total = db_completed + db_failed
+            logger.info(
+                f"[FORENSIC_COORDINATOR_ASSEMBLY] timestamp={time.time():.6f} record={record_id} expected={expected} "
+                f"completed={db_completed} failed={db_failed} total={barrier_total} ai_complete={barrier.ai_complete}"
+            )
+            
             logger.critical(
                 f"[SESSION_BARRIER_STATE] "
                 f"record={record_id} session={session_id} "
@@ -72,6 +79,12 @@ def check_and_trigger_assembly(record_id, tenant_id, session_id, correlation_id,
             # Check if assembly has already been emitted (idempotency guard)
             if barrier.ai_complete:
                 already_emitted = True
+                logger.info(f"[FORENSIC_COORDINATOR_RESULT] record={record_id} status=NOT_TRIGGERED reason=ALREADY_EMITTED timestamp={time.time():.6f}")
+                logger.info(
+                    f"[ASSEMBLY_RETURN_ALREADY_TRIGGERED] record={record_id} "
+                    f"expected={expected} completed={db_completed} failed={db_failed} "
+                    f"reason=AI_COMPLETE_FLAG_ALREADY_SET"
+                )
                 log_forensic_trace("assembly_bypass_already_emitted", record_id)
                 logger.info(f"[FINALIZE_ALREADY_COMPLETE] record={record_id} — ai_complete=True, skipping")
                 return
@@ -92,6 +105,12 @@ def check_and_trigger_assembly(record_id, tenant_id, session_id, correlation_id,
             # [FINALIZE_BARRIER_CONFIRMED] — canonical convergence condition
             # completed_pages + failed_pages == expected_pages (DB-only, no Redis, no in-memory)
             if expected > 0 and barrier_total >= expected:
+                logger.info(f"[FORENSIC_COORDINATOR_RESULT] record={record_id} status=TRIGGERED reason=BARRIER_REACHED expected={expected} completed={db_completed} failed={db_failed} timestamp={time.time():.6f}")
+                logger.info(
+                    f"[ASSEMBLY_RETURN_COMPLETED] record={record_id} "
+                    f"expected={expected} completed={db_completed} failed={db_failed} "
+                    f"reason=BARRIER_REACHED_EMITTING"
+                )
                 logger.critical(
                     f"[FINALIZE_BARRIER_CONFIRMED] record={record_id} session={session_id} "
                     f"expected={expected} completed={db_completed} failed={db_failed} "
@@ -149,15 +168,32 @@ def check_and_trigger_assembly(record_id, tenant_id, session_id, correlation_id,
                 log_forensic_trace("assembly_enqueue_BEFORE", record_id, f"msg_id={assembly_msg.get('id')}")
                 queue_service.push(deepcopy(assembly_msg), queue_type='assembly')
                 log_forensic_trace("assembly_enqueue_AFTER", record_id, f"msg_id={assembly_msg.get('id')}")
+                logger.info(
+                    f"[ASSEMBLY_ENQUEUED] record={record_id} msg_id={assembly_msg.get('id')} "
+                    f"expected={expected} completed={db_completed} failed={db_failed} "
+                    f"timestamp_ms={time.time()*1000:.3f}"
+                )
                 logger.info(f"[ASSEMBLY_MESSAGE_EMITTED] record={record_id} correlation_id={correlation_id} (Global Coordinator)")
                 logger.info(f"[FINAL_CONVERGENCE_REACHED] record={record_id} expected={expected} completed={db_completed} failed={db_failed}")
                 logger.critical(f"[FINALIZE_SESSION_TERMINALIZED] record={record_id} session={session_id} — assembly emitted, hydration will release after finalize")
             else:
+                logger.info(f"[FORENSIC_COORDINATOR_RESULT] record={record_id} status=NOT_TRIGGERED reason=BARRIER_NOT_REACHED expected={expected} completed={db_completed} failed={db_failed} timestamp={time.time():.6f}")
                 log_forensic_trace("assembly_blocked_partial_barrier", record_id, {
                     "expected": expected, "db_completed": db_completed, "db_failed": db_failed
                 })
-                if expected > 0 and barrier_total < expected:
+                if expected == 0:
+                    logger.info(
+                        f"[ASSEMBLY_RETURN_WAITING] record={record_id} "
+                        f"expected={expected} completed={db_completed} failed={db_failed} "
+                        f"reason=EXPECTED_PAGES_ZERO_NOT_YET_SET"
+                    )
+                elif expected > 0 and barrier_total < expected:
                     remaining = expected - barrier_total
+                    logger.info(
+                        f"[ASSEMBLY_RETURN_NOT_READY] record={record_id} "
+                        f"expected={expected} completed={db_completed} failed={db_failed} "
+                        f"remaining={remaining} reason=BARRIER_NOT_REACHED"
+                    )
                     logger.info(
                         f"[BARRIER_PARTIAL] record={record_id} expected={expected} "
                         f"completed={db_completed} failed={db_failed} remaining={remaining} "
@@ -339,22 +375,91 @@ def terminalize_page_state(
                         f"expected={_expected} completed={_completed} failed={_failed} "
                         f"— invoking check_and_trigger_assembly from terminalize"
                     )
+                    # [FORENSIC] Capture closure variables before thread starts
+                    _f_record_id   = str(record_id)
+                    _f_page_number = page_number
+                    _f_tenant      = _coord_tenant
+                    _f_session     = _coord_session
+                    _f_correlation = _coord_correlation
+                    _f_job         = _coord_job
+                    _f_item        = _coord_item
+
                     # Use a thread to avoid any async-context issues
-                    def _trigger():
+                    def _trigger(
+                        _rec=_f_record_id, _pg=_f_page_number,
+                        _ten=_f_tenant, _ses=_f_session, _cor=_f_correlation,
+                        _jid=_f_job, _itm=_f_item
+                    ):
+                        _t_start = time.time()
+                        _tid = threading.get_ident()
+                        _tname = threading.current_thread().name
+                        logger.info(
+                            f"[CONV_THREAD_STARTED] record={_rec} page={_pg} "
+                            f"thread_id={_tid} thread_name={_tname} "
+                            f"timestamp_ms={_t_start*1000:.3f}"
+                        )
                         try:
+                            # Read SFS state immediately on entry
+                            try:
+                                from ocr_pipeline.models import SessionFinalizationState as _SFSI
+                                _sfs_snap = _SFSI.objects.filter(id=_rec).values(
+                                    'expected_pages', 'completed_pages', 'failed_pages',
+                                    'ai_complete', 'snapshot_created', 'assembly_complete'
+                                ).first() or {}
+                                logger.info(
+                                    f"[CHECK_AND_TRIGGER_ASSEMBLY_ENTER] record={_rec} page={_pg} "
+                                    f"expected={_sfs_snap.get('expected_pages',0)} "
+                                    f"completed={_sfs_snap.get('completed_pages',0)} "
+                                    f"failed={_sfs_snap.get('failed_pages',0)} "
+                                    f"ai_complete={_sfs_snap.get('ai_complete')} "
+                                    f"snapshot_created={_sfs_snap.get('snapshot_created')} "
+                                    f"assembly_complete={_sfs_snap.get('assembly_complete')}"
+                                )
+                            except Exception as _snap_err:
+                                logger.error(f"[CONV_THREAD_SNAP_ERROR] record={_rec} page={_pg} error={_snap_err}")
+
                             check_and_trigger_assembly(
-                                record_id=str(record_id),
-                                tenant_id=_coord_tenant,
-                                session_id=_coord_session,
-                                correlation_id=_coord_correlation,
-                                job_id=_coord_job,
-                                item_id=_coord_item,
+                                record_id=_rec,
+                                tenant_id=_ten,
+                                session_id=_ses,
+                                correlation_id=_cor,
+                                job_id=_jid,
+                                item_id=_itm,
                             )
-                            logger.info(f"[FINALIZE_TRIGGER_EXIT] record={record_id} page={page_number} — convergence eval complete")
+                            logger.info(
+                                f"[FINALIZE_TRIGGER_EXIT] record={_rec} page={_pg} "
+                                f"— convergence eval complete"
+                            )
                         except Exception as _te:
-                            logger.error(f"[FINALIZE_TRIGGER_ERROR] record={record_id} page={page_number} error={_te}")
-                    t = threading.Thread(target=_trigger, daemon=True, name=f"conv_eval_{record_id}_{page_number}")
+                            logger.error(
+                                f"[CONV_THREAD_EXCEPTION] record={_rec} page={_pg} "
+                                f"thread_id={_tid} error={_te}\n"
+                                f"traceback={traceback.format_exc()}"
+                            )
+                        finally:
+                            _elapsed = (time.time() - _t_start) * 1000
+                            logger.info(
+                                f"[CONV_THREAD_EXIT] record={_rec} page={_pg} "
+                                f"thread_id={_tid} elapsed_ms={_elapsed:.1f}"
+                            )
+
+                    t = threading.Thread(
+                        target=_trigger,
+                        daemon=True,
+                        name=f"conv_eval_{record_id}_{page_number}"
+                    )
+                    _thread_id_before_start = id(t)
+                    logger.info(
+                        f"[CONV_THREAD_CREATED] record={record_id} page={page_number} "
+                        f"thread_id={_thread_id_before_start} "
+                        f"python_thread_name=conv_eval_{record_id}_{page_number} "
+                        f"timestamp_ms={time.time()*1000:.3f} daemon=True"
+                    )
                     t.start()
+                    logger.info(
+                        f"[CONV_THREAD_STARTED_CONFIRMED] record={record_id} page={page_number} "
+                        f"thread_id={_thread_id_before_start} os_thread_id={t.ident}"
+                    )
                 elif _ai_complete:
                     logger.info(f"[FINALIZE_ALREADY_COMPLETE] record={record_id} — ai_complete already True, skip")
                 else:

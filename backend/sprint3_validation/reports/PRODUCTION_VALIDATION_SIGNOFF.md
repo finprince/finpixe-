@@ -1,6 +1,6 @@
 # Production Validation Sign-Off — Sprint 3
-Generated: 2026-07-09 11:47:17 UTC
-Session ID: `0880bd29-3f55-4858-a495-2960ba29bb89`
+Generated: 2026-07-10 08:15:03 UTC
+Session ID: `f46bcfc9-28d8-4623-abef-a5ca828181f3`
 Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 
 ---
@@ -13,9 +13,9 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 | Metric | Value |
 |---|---|
 | Total invoices processed | 23 |
-| Successful | 22 |
+| Successful | 15 |
 | Failed | 1 |
-| Success rate | **95.7%** |
+| Success rate | **65.2%** |
 
 ---
 
@@ -27,11 +27,11 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 > Sprint 2 baseline metrics were not available.
 > Comparison is made against Sprint 1 (header_accuracy=56.0%, gstin=60.0%, kv_hit=0%).
 
-> ✅ OCR retry chain active: 232 pages processed with up to 5-pass recovery
-> ✅ 246 OCR recovery passes logged — quality-driven multi-pass extraction
-> ✅ Avg low-confidence score = 99.9 (≥80 threshold)
-> ✅ Mistral avg latency 4.54s < Sprint 1 latency 143.3s
-> ✅ Mistral OCR inference active: 246 events
+> ✅ OCR retry chain active: 165 pages processed with up to 5-pass recovery
+> ✅ 184 OCR recovery passes logged — quality-driven multi-pass extraction
+> ✅ Avg low-confidence score = 100.0 (≥80 threshold)
+> ✅ Mistral avg latency 1.29s < Sprint 1 latency 143.3s
+> ✅ Mistral OCR inference active: 180 events
 > ✅ Sprint 1 had 0% prefix cache hit ratio; Sprint 3 has active PREFIX_CACHE_TELEMETRY instrumentation
 > ⚠️ Extraction accuracy not yet measurable (fill ground truth CSV)
 
@@ -47,7 +47,7 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 ### Q3: Is WORKER_CONCURRENCY=4 optimal?
 > **YES_OPTIMAL**
 
-> ✅ AI p95 = 9060.0 ms (< 30s threshold)
+> ✅ AI p95 = 2880.0 ms (< 30s threshold)
 > ✅ Zero worker crashes at WORKER_CONCURRENCY=4 — stable
 
 ---
@@ -55,8 +55,7 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 ### Q4: Is duplicate shadow validation ready for activation?
 > **NOT_READY**
 
-> ❌ Expected duplicate pair was NOT detected
-> ❌ False positive rate unknown — requires manual review
+> ❌ No shadow events detected — shadow mode not wired to logging
 > ⚠️ Activation must be a separate sprint decision — Amendment 5 prohibits activation now.
 
 ---
@@ -85,8 +84,7 @@ Invoice corpus: 23 PDFs | 243 pages | 179.88 MB
 Sprint 3 may be promoted to production with the following conditions:
 
 **Condition 1**: Extraction accuracy not yet measurable (fill ground truth CSV)  
-**Condition 2**: Expected duplicate pair was NOT detected  
-**Condition 3**: False positive rate unknown — requires manual review  
+**Condition 2**: No shadow events detected — shadow mode not wired to logging  
 
 These conditions must be resolved before Sprint 4 begins.
 

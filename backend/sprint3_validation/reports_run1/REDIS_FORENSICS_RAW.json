@@ -1,0 +1,193 @@
+{
+  "mined_at": "2026-07-10T05:42:15.332285+00:00",
+  "live_redis_metrics": {
+    "status": "OK",
+    "latency_latest": "[]",
+    "top_commands_by_calls": [
+      {
+        "command": "zcard",
+        "calls": 27969,
+        "usec_per_call": 1.99
+      },
+      {
+        "command": "zremrangebyscore",
+        "calls": 18749,
+        "usec_per_call": 3.48
+      },
+      {
+        "command": "zrangebyscore",
+        "calls": 9338,
+        "usec_per_call": 9.79
+      },
+      {
+        "command": "evalsha",
+        "calls": 8518,
+        "usec_per_call": 45.09
+      },
+      {
+        "command": "hget",
+        "calls": 3336,
+        "usec_per_call": 3.78
+      },
+      {
+        "command": "hset",
+        "calls": 3266,
+        "usec_per_call": 5.93
+      },
+      {
+        "command": "expire",
+        "calls": 3092,
+        "usec_per_call": 4.68
+      },
+      {
+        "command": "client",
+        "calls": 1132,
+        "usec_per_call": 2.96
+      },
+      {
+        "command": "zadd",
+        "calls": 1033,
+        "usec_per_call": 5.87
+      },
+      {
+        "command": "zrem",
+        "calls": 1006,
+        "usec_per_call": 7.28
+      }
+    ],
+    "slow_log": []
+  },
+  "log_events": {
+    "fair_share_throttle": 8631,
+    "lock_acquired": 16,
+    "lifecycle_rejections": 20
+  },
+  "barrier_latency_ms": {
+    "count": 0,
+    "avg": 0,
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "barrier_timeouts": [],
+  "lock_contention_events": [],
+  "lifecycle_rejections": [
+    {
+      "record": "1008636",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:00:13,256 redis_orchestrator 12168 30060 [LIFECYCLE_TRANSITION_REJECTED] record=1008636 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008655",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:01:22,921 redis_orchestrator 12168 30060 [LIFECYCLE_TRANSITION_REJECTED] record=1008655 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008655",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:01:23,158 redis_orchestrator 19100 21072 [LIFECYCLE_TRANSITION_REJECTED] record=1008655 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008650",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:01:30,767 redis_orchestrator 12168 30060 [LIFECYCLE_TRANSITION_REJECTED] record=1008650 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008647",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:01:47,332 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008647 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008649",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:02:16,883 redis_orchestrator 12168 30060 [LIFECYCLE_TRANSITION_REJECTED] record=1008649 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008637",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:02:29,846 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008637 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008654",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:02:45,960 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008654 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008635",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:03:05,983 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008635 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008635",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:03:06,260 redis_orchestrator 19100 15440 [LIFECYCLE_TRANSITION_REJECTED] record=1008635 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008648",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:03:26,291 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008648 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008634",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:04:31,017 redis_orchestrator 19100 29976 [LIFECYCLE_TRANSITION_REJECTED] record=1008634 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008639",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:05:07,347 redis_orchestrator 12168 5084 [LIFECYCLE_TRANSITION_REJECTED] record=1008639 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_T"
+    },
+    {
+      "record": "1008641",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:05:38,146 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008641 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008638",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:06:17,754 redis_orchestrator 12168 30060 [LIFECYCLE_TRANSITION_REJECTED] record=1008638 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008638",
+      "requested_state": "FAILED",
+      "raw": "WARNING 2026-07-10 11:06:18,225 redis_orchestrator 19100 21072 [LIFECYCLE_TRANSITION_REJECTED] record=1008638 previous_state=HYDRATION_READY requested_state=FAILED rejection_reason=BACKWARD_TRANSITION"
+    },
+    {
+      "record": "1008640",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:08:11,708 redis_orchestrator 12168 19860 [LIFECYCLE_TRANSITION_REJECTED] record=1008640 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "1008653",
+      "requested_state": "READY_FOR_REVIEW",
+      "raw": "WARNING 2026-07-10 11:08:25,000 redis_orchestrator 12168 29672 [LIFECYCLE_TRANSITION_REJECTED] record=1008653 previous_state=HYDRATION_READY requested_state=READY_FOR_REVIEW rejection_reason=BACKWARD_"
+    },
+    {
+      "record": "52a295f6-c9be-48fd-9178-f36e7422713d",
+      "requested_state": "HYDRATION_READY",
+      "raw": "WARNING 2026-07-10 11:12:04,712 redis_orchestrator 19100 18300 [LIFECYCLE_TRANSITION_REJECTED] record=52a295f6-c9be-48fd-9178-f36e7422713d previous_state=FAILED requested_state=HYDRATION_READY rejecti"
+    },
+    {
+      "record": "52a295f6-c9be-48fd-9178-f36e7422713d",
+      "requested_state": "HYDRATION_READY",
+      "raw": "WARNING 2026-07-10 11:12:04,917 redis_orchestrator 19100 3496 [LIFECYCLE_TRANSITION_REJECTED] record=52a295f6-c9be-48fd-9178-f36e7422713d previous_state=FAILED requested_state=HYDRATION_READY rejectio"
+    }
+  ],
+  "window_leak_events": [],
+  "summary": {
+    "total_barrier_updates": 0,
+    "total_barrier_timeouts": 0,
+    "total_lock_acquisitions": 16,
+    "total_lock_rejections": 0,
+    "total_fair_share_throttles": 8631,
+    "total_redis_errors": 0,
+    "total_disconnects": 0,
+    "total_reconnects": 0,
+    "total_backward_transitions": 0,
+    "total_lifecycle_rejections": 20,
+    "total_window_leaks": 0,
+    "total_orphaned_tasks": 0,
+    "barrier_corruption_events": 0
+  }
+}

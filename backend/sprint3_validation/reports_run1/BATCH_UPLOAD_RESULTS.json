@@ -1,0 +1,677 @@
+{
+  "session_id": "52a295f6-c9be-48fd-9178-f36e7422713d",
+  "total_invoices": 23,
+  "success_count": 23,
+  "failure_count": 0,
+  "success_rate_pct": 100.0,
+  "completed_at": "2026-07-10T05:42:07.771370+00:00",
+  "results": [
+    {
+      "index": 1,
+      "filename": "IMG_20260319_0001.pdf",
+      "file_hash": "676e64c38aa3a2d3a91c16ac0a203e138b434afa0f58b2c0798c684218b41359",
+      "page_count": 16,
+      "upload": {
+        "filename": "IMG_20260319_0001.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "740412ce-dcd2-4bb8-b873-c89621a54277",
+        "record_id": null,
+        "upload_elapsed_s": 1.05,
+        "response": {
+          "success": true,
+          "job_id": "740412ce-dcd2-4bb8-b873-c89621a54277",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.0
+        }
+      },
+      "record_id": "1008634",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:47.539522+00:00"
+    },
+    {
+      "index": 2,
+      "filename": "IMG_20260319_0002.pdf",
+      "file_hash": "4703312bdd26f19e4a18ae50545d4814e4d18b6a11892aed334d4041107391ea",
+      "page_count": 12,
+      "upload": {
+        "filename": "IMG_20260319_0002.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "f95dd19a-0d31-4c3d-849e-f863cb6f7555",
+        "record_id": null,
+        "upload_elapsed_s": 0.51,
+        "response": {
+          "success": true,
+          "job_id": "f95dd19a-0d31-4c3d-849e-f863cb6f7555",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.2
+        }
+      },
+      "record_id": "1008635",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:49.055012+00:00"
+    },
+    {
+      "index": 3,
+      "filename": "IMG_20260319_0003.pdf",
+      "file_hash": "0094ab82e84ce61469281e14ed273f48c2eaad8fed3a6f0110be9031efb32a7e",
+      "page_count": 5,
+      "upload": {
+        "filename": "IMG_20260319_0003.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "7692806d-6bb9-4c10-bc3c-64dec363552c",
+        "record_id": null,
+        "upload_elapsed_s": 0.66,
+        "response": {
+          "success": true,
+          "job_id": "7692806d-6bb9-4c10-bc3c-64dec363552c",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.0
+        }
+      },
+      "record_id": "1008636",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:50.719537+00:00"
+    },
+    {
+      "index": 4,
+      "filename": "IMG_20260319_0004.pdf",
+      "file_hash": "598cb3a1706e45b5b6a9f4d38e947c1f30c858d5a9a2aca7f7788eecbc9d22b3",
+      "page_count": 9,
+      "upload": {
+        "filename": "IMG_20260319_0004.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "da528c03-9bdd-417f-afee-1c955d4b8754",
+        "record_id": null,
+        "upload_elapsed_s": 1.09,
+        "response": {
+          "success": true,
+          "job_id": "da528c03-9bdd-417f-afee-1c955d4b8754",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.0
+        }
+      },
+      "record_id": "1008637",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:52.809227+00:00"
+    },
+    {
+      "index": 5,
+      "filename": "IMG_20260319_0005.pdf",
+      "file_hash": "9e672a849470ffbd893de38f6507bfd1783fb44dc542c07d0f5fc3b2575ba554",
+      "page_count": 14,
+      "upload": {
+        "filename": "IMG_20260319_0005.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "f08c6fc8-015a-4331-a7bf-3e9a80f3531d",
+        "record_id": null,
+        "upload_elapsed_s": 1.53,
+        "response": {
+          "success": true,
+          "job_id": "f08c6fc8-015a-4331-a7bf-3e9a80f3531d",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.2
+        }
+      },
+      "record_id": "1008638",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:55.870809+00:00"
+    },
+    {
+      "index": 6,
+      "filename": "IMG_20260319_0006.pdf",
+      "file_hash": "b25c1006f989aafcf30e6d9cb8dc71671195b4e9d8f374efdbf0410ec6bb3747",
+      "page_count": 12,
+      "upload": {
+        "filename": "IMG_20260319_0006.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "3307f5a4-2f27-4301-8944-339275db9856",
+        "record_id": null,
+        "upload_elapsed_s": 1.08,
+        "response": {
+          "success": true,
+          "job_id": "3307f5a4-2f27-4301-8944-339275db9856",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.8
+        }
+      },
+      "record_id": "1008639",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:57.956063+00:00"
+    },
+    {
+      "index": 7,
+      "filename": "IMG_20260319_0007.pdf",
+      "file_hash": "d66c448fc991e46859ba1c21ef5ecf272770de6f3aabbd2d0cab982dfc7ce405",
+      "page_count": 13,
+      "upload": {
+        "filename": "IMG_20260319_0007.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "aa6a4632-047a-46cb-8f38-1075bb24e134",
+        "record_id": null,
+        "upload_elapsed_s": 0.57,
+        "response": {
+          "success": true,
+          "job_id": "aa6a4632-047a-46cb-8f38-1075bb24e134",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.0
+        }
+      },
+      "record_id": "1008640",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:27:59.528652+00:00"
+    },
+    {
+      "index": 8,
+      "filename": "IMG_20260319_0008.pdf",
+      "file_hash": "4df296254b97ed7c8e04763262ac147db3f4cda909d4b7ceddb2b8e403bebb87",
+      "page_count": 10,
+      "upload": {
+        "filename": "IMG_20260319_0008.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "ebf21231-a395-4975-b92a-28020a05a629",
+        "record_id": null,
+        "upload_elapsed_s": 0.73,
+        "response": {
+          "success": true,
+          "job_id": "ebf21231-a395-4975-b92a-28020a05a629",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.0
+        }
+      },
+      "record_id": "1008641",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:01.260161+00:00"
+    },
+    {
+      "index": 9,
+      "filename": "IMG_20260319_0009.pdf",
+      "file_hash": "6997e718a124377eca6878719255306835780d39288580176af3e55be8099483",
+      "page_count": 18,
+      "upload": {
+        "filename": "IMG_20260319_0009.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "5c7f2a71-54e9-4b81-81aa-4e2508cb4d4f",
+        "record_id": null,
+        "upload_elapsed_s": 0.74,
+        "response": {
+          "success": true,
+          "job_id": "5c7f2a71-54e9-4b81-81aa-4e2508cb4d4f",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.2
+        }
+      },
+      "record_id": "1008642",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:03.605444+00:00"
+    },
+    {
+      "index": 10,
+      "filename": "IMG_20260319_0010.pdf",
+      "file_hash": "eed6f8514c01b99123bc079ab5776b99681aa2028235d59772c6b3fd4018e1bd",
+      "page_count": 17,
+      "upload": {
+        "filename": "IMG_20260319_0010.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "a40139e8-72a8-4724-a7c0-9f2d2203aad6",
+        "record_id": null,
+        "upload_elapsed_s": 0.77,
+        "response": {
+          "success": true,
+          "job_id": "a40139e8-72a8-4724-a7c0-9f2d2203aad6",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.0
+        }
+      },
+      "record_id": "1008643",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:05.381628+00:00"
+    },
+    {
+      "index": 11,
+      "filename": "IMG_20260319_0011.pdf",
+      "file_hash": "3a5f035f6ab9d6cb80248022c20f3724422261d3180fa0209196ffa8b1115378",
+      "page_count": 16,
+      "upload": {
+        "filename": "IMG_20260319_0011.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "31b6d709-a083-4609-8257-385663f16ca8",
+        "record_id": null,
+        "upload_elapsed_s": 1.17,
+        "response": {
+          "success": true,
+          "job_id": "31b6d709-a083-4609-8257-385663f16ca8",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.4
+        }
+      },
+      "record_id": "1008644",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:07.552107+00:00"
+    },
+    {
+      "index": 12,
+      "filename": "IMG_20260319_0012.pdf",
+      "file_hash": "48b7b5067a7fe1c612753b6787634b93258ed709ac5ec6fd3cefb6c43ce3cada",
+      "page_count": 12,
+      "upload": {
+        "filename": "IMG_20260319_0012.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "8c8a0d12-8b33-4204-9366-6022b3b680d3",
+        "record_id": null,
+        "upload_elapsed_s": 2.13,
+        "response": {
+          "success": true,
+          "job_id": "8c8a0d12-8b33-4204-9366-6022b3b680d3",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.0
+        }
+      },
+      "record_id": "1008645",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:10.685903+00:00"
+    },
+    {
+      "index": 13,
+      "filename": "IMG_20260319_0013.pdf",
+      "file_hash": "44858132b364f916c4b0f081c907c23531b5559aa8b824a50cc21828ab13c6aa",
+      "page_count": 5,
+      "upload": {
+        "filename": "IMG_20260319_0013.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "821b6584-c818-474e-8122-cf0ad99ed325",
+        "record_id": null,
+        "upload_elapsed_s": 1.04,
+        "response": {
+          "success": true,
+          "job_id": "821b6584-c818-474e-8122-cf0ad99ed325",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.0
+        }
+      },
+      "record_id": "1008646",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:13.120985+00:00"
+    },
+    {
+      "index": 14,
+      "filename": "IMG_20260319_0014.pdf",
+      "file_hash": "2cc576679ed7f9de26f6cc8102477813783e50d07f436487fff6dd2061b654f9",
+      "page_count": 5,
+      "upload": {
+        "filename": "IMG_20260319_0014.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "be8929ad-f4c7-41a6-9693-adf153e1f7b4",
+        "record_id": null,
+        "upload_elapsed_s": 0.49,
+        "response": {
+          "success": true,
+          "job_id": "be8929ad-f4c7-41a6-9693-adf153e1f7b4",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.0
+        }
+      },
+      "record_id": "1008647",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:14.617127+00:00"
+    },
+    {
+      "index": 15,
+      "filename": "IMG_20260406_0001_Part1.pdf",
+      "file_hash": "33f8828846ba6ecaac6673d749d4874f53867380d75752459676dbb7f9141256",
+      "page_count": 6,
+      "upload": {
+        "filename": "IMG_20260406_0001_Part1.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "9a0d7a98-0b6c-4cf0-9abc-525f107f912e",
+        "record_id": null,
+        "upload_elapsed_s": 0.7,
+        "response": {
+          "success": true,
+          "job_id": "9a0d7a98-0b6c-4cf0-9abc-525f107f912e",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 0.8
+        }
+      },
+      "record_id": "1008648",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:16.318712+00:00"
+    },
+    {
+      "index": 16,
+      "filename": "IMG_20260406_0001_Part2.pdf",
+      "file_hash": "0f374a8980b478047724f14dbd392bdf5c5cdc8b4ab55009269aa8ebae7cecff",
+      "page_count": 4,
+      "upload": {
+        "filename": "IMG_20260406_0001_Part2.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "a478883d-6326-456b-8a5c-be22676be5fa",
+        "record_id": null,
+        "upload_elapsed_s": 0.56,
+        "response": {
+          "success": true,
+          "job_id": "a478883d-6326-456b-8a5c-be22676be5fa",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.6
+        }
+      },
+      "record_id": "1008649",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:17.882753+00:00"
+    },
+    {
+      "index": 17,
+      "filename": "IMG_20260406_0001_Part3.pdf",
+      "file_hash": "a82f92be30e49a0c34d6b737e2f657b7c12d32dfc31610fe54d75767c8c2b1f0",
+      "page_count": 3,
+      "upload": {
+        "filename": "IMG_20260406_0001_Part3.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "0e3664aa-af71-405d-ac56-df68609f01fd",
+        "record_id": null,
+        "upload_elapsed_s": 0.78,
+        "response": {
+          "success": true,
+          "job_id": "0e3664aa-af71-405d-ac56-df68609f01fd",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.8
+        }
+      },
+      "record_id": "1008650",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:20.123616+00:00"
+    },
+    {
+      "index": 18,
+      "filename": "IMG_20260406_0002.pdf",
+      "file_hash": "91a4135f5f1c6b1161b49e33f8e00ea65d07b2076ba6af432b8ac2e85d3104cd",
+      "page_count": 16,
+      "upload": {
+        "filename": "IMG_20260406_0002.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "78bd32c3-ab8a-4183-91bd-2d90c6b1ebeb",
+        "record_id": null,
+        "upload_elapsed_s": 1.13,
+        "response": {
+          "success": true,
+          "job_id": "78bd32c3-ab8a-4183-91bd-2d90c6b1ebeb",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.2
+        }
+      },
+      "record_id": "1008651",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:22.256252+00:00"
+    },
+    {
+      "index": 19,
+      "filename": "IMG_20260406_0003.pdf",
+      "file_hash": "c2ab2f6b5da0b8f9d2e1a86cb4b88c1549439c1bdbe3df267d59c689f529675a",
+      "page_count": 19,
+      "upload": {
+        "filename": "IMG_20260406_0003.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "33c5b30b-a5cb-4306-bddf-ee8867a24589",
+        "record_id": null,
+        "upload_elapsed_s": 1.56,
+        "response": {
+          "success": true,
+          "job_id": "33c5b30b-a5cb-4306-bddf-ee8867a24589",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.4
+        }
+      },
+      "record_id": "1008652",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:24.823800+00:00"
+    },
+    {
+      "index": 20,
+      "filename": "IMG_20260406_0005.pdf",
+      "file_hash": "7ff8fd5836249fc863d43a02d65543f668ecfbdfd478f0eaf156a6ae969e2a60",
+      "page_count": 11,
+      "upload": {
+        "filename": "IMG_20260406_0005.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "ff0fbf4a-dbf4-4002-8297-fdaa19642a67",
+        "record_id": null,
+        "upload_elapsed_s": 1.56,
+        "response": {
+          "success": true,
+          "job_id": "ff0fbf4a-dbf4-4002-8297-fdaa19642a67",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 2.0
+        }
+      },
+      "record_id": "1008653",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:27.388261+00:00"
+    },
+    {
+      "index": 21,
+      "filename": "IMG_20260406_0006.pdf",
+      "file_hash": "57da3a2b604c6513ece37079b1dc6b5357a0abeecbd6b8f4a8ebb0572485be3e",
+      "page_count": 2,
+      "upload": {
+        "filename": "IMG_20260406_0006.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "8875576f-1293-4555-bdff-5b9bf4d9ad42",
+        "record_id": null,
+        "upload_elapsed_s": 0.44,
+        "response": {
+          "success": true,
+          "job_id": "8875576f-1293-4555-bdff-5b9bf4d9ad42",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.2
+        }
+      },
+      "record_id": "1008654",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:29.134420+00:00"
+    },
+    {
+      "index": 22,
+      "filename": "IMG_20260406_0006_TEST.pdf",
+      "file_hash": "f15795e53561f8722286282aabe3856b4be6b403362f206cbbb19ce2e123aeaa",
+      "page_count": 3,
+      "upload": {
+        "filename": "IMG_20260406_0006_TEST.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "c6a1be9b-f496-44b4-a737-f8d03f3cccef",
+        "record_id": null,
+        "upload_elapsed_s": 0.62,
+        "response": {
+          "success": true,
+          "job_id": "c6a1be9b-f496-44b4-a737-f8d03f3cccef",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 1.8
+        }
+      },
+      "record_id": "1008655",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:30.752338+00:00"
+    },
+    {
+      "index": 23,
+      "filename": "stress_test_15pages.pdf",
+      "file_hash": "13a114883f82ebe463ac4b70166e3e0c80868ee6cd1eb550b5cf40abd09a7a9f",
+      "page_count": 15,
+      "upload": {
+        "filename": "stress_test_15pages.pdf",
+        "upload_status": "OK",
+        "http_status": 202,
+        "job_id": "ea21fa90-2b32-47d7-bfb7-ed454d459965",
+        "record_id": null,
+        "upload_elapsed_s": 0.74,
+        "response": {
+          "success": true,
+          "job_id": "ea21fa90-2b32-47d7-bfb7-ed454d459965",
+          "status": "PROCESSING",
+          "message": "Queued 1 files. 0 skipped (deduplicated).",
+          "total_files": 1,
+          "estimated_delay_seconds": 2.4
+        }
+      },
+      "record_id": "1008656",
+      "pipeline": {
+        "final_status": "FINALIZED",
+        "terminal": true,
+        "poll_count": 163
+      },
+      "timestamp": "2026-07-10T05:28:32.498803+00:00"
+    }
+  ]
+}

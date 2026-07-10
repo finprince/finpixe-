@@ -1,5 +1,5 @@
 {
-  "mined_at": "2026-07-09T11:47:16.082298+00:00",
+  "mined_at": "2026-07-10T08:15:02.000860+00:00",
   "stage_statistics": {
     "ocr_ms": {
       "count": 0,
@@ -11,13 +11,13 @@
       "min": 0
     },
     "ai_ms": {
-      "count": 246,
-      "avg": 4544.8,
-      "median": 1440.0,
-      "p95": 9060.0,
-      "p99": 142340.0,
-      "max": 183370.0,
-      "min": 430.0
+      "count": 180,
+      "avg": 1287.4,
+      "median": 915.0,
+      "p95": 2880.0,
+      "p99": 8440.0,
+      "max": 9960.0,
+      "min": 570.0
     },
     "assembly_ms": {
       "count": 0,
@@ -50,7 +50,7 @@
   "bottleneck_ranking": [
     {
       "stage": "AI Extraction (Mistral)",
-      "total_ms": 1118010,
+      "total_ms": 231730,
       "pct": 100.0
     },
     {
@@ -72,7 +72,7 @@
   "record_timings": [],
   "raw_counts": {
     "ocr_events": 0,
-    "ai_events": 246,
+    "ai_events": 180,
     "assembly_record_count": 0,
     "finalize_record_count": 0
   }

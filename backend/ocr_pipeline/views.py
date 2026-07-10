@@ -2939,19 +2939,29 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
         if isinstance(audit_trail, dict):
             diff_val = audit_trail.get('difference_amount', 0.0)
 
-        # If validation passes (difference <= 1.0)
+        # Set resolution choice to CORRECTED if difference is within tolerance,
+        # otherwise set to SUPPLIER_VALUES_ACCEPTED to preserve the user's manual edits
+        # while resolving the mismatch validation block.
         if diff_val <= 1.0:
             record.extracted_data["gst_resolution"] = "CORRECTED"
-            record.save(update_fields=['extracted_data'])
-            # Run GST engine again to regenerate audit metadata under corrected choice
-            run_gst_validation_engine(record, user=request.user)
-            record.refresh_from_db()
+        else:
+            record.extracted_data["gst_resolution"] = "SUPPLIER_VALUES_ACCEPTED"
+
+        record.save(update_fields=['extracted_data'])
+        # Run GST engine again to regenerate audit metadata under resolved choice
+        run_gst_validation_engine(record, user=request.user)
+        record.refresh_from_db()
 
         # Copy updated extracted_data to PendingPurchase.extraction_payload if PendingPurchase exists
         from pending_purchases.models import PendingPurchase
         PendingPurchase.objects.filter(source_scan_row_id=record.id).update(
             extraction_payload=record.extracted_data
         )
+
+        # Run validate_and_process to re-evaluate and sync PendingPurchase queue/status
+        from .pipeline import validate_and_process
+        validate_and_process(record, auto_save=False, user=request.user)
+        record.refresh_from_db()
 
         ui_payload = self._map_record_to_ui_row(record)
         return Response(ui_payload)

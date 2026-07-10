@@ -793,7 +793,7 @@ class AICache(models.Model):
     Stores deterministic extraction results for identical OCR text.
     Reduces redundant AI calls for repeated vendor layouts.
     """
-    key_hash = models.CharField(max_length=64, primary_key=True) # SHA256 of cleaned OCR text
+    key_hash = models.CharField(max_length=128, primary_key=True) # SHA256 of cleaned OCR text
     payload = models.JSONField()
     hits = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

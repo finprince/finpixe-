@@ -1,0 +1,100 @@
+{
+  "mined_at": "2026-07-10T06:17:52.764962+00:00",
+  "aggregate_events": {
+    "queue_push_success": 302,
+    "downstream_enqueue_success": 40,
+    "worker_lock_refresh": 345,
+    "upload_accepted": 23,
+    "record_created": 23,
+    "queue_forward_success": 250,
+    "slot_acquired": 130,
+    "slot_released": 132
+  },
+  "log_results": {
+    "ingestion": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\ingestion.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "ai": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\ai.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "assembly": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\assembly.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "finalize": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\finalize.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "export": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\export.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "materialization": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\materialization.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "worker": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\worker.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "cluster": {
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\cluster.log",
+      "status": "EMPTY",
+      "events": {},
+      "size_bytes": 0
+    },
+    "debug": {
+      "log": "debug",
+      "file": "C:\\108\\AI-accounting-0.03\\backend\\logs\\debug.log",
+      "status": "OK",
+      "size_bytes": 64833642,
+      "events": {
+        "queue_push_success": 302,
+        "downstream_enqueue_success": 40,
+        "worker_lock_refresh": 345,
+        "upload_accepted": 23,
+        "record_created": 23,
+        "queue_forward_success": 250,
+        "slot_acquired": 130,
+        "slot_released": 132
+      },
+      "crashes": [],
+      "dlq_events": [],
+      "push_by_queue": {
+        "null": 302
+      }
+    }
+  },
+  "all_crashes": [],
+  "all_dlq_events": [],
+  "summary": {
+    "total_worker_starts": 0,
+    "total_worker_crashes": 0,
+    "total_queue_pushes": 302,
+    "total_dlq_events": 0,
+    "total_zombie_messages": 0,
+    "total_lock_refreshes": 345,
+    "total_upload_accepted": 23,
+    "total_records_created": 23,
+    "total_downstream_success": 40,
+    "total_downstream_failed": 0,
+    "total_slots_acquired": 130,
+    "total_slots_released": 132
+  }
+}

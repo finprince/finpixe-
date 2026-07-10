@@ -1,0 +1,1162 @@
+[
+  {
+    "id": 1008375,
+    "status": "FINALIZED",
+    "filename": "4afa0f58b2c0798c684218b41359_IMG_20260319_0001.pdf",
+    "invoice_no": "NS/1357/25-26",
+    "invoice_date": "25-08-2025",
+    "vendor_name": "N.S. SOLUTION - (2025-26)",
+    "vendor_gstin": "33CKJPS6256F1ZW",
+    "buyer_name": "Accuturn Machiners Private Limited 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 7308.0,
+    "cgst_total": 438.48,
+    "sgst_total": 438.48,
+    "igst_total": 0.0,
+    "grand_total": 8185.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 3,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "PHOSPHATING SERVICE CHARGES 1.B65-6008-PIN---598 NO'S",
+        "hsn": "998898",
+        "qty": 522.0,
+        "rate": 14.0,
+        "taxable": 7308.0,
+        "cgst_rate": 6.0,
+        "total": 8185.04,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008376,
+    "status": "FINALIZED",
+    "filename": "8b6a11892aed334d4041107391ea_IMG_20260319_0002.pdf",
+    "invoice_no": "NS/1237/25-26",
+    "invoice_date": "12-08-2025",
+    "vendor_name": "N.S. SOLUTION - (2025-26)",
+    "vendor_gstin": "33CKJPS6256F1ZW",
+    "buyer_name": "Accuturn Machiners Private Limited 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 7196.0,
+    "cgst_total": 431.76,
+    "sgst_total": 431.76,
+    "igst_total": 0.0,
+    "grand_total": 8060.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 4,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "PHOSPHATING SERVICE CHARGES 1.865-PIN---585 NO'S",
+        "hsn": "998898",
+        "qty": 514.0,
+        "rate": 14.0,
+        "taxable": 7196.0,
+        "cgst_rate": 6.0,
+        "total": 8060.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008377,
+    "status": "FINALIZED",
+    "filename": "ad8fed3a6f0110be9031efb32a7e_IMG_20260319_0003.pdf",
+    "invoice_no": "4464/25-26",
+    "invoice_date": "01-09-2025",
+    "vendor_name": "SRI VISHNU HEAT TREATERS",
+    "vendor_gstin": "33ABYFS6343M1ZC",
+    "buyer_name": "Accuturn Machiners Private Limited 13 A",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 61920.0,
+    "cgst_total": 3715.2,
+    "sgst_total": 3715.2,
+    "igst_total": 0.0,
+    "grand_total": 69350.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 6,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 2,
+    "items": [
+      {
+        "desc": "SQF - CASEHARDENING & TEMPERING(KGS) B65-6008 PIN -500 NOS",
+        "hsn": "998898",
+        "qty": 430.0,
+        "rate": 60.0,
+        "taxable": 25800.0,
+        "cgst_rate": 6.0,
+        "total": 28896.0,
+        "discount": null
+      },
+      {
+        "desc": "SHOT BLASTINGS(KGS) B65-6008 PIN",
+        "hsn": "998898",
+        "qty": 430.0,
+        "rate": 12.0,
+        "taxable": 5160.0,
+        "cgst_rate": 6.0,
+        "total": 5779.2,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008378,
+    "status": "FINALIZED",
+    "filename": "58d5a9a2aca7f7788eecbc9d22b3_IMG_20260319_0004.pdf",
+    "invoice_no": "NS/1213/25-26",
+    "invoice_date": "09-08-2025",
+    "vendor_name": "N.S. SOLUTION - (2025-26)",
+    "vendor_gstin": "33CKJPS6256F1ZW",
+    "buyer_name": "Tamil Nadu",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 5426.4,
+    "cgst_total": 325.58,
+    "sgst_total": 325.58,
+    "igst_total": 0.0,
+    "grand_total": 6078.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 5,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "PHOSPHATING SERVICE CHARGES 1.865-6008-PIN---444 NO'S",
+        "hsn": "998898",
+        "qty": 387.6,
+        "rate": 14.0,
+        "taxable": 5426.4,
+        "cgst_rate": 6.0,
+        "total": 6078.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008379,
+    "status": "FINALIZED",
+    "filename": "b44dc542c07d0f5fc3b2575ba554_IMG_20260319_0005.pdf",
+    "invoice_no": "GST2526CH9615",
+    "invoice_date": "03-10-2025",
+    "vendor_name": "M.D.PACKS",
+    "vendor_gstin": "33AAJFM3833G1ZF",
+    "buyer_name": "Accuturn Machiners Private Limited 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 1016.94,
+    "cgst_total": 91.52,
+    "sgst_total": 91.52,
+    "igst_total": 0.0,
+    "grand_total": 1200.0,
+    "round_off": 0.0,
+    "low_confidence": false,
+    "validation_warnings": [],
+    "source_page": 6,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "Speciality Tapes",
+        "hsn": "39191000",
+        "qty": 6.0,
+        "rate": 169.49,
+        "taxable": 1016.94,
+        "cgst_rate": 9.0,
+        "total": 1200.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008380,
+    "status": "FINALIZED",
+    "filename": "b4e9d8f374efdbf0410ec6bb3747_IMG_20260319_0006.pdf",
+    "invoice_no": "S 058",
+    "invoice_date": "26-08-2025",
+    "vendor_name": "MARUTHI ENGINEERING SERVICES",
+    "vendor_gstin": "33ABAPV2380D1ZY",
+    "buyer_name": "M/s. Accuturn Machines Pvt Ltd",
+    "buyer_gstin": "",
+    "taxable_amount": 52000.0,
+    "cgst_total": 4600.0,
+    "sgst_total": 4600.0,
+    "igst_total": 0.0,
+    "grand_total": 61360.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 10,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "Lathe Marine Used.",
+        "hsn": "8459",
+        "qty": 1.0,
+        "rate": 52000.0,
+        "taxable": 52000.0,
+        "cgst_rate": 9.0,
+        "total": 61200.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008381,
+    "status": "FINALIZED",
+    "filename": "de6f3aabbd2d0cab982dfc7ce405_IMG_20260319_0007.pdf",
+    "invoice_no": "S 060",
+    "invoice_date": "04-09-2025",
+    "vendor_name": "MARUTHI ENGINEERING SERVICES",
+    "vendor_gstin": "33ABAPV2380D1ZY",
+    "buyer_name": "M/s. Accuturn Machinery Pvt Ltd",
+    "buyer_gstin": "",
+    "taxable_amount": 825000.0,
+    "cgst_total": 74250.0,
+    "sgst_total": 74250.0,
+    "igst_total": 0.0,
+    "grand_total": 973500.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing"
+    ],
+    "source_page": 11,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "Used CNC Turning Center Lmw smarturn",
+        "hsn": "8466 9100",
+        "qty": 1.0,
+        "rate": 825000.0,
+        "taxable": 825000.0,
+        "cgst_rate": 9.0,
+        "total": 973500.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008382,
+    "status": "FINALIZED",
+    "filename": "cda909d4b7ceddb2b8e403bebb87_IMG_20260319_0008.pdf",
+    "invoice_no": "2336/25-26",
+    "invoice_date": "28-07-2025",
+    "vendor_name": "OM MURUGA STEELS",
+    "vendor_gstin": "33APKPK0350C1ZI",
+    "buyer_name": "Tamil Nadu",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 5161.22,
+    "cgst_total": 464.52,
+    "sgst_total": 464.52,
+    "igst_total": 0.0,
+    "grand_total": 6090.0,
+    "round_off": 0.0,
+    "low_confidence": false,
+    "validation_warnings": [],
+    "source_page": 9,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 3,
+    "items": [
+      {
+        "desc": "M.S.STEELTUBES(MS SECTIONS). 60x40",
+        "hsn": "73066100",
+        "qty": 43.2,
+        "rate": 62.71,
+        "taxable": 4041.38,
+        "cgst_rate": 9.0,
+        "total": 2709.07,
+        "discount": null
+      },
+      {
+        "desc": "MS ROUND TUBES 60mm φ (17)",
+        "hsn": "73063090",
+        "qty": 17.2,
+        "rate": 61.02,
+        "taxable": 1119.84,
+        "cgst_rate": 9.0,
+        "total": 1049.54,
+        "discount": null
+      },
+      {
+        "desc": "M.S.STEELTUBES(MS SECTIONS). 75x40(17)",
+        "hsn": "73066100",
+        "qty": 17.2,
+        "rate": 62.71,
+        "taxable": 1119.84,
+        "cgst_rate": 9.0,
+        "total": 1078.61,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008383,
+    "status": "FINALIZED",
+    "filename": "0d39288580176af3e55be8099483_IMG_20260319_0009.pdf",
+    "invoice_no": "EIS/25-26/1929",
+    "invoice_date": "18-02-2026",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 920.0,
+    "cgst_total": 82.8,
+    "sgst_total": 82.8,
+    "igst_total": 0.0,
+    "grand_total": 1086.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 10,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "Allen Key 5/8\"",
+        "hsn": "8204",
+        "qty": 1.0,
+        "rate": 920.0,
+        "taxable": 920.0,
+        "cgst_rate": 9.0,
+        "total": 1086.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008384,
+    "status": "FINALIZED",
+    "filename": "a2028235d59772c6b3fd4018e1bd_IMG_20260319_0010.pdf",
+    "invoice_no": "EIS/25-26/1797",
+    "invoice_date": "28-01-2026",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machiners Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 703.2,
+    "cgst_total": 63.29,
+    "sgst_total": 63.29,
+    "igst_total": 0.0,
+    "grand_total": 830.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 11,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "S/S DRILL 5.2MM(L/S)",
+        "hsn": "8207",
+        "qty": 2.0,
+        "rate": 586.0,
+        "taxable": 703.2,
+        "cgst_rate": 9.0,
+        "total": 830.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008385,
+    "status": "FINALIZED",
+    "filename": "61d3180fa0209196ffa8b1115378_IMG_20260319_0011.pdf",
+    "invoice_no": "CBE25-26/483",
+    "invoice_date": "31-10-2025",
+    "vendor_name": "KORUTECH INDIA PVT LTD",
+    "vendor_gstin": "33AACCK7163K1ZE",
+    "buyer_name": "M/S. ACCUTURN MACHINERS PRIVATE LIMITED 13A THUDIYALUR TO KANUVAI ROAD APPANAICKENPALAYAM K.VADAMADURAI POST COIMBATORE Pin : 641017 GSTIN Number: 33ABACA5718R1ZD",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 7556.25,
+    "cgst_total": 680.06,
+    "sgst_total": 680.06,
+    "igst_total": 0.0,
+    "grand_total": 8916.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "ack_no_missing"
+    ],
+    "source_page": 11,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 4,
+    "items": [
+      {
+        "desc": "KETA 0504 - D5*20*5*50*4F",
+        "hsn": "82077090",
+        "qty": 6.0,
+        "rate": 605.0,
+        "taxable": 3630.0,
+        "cgst_rate": 9.0,
+        "total": 4283.4,
+        "discount": null
+      },
+      {
+        "desc": "TN16-3",
+        "hsn": "73182990",
+        "qty": 5.0,
+        "rate": 337.95,
+        "taxable": 1689.75,
+        "cgst_rate": 9.0,
+        "total": 1993.91,
+        "discount": null
+      },
+      {
+        "desc": "LT-3",
+        "hsn": "73182990",
+        "qty": 5.0,
+        "rate": 238.05,
+        "taxable": 1190.25,
+        "cgst_rate": 9.0,
+        "total": 1404.49,
+        "discount": null
+      },
+      {
+        "desc": "SMT-322",
+        "hsn": "73182990",
+        "qty": 5.0,
+        "rate": 209.25,
+        "taxable": 1046.25,
+        "cgst_rate": 9.0,
+        "total": 1234.57,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008386,
+    "status": "FINALIZED",
+    "filename": "d709ac5ec6fd3cefb6c43ce3cada_IMG_20260319_0012.pdf",
+    "invoice_no": "EIS/25-26/1023",
+    "invoice_date": "18-09-2025",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machiners Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 2162.0,
+    "cgst_total": 233.55,
+    "sgst_total": 233.55,
+    "igst_total": 0.0,
+    "grand_total": 3062.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 13,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "C/T Dead Center MT-2",
+        "hsn": "8466",
+        "qty": 4.0,
+        "rate": 865.0,
+        "taxable": 2595.0,
+        "cgst_rate": 9.0,
+        "total": 3062.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008387,
+    "status": "FINALIZED",
+    "filename": "559aa8b824a50cc21828ab13c6aa_IMG_20260319_0013.pdf",
+    "invoice_no": "EIS/25-26/1014",
+    "invoice_date": "15-09-2025",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machiners Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 1008.0,
+    "cgst_total": 42.75,
+    "sgst_total": 42.75,
+    "igst_total": 0.0,
+    "grand_total": 1100.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 14,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 3,
+    "items": [
+      {
+        "desc": "Lab Coat Blue Colour",
+        "hsn": "8210",
+        "qty": 1.0,
+        "rate": 450.0,
+        "taxable": 450.0,
+        "cgst_rate": 5.0,
+        "total": 495.0,
+        "discount": null
+      },
+      {
+        "desc": "Knitted Gloves",
+        "hsn": "6116",
+        "qty": 12.0,
+        "rate": 24.0,
+        "taxable": 288.0,
+        "cgst_rate": 5.0,
+        "total": 316.8,
+        "discount": null
+      },
+      {
+        "desc": "Lathe Chuck Key 7/16\"",
+        "hsn": "8205",
+        "qty": 1.0,
+        "rate": 270.0,
+        "taxable": 270.0,
+        "cgst_rate": 18.0,
+        "total": 367.2,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008388,
+    "status": "FINALIZED",
+    "filename": "50d07f436487fff6dd2061b654f9_IMG_20260319_0014.pdf",
+    "invoice_no": "EIS/25-26/957",
+    "invoice_date": "06-09-2025",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machinery Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 4298.0,
+    "cgst_total": 386.82,
+    "sgst_total": 386.82,
+    "igst_total": 0.0,
+    "grand_total": 5072.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 15,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 5,
+    "items": [
+      {
+        "desc": "Round File 4\" (2nd Cut)",
+        "hsn": "8203",
+        "qty": 5.0,
+        "rate": 404.0,
+        "taxable": 1212.0,
+        "cgst_rate": 9.0,
+        "total": 1212.0,
+        "discount": null
+      },
+      {
+        "desc": "Half Round File 4\"(2nd Cut)",
+        "hsn": "8203",
+        "qty": 2.0,
+        "rate": 560.0,
+        "taxable": 672.0,
+        "cgst_rate": 9.0,
+        "total": 672.0,
+        "discount": null
+      },
+      {
+        "desc": "Half Round File 6\"(Rough)",
+        "hsn": "8203",
+        "qty": 3.0,
+        "rate": 575.0,
+        "taxable": 1035.0,
+        "cgst_rate": 9.0,
+        "total": 1035.0,
+        "discount": null
+      },
+      {
+        "desc": "Flat File 6\"(Rough)",
+        "hsn": "8203",
+        "qty": 5.0,
+        "rate": 273.0,
+        "taxable": 819.0,
+        "cgst_rate": 9.0,
+        "total": 819.0,
+        "discount": null
+      },
+      {
+        "desc": "File Handle",
+        "hsn": "8205",
+        "qty": 14.0,
+        "rate": 40.0,
+        "taxable": 560.0,
+        "cgst_rate": 9.0,
+        "total": 560.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008389,
+    "status": "FINALIZED",
+    "filename": "5752459676dbb7f9141256_IMG_20260406_0001_Part1.pdf",
+    "invoice_no": "EIS/25-26/934",
+    "invoice_date": "04-09-2025",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machiners Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 5137.5,
+    "cgst_total": 462.38,
+    "sgst_total": 462.38,
+    "igst_total": 0.0,
+    "grand_total": 6062.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 16,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "CNC Revolving Centre MT4(INT & EXTD)",
+        "hsn": "8466",
+        "qty": 1.0,
+        "rate": 6850.0,
+        "taxable": 5137.5,
+        "cgst_rate": 9.0,
+        "total": 6062.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008390,
+    "status": "FINALIZED",
+    "filename": "b55009269aa8ebae7cecff_IMG_20260406_0001_Part2.pdf",
+    "invoice_no": "EIS/25-26/926",
+    "invoice_date": "03-09-2025",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machiners Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 8760.0,
+    "cgst_total": 788.41,
+    "sgst_total": 788.41,
+    "igst_total": 0.0,
+    "grand_total": 10337.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 17,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 4,
+    "items": [
+      {
+        "desc": "CNC Revolving Center MT3(INT & EXTND)",
+        "hsn": "8466",
+        "qty": 1.0,
+        "rate": 6950.0,
+        "taxable": 5212.5,
+        "cgst_rate": 9.0,
+        "total": 6150.75,
+        "discount": null
+      },
+      {
+        "desc": "C/T Dead Center MT-2",
+        "hsn": "8466",
+        "qty": 2.0,
+        "rate": 865.0,
+        "taxable": 1297.5,
+        "cgst_rate": 9.0,
+        "total": 1531.05,
+        "discount": null
+      },
+      {
+        "desc": "C/T Dead Center MT- 3",
+        "hsn": "8466",
+        "qty": 2.0,
+        "rate": 1100.0,
+        "taxable": 1650.0,
+        "cgst_rate": 9.0,
+        "total": 1947.0,
+        "discount": null
+      },
+      {
+        "desc": "T-NUT M12x14slot",
+        "hsn": "7318",
+        "qty": 10.0,
+        "rate": 60.0,
+        "taxable": 600.0,
+        "cgst_rate": 9.0,
+        "total": 708.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008391,
+    "status": "FINALIZED",
+    "filename": "1610fe54d75767c8c2b1f0_IMG_20260406_0001_Part3.pdf",
+    "invoice_no": "TN2507000597",
+    "invoice_date": "30-09-2025",
+    "vendor_name": "Suprabha Protective Products Pvt Ltd",
+    "vendor_gstin": "33AACCS5981M2ZV",
+    "buyer_name": "PLANT - 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 4020.0,
+    "cgst_total": 361.8,
+    "sgst_total": 361.8,
+    "igst_total": 0.0,
+    "grand_total": 4744.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "ack_no_missing"
+    ],
+    "source_page": 1,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 1,
+    "items": [
+      {
+        "desc": "RUSTOPAPER 112CM X 110MT ROLL",
+        "hsn": "481190",
+        "qty": 1.0,
+        "rate": 4020.0,
+        "taxable": 4020.0,
+        "cgst_rate": 9.0,
+        "total": 4743.6,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008392,
+    "status": "FINALIZED",
+    "filename": "b2076ba6af432b8ac2e85d3104cd_IMG_20260406_0002.pdf",
+    "invoice_no": "EIS/25-26/688",
+    "invoice_date": "25-07-2025",
+    "vendor_name": "EZZI INDUSTRIAL STORES",
+    "vendor_gstin": "33ALHPM7191E1Z2",
+    "buyer_name": "Accuturn Machiners Pvt Ltd 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 17307.55,
+    "cgst_total": 1557.68,
+    "sgst_total": 1557.68,
+    "igst_total": 0.0,
+    "grand_total": 20423.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 19,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 12,
+    "items": [
+      {
+        "desc": "Carbide Drill 4.6mm",
+        "hsn": "8207",
+        "qty": 5.0,
+        "rate": 2216.0,
+        "taxable": 6094.0,
+        "cgst_rate": 9.0,
+        "total": 7190.92,
+        "discount": null
+      },
+      {
+        "desc": "S/S Drill 4.6mm (J/S)",
+        "hsn": "8207",
+        "qty": 5.0,
+        "rate": 221.0,
+        "taxable": 497.25,
+        "cgst_rate": 9.0,
+        "total": 586.75,
+        "discount": null
+      },
+      {
+        "desc": "Endmill 6mm",
+        "hsn": "8207",
+        "qty": 3.0,
+        "rate": 931.0,
+        "taxable": 1955.1,
+        "cgst_rate": 9.0,
+        "total": 2307.02,
+        "discount": null
+      },
+      {
+        "desc": "Collet ER-11 6mm",
+        "hsn": "8466",
+        "qty": 3.0,
+        "rate": 300.0,
+        "taxable": 900.0,
+        "cgst_rate": 9.0,
+        "total": 1062.0,
+        "discount": null
+      },
+      {
+        "desc": "Collet (ER-32) 11mm",
+        "hsn": "8466",
+        "qty": 3.0,
+        "rate": 515.0,
+        "taxable": 1158.75,
+        "cgst_rate": 9.0,
+        "total": 1367.33,
+        "discount": null
+      },
+      {
+        "desc": "Collet(ER32)12mm",
+        "hsn": "8466",
+        "qty": 3.0,
+        "rate": 515.0,
+        "taxable": 1158.75,
+        "cgst_rate": 9.0,
+        "total": 1367.33,
+        "discount": null
+      },
+      {
+        "desc": "Collet ER25 11mm",
+        "hsn": "8466",
+        "qty": 3.0,
+        "rate": 485.0,
+        "taxable": 1091.25,
+        "cgst_rate": 9.0,
+        "total": 1287.67,
+        "discount": null
+      },
+      {
+        "desc": "Collet (ER-25) 12mm",
+        "hsn": "8466",
+        "qty": 3.0,
+        "rate": 485.0,
+        "taxable": 1091.25,
+        "cgst_rate": 9.0,
+        "total": 1287.67,
+        "discount": null
+      },
+      {
+        "desc": "Diamond Needle File ROUND",
+        "hsn": "8203",
+        "qty": 2.0,
+        "rate": 300.0,
+        "taxable": 600.0,
+        "cgst_rate": 9.0,
+        "total": 708.0,
+        "discount": null
+      },
+      {
+        "desc": "Round File 4\" (2nd Cut)",
+        "hsn": "8203",
+        "qty": 3.0,
+        "rate": 404.0,
+        "taxable": 727.2,
+        "cgst_rate": 9.0,
+        "total": 858.1,
+        "discount": null
+      },
+      {
+        "desc": "Flat File 6\"(2nd Cut)",
+        "hsn": "8203",
+        "qty": 5.0,
+        "rate": 378.0,
+        "taxable": 1134.0,
+        "cgst_rate": 9.0,
+        "total": 1338.12,
+        "discount": null
+      },
+      {
+        "desc": "Collet ER-11 5MM",
+        "hsn": "8466",
+        "qty": 3.0,
+        "rate": 300.0,
+        "taxable": 900.0,
+        "cgst_rate": 8.1,
+        "total": 1062.0,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008393,
+    "status": "FINALIZED",
+    "filename": "9c1bdbe3df267d59c689f529675a_IMG_20260406_0003.pdf",
+    "invoice_no": "GST2526CH11026",
+    "invoice_date": "01-11-2025",
+    "vendor_name": "M.D.PACKS",
+    "vendor_gstin": "33AAJFM3833G1ZF",
+    "buyer_name": "Accuturn Machiners Private Limited 4/14",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 1276.04,
+    "cgst_total": 114.84,
+    "sgst_total": 114.84,
+    "igst_total": 0.0,
+    "grand_total": 1505.96,
+    "round_off": 0.0,
+    "low_confidence": false,
+    "validation_warnings": [],
+    "source_page": 1,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 2,
+    "items": [
+      {
+        "desc": "Copier Paper 70gsm",
+        "hsn": "48025790",
+        "qty": 1.0,
+        "rate": 224.58,
+        "taxable": 224.58,
+        "cgst_rate": 9.0,
+        "total": 265.0,
+        "discount": null
+      },
+      {
+        "desc": "Stretch Poly Films",
+        "hsn": "39191000",
+        "qty": 6.53,
+        "rate": 161.02,
+        "taxable": 1051.46,
+        "cgst_rate": 9.0,
+        "total": 1240.72,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008394,
+    "status": "FINALIZED",
+    "filename": "fbdfd478f0eaf156a6ae969e2a60_IMG_20260406_0005.pdf",
+    "invoice_no": "5202/25-26",
+    "invoice_date": "29-09-2025",
+    "vendor_name": "SRI VISHNU HEAT TREATERS",
+    "vendor_gstin": "33ABYFS6343M1ZC",
+    "buyer_name": "Accuturn Machiners Private Limited 13 A",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 27740.16,
+    "cgst_total": 2496.61,
+    "sgst_total": 2496.61,
+    "igst_total": 0.0,
+    "grand_total": 32733.38,
+    "round_off": 0.0,
+    "low_confidence": false,
+    "validation_warnings": [],
+    "source_page": 1,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 4,
+    "items": [
+      {
+        "desc": "SQF - CASEHARDENING & TEMPERING(KGS) 6008 -B65 -PIN - 48 NOS",
+        "hsn": "998898",
+        "qty": 41.28,
+        "rate": 60.0,
+        "taxable": 2476.8,
+        "cgst_rate": 9.0,
+        "total": 2922.62,
+        "discount": null
+      },
+      {
+        "desc": "SHOT BLASTINGS(KGS) 6008 -B65 -PIN - 48 NOS",
+        "hsn": "998898",
+        "qty": 41.28,
+        "rate": 12.0,
+        "taxable": 495.36,
+        "cgst_rate": 9.0,
+        "total": 584.52,
+        "discount": null
+      },
+      {
+        "desc": "SQF - CASEHARDENING & TEMPERING(KGS) 6008 -B65 -PIN - 400 NOS",
+        "hsn": "998898",
+        "qty": 344.0,
+        "rate": 60.0,
+        "taxable": 20640.0,
+        "cgst_rate": 9.0,
+        "total": 24355.2,
+        "discount": null
+      },
+      {
+        "desc": "SHOT BLASTINGS(KGS) 6008 -B65 -PIN - 400 NOS",
+        "hsn": "998898",
+        "qty": 344.0,
+        "rate": 12.0,
+        "taxable": 4128.0,
+        "cgst_rate": 9.0,
+        "total": 4871.04,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008395,
+    "status": "FINALIZED",
+    "filename": "abeecbd6b8f4a8ebb0572485be3e_IMG_20260406_0006.pdf",
+    "invoice_no": "4742/25-26",
+    "invoice_date": "13-09-2025",
+    "vendor_name": "SRI VISHNU HEAT TREATERS",
+    "vendor_gstin": "33ABYFS6343M1ZC",
+    "buyer_name": "Accuturn Machiners Private Limited 13 A",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 65573.28,
+    "cgst_total": 3934.39,
+    "sgst_total": 3934.39,
+    "igst_total": 0.0,
+    "grand_total": 73442.06,
+    "round_off": 0.0,
+    "low_confidence": false,
+    "validation_warnings": [],
+    "source_page": 1,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 2,
+    "items": [
+      {
+        "desc": "SQF - CASEHARDENING & TEMPERING(KGS) B65-6008 PIN 1059-NOS",
+        "hsn": "998898",
+        "qty": 910.74,
+        "rate": 60.0,
+        "taxable": 54644.4,
+        "cgst_rate": 6.0,
+        "total": 61191.73,
+        "discount": null
+      },
+      {
+        "desc": "SHOT BLASTINGS(KGS) B65-6008 PIN 1059-NOS",
+        "hsn": "998898",
+        "qty": 910.74,
+        "rate": 12.0,
+        "taxable": 10928.88,
+        "cgst_rate": 6.0,
+        "total": 12239.35,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008396,
+    "status": "FAILED",
+    "filename": "62f206cbbb19ce2e123aeaa_IMG_20260406_0006_TEST.pdf",
+    "invoice_no": "4742/25-26",
+    "invoice_date": "13-09-2025",
+    "vendor_name": "SRI VISHNU HEAT TREATERS",
+    "vendor_gstin": "33ABYFS6343M1ZC",
+    "buyer_name": "Accuturn Machiners Private Limited 13 A",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 65573.28,
+    "cgst_total": 3934.39,
+    "sgst_total": 3934.39,
+    "igst_total": 0.0,
+    "grand_total": 73442.06,
+    "round_off": 0.0,
+    "low_confidence": false,
+    "validation_warnings": [],
+    "source_page": 1,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 2,
+    "items": [
+      {
+        "desc": "SQF - CASEHARDENING & TEMPERING(KGS) B65-6008 PIN 1059-NOS",
+        "hsn": "998898",
+        "qty": 910.74,
+        "rate": 60.0,
+        "taxable": 54644.4,
+        "cgst_rate": 6.0,
+        "total": 61191.73,
+        "discount": null
+      },
+      {
+        "desc": "SHOT BLASTINGS(KGS) B65-6008 PIN 1059-NOS",
+        "hsn": "998898",
+        "qty": 910.74,
+        "rate": 12.0,
+        "taxable": 10928.88,
+        "cgst_rate": 6.0,
+        "total": 12239.35,
+        "discount": null
+      }
+    ]
+  },
+  {
+    "id": 1008397,
+    "status": "FINALIZED",
+    "filename": "e6cd1eb550b5cf40abd09a7a9f_stress_test_15pages.pdf",
+    "invoice_no": "25-26/473",
+    "invoice_date": "05-11-2025",
+    "vendor_name": "SRI GANAPATHY TOOLS & HARDWARES",
+    "vendor_gstin": "33ARPPK9457M1ZY",
+    "buyer_name": "ACCUTURN MACHINERS PVT.LTD.",
+    "buyer_gstin": "33ABACA5718R1ZD",
+    "taxable_amount": 400.0,
+    "cgst_total": 36.0,
+    "sgst_total": 36.0,
+    "igst_total": 0.0,
+    "grand_total": 472.0,
+    "round_off": 0.0,
+    "low_confidence": true,
+    "validation_warnings": [
+      "irn_missing",
+      "ack_no_missing"
+    ],
+    "source_page": 1,
+    "page_role": "PAGE_ROLE_PRIMARY",
+    "item_count": 2,
+    "items": [
+      {
+        "desc": "WASTE BANYAN",
+        "hsn": "5202",
+        "qty": 5.0,
+        "rate": 70.0,
+        "taxable": 350.0,
+        "cgst_rate": 9.0,
+        "total": 350.0,
+        "discount": null
+      },
+      {
+        "desc": "WIRE BRUSH",
+        "hsn": "9603",
+        "qty": 1.0,
+        "rate": 50.0,
+        "taxable": 50.0,
+        "cgst_rate": 9.0,
+        "total": 50.0,
+        "discount": null
+      }
+    ]
+  }
+]
