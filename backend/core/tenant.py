@@ -68,7 +68,7 @@ def validate_tenant_access(user, tenant_id):
     """
     from django.apps import apps
     MasterUser = apps.get_model('core', 'MasterUser')
-    Branch = apps.get_model('core', 'Branch')
+    Branch = apps.get_model('core', 'Tenant')
 
     # 1. Master Admins - Bypass all tenant checks
     if isinstance(user, MasterUser):

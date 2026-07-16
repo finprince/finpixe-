@@ -27,7 +27,7 @@ class VoucherPurchaseItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'item_code', 'item_name', 'hsn_sac', 'quantity', 'uom', 'rate',
             'taxable_value', 'igst_amount', 'cgst_amount', 'sgst_amount', 'cess_amount',
-            'gst_rate', 'invoice_value', 'currency', 'exchange_rate'
+            'gst_rate', 'invoice_value', 'currency', 'exchange_rate', 'discount_percent', 'discount_amount'
         ]
 
 class VoucherPurchaseAdvanceLinkSerializer(serializers.ModelSerializer):
@@ -593,6 +593,8 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
                         sgst_amount=Decimal(str(item.get('sgst') or item.get('sgst_amount') or 0)),
                         cess_amount=Decimal(str(item.get('cess') or item.get('cess_amount') or 0)),
                         gst_rate=Decimal(str(item.get('gstRate') or item.get('gst_rate') or 0)),
+                        discount_percent=Decimal(str(item.get('discountPercent') or item.get('discount_percent') or 0)),
+                        discount_amount=Decimal(str(item.get('discountAmount') or item.get('discount_amount') or 0)),
                         invoice_value=Decimal(str(inv_val)).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP),
                         currency=cur,
                         exchange_rate=ex_rate

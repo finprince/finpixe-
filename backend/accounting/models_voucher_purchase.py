@@ -237,6 +237,8 @@ class VoucherPurchaseItem(BaseModel):
     sgst_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     cess_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, null=True, blank=True)
+    discount_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0, null=True, blank=True)
 
     invoice_value = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     

@@ -1,4 +1,4 @@
-﻿import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/finpixe with empty bg.png';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -23,6 +23,7 @@ import BankUpload from './BankUpload';
 import CreateNewVendorFullModal from '../../components/CreateNewVendorFullModal';
 import { ChevronDown } from 'lucide-react';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import { OcrValidationBanners } from '../../components/OcrValidationBanners';
 
 
 
@@ -120,6 +121,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const [activeOcrSessionId, setActiveOcrSessionId] = useState<string | null>(null);
   const [activeOcrFileHash, setActiveOcrFileHash] = useState<string | null>(null);
   const [activeOcrFileName, setActiveOcrFileName] = useState<string | null>(null);
+  const [activeOcrRecord, setActiveOcrRecord] = useState<any | null>(null);
 
   useEffect(() => {
     if (availableVoucherTypes.length > 0 && !availableVoucherTypes.find(v => v.id === voucherType)) {
@@ -412,6 +414,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           qty: parseFloat(row['Qty'] || row['Quantity'] || '0') || 0,
           uom: row['UOM'] || '',
           rate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || 0,
+          discountPercent: parseFloat(row['Discount (%)'] || row['Discount Percent'] || row['discount_percent'] || '0') || 0,
+          discountAmount: parseFloat(row['Discount Amount'] || row['discount_amount'] || '0') || 0,
           taxableValue: taxable,
           foreignRate: parseFloat(row['Rate (FC)'] || '0') || 0,
           foreignAmount: parseFloat(row['Amount (FC)'] || '0') || 0,
@@ -597,7 +601,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const [returnToPage, setReturnToPage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (navParams?.editOcrRow) {
+    if (navParams?.editOcrFileHash) {
+      setActiveOcrFileHash(navParams.editOcrFileHash);
+      setVoucherType('Purchase');
+      if (navParams?.returnTo) {
+        setReturnToPage(navParams.returnTo);
+      }
+    } else if (navParams?.editOcrRow) {
       handleEditOcrRow(navParams.editOcrRow);
       if (navParams?.returnTo) {
         setReturnToPage(navParams.returnTo);
@@ -979,7 +989,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const [selectedPurchaseItems, setSelectedPurchaseItems] = useState<string[]>([]);
   const [showPurchaseMismatches, setShowPurchaseMismatches] = useState(false);
   const [purchaseItems, setPurchaseItems] = useState([
-    { id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 0, uom: '', rate: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null as number | null, invoiceRate: null as number | null, rateMismatch: false, poQty: null as number | null, invoiceQty: null as number | null, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }
+    { id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 0, uom: '', rate: 0, discountPercent: 0, discountAmount: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null as number | null, invoiceRate: null as number | null, rateMismatch: false, poQty: null as number | null, invoiceQty: null as number | null, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }
   ]);
 
   const calculatePurchaseTotals = () => {
@@ -1371,6 +1381,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               qty: qty,
               uom: item.uom || stockItem?.uom || stockItem?.unit || '',
               rate: inrRate,
+              discountPercent: 0,
+              discountAmount: 0,
               taxableValue: taxableValue,
               foreignRate: fRate,
               foreignAmount: qty * fRate,
@@ -1465,6 +1477,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             qty: qty,
             uom: item.uom || item.unit || '',
             rate: rate,
+            discountPercent: 0,
+            discountAmount: 0,
             taxableValue: taxable,
             igst: isInterState ? totalTax : 0,
             cgst: isInterState ? 0 : totalTax / 2,
@@ -2852,24 +2866,45 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         ((si.hsn_sac || si.hsn) || '').toString().trim() === (item.hsnSac || '').toString().trim()
       );
 
-      const gstRate = selectedStockItem?.gstRate || selectedStockItem?.gst_rate || 0;
-      const cessRate = selectedStockItem?.cessRate || selectedStockItem?.cess_rate || 0;
-      const taxable = (item.qty || 0) * (item.rate || 0);
+      let gstRate = selectedStockItem?.gstRate || selectedStockItem?.gst_rate || (item as any).gstRate || (item as any).gst_rate || 0;
+      const cessRate = selectedStockItem?.cessRate || selectedStockItem?.cess_rate || (item as any).cessRate || (item as any).cess_rate || 0;
+
+      const discPct = Number((item as any).discountPercent || 0);
+      const discAmt = Number((item as any).discountAmount || 0);
+      let taxable = (item.qty || 0) * (item.rate || 0);
+      if (discPct > 0) {
+        taxable = taxable * (1 - discPct / 100);
+      } else if (discAmt > 0) {
+        taxable = taxable - discAmt;
+      }
+      taxable = Math.round((taxable + Number.EPSILON) * 100) / 100;
+
+      if (gstRate === 0) {
+        const cgstR = Number((item as any).cgstRate || 0);
+        const sgstR = Number((item as any).sgstRate || 0);
+        const igstR = Number((item as any).igstRate || 0);
+        gstRate = (cgstR + sgstR + igstR) || 18;
+      }
+
+      const cgstRate = Number((item as any).cgstRate || (gstRate / 2));
+      const sgstRate = Number((item as any).sgstRate || (gstRate / 2));
+      const igstRate = Number((item as any).igstRate || gstRate);
+
       const totalTax = taxable * (gstRate / 100);
       const cess = totalTax * (cessRate / 100);
 
       const newItem = { ...item, taxableValue: taxable, cess };
 
       if (isInterState) {
-        newItem.igst = totalTax;
+        newItem.igst = Math.round((taxable * (igstRate / 100) + Number.EPSILON) * 100) / 100;
         newItem.cgst = 0;
         newItem.sgst = 0;
       } else {
         newItem.igst = 0;
-        newItem.cgst = totalTax / 2;
-        newItem.sgst = totalTax / 2;
+        newItem.cgst = Math.round((taxable * (cgstRate / 100) + Number.EPSILON) * 100) / 100;
+        newItem.sgst = Math.round((taxable * (sgstRate / 100) + Number.EPSILON) * 100) / 100;
       }
-      newItem.invoiceValue = taxable + newItem.igst + newItem.cgst + newItem.sgst + cess;
+      newItem.invoiceValue = taxable + (newItem.igst || 0) + (newItem.cgst || 0) + (newItem.sgst || 0) + cess;
       return newItem;
     }));
   }, [isInterState, stockItems, allItems]);
@@ -2905,14 +2940,29 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
       if (voucherType === 'Purchase') {
         const partyLedger = ledgers.find(l => l.name.toLowerCase() === (localPrefilledData.sellerName || '').toLowerCase());
-        const newIsInterState = (partyLedger && partyLedger.state && companyDetails.state)
+        const newIsInterState = (partyLedger && partyLedger.state && companyDetails?.state)
           ? partyLedger.state.toLowerCase() !== companyDetails.state.toLowerCase()
-          : false;
+          : (localPrefilledData.gstin && companyDetails?.gstin)
+            ? (() => {
+              const vendorStateCode = localPrefilledData.gstin.trim().substring(0, 2);
+              const companyStateCode = companyDetails.gstin.trim().substring(0, 2);
+              if (/^\d+$/.test(vendorStateCode) && /^\d+$/.test(companyStateCode)) {
+                return vendorStateCode !== companyStateCode;
+              }
+              return false;
+            })()
+            : false;
 
         setDate(formatDateForInput(localPrefilledData.invoiceDate) || getTodayDate());
         setInvoiceNo(localPrefilledData.invoiceNumber || '');
         setParty(localPrefilledData.sellerName || '');
         setIsInterState(newIsInterState);
+        // Explicitly sync the purchaseInputTypes column layout so CGST/SGST vs IGST
+        // columns render correctly even before the Sync Input Type effect fires.
+        setPurchaseInputTypes(prev => {
+          const rest = prev.filter(t => t !== 'Intrastate' && t !== 'Interstate');
+          return [...rest, newIsInterState ? 'Interstate' : 'Intrastate'];
+        });
 
         if (localPrefilledData.gstin) {
           setGstin(localPrefilledData.gstin);
@@ -2968,8 +3018,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         if (localPrefilledData.lineItems && localPrefilledData.lineItems.length > 0) {
           const newSimpleItems = localPrefilledData.lineItems.map(item => {
             const stockItem = allItems.find(si => (si.name || si.item_name)?.toLowerCase() === (item.itemDescription || '').toLowerCase());
-            const gstRate = stockItem?.gstRate || (stockItem as any)?.gst_rate || 18;
-            const taxableAmount = item.quantity * item.rate;
+            const gstRate = stockItem?.gstRate || (stockItem as any)?.gst_rate || item.gstRate || 18;
+            const taxableAmount = item.taxableValue !== undefined ? item.taxableValue : (item.amount || (item.quantity * item.rate));
             const tax = taxableAmount * (gstRate / 100);
 
             return {
@@ -2990,17 +3040,32 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             const stockItem = allItems.find(si => (si.name || si.item_name)?.toLowerCase() === (item.itemDescription || '').toLowerCase());
             const qty = item.quantity || 0;
             const rate = item.rate || 0;
-            const taxable = item.taxableValue || item.amount || (qty * rate);
+            const gstRate = item.gstRate || 18;
+            // For interstate: cgst/sgst must be 0; for intrastate: igst must be 0.
+            // Avoid the `|| 9` / `|| 18` fallbacks that turn intentional zeros into rates.
+            const cgstRate = newIsInterState
+              ? 0
+              : (item.cgstRate != null && item.cgstRate > 0 ? item.cgstRate : gstRate / 2);
+            const sgstRate = newIsInterState
+              ? 0
+              : (item.sgstRate != null && item.sgstRate > 0 ? item.sgstRate : gstRate / 2);
+            const igstRate = newIsInterState
+              ? (item.igstRate != null && item.igstRate > 0 ? item.igstRate : gstRate)
+              : 0;
 
-            const igst = item.igst !== undefined ? item.igst : (newIsInterState ? (taxable * 0.18) : 0);
-            const cgst = item.cgst !== undefined ? item.cgst : (newIsInterState ? 0 : (taxable * 0.09));
-            const sgst = item.sgst !== undefined ? item.sgst : (newIsInterState ? 0 : (taxable * 0.09));
-            const cess = item.cess !== undefined ? item.cess : 0;
-            const invoiceValue = item.invoiceValue !== undefined ? item.invoiceValue : (taxable + igst + cgst + sgst + cess);
+            const taxable = item.taxableValue !== undefined ? item.taxableValue : (item.amount || (qty * rate - (item.discountAmount || 0)));
+
+            const round2 = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
+
+            const igst = newIsInterState ? (item.igst !== undefined && item.igst !== 0 ? item.igst : round2(taxable * igstRate / 100)) : 0;
+            const cgst = newIsInterState ? 0 : (item.cgst !== undefined && item.cgst !== 0 ? item.cgst : round2(taxable * cgstRate / 100));
+            const sgst = newIsInterState ? 0 : (item.sgst !== undefined && item.sgst !== 0 ? item.sgst : round2(taxable * sgstRate / 100));
+            const cess = item.cess !== undefined ? item.cess : round2(taxable * (item.cessRate || 0) / 100);
+            const invoiceValue = item.invoiceValue !== undefined ? item.invoiceValue : round2(taxable + igst + cgst + sgst + cess);
 
             return {
               id: (Date.now() + idx).toString(),
-              itemCode: stockItem?.item_code || stockItem?.code || '',
+              itemCode: stockItem?.item_code || stockItem?.code || item.itemCode || '',
               itemName: stockItem?.name || stockItem?.item_name || item.itemDescription || '',
               hsnSac: item.hsnCode || stockItem?.hsn_sac || stockItem?.hsn || '',
               qty: qty,
@@ -3022,7 +3087,18 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               invoiceQty: qty,
               qtyMismatch: false,
               grnQty: null as number | null,
-              sourcePoNo: null as string | null
+              sourcePoNo: null as string | null,
+
+              // Preserve raw rates and discounts for recalculation engine checks
+              gstRate: gstRate,
+              cgstRate: cgstRate,
+              sgstRate: sgstRate,
+              igstRate: igstRate,
+              cessRate: item.cessRate || 0,
+              discountPercent: item.discountPercent || 0,
+              discountAmount: item.discountAmount || 0,
+              grossAmount: item.grossAmount,
+              lineTotal: item.lineTotal
             };
           });
           if (localPrefilledData.sellerName) {
@@ -3032,7 +3108,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
         } else {
           setItems([{ name: '', qty: 1, rate: 0, taxableAmount: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0, totalAmount: 0 }]);
-          setPurchaseItems([{ id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 1, uom: '', rate: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null as number | null, invoiceRate: null as number | null, rateMismatch: false, poQty: null as number | null, invoiceQty: null as number | null, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }]);
+          setPurchaseItems([{ id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 1, uom: '', rate: 0, discountPercent: 0, discountAmount: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null as number | null, invoiceRate: null as number | null, rateMismatch: false, poQty: null as number | null, invoiceQty: null as number | null, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }]);
         }
       } else if (voucherType === 'Contra') {
         setDate(formatDateForInput(localPrefilledData.invoiceDate) || getTodayDate());
@@ -3193,11 +3269,29 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     let baseGst = 'Intrastate';
     if (invoiceInForeignCurrency === 'Yes') {
       baseGst = 'Interstate';
-    } else if (party && ledgers.length > 0 && companyDetails?.state) {
-      const partyLedger = ledgers.find(l => l.name.toLowerCase() === party.toLowerCase());
+    } else if (party && companyDetails?.state) {
+      const partyLedger = ledgers.length > 0
+        ? ledgers.find(l => l.name.toLowerCase() === party.toLowerCase())
+        : null;
       if (partyLedger && partyLedger.state) {
+        // Primary: use ledger state record
         const isInter = partyLedger.state.toLowerCase() !== companyDetails.state.toLowerCase();
         baseGst = isInter ? 'Interstate' : 'Intrastate';
+      } else if (gstin && companyDetails?.gstin) {
+        // Fallback: compare GSTIN state-code prefix (vendor not yet in ledgers, e.g. scanned invoice)
+        const vendorStateCode = gstin.trim().substring(0, 2);
+        const companyStateCode = companyDetails.gstin.trim().substring(0, 2);
+        if (/^\d+$/.test(vendorStateCode) && /^\d+$/.test(companyStateCode)) {
+          baseGst = vendorStateCode !== companyStateCode ? 'Interstate' : 'Intrastate';
+        }
+        // If no GSTIN match available, keep the existing purchaseInputTypes rather than
+        // blindly defaulting to Intrastate — so we don't stomp over the hydration value.
+        else {
+          return; // No reliable info — do not override
+        }
+      } else {
+        // No ledger and no GSTIN: do not override the value set by hydration
+        return;
       }
     }
 
@@ -3207,7 +3301,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       setIsInterState(baseGst === 'Interstate');
       return newTypes;
     });
-  }, [party, ledgers, companyDetails, invoiceInForeignCurrency]);
+  }, [party, ledgers, companyDetails, invoiceInForeignCurrency, gstin]);
 
   const { partyLedgers, accountLedgers, allLedgers, partyOptions, purchasePartyOptions, salesPartyOptions, allLedgerOptions, purchaseLedgerOptions, expenseLedgerOptions } = useMemo(() => {
     // Merge the prop ledgers with freshly-fetched ledgers so we always have the full set
@@ -3379,7 +3473,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     if (voucherType === 'Purchase') {
       setGrnRefNo('');
       setSelectedPurchasePOs([]);
-      setPurchaseItems([{ id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 1, uom: '', rate: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null, invoiceRate: null, rateMismatch: false, poQty: null, invoiceQty: null, qtyMismatch: false, grnQty: null, sourcePoNo: null }]);
+      setPurchaseItems([{ id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 1, uom: '', rate: 0, discountPercent: 0, discountAmount: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null, invoiceRate: null, rateMismatch: false, poQty: null, invoiceQty: null, qtyMismatch: false, grnQty: null, sourcePoNo: null }]);
     }
 
     if (forcedId !== undefined && forcedId !== null) {
@@ -3813,6 +3907,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         const data = nextRow.extracted_data || {};
         const invoice = data.invoice || data.header || data;
         const items = data.items || data.line_items || [];
+        const rawExtractionItems: any[] = ((data as any)._raw_extraction?.items) || [];
 
         const prefilled: ExtractedInvoiceData = {
           invoiceNumber: nextRow.invoice_number || nextRow.invoice_no || invoice.invoice_no || invoice.invoice_number || '',
@@ -3844,9 +3939,50 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           postingNote: data.sections?.due_details?.posting_note || invoice.sections?.due_details?.posting_note || data.posting_note || nextRow.posting_note || invoice.posting_note || '',
 
           lineItems: items.map((it: any) => {
-            const qty = Number(it.qty || it.quantity || 1);
-            const rate = Number(it.rate || it.item_rate || it['Item Rate'] || 0);
-            const taxableValue = Number(it.taxable_value || it.taxableValue || it.taxable || it.total_amount || it.amount || (qty * rate));
+            const qty = Number(it.qty || it.quantity || 0);
+            const rate = Number(it.rate || it.unit_price || it.itemRate || it['Item Rate'] || 0);
+
+            let discountPercent = Number(
+              it.discount_percent !== undefined && it.discount_percent !== null ? it.discount_percent :
+                it.discount_pct !== undefined && it.discount_pct !== null ? it.discount_pct :
+                  it.discount_percentage !== undefined && it.discount_percentage !== null ? it.discount_percentage :
+                    it.discount_percent_extracted !== undefined && it.discount_percent_extracted !== null ? it.discount_percent_extracted : 0
+            );
+
+            let discountAmount = Number(
+              it.discount_amount !== undefined && it.discount_amount !== null ? it.discount_amount :
+                it.discount_value !== undefined && it.discount_value !== null ? it.discount_value :
+                  it.discount_extracted !== undefined && it.discount_extracted !== null ? it.discount_extracted : 0
+            );
+
+            if (discountPercent === 0 && discountAmount === 0) {
+              const rawIt = rawExtractionItems[items.indexOf(it)] as any;
+              if (rawIt) {
+                discountPercent = Number(rawIt.discount_percent || rawIt.discount_pct || rawIt.discount_percentage || 0);
+                discountAmount = Number(rawIt.discount_amount || rawIt.discount || rawIt.discount_value || 0);
+              }
+            }
+
+            const grossAmount = Number(it.gross_amount !== undefined ? it.gross_amount : (qty * rate));
+
+            let taxableValue = 0;
+            if (discountPercent > 0) {
+              taxableValue = (qty * rate) * (1 - discountPercent / 100);
+            } else if (discountAmount > 0) {
+              taxableValue = (qty * rate) - discountAmount;
+            } else {
+              const explicitTaxable =
+                it.taxable_value !== undefined ? it.taxable_value :
+                  it.TaxableValue !== undefined ? it.TaxableValue :
+                    it.taxableValue !== undefined ? it.taxableValue : undefined;
+              if (explicitTaxable !== undefined && explicitTaxable !== null && explicitTaxable !== '') {
+                taxableValue = Number(explicitTaxable);
+              } else {
+                taxableValue = Number(it.amount || it.Amount || (qty * rate));
+              }
+            }
+            taxableValue = Math.round((taxableValue + Number.EPSILON) * 100) / 100;
+
             const cgst = Number(it.cgst_amount !== undefined ? it.cgst_amount : (it.cgst !== undefined ? it.cgst : 0));
             const sgst = Number(it.sgst_amount !== undefined ? it.sgst_amount : (it.sgst !== undefined ? it.sgst : 0));
             const igst = Number(it.igst_amount !== undefined ? it.igst_amount : (it.igst !== undefined ? it.igst : 0));
@@ -3855,8 +3991,56 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             const rawInvVal = Number(it.invoice_value !== undefined ? it.invoice_value : (it.invoiceValue !== undefined ? it.invoiceValue : 0));
             const invoiceValue = rawInvVal > 0 ? rawInvVal : (taxableValue + cgst + sgst + igst + cess);
 
+            let cgstRate = Number(
+              it.cgst_rate !== undefined && it.cgst_rate !== null ? it.cgst_rate :
+                it.cgstRate !== undefined && it.cgstRate !== null ? it.cgstRate :
+                  it.cgst_pct !== undefined && it.cgst_pct !== null ? it.cgst_pct :
+                    it.cgst_percentage !== undefined && it.cgst_percentage !== null ? it.cgst_percentage : 0
+            );
+            let sgstRate = Number(
+              it.sgst_rate !== undefined && it.sgst_rate !== null ? it.sgst_rate :
+                it.sgstRate !== undefined && it.sgstRate !== null ? it.sgstRate :
+                  it.sgst_pct !== undefined && it.sgst_pct !== null ? it.sgst_pct :
+                    it.sgst_percentage !== undefined && it.sgst_percentage !== null ? it.sgst_percentage : 0
+            );
+            let igstRate = Number(
+              it.igst_rate !== undefined && it.igst_rate !== null ? it.igst_rate :
+                it.igstRate !== undefined && it.igstRate !== null ? it.igstRate :
+                  it.igst_pct !== undefined && it.igst_pct !== null ? it.igst_pct :
+                    it.igst_percentage !== undefined && it.igst_percentage !== null ? it.igst_percentage : 0
+            );
+
+            if (cgstRate === 0 && cgst > 0 && taxableValue > 0) {
+              cgstRate = Math.round((cgst / taxableValue) * 100);
+            }
+            if (sgstRate === 0 && sgst > 0 && taxableValue > 0) {
+              sgstRate = Math.round((sgst / taxableValue) * 100);
+            }
+            if (igstRate === 0 && igst > 0 && taxableValue > 0) {
+              igstRate = Math.round((igst / taxableValue) * 100);
+            }
+
+            let gstRate = Number(
+              it.gst_rate !== undefined && it.gst_rate !== null ? it.gst_rate :
+                it.gstRate !== undefined && it.gstRate !== null ? it.gstRate :
+                  it.gst_pct !== undefined && it.gst_pct !== null ? it.gst_pct :
+                    it.gst_percentage !== undefined && it.gst_percentage !== null ? it.gst_percentage : 0
+            );
+            if (gstRate === 0) {
+              gstRate = (cgstRate + sgstRate + igstRate) || 18;
+            }
+
+            const cessRate = Number(
+              it.cess_rate !== undefined && it.cess_rate !== null ? it.cess_rate :
+                it.cessRate !== undefined && it.cessRate !== null ? it.cessRate :
+                  it.cess_pct !== undefined && it.cess_pct !== null ? it.cess_pct :
+                    it.cess_percentage !== undefined && it.cess_percentage !== null ? it.cess_percentage : 0
+            );
+            const lineTotal = Number(it.line_total !== undefined ? it.line_total : invoiceValue);
+
             return {
               itemDescription: it.description || it['Item Name'] || it.Description || '',
+              itemCode: it.item_code || it.itemCode || it.code || '',
               hsnCode: it.hsn_sac || it.hsn || '',
               quantity: qty,
               rate: rate,
@@ -3866,7 +4050,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               igst,
               cess,
               taxableValue,
-              invoiceValue
+              invoiceValue,
+              uom: it.uqc || it.unit || it.uom || '',
+              grossAmount,
+              discountPercent,
+              discountAmount,
+              gstRate,
+              cgstRate,
+              sgstRate,
+              igstRate,
+              cessRate,
+              lineTotal
             };
           })
         };
@@ -3891,9 +4085,16 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       const rows = response.data?.data || response.data || [];
       const record = rows[0];
       if (record) {
+        setActiveOcrRecord(record);
+        setActiveOcrFileName(record.file_name || record.file_path?.split(/[\/]/).pop() || '');
+        setActiveOcrSessionId(record.upload_session_id || null);
         const data = record.extracted_data || {};
         const invoice = data.invoice || data.header || data;
         const items = data.items || data.line_items || [];
+        // Fallback for discount_percent: existing staging records have discount_percent=0.0
+        // in normalized items due to a pipeline bug (CanonicalInvoiceItem constructor omitted
+        // discount fields). _raw_extraction contains the original AI-extracted values.
+        const rawExtractionItems: any[] = ((data as any)._raw_extraction?.items) || [];
 
         const prefilled: ExtractedInvoiceData = {
           invoiceNumber: record.invoice_no || record.invoice_number || invoice.invoice_no || invoice.invoice_number || '',
@@ -3925,9 +4126,54 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           postingNote: data.sections?.due_details?.posting_note || invoice.sections?.due_details?.posting_note || data.posting_note || record.posting_note || invoice.posting_note || '',
 
           lineItems: items.map((it: any) => {
-            const qty = Number(it.qty || it.quantity || 1);
-            const rate = Number(it.rate || it.item_rate || it['Item Rate'] || 0);
-            const taxableValue = Number(it.taxable_value || it.taxableValue || it.taxable || it.total_amount || it.amount || (qty * rate));
+            const qty = Number(it.qty || it.quantity || 0);
+            const rate = Number(it.rate || it.unit_price || it.itemRate || it['Item Rate'] || 0);
+
+            // Level 1: read canonical discount from normalized item
+            let discountPercent = Number(
+              it.discount_percent !== undefined && it.discount_percent !== null ? it.discount_percent :
+                it.discount_pct !== undefined && it.discount_pct !== null ? it.discount_pct :
+                  it.discount_percentage !== undefined && it.discount_percentage !== null ? it.discount_percentage :
+                    it.discount_percent_extracted !== undefined && it.discount_percent_extracted !== null ? it.discount_percent_extracted : 0
+            );
+
+            let discountAmount = Number(
+              it.discount_amount !== undefined && it.discount_amount !== null ? it.discount_amount :
+                it.discount_value !== undefined && it.discount_value !== null ? it.discount_value :
+                  it.discount_extracted !== undefined && it.discount_extracted !== null ? it.discount_extracted : 0
+            );
+
+            // Level 2: fallback to _raw_extraction item (original AI output) using index
+            // This recovers discounts lost by the CanonicalInvoiceItem pipeline bug for existing records.
+            if (discountPercent === 0 && discountAmount === 0) {
+              const rawIt = rawExtractionItems[items.indexOf(it)] as any;
+              if (rawIt) {
+                discountPercent = Number(rawIt.discount_percent || rawIt.discount_pct || rawIt.discount_percentage || 0);
+                discountAmount = Number(rawIt.discount_amount || rawIt.discount || rawIt.discount_value || 0);
+              }
+            }
+
+            const grossAmount = Number(it.gross_amount !== undefined ? it.gross_amount : (qty * rate));
+
+            // Taxable Value matching calculation rules
+            let taxableValue = 0;
+            if (discountPercent > 0) {
+              taxableValue = (qty * rate) * (1 - discountPercent / 100);
+            } else if (discountAmount > 0) {
+              taxableValue = (qty * rate) - discountAmount;
+            } else {
+              const explicitTaxable =
+                it.taxable_value !== undefined ? it.taxable_value :
+                  it.TaxableValue !== undefined ? it.TaxableValue :
+                    it.taxableValue !== undefined ? it.taxableValue : undefined;
+              if (explicitTaxable !== undefined && explicitTaxable !== null && explicitTaxable !== '') {
+                taxableValue = Number(explicitTaxable);
+              } else {
+                taxableValue = Number(it.amount || it.Amount || (qty * rate));
+              }
+            }
+            taxableValue = Math.round((taxableValue + Number.EPSILON) * 100) / 100;
+
             const cgst = Number(it.cgst_amount !== undefined ? it.cgst_amount : (it.cgst !== undefined ? it.cgst : 0));
             const sgst = Number(it.sgst_amount !== undefined ? it.sgst_amount : (it.sgst !== undefined ? it.sgst : 0));
             const igst = Number(it.igst_amount !== undefined ? it.igst_amount : (it.igst !== undefined ? it.igst : 0));
@@ -3936,8 +4182,56 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             const rawInvVal = Number(it.invoice_value !== undefined ? it.invoice_value : (it.invoiceValue !== undefined ? it.invoiceValue : 0));
             const invoiceValue = rawInvVal > 0 ? rawInvVal : (taxableValue + cgst + sgst + igst + cess);
 
+            let cgstRate = Number(
+              it.cgst_rate !== undefined && it.cgst_rate !== null ? it.cgst_rate :
+                it.cgstRate !== undefined && it.cgstRate !== null ? it.cgstRate :
+                  it.cgst_pct !== undefined && it.cgst_pct !== null ? it.cgst_pct :
+                    it.cgst_percentage !== undefined && it.cgst_percentage !== null ? it.cgst_percentage : 0
+            );
+            let sgstRate = Number(
+              it.sgst_rate !== undefined && it.sgst_rate !== null ? it.sgst_rate :
+                it.sgstRate !== undefined && it.sgstRate !== null ? it.sgstRate :
+                  it.sgst_pct !== undefined && it.sgst_pct !== null ? it.sgst_pct :
+                    it.sgst_percentage !== undefined && it.sgst_percentage !== null ? it.sgst_percentage : 0
+            );
+            let igstRate = Number(
+              it.igst_rate !== undefined && it.igst_rate !== null ? it.igst_rate :
+                it.igstRate !== undefined && it.igstRate !== null ? it.igstRate :
+                  it.igst_pct !== undefined && it.igst_pct !== null ? it.igst_pct :
+                    it.igst_percentage !== undefined && it.igst_percentage !== null ? it.igst_percentage : 0
+            );
+
+            if (cgstRate === 0 && cgst > 0 && taxableValue > 0) {
+              cgstRate = Math.round((cgst / taxableValue) * 100);
+            }
+            if (sgstRate === 0 && sgst > 0 && taxableValue > 0) {
+              sgstRate = Math.round((sgst / taxableValue) * 100);
+            }
+            if (igstRate === 0 && igst > 0 && taxableValue > 0) {
+              igstRate = Math.round((igst / taxableValue) * 100);
+            }
+
+            let gstRate = Number(
+              it.gst_rate !== undefined && it.gst_rate !== null ? it.gst_rate :
+                it.gstRate !== undefined && it.gstRate !== null ? it.gstRate :
+                  it.gst_pct !== undefined && it.gst_pct !== null ? it.gst_pct :
+                    it.gst_percentage !== undefined && it.gst_percentage !== null ? it.gst_percentage : 0
+            );
+            if (gstRate === 0) {
+              gstRate = (cgstRate + sgstRate + igstRate) || 18;
+            }
+
+            const cessRate = Number(
+              it.cess_rate !== undefined && it.cess_rate !== null ? it.cess_rate :
+                it.cessRate !== undefined && it.cessRate !== null ? it.cessRate :
+                  it.cess_pct !== undefined && it.cess_pct !== null ? it.cess_pct :
+                    it.cess_percentage !== undefined && it.cess_percentage !== null ? it.cess_percentage : 0
+            );
+            const lineTotal = Number(it.line_total !== undefined ? it.line_total : invoiceValue);
+
             return {
               itemDescription: it.description || it['Item Name'] || it.Description || '',
+              itemCode: it.item_code || it.itemCode || it.code || '',
               hsnCode: it.hsn_sac || it.hsn || '',
               quantity: qty,
               rate: rate,
@@ -3947,7 +4241,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               igst,
               cess,
               taxableValue,
-              invoiceValue
+              invoiceValue,
+              uom: it.uqc || it.unit || it.uom || '',
+              grossAmount,
+              discountPercent,
+              discountAmount,
+              gstRate,
+              cgstRate,
+              sgstRate,
+              igstRate,
+              cessRate,
+              lineTotal
             };
           })
         };
@@ -3962,6 +4266,25 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   useEffect(() => {
     fetchLatestStagingData();
   }, [activeOcrFileHash, fetchLatestStagingData]);
+
+  const handleGstResolution = async (choice: 'CORRECTED' | 'SUPPLIER_VALUES_ACCEPTED') => {
+    if (!activeOcrFileHash || !activeOcrRecord) return;
+    try {
+      const updatedPayload = {
+        ...(activeOcrRecord.extracted_data || {}),
+        gst_resolution: choice
+      };
+      await httpClient.patch(`/api/ocr-staging/${activeOcrFileHash}/`, {
+        extracted_data: updatedPayload,
+        voucher_type: 'PURCHASE'
+      });
+      showSuccess(choice === 'CORRECTED' ? '✨ Recalculated GST values applied!' : 'Kept OCR extracted values.');
+      await fetchLatestStagingData();
+    } catch (err) {
+      console.error('Failed to save GST resolution choice:', err);
+      showError('Failed to save GST resolution choice.');
+    }
+  };
 
   const handleSaveChanges = async () => {
     if (!activeOcrFileHash) return;
@@ -4042,7 +4365,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       });
 
       showSuccess('Staged invoice changes saved successfully!');
-      await fetchLatestStagingData();
+      if (returnToPage && onNavigate) {
+        onNavigate(returnToPage as Page);
+        setReturnToPage(null);
+      } else {
+        await fetchLatestStagingData();
+      }
     } catch (err: any) {
       console.error('[VouchersPage] Failed to save staged changes:', err);
       showError('Failed to save staged invoice changes: ' + (err.message || err));
@@ -4153,6 +4481,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           quantity: Number(item.qty || 0),
           uom: item.uom || '',
           rate: Number(item.rate || 0),
+          discount_percent: Number((item as any).discountPercent || 0),
+          discount_amount: Number((item as any).discountAmount || 0),
           taxable_value: Number(item.taxableValue || 0),
           foreign_rate: Number(item.foreignRate || 0),
           foreign_amount: Number(item.foreignAmount || 0),
@@ -4622,8 +4952,14 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     const item = { ...newItems[index] };
 
     // Update field
-    if (['qty', 'rate', 'foreignRate', 'igst', 'cgst', 'sgst', 'cess'].includes(field)) {
-      (item as any)[field] = Math.max(0, typeof value === 'string' ? parseFloat(value) || 0 : value);
+    if (['qty', 'rate', 'foreignRate', 'igst', 'cgst', 'sgst', 'cess', 'taxableValue', 'discountPercent', 'discountAmount'].includes(field)) {
+      let numVal = typeof value === 'string' ? parseFloat(value) || 0 : value;
+      if (field === 'discountPercent') {
+        numVal = Math.max(0, Math.min(100, numVal));
+      } else {
+        numVal = Math.max(0, numVal);
+      }
+      (item as any)[field] = numVal;
     } else {
       (item as any)[field] = value;
     }
@@ -4776,7 +5112,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     }
 
     // Auto-calculate Taxable Value (Qty * Rate) and Taxes (INR)
-    if (field === 'qty' || field === 'rate' || field === 'foreignRate' || field === 'itemCode' || field === 'itemName' || field === 'hsnSac') {
+    if (field === 'qty' || field === 'rate' || field === 'foreignRate' || field === 'itemCode' || field === 'itemName' || field === 'hsnSac' || field === 'discountPercent') {
       const exRate = parseFloat(exchangeRate) || 1;
 
       // Sync rates if one changes
@@ -4792,7 +5128,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       const rate = parseFloat(item.rate.toString()) || 0;
       const fRate = parseFloat(item.foreignRate?.toString() || '0') || 0;
 
-      item.taxableValue = qty * rate;
+      // Incorporate discount calculations
+      const discPct = Number((item as any).discountPercent || 0);
+      let taxable = qty * rate;
+      const computedDiscAmt = Math.round((taxable * (discPct / 100) + Number.EPSILON) * 100) / 100;
+      (item as any).discountAmount = computedDiscAmt;
+      taxable = taxable - computedDiscAmt;
+      item.taxableValue = Math.round((taxable + Number.EPSILON) * 100) / 100;
       item.foreignAmount = qty * fRate;
 
       // Fetch GST Rate from combined items (Master > Inventory Item)
@@ -4801,8 +5143,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         ((si.name || si.item_name) || '').toLowerCase() === (item.itemName || '').toLowerCase() ||
         ((si.hsn_sac || si.hsn) || '').toString().trim() === (item.hsnSac || '').toString().trim()
       );
-      const gstRate = selectedStockItem?.gstRate || selectedStockItem?.gst_rate || 0;
-      const cessRate = selectedStockItem?.cessRate || selectedStockItem?.cess_rate || 0;
+      const gstRate = selectedStockItem?.gstRate || selectedStockItem?.gst_rate || (item as any).gstRate || (item as any).gst_rate || 0;
+      const cessRate = selectedStockItem?.cessRate || selectedStockItem?.cess_rate || (item as any).cessRate || (item as any).cess_rate || 0;
       const totalTax = item.taxableValue * (gstRate / 100);
       item.cess = totalTax * (cessRate / 100);
 
@@ -4874,6 +5216,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       qty: 0,
       uom: '',
       rate: 0,
+      discountPercent: 0,
+      discountAmount: 0,
       taxableValue: 0,
       foreignRate: 0,
       foreignAmount: 0,
@@ -4916,6 +5260,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         qty: 1,
         uom: '',
         rate: 0,
+        discountPercent: 0,
+        discountAmount: 0,
         taxableValue: 0,
         foreignRate: 0,
         foreignAmount: 0,
@@ -5175,6 +5521,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               qty: parseFloat(item.quantity || item.qty || '0'),
               uom: item.uom || '',
               rate: parseFloat(item.rate || item.itemRate || '0'),
+              discountPercent: parseFloat(item.discount_percent || item.discountPercent || '0') || 0,
+              discountAmount: parseFloat(item.discount_amount || item.discountAmount || '0') || 0,
               taxableValue: parseFloat(item.taxable_value || item.taxableValue || '0'),
               foreignRate: parseFloat(item.foreign_rate || item.foreignRate || '0'),
               foreignAmount: parseFloat(item.foreign_amount || item.foreignAmount || '0'),
@@ -5626,6 +5974,31 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               BACK TO SCAN LIST
             </button>
           </div>
+        )}
+        {activeOcrFileHash && activeOcrRecord && (
+          <OcrValidationBanners
+            record={activeOcrRecord}
+            onGstResolution={handleGstResolution}
+            onResetGstResolution={async () => {
+              if (activeOcrRecord && activeOcrFileHash) {
+                try {
+                  const updatedPayload = { ...activeOcrRecord.extracted_data };
+                  delete updatedPayload.gst_resolution;
+                  if (updatedPayload.gst_audit_trail) {
+                    updatedPayload.gst_audit_trail.validation_status = 'FAIL';
+                  }
+                  await httpClient.patch(`/api/ocr-staging/${activeOcrFileHash}/`, {
+                    extracted_data: updatedPayload,
+                    voucher_type: 'PURCHASE'
+                  });
+                  await fetchLatestStagingData();
+                } catch (err) {
+                  showError('Failed to reset GST resolution choice.');
+                }
+              }
+            }}
+            onCreateVendor={() => setIsCreateVendorModalOpen(true)}
+          />
         )}
         {/* Tabs Navigation */}
         <div className="flex border-b border-gray-200 overflow-x-auto">
@@ -6314,15 +6687,24 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         const qty = parseFloat(item.qty.toString()) || 0;
 
                         const newRate = fRate * exRateNum;
-                        const newTaxable = qty * newRate;
 
+                        // Incorporate discount calculations
+                        const discPct = Number((item as any).discountPercent || 0);
+                        const discAmt = Number((item as any).discountAmount || 0);
+                        let newTaxable = qty * newRate;
+                        if (discPct > 0) {
+                          newTaxable = newTaxable * (1 - discPct / 100);
+                        } else if (discAmt > 0) {
+                          newTaxable = newTaxable - discAmt;
+                        }
+                        newTaxable = Math.round((newTaxable + Number.EPSILON) * 100) / 100;
 
                         const selectedStockItem = allItems.find((si: any) =>
                           (si.item_code || si.code) === item.itemCode ||
                           (si.name || si.item_name) === item.itemName
                         );
-                        const gstRate = selectedStockItem?.gstRate || selectedStockItem?.gst_rate || 0;
-                        const cessRate = selectedStockItem?.cessRate || selectedStockItem?.cess_rate || 0;
+                        const gstRate = selectedStockItem?.gstRate || selectedStockItem?.gst_rate || (item as any).gstRate || (item as any).gst_rate || 0;
+                        const cessRate = selectedStockItem?.cessRate || selectedStockItem?.cess_rate || (item as any).cessRate || (item as any).cess_rate || 0;
                         const totalTax = newTaxable * (gstRate / 100);
                         const newCess = totalTax * (cessRate / 100);
 
@@ -6625,6 +7007,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Inv Qty</th>
                         <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">UQC</th>
                         <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Item Rate</th>
+                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500 w-24">Discount (%)</th>
                         <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Taxable Value</th>
                         {purchaseInputTypes.includes('Intrastate') ? (
                           <>
@@ -6761,51 +7144,73 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               </div>
                             </td>
                             <td className="px-2 py-2 border-r border-gray-200">
-                              <div className="w-24 px-2 py-1 bg-indigo-50 rounded text-right text-sm font-semibold text-indigo-700 select-none">
-                                {((parseFloat(row.qty?.toString() || '0') || 0) * (parseFloat(row.rate?.toString() || '0') || 0)).toFixed(2)}
+                              <div className="flex justify-center">
+                                <input
+                                  type="number"
+                                  onWheel={(e) => e.currentTarget.blur()}
+                                  min="0"
+                                  max="100"
+                                  step="any"
+                                  value={row.discountPercent !== undefined ? row.discountPercent : 0}
+                                  onChange={(e) => handlePurchaseItemChange(index, 'discountPercent', e.target.value)}
+                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-right text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                  placeholder="0"
+                                />
                               </div>
+                            </td>
+                            <td className="px-2 py-2 border-r border-gray-200">
+                              <input
+                                type="number"
+                                onWheel={(e) => e.currentTarget.blur()}
+                                value={row.taxableValue}
+                                onChange={(e) => handlePurchaseItemChange(index, 'taxableValue', e.target.value)}
+                                className="w-24 px-2 py-1 border border-indigo-200 bg-indigo-50 rounded text-right text-sm font-semibold text-indigo-700 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 focus:bg-white transition-colors"
+                              />
                             </td>
                             {purchaseInputTypes.includes('Intrastate') ? (
                               <>
-                                {/* CGST = Taxable × GST Rate × 0.5 — Read-Only */}
+                                {/* CGST — Editable */}
                                 <td className="px-2 py-2 border-r border-gray-200">
-                                  <div
-                                    className="w-24 px-2 py-1 bg-blue-50 rounded text-right text-sm font-semibold text-blue-700 select-none"
-                                    title="CGST = Taxable Value × GST Rate × ½ (auto-calculated)"
-                                  >
-                                    {row.cgst?.toFixed(2) ?? '0.00'}
-                                  </div>
+                                  <input
+                                    type="number"
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    value={row.cgst}
+                                    onChange={(e) => handlePurchaseItemChange(index, 'cgst', e.target.value)}
+                                    className="w-24 px-2 py-1 border border-blue-200 bg-blue-50 rounded text-right text-sm font-semibold text-blue-700 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 focus:bg-white transition-colors"
+                                  />
                                 </td>
-                                {/* SGST = Taxable × GST Rate × 0.5 — Read-Only */}
+                                {/* SGST — Editable */}
                                 <td className="px-2 py-2 border-r border-gray-200">
-                                  <div
-                                    className="w-24 px-2 py-1 bg-green-50 rounded text-right text-sm font-semibold text-green-700 select-none"
-                                    title="SGST/UTGST = Taxable Value × GST Rate × ½ (auto-calculated)"
-                                  >
-                                    {row.sgst?.toFixed(2) ?? '0.00'}
-                                  </div>
+                                  <input
+                                    type="number"
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    value={row.sgst}
+                                    onChange={(e) => handlePurchaseItemChange(index, 'sgst', e.target.value)}
+                                    className="w-24 px-2 py-1 border border-green-200 bg-green-50 rounded text-right text-sm font-semibold text-green-700 focus:ring-1 focus:ring-green-400 focus:border-green-400 focus:bg-white transition-colors"
+                                  />
                                 </td>
                               </>
                             ) : (
-                              /* IGST — Read-Only */
+                              /* IGST — Editable */
                               <td className="px-2 py-2 border-r border-gray-200">
-                                <div
-                                  className="w-24 px-2 py-1 bg-purple-50 rounded text-right text-sm font-semibold text-purple-700 select-none"
-                                  title="IGST = Taxable Value × GST Rate (auto-calculated)"
-                                >
-                                  {row.igst?.toFixed(2) ?? '0.00'}
-                                </div>
+                                <input
+                                  type="number"
+                                  onWheel={(e) => e.currentTarget.blur()}
+                                  value={row.igst}
+                                  onChange={(e) => handlePurchaseItemChange(index, 'igst', e.target.value)}
+                                  className="w-24 px-2 py-1 border border-purple-200 bg-purple-50 rounded text-right text-sm font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
+                                />
                               </td>
                             )}
 
-
                             <td className="px-2 py-2 border-r border-gray-200">
-                              <div
-                                className="w-20 px-2 py-1 bg-purple-50 rounded text-right text-sm font-semibold text-purple-700 select-none"
-                                title="CESS = Taxable Value × Cess Rate (auto-calculated)"
-                              >
-                                {row.cess?.toFixed(2) ?? '0.00'}
-                              </div>
+                              <input
+                                type="number"
+                                onWheel={(e) => e.currentTarget.blur()}
+                                value={row.cess}
+                                onChange={(e) => handlePurchaseItemChange(index, 'cess', e.target.value)}
+                                className="w-20 px-2 py-1 border border-purple-200 bg-purple-50 rounded text-right text-sm font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
+                              />
                             </td>
                             <td className="px-2 py-2 border-r border-gray-200">
                               <div className="text-right text-sm font-bold">{row.invoiceValue.toFixed(2)}</div>
@@ -12197,6 +12602,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     if (activeOcrFileHash) {
       setActiveOcrFileHash(null);
       setActiveOcrFileName(null);
+      setActiveOcrRecord(null);
       setLocalPrefilledData(null);
 
       if (returnToPage && onNavigate) {
@@ -12839,6 +13245,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       qty: parseFloat(row['Qty'] || row['Quantity'] || '0') || 0,
                       uom: row['UOM'] || '',
                       rate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || 0,
+                      discountPercent: parseFloat(row['Discount (%)'] || row['Discount Percent'] || row['discount_percent'] || '0') || 0,
+                      discountAmount: parseFloat(row['Discount Amount'] || row['discount_amount'] || '0') || 0,
                       taxableValue: taxable,
                       foreignRate: parseFloat(row['Rate (FC)'] || '0') || 0,
                       foreignAmount: parseFloat(row['Amount (FC)'] || '0') || 0,
@@ -12940,6 +13348,41 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           {/* Create Vendor Modal */}
           {isCreateVendorModalOpen && (
             <CreateNewVendorFullModal
+              prefilledData={activeOcrRecord ? (() => {
+                const ext = activeOcrRecord.extracted_data || {};
+                const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
+                const header = ext.header || {};
+
+                const vendorName = activeOcrRecord.vendor_name || ext.vendor_name || header.vendor_name || supplier.vendor_name || '';
+                const gstin = activeOcrRecord.vendor_gstin || ext.canonical_vendor_gstin || ext.vendor_gstin || ext.gstin || '';
+                const branch = activeOcrRecord.branch_id || ext.branch || 'Main Branch';
+                const address = ext.bill_from || ext.billing_address || supplier.address || supplier.billing_address || ext.address || '';
+                const email = supplier.email || ext.email || ext.vendor_email || '';
+                const phone = supplier.phone || supplier.contact || ext.phone || ext.contact_no || ext.contact || '';
+                const state = supplier.state || ext.state || ext.vendor_state || '';
+
+                const rawItems = (ext.sections?.items || ext.items || ext.line_items || ext.assembled_exports?.[0]?.items || []) || [];
+                const supplierItems = rawItems.map((itm: any) => ({
+                  hsnSacCode: itm.hsn_code || itm.hsn || itm.hsn_sac || itm.hsnSacCode || '',
+                  itemName: itm.item_name || itm.name || itm.description || '',
+                  supplierItemName: itm.supplierItemName || itm.item_name || itm.name || itm.description || '',
+                  supplierItemCode: itm.supplierItemCode || itm.item_code || itm.code || itm.itemCode || '',
+                  itemCode: itm.item_code || itm.code || itm.itemCode || '',
+                }));
+
+                return {
+                  vendor_name: vendorName,
+                  pan_no: ext.pan_no || ext.pan || '',
+                  email: email,
+                  contact_no: phone,
+                  gstin: gstin,
+                  address: address,
+                  branch: branch,
+                  state: state,
+                  contact_person: supplier.contact_person || ext.contact_person || '',
+                  supplier_items: supplierItems,
+                };
+              })() : undefined}
               onClose={() => setIsCreateVendorModalOpen(false)}
               onVendorCreated={(vendorName, newId) => {
                 showSuccess('Vendor Created Successfully!');
@@ -12991,6 +13434,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         qty: qty,
                         uom: item.uom || stockItem?.uom || '',
                         rate: rate,
+                        discountPercent: 0,
+                        discountAmount: 0,
                         taxableValue: taxableValue,
                         foreignRate: 0,
                         foreignAmount: 0,
@@ -13464,6 +13909,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               onFinalized={(summary) => {
                 const created = summary.created ?? 0;
                 const skipped = summary.skipped ?? 0;
+                const duplicateSkipped = summary.duplicate_skipped ?? 0;
+                const pendingSkipped = summary.pending_skipped ?? 0;
                 const failed = summary.failed ?? 0;
                 // Extract the most specific error reason from the backend
                 const firstError = summary.errors?.[0]?.error ?? '';
@@ -13474,17 +13921,29 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   showSuccess(`✅ Successfully saved ${created} invoice${created !== 1 ? 's' : ''} as Purchase Vouchers!`);
                 } else if (created > 0 && failed > 0) {
                   showSuccess(`✅ Saved ${created} voucher${created !== 1 ? 's' : ''}. ${failed} had errors — check staging.`);
-                } else if (created === 0 && skipped > 0 && failed === 0) {
-                  showSuccess(`ℹ️ All ${skipped} invoice${skipped !== 1 ? 's' : ''} were already saved (duplicates skipped).`);
+                } else if (created === 0 && failed === 0) {
+                  if (duplicateSkipped > 0 && pendingSkipped === 0) {
+                    showSuccess(`ℹ️ All ${duplicateSkipped} invoice${duplicateSkipped !== 1 ? 's' : ''} were already saved (duplicates skipped).`);
+                  } else if (pendingSkipped > 0 && duplicateSkipped === 0) {
+                    showInfo(`ℹ️ ${pendingSkipped} invoice${pendingSkipped !== 1 ? 's' : ''} moved to Pending Purchases queue.`);
+                  } else if (duplicateSkipped > 0 && pendingSkipped > 0) {
+                    showSuccess(`ℹ️ ${duplicateSkipped} duplicate(s) skipped. ${pendingSkipped} invoice${pendingSkipped !== 1 ? 's' : ''} moved to Pending Purchases.`);
+                  } else {
+                    showSuccess('Finalization complete.');
+                  }
                 } else if (created === 0 && failed > 0) {
                   showError(`⚠️ ${failed} invoice${failed !== 1 ? 's' : ''} could not be saved.${errorReason}`);
                 } else {
                   showSuccess('Finalization complete.');
                 }
+
+                // Clear active states unconditionally and refresh scan data
                 setIsBulkUploadOpen(false);
-                if (created > 0) {
-                  window.location.reload();
-                }
+                setActiveOcrSessionId(null);
+                setActiveOcrFileHash(null);
+                setActiveOcrFileName(null);
+                useOcrWorkflowStore.getState().clearWorkflow();
+                refetch();
               }}
             />
           )}

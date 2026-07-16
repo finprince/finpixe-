@@ -77,6 +77,8 @@ interface FinalizeResult {
     created: number;
     failed: number;
     skipped: number;
+    duplicate_skipped?: number;
+    pending_skipped?: number;
     message?: string;
     errors: FinalizeErrorItem[];
 }
@@ -94,7 +96,7 @@ interface FinalizeResult {
 // Standardize snake_case keys used by backend vs PascalCase used in UI/Excel
 const LINE_ITEM_FIELDS = ['Item Name', 'Item Code', 'HSN/SAC', 'Quantity', 'Unit', 'Rate', 'Amount', 'Taxable Value', 'discount_amount', 'cgst_rate', 'cgst_amount', 'sgst_rate', 'sgst_amount', 'igst_rate', 'igst_amount', 'total_amount'];
 
-export const getGstStatus = (row: ScanResult): 'GST_VALID' | 'GST_MISMATCH' | 'GST_CORRECTED' | 'GST_SUPPLIER_ACCEPTED' | 'GST_NOT_CHECKED' => {
+export const getGstStatus = (row: ScanResult): 'GST_VALID' | 'GST_MISMATCH' => {
     const ext = row.extracted_data || {};
     const res = ext.gst_resolution;
 
@@ -106,8 +108,7 @@ export const getGstStatus = (row: ScanResult): 'GST_VALID' | 'GST_MISMATCH' | 'G
         gst_audit_trail: ext?.gst_audit_trail ?? null,
     });
 
-    if (res === 'CORRECTED') return 'GST_CORRECTED';
-    if (res === 'SUPPLIER_VALUES_ACCEPTED') return 'GST_SUPPLIER_ACCEPTED';
+    if (res === 'CORRECTED' || res === 'SUPPLIER_VALUES_ACCEPTED') return 'GST_VALID';
 
     // Duplicate invoices: pipeline exits before GST engine runs so gst_audit_trail
     // is never written. validationStatus is the only reliable signal.
@@ -123,22 +124,16 @@ export const getGstStatus = (row: ScanResult): 'GST_VALID' | 'GST_MISMATCH' | 'G
         if (audit.validation_status === 'FAIL') return 'GST_MISMATCH';
         if (audit.validation_status === 'PASS') return 'GST_VALID';
     }
-    return 'GST_NOT_CHECKED';
+    return 'GST_VALID';
 };
 
-export const renderGstStatusBadge = (status: 'GST_VALID' | 'GST_MISMATCH' | 'GST_CORRECTED' | 'GST_SUPPLIER_ACCEPTED' | 'GST_NOT_CHECKED') => {
+export const renderGstStatusBadge = (status: 'GST_VALID' | 'GST_MISMATCH') => {
     switch (status) {
         case 'GST_VALID':
             return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[9px] font-extrabold tracking-wider">GST VALID</span>;
         case 'GST_MISMATCH':
-            return <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded inline-block text-[9px] font-extrabold tracking-wider animate-pulse">GST MISMATCH</span>;
-        case 'GST_CORRECTED':
-            return <span className="bg-blue-100 text-blue-800 border border-blue-300 px-2 py-1 rounded inline-block text-[9px] font-extrabold tracking-wider">CORRECTED</span>;
-        case 'GST_SUPPLIER_ACCEPTED':
-            return <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded inline-block text-[9px] font-extrabold tracking-wider">SUPPLIER ACCEPTED</span>;
-        case 'GST_NOT_CHECKED':
         default:
-            return <span className="bg-gray-100 text-gray-800 border border-gray-300 px-2 py-1 rounded inline-block text-[9px] font-extrabold tracking-wider">NOT CHECKED</span>;
+            return <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded inline-block text-[9px] font-extrabold tracking-wider animate-pulse">GST MISMATCH</span>;
     }
 };
 
@@ -372,503 +367,7 @@ const normalizeVoucherField = (k: string, voucherType: string) => {
 // Edit Modal ──────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const EditInvoiceModal: React.FC<{
-    row: ScanResult;
-    voucherType: string;
-    onClose: () => void;
-    onSave: (updatedData: any, revalidation?: { status: string; vendor_id: number | null; vendor_name: string; vendor_status?: string }) => void;
-    onResolve?: (resolution: 'use_existing' | 'update_name') => void;
-}> = ({ row, voucherType, onClose, onSave, onResolve }) => {
-
-    const [dynamicSchema, setDynamicSchema] = useState<VoucherSchema | null>(null);
-    const [data, setData] = useState<any>(null); // HARD RESET FRONTEND STATE
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<string>('');
-
-    useEffect(() => {
-        const fetchFreshData = async () => {
-            setLoading(true);
-            try {
-                // STEP 1: Fetch FULL Dynamic Schema + Data from DB (or use snapshot row directly)
-                const isSnapshot = String(row.id).startsWith('snap_') || !!row._isSnapshot;
-
-                const schemaPromise = httpClient.get(`/api/voucher-schema/?type=${voucherType}`);
-                const rowPromise = isSnapshot ? Promise.resolve({ data: [row] }) : httpClient.get(`/api/ocr-staging/${row.id}/`);
-
-                const [schemaRes, rowRes]: any = await Promise.all([schemaPromise, rowPromise]);
-
-                const fetchedSchema = schemaRes as VoucherSchema;
-                const dbRow = (rowRes?.data && rowRes.data[0]) || null;
-
-                if (!dbRow) throw new Error("Record not found in DB.");
-
-                console.log("SCHEMA:", fetchedSchema);
-                console.log(`FORM SOURCE (${isSnapshot ? 'SNAPSHOT' : 'DB'}):`, dbRow.extracted_data);
-
-                setDynamicSchema(fetchedSchema);
-
-                const raw = JSON.parse(JSON.stringify(dbRow.extracted_data || {}));
-
-                const normalizedSections: any = {};
-                Object.entries(fetchedSchema.sections || {}).forEach(([sectionName, fields]: any) => {
-                    if (!Array.isArray(fields)) return;
-
-                    if (sectionName === 'items') {
-                        let itmsRaw = raw.sections?.items || raw.items || raw.line_items || [];
-                        if (!Array.isArray(itmsRaw)) itmsRaw = [];
-
-                        normalizedSections['items'] = (itmsRaw.length > 0 ? itmsRaw : [{}]).map((item: any) => {
-                            const normalizedItem: any = {};
-                            fields.forEach((f: any) => {
-                                const val = item[f.name] || item[f.label] || getCellValue(item, f.label);
-                                normalizedItem[f.name] = (val === '—') ? "" : val;
-                            });
-                            return normalizedItem;
-                        });
-                    } else {
-                        // Find raw data for this section
-                        const secRaw = raw.sections?.[sectionName] || raw[sectionName] || raw.invoice || raw.header || raw || {};
-                        const normalizedSection: any = {};
-                        fields.forEach((f: any) => {
-                            const val = secRaw[f.name] || secRaw[f.label] || getCellValue(secRaw, f.label);
-                            normalizedSection[f.name] = (val === '—') ? "" : val;
-                        });
-                        normalizedSections[sectionName] = normalizedSection;
-                    }
-                });
-
-                setData({
-                    ...raw,
-                    sections: normalizedSections
-                });
-            } catch (err) {
-                console.error("Edit modal load error:", err);
-                showError("Failed to load schema-driven voucher data.");
-                onClose();
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchFreshData();
-    }, [row.id, voucherType]);
-
-    if (loading || !data || !dynamicSchema) {
-        return (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="bg-white p-8 rounded-2xl flex flex-col items-center gap-4 shadow-2xl">
-                    <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent animate-spin rounded-full" />
-                    <p className="font-bold text-gray-700">Fetching Schema Source of Truth...</p>
-                </div>
-            </div>
-        );
-    }
-
-    const sections = data.sections || {};
-    const items = sections.items || [];
-
-    const handleFieldChange = (sectionName: string, key: string, val: string) => {
-        setData(prev => ({
-            ...prev,
-            sections: {
-                ...prev.sections,
-                [sectionName]: {
-                    ...prev.sections[sectionName],
-                    [key]: val
-                }
-            }
-        }));
-    };
-
-    const handleItemChange = (idx: number, key: string, val: string) => {
-        setData((prev: any) => {
-            if (!prev || !prev.sections) return prev;
-            const newItems = [...(prev.sections.items || [])];
-            newItems[idx] = { ...newItems[idx], [key]: val };
-            return {
-                ...prev,
-                sections: {
-                    ...prev.sections,
-                    items: newItems
-                }
-            };
-        });
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            // STEP 2: Enforce Schema-Driven Flow (Save full sections)
-            const result: any = await httpClient.patch(
-                `/api/ocr-staging/${row.file_hash}/`,
-                {
-                    extracted_data: data,
-                    voucher_type: voucherType.toUpperCase()
-                }
-            );
-
-            onSave(result.extracted_data || data, {
-                status: result.status || 'missing',
-                vendor_id: result.vendor_id ?? null,
-                vendor_name: result.vendor_name || '',
-                vendor_status: result.vendor_status || null,
-            });
-            const isMatched = result.vendor_status === 'EXISTS';
-            showSuccess(isMatched ? '✅ MATCHED: Vendor synchronized with DB.' : '⚠️ ACTION REQUIRED: Update sync failed.');
-            onClose();
-        } catch (err) {
-            showError('Failed to save schema-aligned record.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleResolveConflict = async (resolution: 'use_existing' | 'update_name') => {
-        setSaving(true);
-        try {
-            const res: any = await httpClient.post('/api/purchase/vendors/resolve-conflict/', {
-                file_hash: row.file_hash,
-                resolution: resolution
-            });
-            if (res.success) {
-                // Determine the new name based on resolution
-                let finalName = row.vendor_name;
-                if (resolution === 'update_name') {
-                    finalName = sections.supplier_details?.vendor_name || row.vendor_name;
-                }
-
-                onSave(data, {
-                    status: 'READY',
-                    vendor_id: row.vendor_id,
-                    vendor_name: finalName,
-                });
-                showSuccess(`Conflict Resolved: ${resolution === 'use_existing' ? 'Using Master' : 'Updated Master'}`);
-                onClose();
-            } else {
-                showError(res.error || 'Resolution failed');
-            }
-        } catch (err) {
-            showError('Server error during resolution');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleGstResolution = async (choice: 'CORRECTED' | 'SUPPLIER_VALUES_ACCEPTED') => {
-        setSaving(true);
-        try {
-            const updatedPayload = {
-                ...data,
-                gst_resolution: choice
-            };
-            const result: any = await httpClient.patch(
-                `/api/ocr-staging/${row.file_hash}/`,
-                {
-                    extracted_data: updatedPayload,
-                    voucher_type: voucherType.toUpperCase()
-                }
-            );
-
-            setData(result.extracted_data || updatedPayload);
-            showSuccess(choice === 'CORRECTED' ? '✨ Recalculated GST values applied!' : 'Kept OCR extracted values.');
-            if (onSave) {
-                onSave(result.extracted_data || updatedPayload, {
-                    status: result.status || row.validationStatus,
-                    vendor_id: result.vendor_id ?? row.vendor_id,
-                    vendor_name: result.vendor_name || row.vendor_name,
-                    vendor_status: result.vendor_status || row.vendor_status,
-                });
-            }
-        } catch (err) {
-            console.error('Failed to save GST resolution choice:', err);
-            showError('Failed to save GST resolution choice.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-                    <div>
-                        <h3 className="font-bold text-lg">Edit Invoice Data</h3>
-                        <p className="text-xs text-gray-500 italic">Editing extracted OCR fields for {row.file_path}</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">✕</button>
-                </div>
-                {/* Vendor Status Headers */}
-                {['EXISTS', 'FOUND', 'MATCHED'].includes(row.vendor_status || '') ? (
-                    <div className="px-6 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-xl">✅</div>
-                            <div>
-                                <h4 className="font-bold text-emerald-900 text-sm uppercase tracking-wider">Matched</h4>
-                                <p className="text-[10px] text-emerald-700 italic">This vendor exists in your master list: {row.vendor_name || sections.supplier_details?.vendor_name}</p>
-                            </div>
-                        </div>
-                    </div>
-                ) : row.vendor_status === 'NEW' || row.vendor_status === 'MISSING' ? (
-                    <div className="px-6 py-4 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-xl">⚠️</div>
-                            <div>
-                                <h4 className="font-bold text-amber-900 text-sm uppercase tracking-wider">Create Vendor</h4>
-                                <p className="text-[10px] text-amber-700 italic">This vendor was not found. Please create it to continue.</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => {
-                                onSave(data, {
-                                    status: 'VENDOR_MISSING',
-                                    vendor_id: null,
-                                    vendor_name: sections.supplier_details?.vendor_name || row.vendor_name
-                                });
-                                onClose();
-                                setTimeout(() => window.dispatchEvent(new CustomEvent('re-open-create-vendor', { detail: row.file_hash })), 100);
-                            }}
-                            className="px-6 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition-colors shadow-md"
-                        >
-                            Create New Vendor
-                        </button>
-                    </div>
-                ) : (
-                    <div className="px-6 py-4 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
-                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent animate-spin rounded-full" />
-                        <span className="text-sm font-bold text-blue-700 uppercase">Processing...</span>
-                    </div>
-                )}
-
-                {/* GST Mismatch Warning Banner */}
-                {data.gst_audit_trail?.validation_status === 'FAIL' && (
-                    <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-inner animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-start gap-4 flex-1">
-                            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 text-xl font-bold shrink-0 shadow-sm animate-pulse">
-                                ⚠️
-                            </div>
-                            <div className="space-y-1.5 flex-1">
-                                <h4 className="font-extrabold text-amber-900 text-sm tracking-wide uppercase">
-                                    GST Calculation Mismatch Detected
-                                </h4>
-                                <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                                    Expected taxes do not match the OCR extracted totals. Tax calculations are verified using state codes.
-                                </p>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-2 text-[11px] bg-white/70 p-3 rounded-lg border border-amber-200/40 shadow-xs max-w-3xl">
-                                    <div>
-                                        <span className="text-gray-500 font-medium block">Taxable Value</span>
-                                        <span className="font-bold text-gray-800">₹{parseFloat(data.gst_audit_trail.taxable_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500 font-medium block">GST Rate</span>
-                                        <span className="font-bold text-gray-800">{data.gst_audit_trail.gst_rate}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500 font-medium block">Expected GST</span>
-                                        <span className="font-bold text-emerald-700">₹{parseFloat(data.gst_audit_trail.expected_tax_values?.total_gst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500 font-medium block">Extracted GST</span>
-                                        <span className="font-bold text-rose-700">₹{parseFloat(data.gst_audit_trail.extracted_tax_values?.total_gst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500 font-medium block">Difference</span>
-                                        <span className="font-extrabold text-amber-800">₹{parseFloat(data.gst_audit_trail.difference_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex flex-row md:flex-col gap-2 shrink-0 self-center md:self-end">
-                            <button
-                                type="button"
-                                onClick={() => handleGstResolution('CORRECTED')}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-1.5"
-                            >
-                                ✨ Use Calculated Values
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleGstResolution('SUPPLIER_VALUES_ACCEPTED')}
-                                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-1.5"
-                            >
-                                Keep Extracted Values
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* GST Mismatch Resolved Indicator */}
-                {data.gst_resolution && data.gst_audit_trail?.validation_status === 'PASS' && (
-                    <div className="px-6 py-2.5 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between animate-in fade-in duration-200">
-                        <div className="flex items-center gap-2 text-emerald-800 text-[11px] font-medium">
-                            <span className="font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[9px]">RESOLVED</span>
-                            <span>
-                                {data.gst_resolution === 'CORRECTED'
-                                    ? 'Applied Mathematically Correct values'
-                                    : 'Accepted Supplier Invoice values exactly'}
-                            </span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setData((prev: any) => {
-                                    const next = { ...prev };
-                                    delete next.gst_resolution;
-                                    if (next.gst_audit_trail) {
-                                        next.gst_audit_trail.validation_status = 'FAIL';
-                                    }
-                                    return next;
-                                });
-                            }}
-                            className="text-[10px] text-indigo-600 hover:text-indigo-800 underline font-bold cursor-pointer transition-colors"
-                        >
-                            Change Option
-                        </button>
-                    </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto bg-gray-50/50">
-                    {/* Tabs Navigation */}
-                    <div className="flex border-b border-gray-200 bg-white overflow-x-auto">
-                        {Object.keys(dynamicSchema.sections || {})
-                            .filter(name => name !== 'items')
-                            .map((sectionName) => {
-                                const sectionTitles: Record<string, string> = {
-                                    supplier_details: "Supplier Details",
-                                    supply_details: "Supply Details",
-                                    due_details: "Due Details",
-                                    transit_details: "Transit Details"
-                                };
-                                const title = sectionTitles[sectionName] || sectionName.replace(/_/g, ' ').toUpperCase();
-                                const isActive = activeTab === sectionName || (!activeTab && sectionName === Object.keys(dynamicSchema.sections || {}).filter(n => n !== 'items')[0]);
-
-                                return (
-                                    <button
-                                        key={sectionName}
-                                        onClick={() => setActiveTab(sectionName)}
-                                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isActive
-                                            ? 'border-indigo-600 text-indigo-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        {title}
-                                    </button>
-                                );
-                            })}
-                    </div>
-
-                    <div className="p-6 space-y-6">
-                        {/* Active Tab Content */}
-                        <div className="p-6 bg-white rounded-[4px] border border-gray-200 min-h-[200px]">
-                            {Object.entries(dynamicSchema.sections || {})
-                                .filter(([name]) => name !== 'items')
-                                .map(([sectionName, fields]: any) => {
-                                    const isActive = activeTab === sectionName || (!activeTab && sectionName === Object.keys(dynamicSchema.sections || {}).filter(n => n !== 'items')[0]);
-                                    if (!isActive) return null;
-
-                                    const sectionData = sections[sectionName] || {};
-
-                                    return (
-                                        <div key={sectionName} className="space-y-6 animate-in fade-in duration-200">
-                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                                {fields.map((field: any) => {
-                                                    const nk = field.name;
-                                                    const kLabel = field.label;
-                                                    const isMandatory = field.mandatory;
-
-                                                    let v = sectionData[nk];
-                                                    let displayVal = "";
-                                                    if (v !== null && v !== undefined) {
-                                                        displayVal = typeof v === 'object' ? JSON.stringify(v) : String(v);
-                                                    }
-
-                                                    if (field.type === 'date' && displayVal) {
-                                                        const parts = displayVal.split(/[-\/]/);
-                                                        if (parts.length === 3) {
-                                                            // if DD-MM-YYYY
-                                                            if (parts[0].length === 2 && parts[2].length === 4) {
-                                                                displayVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                                                            }
-                                                        }
-                                                    }
-
-                                                    return (
-                                                        <div key={nk} className="space-y-1">
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                                                                {kLabel}
-                                                                {isMandatory && <span className="text-red-500">*</span>}
-                                                            </label>
-                                                            <input
-                                                                type={field.type === 'number' ? 'text' : field.type}
-                                                                value={displayVal}
-                                                                onChange={e => handleFieldChange(sectionName, nk, e.target.value)}
-                                                                placeholder={`Enter ${kLabel.toLowerCase()}...`}
-                                                                className={`w-full border rounded-[4px] px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition-all ${isMandatory && !displayVal ? 'border-amber-300 bg-amber-50/20' : 'border-gray-300'}`}
-                                                            />
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                        </div>
-
-                        {/* Dynamic Line Items Section */}
-                        {dynamicSchema.sections?.items && (
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-4 border-b border-indigo-50 pb-2">Line Items ({items.length})</h4>
-                                <div className="overflow-x-auto border border-gray-100 rounded-xl shadow-sm">
-                                    <table className="w-full text-[11px]">
-                                        <thead className="bg-gray-50 border-b border-gray-100">
-                                            <tr>
-                                                {dynamicSchema.sections.items.map((field: any) => (
-                                                    <th key={field.name} className="px-3 py-3 text-left font-bold text-gray-500 whitespace-nowrap uppercase tracking-tighter">
-                                                        {field.label}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            {items.map((it: any, i: number) => (
-                                                <tr key={i} className="hover:bg-indigo-50/30 transition-colors">
-                                                    {dynamicSchema.sections.items.map((field: any) => {
-                                                        const k = field.name;
-                                                        const v = it[k];
-                                                        return (
-                                                            <td key={k} className="p-1 min-w-[100px]">
-                                                                <input
-                                                                    type="text"
-                                                                    value={String(v || '')}
-                                                                    onChange={e => handleItemChange(i, k, e.target.value)}
-                                                                    className="w-full border-none p-1.5 focus:ring-2 focus:ring-indigo-200 outline-none bg-transparent rounded text-gray-700"
-                                                                />
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-6 py-2 text-sm font-bold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
-                    <button onClick={handleSave} disabled={saving} className="px-8 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-lg disabled:opacity-50 hover:bg-indigo-700 transition-colors">
-                        {saving ? (
-                            <span className="flex items-center gap-2">
-                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                Saving & Validating…
-                            </span>
-                        ) : 'Save & Revalidate'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
+// EditInvoiceModal removed for unified Purchase Voucher page flow
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Resolve Conflict Modal
@@ -1145,7 +644,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
     const [detailsRow, setDetailsRow] = useState<ScanResult | null>(null);
     const [estimatedExtractionTime, setEstimatedExtractionTime] = useState<number | null>(null);
     const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
-    const [editingRow, setEditingRow] = useState<ScanResult | null>(null);
+
 
     // ─────────────────────────────────────────────────────────────────────────────
     // ULTIMATE MERGE LOGIC: Grouping by normalized Invoice No + GSTIN
@@ -1660,6 +1159,12 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     }
                     if (pct >= 100) {
                         if (!stalledAt100Ref.current) stalledAt100Ref.current = Date.now();
+                        const stallDuration = Date.now() - stalledAt100Ref.current;
+                        if (stallDuration > 10000) { // 10 seconds of stall at >=100% progress
+                            console.warn(`[STALL_RECOVERY] Stalled at >=100% for ${stallDuration}ms. Forcing review state transition.`);
+                            setStep('review');
+                            return true; // Stop polling
+                        }
                     } else {
                         stalledAt100Ref.current = null;
                     }
@@ -2008,9 +1513,24 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     if (data.status === 'FINALIZED' || data.status === 'FAILED') {
                         console.log(`[SESSION_FINALIZED_EVENT] session_id=${session_id} event=${data.status}`);
                         console.log('✅ TERMINAL STATE REACHED — HALTING SSE.');
-                        await doFetch(session_id, vFilterRef.current);
-                        es.close();
+                        const done = await doFetch(session_id, vFilterRef.current);
+                        if (done) es.close();
                         console.log('[POLLING_DISABLED]');
+                    } else if (data.status === 'HYDRATION_READY' || data.status === 'COMPLETED') {
+                        // [ROOT_CAUSE_FIX] Redis status is HYDRATION_READY when the pipeline
+                        // finishes — the frontend was ignoring this event and waiting for
+                        // FINALIZED that never came (SSE closes after emitting both in one batch).
+                        // Now we immediately poll the HTTP endpoint which checks DB/snapshot
+                        // and returns the true FINALIZED status.
+                        console.log(`[SSE_HYDRATION_READY] session=${session_id} — triggering immediate doFetch`);
+                        const done = await doFetch(session_id, vFilterRef.current);
+                        if (done) {
+                            es.close();
+                            console.log('[POLLING_DISABLED_VIA_HYDRATION_READY]');
+                        } else {
+                            // Not fully ready yet — start aggressive polling
+                            startPoll(1500);
+                        }
                     }
                 } catch (err) {
                     console.error('[SSE_PARSE_ERROR]', err);
@@ -2021,7 +1541,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                 console.warn('[SSE_ERROR] Falling back to adaptive polling.', err);
                 es.close();
                 // Fallback to legacy polling if SSE fails (e.g. proxy issues)
-                startPoll(3000);
+                startPoll(2000);
             };
         };
 
@@ -2040,8 +1560,13 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
             pollingIntervalRef2.current = timeoutId as any;
         };
 
-        // Prefer SSE, fallback to polling
+        // Prefer SSE, but ALWAYS run a parallel safety-net poll alongside it.
+        // Reason: the Vite/Django proxy can buffer SSE chunks so the frontend
+        // receives no onmessage events until the connection closes — by which
+        // time it fires onerror instead of onmessage. The parallel poll
+        // guarantees forward progress even if SSE is completely silent.
         startSSE(sid);
+        startPoll(3000); // [ROOT_CAUSE_FIX] parallel safety-net poll
         if (!uploadSessionId) return;
         if (step === 'review' && scanResults.length === 0) {
             // Do NOT pass uploadSessionId here. fetchStagedInvoices knows how to 
@@ -2715,28 +2240,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                 />
             )}
 
-            {/* Edit — handled by parent via onEditRow (opens canonical Purchase Voucher form) */}
-            {editingRow && (
-                <EditInvoiceModal
-                    row={editingRow}
-                    voucherType={voucherType}
-                    onClose={() => {
-                        fetchStagedInvoices();
-                        setEditingRow(null);
-                    }}
-                    onSave={(updatedData, revalidation) => {
-                        setScanResults(prev => prev.map(r => r.id === editingRow.id ? {
-                            ...r,
-                            extracted_data: updatedData,
-                            vendor_id: revalidation?.vendor_id ?? r.vendor_id,
-                            vendor_name: revalidation?.vendor_name ?? r.vendor_name,
-                            vendor_status: (revalidation?.vendor_status ?? r.vendor_status) as any,
-                            validationStatus: (revalidation?.status ?? r.validationStatus) as any,
-                        } : r));
-                        setEditingRow(null);
-                    }}
-                />
-            )}
+
 
             {/* Details Side Panel */}
             {detailsRow && (
@@ -3269,7 +2773,17 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                     <td className="px-2 py-3 text-center text-[10px] font-bold uppercase whitespace-nowrap">
                                                                         {getGstStatus(row) === 'GST_MISMATCH' ? (
                                                                             <button
-                                                                                onClick={() => setGstCorrectionRow(row)}
+                                                                                onClick={() => {
+                                                                                    if (onEditRow) {
+                                                                                        onEditRow({
+                                                                                            ...row,
+                                                                                            uploadSessionId: uploadSessionId,
+                                                                                            file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
+                                                                                        });
+                                                                                    } else {
+                                                                                        setGstCorrectionRow(row);
+                                                                                    }
+                                                                                }}
                                                                                 title="Click to resolve GST Mismatch"
                                                                                 className="hover:scale-105 active:scale-95 transition-transform duration-150 outline-none focus:outline-none cursor-pointer"
                                                                             >
@@ -3293,7 +2807,17 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                             <span className="bg-red-100 text-red-800 border border-red-300 px-2 py-1 rounded">Already Exist</span>
                                                                         ) : getGstStatus(row) === 'GST_MISMATCH' ? (
                                                                             <button
-                                                                                onClick={() => setEditingRow(row)}
+                                                                                onClick={() => {
+                                                                                    if (onEditRow) {
+                                                                                        onEditRow({
+                                                                                            ...row,
+                                                                                            uploadSessionId: uploadSessionId,
+                                                                                            file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
+                                                                                        });
+                                                                                    } else {
+                                                                                        showInfo("Editing is not available in standalone mode.");
+                                                                                    }
+                                                                                }}
                                                                                 title="Open Invoice to Resolve GST Mismatch"
                                                                                 className="bg-rose-600 text-white border border-rose-700 px-2 py-1 rounded hover:bg-rose-700 transition-colors cursor-pointer font-bold focus:outline-none inline-block shadow-sm"
                                                                             >
@@ -3309,7 +2833,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                                             file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
                                                                                         });
                                                                                     } else {
-                                                                                        setEditingRow(row);
+                                                                                        showInfo("Editing is not available in standalone mode.");
                                                                                     }
                                                                                 }}
                                                                                 title="Open Voucher For Review"

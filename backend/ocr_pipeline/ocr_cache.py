@@ -33,6 +33,12 @@ CACHE_KEY_PREFIX = "ocr_page_v1"
 CACHE_TTL_SECONDS = 60 * 60 * 24 * 30
 
 
+def generate_semantic_cache_key(ocr_text: str, model_name: str, model_version: str, prompt_hash: str, schema_hash: str) -> str:
+    """Deterministic semantic cache key generated from OCR text, model, prompt, and schema."""
+    raw_hash = hashlib.sha256(ocr_text.strip().encode('utf-8')).hexdigest()
+    return hashlib.sha256(f"{raw_hash}:{model_name}:{model_version}:{prompt_hash}:{schema_hash}".encode('utf-8')).hexdigest()
+
+
 def _make_cache_key(file_hash: str, page_number: int) -> str:
     """Deterministic cache key for a (file_hash, page_number) pair."""
     raw = f"{CACHE_KEY_PREFIX}:{file_hash}:{page_number}"

@@ -124,30 +124,43 @@ class AIWorker(BaseWorker):
         page_idx = payload.get('page_number') or payload.get('page_index') or task.get('page_number')
         
         logger.info(f"[FORENSIC_AI_RECEIVE] record={record_id} page={page_idx} timestamp={time.time():.6f}")
+        # slot_fanout_handled: set to True by _handle_task_inner() when the
+        # cache-hit or idempotency-skip path already called release_ai_slot()
+        # and trigger_next_fanout(). The finally block MUST NOT repeat those
+        # calls or it will double-release the slot and corrupt the sliding window.
+        slot_fanout_handled = False
         try:
-            await self._handle_task_inner(task)
+            slot_fanout_handled = await self._handle_task_inner(task)
         finally:
             session_id = task.get('session_id')
             tenant_id = task.get('tenant_id')
-            if record_id:
+            if record_id and not slot_fanout_handled:
                 try:
                     from core.redis_orchestrator import orchestrator
                     logger.info(f"[FORENSIC_AI_SLOT_RELEASE] record={record_id} page={page_idx} release_reason=FINALLY_BLOCK_CLEANUP timestamp={time.time():.6f}")
                     logger.info(f"[SLOT_FORCE_RELEASE] record={record_id} page={page_idx} session={session_id}")
                     orchestrator.release_ai_slot(str(record_id), page_idx, session_id=str(session_id), release_reason="FINALLY_BLOCK_CLEANUP", tenant_id=str(tenant_id))
                     
-                    # Ensure trigger_next_fanout is automatically invoked after the slot release to prevent sliding window stalls!
-                    from ocr_pipeline.pipeline import trigger_next_fanout
-                    logger.info(f"[FORENSIC_AI_FANOUT_TRIGGER] record={record_id} page={page_idx} timestamp={time.time():.6f}")
-                    loop = asyncio.get_running_loop()
-                    await loop.run_in_executor(
-                        self.executor,
-                        lambda: trigger_next_fanout(record_id)
-                    )
+                    # NOTE: trigger_next_fanout is NOT called here.
+                    # Every execution path already calls it explicitly:
+                    #   - Normal AI:          _process_result._persist() line ~781
+                    #   - Cache-hit:          cache-hit branch in _handle_task_inner
+                    #   - Idempotency-skip:   idempotency branch in _handle_task_inner
+                    #   - Unhandled except:   exception handler in _handle_task_inner
+                    # Adding it here again causes double-fanout that corrupts the
+                    # sliding-window counters and marks pages as orphans/failed.
                 except Exception as e:
                     logger.error(f"[SLOT_FORCE_RELEASE_ERROR] {e}")
+            elif record_id and slot_fanout_handled:
+                logger.info(f"[SLOT_FINALLY_SKIPPED] record={record_id} page={page_idx} reason=slot_already_released_by_inner_path")
 
-    async def _handle_task_inner(self, task: Dict[str, Any]):
+    async def _handle_task_inner(self, task: Dict[str, Any]) -> bool:
+        """
+        Returns True if the slot release and fanout trigger were already handled
+        internally (cache-hit or idempotency-skip paths). The caller's finally
+        block MUST check this return value before calling release_ai_slot() or
+        trigger_next_fanout() to avoid double-release corruption.
+        """
         # [PHASE 11.5] Unwrap canonical payload
         payload = task['payload']
         record_id = payload.get('record_id')
@@ -225,7 +238,8 @@ class AIWorker(BaseWorker):
                     )
                 except Exception as fan_err:
                     logger.error(f"[FANOUT_TRIGGER_IDEMPOTENCY_FAIL] record={record_id} err={fan_err}")
-                return
+                # Slot and fanout already handled — tell the finally block to skip
+                return True
         except Exception as e:
             logger.error(f"[IDEMPOTENCY_CHECK_FAIL] {e}")
 
@@ -241,9 +255,29 @@ class AIWorker(BaseWorker):
             logger.info(f"[OCR_RETRY_CHAIN_START] record={record_id} page={page_idx} max_passes={MAX_IMAGE_PASSES}")
 
             # ── [PHASE 4: OCR RESPONSE CACHE] ──
-            # Check if we have a cached extraction for this exact (file_hash, page_number).
-            # If so, skip the AI provider entirely and reuse the prior result.
-            if file_hash:
+            # Check if we have a cached extraction.
+            cached_payload = None
+            cache_key = payload.get('cache_key')
+            
+            logger.info(f"[CACHE_LOOKUP_START] record={record_id} page={page_idx} cache_key={cache_key}")
+            
+            if cache_key:
+                try:
+                    from ocr_pipeline.models import AICache
+                    db_record = await loop.run_in_executor(
+                        self.executor,
+                        lambda: AICache.objects.filter(key_hash=cache_key).first()
+                    )
+                    if db_record and db_record.payload:
+                        cached_payload = db_record.payload
+                        logger.info(f"[CACHE_HIT] record={record_id} page={page_idx} source=semantic_cache")
+                    else:
+                        logger.info(f"[CACHE_MISS] record={record_id} page={page_idx} source=semantic_cache")
+                except Exception as db_err:
+                    logger.warning(f"[CACHE_FALLBACK_TO_AI] record={record_id} page={page_idx} reason=db_lookup_error error={db_err}")
+            
+            # Fall back to file-hash cache if semantic cache check missed or was skipped
+            if not cached_payload and file_hash:
                 try:
                     from ocr_pipeline.ocr_cache import OCRResponseCache
                     logger.info(f"[FORENSIC_AI_CACHE_CHECK] record={record_id} page={page_idx} file_hash={file_hash} timestamp={time.time():.6f}")
@@ -252,70 +286,76 @@ class AIWorker(BaseWorker):
                         lambda: OCRResponseCache.get(file_hash, page_idx)
                     )
                     if cached_payload:
-                        logger.info(f"[FORENSIC_AI_CACHE_CHECK] record={record_id} page={page_idx} hit=True timestamp={time.time():.6f}")
-                        logger.info(
-                            f"[OCR_CACHE_HIT_FASTPATH] record={record_id} page={page_idx} "
-                            f"file_hash={file_hash} invoice_no={cached_payload.get('invoice_no')} "
-                            f"item_count={len(cached_payload.get('items') or [])} "
-                            "Skipping AI provider call."
-                        )
-                        # Inject live session context over the cached payload
-                        cached_payload = dict(cached_payload)
-                        cached_payload['record_id'] = str(record_id)
-                        cached_payload['upload_session_id'] = str(session_id)
-                        cached_payload['tenant_id'] = str(tenant_id)
-                        if job_id != 'unknown':
-                            cached_payload['job_id'] = str(job_id)
-
-                        # Preserve all underscore keys from task payload (e.g. _pdf_ocr_text)
-                        for k, v in payload.items():
-                            if k.startswith("_") and k not in cached_payload:
-                                cached_payload[k] = v
-
-                        # Ensure both _pdf_ocr_text and _raw_text are populated with the OCR text
-                        ocr_text_val = cached_payload.get('_pdf_ocr_text') or cached_payload.get('_raw_text')
-                        if ocr_text_val:
-                            cached_payload['_pdf_ocr_text'] = ocr_text_val
-                            cached_payload['_raw_text'] = ocr_text_val
-
-                        from core.redis_orchestrator import orchestrator
-                        orchestrator.release_ai_slot(
-                            str(record_id), page_idx,
-                            session_id=str(session_id),
-                            release_reason="CACHE_HIT",
-                            tenant_id=str(tenant_id)
-                        )
-                        from vouchers.coordinator import terminalize_page_state
-                        loop = asyncio.get_running_loop()
-                        await loop.run_in_executor(
-                            self.executor,
-                            lambda: terminalize_page_state(
-                                record_id=str(record_id),
-                                page_number=page_idx,
-                                session_id=session_id,
-                                is_failed=False,
-                                canonical_payload=cached_payload,
-                                worker_id="AIWorkerCacheHit",
-                                queue_source="ai_queue",
-                                tenant_id=tenant_id,
-                                correlation_id=correlation_id,
-                                job_id=job_id,
-                                item_id=payload.get('item_id') or task.get('item_id')
-                            )
-                        )
-                        # Trigger next fanout so we don't stall the sliding window!
-                        try:
-                            from ocr_pipeline.pipeline import trigger_next_fanout
-                            await loop.run_in_executor(
-                                self.executor,
-                                lambda: trigger_next_fanout(record_id)
-                            )
-                        except Exception as fan_err:
-                            logger.error(f"[FANOUT_TRIGGER_CACHE_FAIL] record={record_id} err={fan_err}")
-                        return
+                        logger.info(f"[CACHE_HIT] record={record_id} page={page_idx} source=file_hash_cache")
+                    else:
+                        logger.info(f"[CACHE_MISS] record={record_id} page={page_idx} source=file_hash_cache")
                 except Exception as _cache_err:
                     logger.warning(f"[OCR_CACHE_FASTPATH_ERR] record={record_id} page={page_idx} err={_cache_err}")
 
+            if cached_payload:
+                logger.info(
+                    f"[OCR_CACHE_HIT_FASTPATH] record={record_id} page={page_idx} "
+                    f"file_hash={file_hash} invoice_no={cached_payload.get('invoice_no')} "
+                    f"item_count={len(cached_payload.get('items') or [])} "
+                    "Skipping AI provider call."
+                )
+                # Inject live session context over the cached payload
+                cached_payload = dict(cached_payload)
+                cached_payload['record_id'] = str(record_id)
+                cached_payload['upload_session_id'] = str(session_id)
+                cached_payload['tenant_id'] = str(tenant_id)
+                if job_id != 'unknown':
+                    cached_payload['job_id'] = str(job_id)
+
+                # Preserve all underscore keys from task payload (e.g. _pdf_ocr_text)
+                for k, v in payload.items():
+                    if k.startswith("_") and k not in cached_payload:
+                        cached_payload[k] = v
+
+                # Ensure both _pdf_ocr_text and _raw_text are populated with the OCR text
+                ocr_text_val = cached_payload.get('_pdf_ocr_text') or cached_payload.get('_raw_text')
+                if ocr_text_val:
+                    cached_payload['_pdf_ocr_text'] = ocr_text_val
+                    cached_payload['_raw_text'] = ocr_text_val
+
+                from core.redis_orchestrator import orchestrator
+                orchestrator.release_ai_slot(
+                    str(record_id), page_idx,
+                    session_id=str(session_id),
+                    release_reason="CACHE_HIT",
+                    tenant_id=str(tenant_id)
+                )
+                from vouchers.coordinator import terminalize_page_state
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(
+                    self.executor,
+                    lambda: terminalize_page_state(
+                        record_id=str(record_id),
+                        page_number=page_idx,
+                        session_id=session_id,
+                        is_failed=False,
+                        canonical_payload=cached_payload,
+                        worker_id="AIWorkerCacheHit",
+                        queue_source="ai_queue",
+                        tenant_id=tenant_id,
+                        correlation_id=correlation_id,
+                        job_id=job_id,
+                        item_id=payload.get('item_id') or task.get('item_id')
+                    )
+                )
+                logger.info(f"[PAGE_TERMINALIZED] record={record_id} page={page_idx} source=cache_hit")
+                # Trigger next fanout so we don't stall the sliding window!
+                try:
+                    from ocr_pipeline.pipeline import trigger_next_fanout
+                    await loop.run_in_executor(
+                        self.executor,
+                        lambda: trigger_next_fanout(record_id)
+                    )
+                    logger.info(f"[NEXT_FANOUT_TRIGGERED] record={record_id} page={page_idx} source=cache_hit")
+                except Exception as fan_err:
+                    logger.error(f"[FANOUT_TRIGGER_CACHE_FAIL] record={record_id} err={fan_err}")
+                # Slot and fanout already handled — tell the finally block to skip
+                return True
 
             final_result = None
             success = False
@@ -709,6 +749,7 @@ class AIWorker(BaseWorker):
                         job_id=job_id,
                         item_id=item_id
                     )
+                    logger.info(f"[PAGE_TERMINALIZED] record={record_id} page={page_idx} source=ai_worker")
                     log_forensic_trace("persist_db_AFTER", record_id, f"page={page_idx} is_failed={is_failed} (saved)")
                 except Exception as inner_db_err:
                     logger.critical(f"[PERSIST_DB_FAILED] record={record_id} page={page_idx} error={inner_db_err}\ntrace={traceback.format_exc()}")
@@ -739,6 +780,7 @@ class AIWorker(BaseWorker):
 
                 from ocr_pipeline.pipeline import trigger_next_fanout
                 trigger_next_fanout(record_id)
+                logger.info(f"[NEXT_FANOUT_TRIGGERED] record={record_id} page={page_idx} source=ai_worker")
 
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(self.executor, _persist)

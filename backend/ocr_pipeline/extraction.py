@@ -9,7 +9,7 @@ import time
 import concurrent.futures
 import random
 from typing import Optional, List, Dict, Any
-from core.ai_proxy import ai_service
+from core.ai_proxy import ai_service, AI_MODEL_NAME
 from contextlib import contextmanager
 from django.db import models
 
@@ -17,6 +17,33 @@ import os
 from ocr_pipeline.models import AICache
 from django.db.models import F
 logger = logging.getLogger(__name__)
+
+schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
+
+base_prompt = f"""Extract PURCHASE invoice data into this exact JSON schema:
+
+{schema_str}
+
+RULES:
+1. vendor_address = "Consignee/Ship To" block; billing_address = "Buyer/Bill To" block only. Never mix them. Null if absent.
+2. invoice_no: prefer label "Invoice No"/"Bill No", near top/date, must have ≥ 1 digit, 3-25 chars.
+3. Line Item Columns:
+   Extract the columns exactly as printed on the invoice for each item:
+   - 'amount': Extract from the column labeled 'Amount', 'Value', or 'Total' exactly as printed.
+   - 'taxable_value': Extract from the column explicitly labeled 'Taxable Value', 'Taxable Amount', or 'Assessable Value' if and only if such a column is printed. Otherwise, leave as null. Do NOT calculate or derive it.
+   - 'discount_percent': Extract from the column explicitly labeled 'Disc.%', 'Discount %' if printed. Do NOT calculate or infer.
+   - 'discount_amount': Extract from the column explicitly labeled 'Discount' or 'Disc. Amt' if printed. Do NOT calculate or infer.
+   - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
+   Do NOT perform arithmetic operations, do NOT subtract GST, and do NOT attempt to reconcile layout semantics. The backend will handle calculations.
+4. HSN/SAC and UOM per item if visible.
+5. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
+6. Missing field → null. No hallucination. All numeric fields must be numbers.
+7. OCR text is the primary source of truth. Extract values exactly as they appear unless a rule above requires transformation.
+8. Do not invent or infer values that are not supported by the OCR text. If a field is ambiguous or absent, return null.
+9. Preserve line-item order exactly as it appears in the document.
+Return ONLY valid JSON.
+"""
+
 def compute_field_confidence(target_val: str, ocr_blocks: list) -> Optional[float]:
     """
     Computes confidence score for extracted text field by matching it with OCR blocks.
@@ -454,13 +481,15 @@ def extract_json_from_text(text, record_id=None, page=None):
         logger.debug(f"[JSON_REPAIR_APPLIED] record={record_id} page={page} strategy={strategy}")
     return repaired
 
-def _get_cached_ai_result(ocr_text: str) -> Optional[dict]:
-    """PHASE 9: Inference Cache Lookup."""
-    if not ocr_text or len(ocr_text) < 100:
-        return None
-    
-    key_hash = hashlib.sha256(ocr_text.encode()).hexdigest()
+def _get_cached_ai_result(ocr_text: str, model_name: str, model_version: str, prompt_hash: str, schema_hash: str) -> Optional[dict]:
+    """
+    Retrieves cached AI result matching the semantic hash of OCR text, prompt, schema, and model.
+    """
+    from django.utils import timezone
     try:
+        from ocr_pipeline.ocr_cache import generate_semantic_cache_key
+        key_hash = generate_semantic_cache_key(ocr_text, model_name, model_version, prompt_hash, schema_hash)
+        
         from ocr_pipeline.models import AICache
         cache_entry = AICache.objects.filter(key_hash=key_hash).first()
         if cache_entry:
@@ -470,21 +499,21 @@ def _get_cached_ai_result(ocr_text: str) -> Optional[dict]:
         logger.error(f"[CACHE_LOOKUP_ERR] {e}")
     return None
 
-def _set_cached_ai_result(ocr_text: str, payload: dict):
-    """PHASE 9: Inference Cache Save."""
-    if not ocr_text or len(ocr_text) < 100 or not payload:
-        return
-    
-    # Don't cache errors
-    if "_error" in payload or payload.get("status") == "OCR_FAILED":
-        return
-
-    key_hash = hashlib.sha256(ocr_text.encode()).hexdigest()
+def _set_cached_ai_result(ocr_text: str, payload: dict, model_name: str, model_version: str, prompt_hash: str, schema_hash: str):
+    """
+    Saves AI result to cache using the semantic hash of OCR text, prompt, schema, and model.
+    """
+    from django.utils import timezone
     try:
+        from ocr_pipeline.ocr_cache import generate_semantic_cache_key
+        key_hash = generate_semantic_cache_key(ocr_text, model_name, model_version, prompt_hash, schema_hash)
+        
         from ocr_pipeline.models import AICache
         AICache.objects.update_or_create(
             key_hash=key_hash,
-            defaults={'payload': payload}
+            defaults={
+                'payload': payload,
+            }
         )
     except Exception as e:
         logger.error(f"[CACHE_SAVE_ERR] {e}")
@@ -527,7 +556,7 @@ def extract_invoice(client, file_bytes=None, voucher_type='Purchase', upload_typ
     # Reduce AI requests by grouping pages.
     # If wait_for_result is False (async SQS pipeline), NEVER batch. 
     # Let SQS fanout each page to individual workers for maximum parallelization.
-    if not wait_for_result:
+    if not wait_for_result or AI_MODEL_NAME == 'mistral-ocr-latest':
         batch_size = 1
     elif page_count == 1:
         batch_size = 1
@@ -656,6 +685,7 @@ Return a JSON object with a "pages" key containing a list of {count} results in 
     #             Redundant: JSON schema structure already enforces the split.
     #   Rule 4 — "place_of_supply: state name or code (e.g. "33-Tamil Nadu")."
     #             Redundant: model infers GST state format from schema key name.
+    schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
     normalized_voucher_type = (
         str(voucher_type or "PURCHASE")
         .strip()
@@ -663,12 +693,19 @@ Return a JSON object with a "pages" key containing a list of {count} results in 
     )
     base_prompt = f"""Extract {normalized_voucher_type} invoice data into this exact JSON schema:
 
-{{"header":{{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""}},"items":[{{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}}]}}
+{schema_str}
 
 RULES:
 1. vendor_address = "Consignee/Ship To" block; billing_address = "Buyer/Bill To" block only. Never mix them. Null if absent.
 2. invoice_no: prefer label "Invoice No"/"Bill No", near top/date, must have ≥ 1 digit, 3-25 chars.
-3. total_amount = taxable_value + cgst + sgst + igst. item amount = taxable_value + taxes.
+3. Line Item Columns:
+   Extract the columns exactly as printed on the invoice for each item:
+   - 'amount': Extract from the column labeled 'Amount', 'Value', or 'Total' exactly as printed.
+   - 'taxable_value': Extract from the column explicitly labeled 'Taxable Value', 'Taxable Amount', or 'Assessable Value' if and only if such a column is printed. Otherwise, leave as null. Do NOT calculate or derive it.
+   - 'discount_percent': Extract from the column explicitly labeled 'Disc.%', 'Discount %' if printed. Do NOT calculate or infer.
+   - 'discount_amount': Extract from the column explicitly labeled 'Discount' or 'Disc. Amt' if printed. Do NOT calculate or infer.
+   - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
+   Do NOT perform arithmetic operations, do NOT subtract GST, and do NOT attempt to reconcile layout semantics. The backend will handle calculations.
 4. HSN/SAC and UOM per item if visible.
 5. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
 6. Missing field → null. No hallucination. All numeric fields must be numbers.
@@ -683,25 +720,39 @@ Return ONLY valid JSON.
         HARD ISOLATION RULE: ONE PAGE -> ONE OCR TEXT -> ONE IMAGE -> ONE REQUEST
         PHASE 9: CACHE AWARE.
         """
-        # 1. Cache Check
-        cached_res = _get_cached_ai_result(page_ocr_text)
-        if cached_res:
-            logger.info(f"[AI_CACHE_HIT] record={record_id} page={page_idx+1}")
-            # ── [CACHE_OCR_TEXT_RESTORE] ──
-            # The cache stores only the AI extraction result, not the raw OCR text.
-            # Re-inject _pdf_ocr_text so downstream grouping / continuation detection
-            # (classify_page, detect_continuation_markers) can function correctly.
-            # Without this, cache hits produce empty _raw_text, causing PAGE_ROLE_PRIMARY
-            # mis-classification and multi-page invoice split failures.
-            if page_ocr_text and not cached_res.get("_pdf_ocr_text"):
-                cached_res = dict(cached_res)  # shallow copy — never mutate the cached object
-                cached_res["_pdf_ocr_text"] = page_ocr_text
-                cached_res["_raw_text"] = page_ocr_text
-            try:
-                log_forensic_page_dto(cached_res, upload_session_id, record_id, page_idx + 1, page_ocr_text)
-            except Exception as le:
-                logger.warning(f"[FORENSIC_PAGE_DTO_LOG_ERR] {le}")
-            return cached_res
+        # Build prompt & schema hashes
+        prompt_hash = hashlib.sha256(base_prompt.encode('utf-8')).hexdigest()
+        schema_hash = hashlib.sha256(schema_str.encode('utf-8')).hexdigest()
+        
+        # 1. Cache Check (Synchronous Mode only)
+        if wait_for_result:
+            cached_res = _get_cached_ai_result(
+                ocr_text=page_ocr_text,
+                model_name=AI_MODEL_NAME,
+                model_version="latest",
+                prompt_hash=prompt_hash,
+                schema_hash=schema_hash
+            )
+            if cached_res:
+                logger.info(f"[AI_CACHE_HIT] record={record_id} page={page_idx+1}")
+                # ── [CACHE_OCR_TEXT_RESTORE] ──
+                # The cache stores only the AI extraction result, not the raw OCR text.
+                # Re-inject _pdf_ocr_text so downstream grouping / continuation detection
+                # (classify_page, detect_continuation_markers) can function correctly.
+                # Without this, cache hits produce empty _raw_text, causing PAGE_ROLE_PRIMARY
+                # mis-classification and multi-page invoice split failures.
+                if page_ocr_text and not cached_res.get("_pdf_ocr_text"):
+                    cached_res = dict(cached_res)  # shallow copy — never mutate the cached object
+                    cached_res["_pdf_ocr_text"] = page_ocr_text
+                    cached_res["_raw_text"] = page_ocr_text
+                try:
+                    log_forensic_page_dto(cached_res, upload_session_id, record_id, page_idx + 1, page_ocr_text)
+                except Exception as le:
+                    logger.warning(f"[FORENSIC_PAGE_DTO_LOG_ERR] {le}")
+                return cached_res
+
+        from ocr_pipeline.ocr_cache import generate_semantic_cache_key
+        cache_key = generate_semantic_cache_key(page_ocr_text, AI_MODEL_NAME, "latest", prompt_hash, schema_hash)
 
         t_start_pb = time.time()
         # Configurable routing mode (Digital vs Scanned vs Low-Confidence)
@@ -783,6 +834,7 @@ Return ONLY valid JSON.
             'page_number': page_idx + 1,
             'total_pages': total_pages,
             'wait_for_result': wait_for_result,
+            'cache_key': cache_key,
             '_pdf_ocr_text': page_ocr_text,
             'file_hash': parent_hash,
             'dpi': iso_res.get('dpi') if iso_res else None,
@@ -903,9 +955,12 @@ Return ONLY valid JSON.
             return mock_payload
 
         if not wait_for_result:
+            res = ai_service.make_request('extraction', request_data, user_id, tenant_id, metadata=metadata)
+            logger.info(f"[FORENSIC_SQS_PUBLISH] record={record_id} page_number={page_idx+1} timestamp={time.time():.6f}")
+            logger.info(f"[FANOUT_QUEUED] record_id={record_id} page_number={page_idx+1} session={upload_session_id}")
             logger.info(f"[PIPELINE_AI_ENQUEUE] record_id={record_id} queue=ai_requests")
             logger.info(f"[SQS_PUSH] record={record_id} page={page_idx+1} queue=ai_requests")
-            return ai_service.make_request('extraction', request_data, user_id, tenant_id, metadata=metadata)
+            return res
         
         # [PHASE 9: 429 HANDLING & RETRIES]
         # Prevents transient quota bursts from failing the task permanently.
@@ -998,7 +1053,14 @@ Return ONLY valid JSON.
             result["_raw_text"] = raw_text
             
             # 2. Save to Cache
-            _set_cached_ai_result(page_ocr_text, result)
+            _set_cached_ai_result(
+                ocr_text=page_ocr_text,
+                payload=result,
+                model_name=AI_MODEL_NAME,
+                model_version="latest",
+                prompt_hash=prompt_hash,
+                schema_hash=schema_hash
+            )
             try:
                 log_forensic_page_dto(result, upload_session_id, record_id, page_idx + 1, page_ocr_text)
             except Exception as le:
@@ -1350,8 +1412,6 @@ Return ONLY valid JSON.
             for idx, res in batch_res:
                 results_map[idx] = res
                 if not wait_for_result:
-                     logger.info(f"[FORENSIC_SQS_PUBLISH] record={record_id} page_number={idx+1} timestamp={time.time():.6f}")
-                     logger.info(f"[FANOUT_QUEUED] record_id={record_id} page_number={idx+1} session={upload_session_id}")
                      if record_id:
                          try:
                              rec_id_str = str(record_id)

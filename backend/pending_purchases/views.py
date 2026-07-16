@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import PendingPurchase
 from django.db import transaction
+from ocr_pipeline.models import InvoiceTempOCR
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,6 @@ class PendingPurchaseViewSet(viewsets.ModelViewSet):
         tries to automatically repair the link by finding another staging record
         in the same upload session that matches the invoice number.
         """
-        from ocr_pipeline.models import InvoiceTempOCR
-        
         staging = InvoiceTempOCR.objects.filter(id=pp.source_scan_row_id).first()
         if not staging and pp.scan_session_id and pp.invoice_number:
             clean_inv = str(pp.invoice_number).strip().upper()
@@ -55,7 +54,6 @@ class PendingPurchaseViewSet(viewsets.ModelViewSet):
         """
         try:
             from django.db.models import Q
-            from ocr_pipeline.models import InvoiceTempOCR
             from ocr_pipeline.pipeline import validate_and_process
 
             related_qs = PendingPurchase.objects.filter(
@@ -394,7 +392,6 @@ class PendingPurchaseViewSet(viewsets.ModelViewSet):
         failed_count = 0
         errors = []
 
-        from ocr_pipeline.models import InvoiceTempOCR
         from ocr_pipeline.pipeline import validate_and_process
         from django.utils import timezone
 

@@ -18,6 +18,8 @@ class CanonicalInvoiceItem(BaseModel):
     cgst_rate: float = 0.0
     sgst_rate: float = 0.0
     cess_rate: float = 0.0
+    discount_percent: float = 0.0
+    discount_amount: float = 0.0
     
     # Phase 2 Identity stabilization fields
     raw_item_name: str = ""
@@ -130,3 +132,48 @@ class NormalizedInvoiceSchema(BaseModel):
     total_amount: float
     status: str
     error_code: Optional[str] = None
+
+
+class RawInvoiceItem(BaseModel):
+    """Immutable representation of what the AI extracted for a line item."""
+    description: Optional[str] = None
+    hsn_code: Optional[str] = None
+    quantity: Optional[float] = None
+    uom: Optional[str] = None
+    rate: Optional[float] = None
+    discount_percent: Optional[float] = None
+    discount_amount: Optional[float] = None
+    taxable_value: Optional[float] = None
+    cgst_rate: Optional[float] = None
+    cgst_amount: Optional[float] = None
+    sgst_rate: Optional[float] = None
+    sgst_amount: Optional[float] = None
+    igst_rate: Optional[float] = None
+    igst_amount: Optional[float] = None
+    cess_rate: Optional[float] = None
+    cess_amount: Optional[float] = None
+    amount: Optional[float] = None
+
+
+class RawInvoiceSchema(BaseModel):
+    """Immutable representation of the header and item data extracted by AI."""
+    vendor_name: Optional[str] = None
+    vendor_address: Optional[str] = None
+    billing_address: Optional[str] = None
+    vendor_gstin: Optional[str] = None
+    vendor_state: Optional[str] = None
+    place_of_supply: Optional[str] = None
+    invoice_no: Optional[str] = None
+    invoice_date: Optional[str] = None
+    total_amount: Optional[float] = None
+    taxable_value: Optional[float] = None
+    cgst: Optional[float] = None
+    sgst: Optional[float] = None
+    igst: Optional[float] = None
+    gst_taxability_type: Optional[str] = None
+    gst_nature_of_transaction: Optional[str] = None
+    sales_order_no: Optional[str] = None
+    irn: Optional[str] = None
+    ack_no: Optional[str] = None
+    ack_date: Optional[str] = None
+    items: List[RawInvoiceItem] = Field(default_factory=list)

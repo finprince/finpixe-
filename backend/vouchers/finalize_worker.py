@@ -156,8 +156,12 @@ class FinalizeWorker(BaseWorker):
                              eligible_save_tuples = get_save_eligible_rows(canonical_session_id, tenant_id)
                              eligible_pending_tuples = get_pending_purchase_eligible_rows(canonical_session_id, tenant_id=tenant_id)
                              
-                             eligible_save_ids = [str(t[0].id) for t in eligible_save_tuples]
-                             eligible_pending_ids = [str(t[0].id) for t in eligible_pending_tuples]
+                             # Phase 5: Use sets (not lists) for O(1) membership checking.
+                             # PROBLEM: list membership `x in [...]` is O(N) per check.
+                             # For a session with N records this makes the inner loop O(N²).
+                             # FIX: Use set comprehensions — O(1) per `in` check.
+                             eligible_save_ids = {str(t[0].id) for t in eligible_save_tuples}
+                             eligible_pending_ids = {str(t[0].id) for t in eligible_pending_tuples}
                              
                              for record_obj in all_session_records:
                                  eligible = str(record_obj.id) in eligible_save_ids or str(record_obj.id) in eligible_pending_ids

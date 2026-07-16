@@ -1074,7 +1074,77 @@ def snap_to_standard_gst_rate(rate: float) -> float:
             return r
     return round(rate, 2)
 
-def get_normalized_items(invoice: Any, tenant_id: str = None) -> List[Dict[str, Any]]:
+def calculate_item_taxable_value(item: Dict[str, Any], layout_type: str = "Layout C") -> float:
+    """
+    Calculates correct taxable value for an item using deterministic layout rules:
+    - Layout A (Post-Discount Pre-Tax Amount): taxable value = amount.
+    - Layout B (Explicit Taxable + Inclusive Amount): taxable value = raw taxable_value.
+    - Layout C (Ambiguous): Keep raw values exactly as canonical without estimation.
+    """
+    qty_val = item.get("qty") or item.get("quantity") or item.get("Qty") or item.get("quantity_extracted")
+    rate_val = item.get("rate") or item.get("unit_price") or item.get("Item Rate") or item.get("rate_extracted")
+    
+    qty = normalize_amount(qty_val) if qty_val is not None else 0.0
+    rate = normalize_amount(rate_val) if rate_val is not None else 0.0
+    
+    disc_pct_val = item.get("discount_percent") or item.get("discount_pct") or item.get("discount_percentage") or item.get("discount_percent_extracted")
+    disc_amt_val = item.get("discount_amount") or item.get("discount") or item.get("discount_value") or item.get("discount_extracted")
+    
+    disc_pct = normalize_amount(disc_pct_val) if disc_pct_val is not None else 0.0
+    disc_amt = normalize_amount(disc_amt_val) if disc_amt_val is not None else 0.0
+    
+    amt_val = item.get("amount") or item.get("Amount") or item.get("line_amount")
+    amount = normalize_amount(amt_val) if amt_val is not None else 0.0
+
+    taxable_val = item.get("taxable_value") or item.get("Taxable Value") or item.get("taxableValue") or item.get("taxable_value_extracted")
+    raw_taxable = normalize_amount(taxable_val) if taxable_val is not None else 0.0
+
+    if layout_type == "Layout A":
+        if amount > 0.0:
+            return amount
+        discount = (qty * rate) * (disc_pct / 100.0) if disc_pct > 0.0 else disc_amt
+        return round((qty * rate) - discount, 2)
+        
+    elif layout_type == "Layout B":
+        if raw_taxable > 0.0:
+            return raw_taxable
+        if amount > 0.0:
+            return amount
+        return round(qty * rate, 2)
+        
+    else:
+        # Layout C / Ambiguous - Keep raw extracted values as canonical without guesswork
+        if raw_taxable > 0.0:
+            return raw_taxable
+        if amount > 0.0:
+            return amount
+        return round(qty * rate, 2)
+
+def _get_header_total_by_keys(invoice: Any, keys: List[str]) -> float:
+    if not isinstance(invoice, dict):
+        return 0.0
+    for k in keys:
+        val = invoice.get(k)
+        if val is not None and not is_empty(val):
+            return normalize_amount(val)
+    header = invoice.get("header", {})
+    if isinstance(header, dict):
+        for k in keys:
+            val = header.get(k)
+            if val is not None and not is_empty(val):
+                return normalize_amount(val)
+    sections = invoice.get("sections", {})
+    if isinstance(sections, dict):
+        for sec_name in ("supplier_details", "summary", "tax_details"):
+            sec = sections.get(sec_name, {})
+            if isinstance(sec, dict):
+                for k in keys:
+                    val = sec.get(k)
+                    if val is not None and not is_empty(val):
+                        return normalize_amount(val)
+    return 0.0
+
+def get_normalized_items(invoice: Any, tenant_id: str = None, layout_type: str = "Layout C") -> List[Dict[str, Any]]:
     """
     CANONICAL ITEM NORMALIZER.
     """
@@ -1089,7 +1159,7 @@ def get_normalized_items(invoice: Any, tenant_id: str = None) -> List[Dict[str, 
         desc = (item.get("description") or item.get("desc") or item.get("particulars") or item.get("item_name") or item.get("Item Name") or "")
         if not desc: continue
         
-        taxable = normalize_amount(item.get("taxable_value") or item.get("amount") or item.get("Taxable Value"))
+        taxable = calculate_item_taxable_value(item, layout_type=layout_type)
         # Track whether quantity was explicitly provided or is a fallback default.
         # If Qwen returns quantity=null (e.g. because only rate is visible on the row),
         # the `or 1.0` below kicks in. We record this so we can derive qty later.
@@ -1151,6 +1221,7 @@ def get_normalized_items(invoice: Any, tenant_id: str = None) -> List[Dict[str, 
         sg_rate = snap_to_standard_gst_rate(get_tax_rate("sgst", sg_amt))
         ce_rate = round(get_tax_rate("cess", ce_amt), 2)
 
+
         # Check for direct GST rate extraction keys
         gst_direct_rate = 0.0
         for suffix in ["gst_rate", "gst_pct", "gst_percent", "gst_percentage", "gst_%", "tax_rate", "tax_pct", "tax_percent", "tax_percentage", "tax_%", "GST_RATE", "GST_PCT", "GST_PERCENT", "GST_PERCENTAGE"]:
@@ -1197,12 +1268,39 @@ def get_normalized_items(invoice: Any, tenant_id: str = None) -> List[Dict[str, 
                 )
                 qty = derived_qty
 
+        # ── CANONICAL DISCOUNT EXTRACTION ──
+        # Resolve discount percentage from all known key variants.
+        # Use explicit numeric comparison (not `or`) to handle discount_percent=0 correctly.
+        _disc_pct_raw = (
+            item.get("discount_percent")
+            if item.get("discount_percent") is not None
+            else item.get("discount_pct")
+            if item.get("discount_pct") is not None
+            else item.get("discount_percentage")
+            if item.get("discount_percentage") is not None
+            else item.get("discount_percent_extracted")
+        )
+        _disc_amt_raw = (
+            item.get("discount_amount")
+            if item.get("discount_amount") is not None
+            else item.get("discount")
+            if item.get("discount") is not None
+            else item.get("discount_value")
+            if item.get("discount_value") is not None
+            else item.get("discount_extracted")
+        )
+        canonical_disc_pct = normalize_amount(_disc_pct_raw) if _disc_pct_raw is not None else 0.0
+        canonical_disc_amt = normalize_amount(_disc_amt_raw) if _disc_amt_raw is not None else 0.0
+
         normalized_item = {
             "description": desc,
             "hsn_sac": str(item.get("hsn_sac") or item.get("hsn_code") or item.get("HSN/SAC") or item.get("hsn") or item.get("sac") or ""),
             "qty": qty,
             "uom": resolve_uom(item.get("uom") or item.get("unit") or item.get("UOM") or "", tenant_id=tenant_id),
             "rate": derived_rate,
+            # ── CANONICAL DISCOUNT FIELDS — always present so UI/backend agree ──
+            "discount_percent": canonical_disc_pct,
+            "discount_amount": canonical_disc_amt,
             "taxable_value": taxable,
             "igst": ig_amt,
             "cgst": cg_amt,
@@ -1215,12 +1313,84 @@ def get_normalized_items(invoice: Any, tenant_id: str = None) -> List[Dict[str, 
             "computed_gst_rate": computed_gst,
         }
         # Copy other custom/original keys to prevent loss of fields (like item_code, etc.)
+        # Note: discount_percent and discount_amount are now explicit canonical keys above,
+        # so they will NOT be overwritten by the fallback loop.
         for k, v in item.items():
             if k not in normalized_item:
                 normalized_item[k] = v
 
         normalized_items.append(normalized_item)
-        
+
+    # ── [DOCUMENT-LEVEL GST_RATE_DUPLICATION_CORRECTION] ─────────────────────
+    header_cgst = _get_header_total_by_keys(invoice, ["total_cgst", "cgst"])
+    header_sgst = _get_header_total_by_keys(invoice, ["total_sgst", "sgst", "total_sgst_utgst", "sgst_utgst"])
+    header_igst = _get_header_total_by_keys(invoice, ["total_igst", "igst"])
+
+    sum_item_cgst = sum(normalize_amount(itm.get("cgst")) for itm in normalized_items)
+    sum_item_sgst = sum(normalize_amount(itm.get("sgst")) for itm in normalized_items)
+
+    cgst_ratio = (sum_item_cgst / header_cgst) if header_cgst > 0.0 else 0.0
+    sgst_ratio = (sum_item_sgst / header_sgst) if header_sgst > 0.0 else 0.0
+
+    _is_intrastate_doc = (header_igst == 0.0)
+    _has_header_taxes  = (header_cgst > 0.0 and header_sgst > 0.0)
+    _cgst_ratio_doubled = (1.95 <= cgst_ratio <= 2.05)
+    _sgst_ratio_doubled = (1.95 <= sgst_ratio <= 2.05)
+
+    if _is_intrastate_doc and _has_header_taxes and _cgst_ratio_doubled and _sgst_ratio_doubled:
+        logger.info(
+            f"[GST_MODE_B_DOCUMENT_CORRECTION_TRIGGERED] "
+            f"record_id={invoice.get('record_id') if isinstance(invoice, dict) else None} "
+            f"header_cgst={header_cgst} header_sgst={header_sgst} "
+            f"sum_item_cgst={sum_item_cgst} sum_item_sgst={sum_item_sgst} "
+            f"cgst_ratio={cgst_ratio:.4f} sgst_ratio={sgst_ratio:.4f}"
+        )
+        _KNOWN_COMBINED_GST_RATES = {3.0, 5.0, 12.0, 18.0, 28.0}
+        for itm in normalized_items:
+            cg_rate = float(itm.get("cgst_rate") or 0.0)
+            sg_rate = float(itm.get("sgst_rate") or 0.0)
+            cg_amt  = float(itm.get("cgst") or 0.0)
+            sg_amt  = float(itm.get("sgst") or 0.0)
+
+            # Check qualifying criteria for this item independently
+            _qualifies = (
+                cg_rate > 0.0 and sg_rate > 0.0 and
+                cg_rate == sg_rate and
+                cg_rate in _KNOWN_COMBINED_GST_RATES and
+                cg_amt > 0.0 and sg_amt > 0.0
+            )
+
+            if _qualifies:
+                orig_cg_rate = cg_rate
+                orig_sg_rate = sg_rate
+                orig_cg_amt = cg_amt
+                orig_sg_amt = sg_amt
+
+                # Halve the values
+                new_cg_rate = round(cg_rate / 2.0, 4)
+                new_sg_rate = round(sg_rate / 2.0, 4)
+                new_cg_amt  = round(cg_amt / 2.0, 2)
+                new_sg_amt  = round(sg_amt / 2.0, 2)
+
+                # Mutate qualifying fields
+                itm["cgst_rate"] = new_cg_rate
+                itm["sgst_rate"] = new_sg_rate
+                itm["cgst"] = new_cg_amt
+                itm["sgst"] = new_sg_amt
+                if "cgst_amount" in itm:
+                    itm["cgst_amount"] = new_cg_amt
+                if "sgst_amount" in itm:
+                    itm["sgst_amount"] = new_sg_amt
+                itm["computed_gst_rate"] = round(new_cg_rate + new_sg_rate, 4)
+
+                logger.info(
+                    f"[GST_MODE_B_ITEM_CORRECTED] "
+                    f"desc='{itm.get('description')}' "
+                    f"before: rate={orig_cg_rate}/{orig_sg_rate} amt={orig_cg_amt}/{orig_sg_amt} "
+                    f"after: rate={new_cg_rate}/{new_sg_rate} amt={new_cg_amt}/{new_sg_amt}"
+                )
+    # ─────────────────────────────────────────────────────────────────────────
+
     return merge_item_continuations(normalized_items)
 
 def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str, Any]:
@@ -1269,8 +1439,74 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
     # ── [PHASE 11.9] FORENSIC DTO AUDIT ──
     logger.info(f"[DTO_PRE_VALIDATION] record_id={invoice.get('record_id')} keys={list(invoice.keys())}")
 
+    # ── [LAYOUT CONVENTION CLASSIFICATION] ──
+    layout_type = "Layout C"
+    layout_confidence = "LOW"
+    
+    raw_items_list = []
+    if isinstance(invoice, dict):
+        raw_items_list = invoice.get("items") or invoice.get("sections", {}).get("items") or invoice.get("line_items") or []
+
+    # Store immutable _raw_extraction if not already populated
+    if isinstance(invoice, dict) and "_raw_extraction" not in invoice:
+        # Clone raw fields excluding metadata / private keys
+        raw_clone = {k: copy.deepcopy(v) for k, v in invoice.items() if not k.startswith('_')}
+        invoice["_raw_extraction"] = raw_clone
+
+    total_raw_items = len(raw_items_list)
+    layout_a_matches = 0
+    layout_b_matches = 0
+    has_discount = False
+
+    for itm in raw_items_list:
+        if not isinstance(itm, dict):
+            continue
+        qty = normalize_amount(itm.get("qty") or itm.get("quantity"))
+        rate = normalize_amount(itm.get("rate") or itm.get("unit_price"))
+        amount = normalize_amount(itm.get("amount") or itm.get("line_amount"))
+        taxable = normalize_amount(itm.get("taxable_value"))
+        
+        disc_pct = normalize_amount(itm.get("discount_percent") or itm.get("discount_pct") or itm.get("discount_percentage"))
+        disc_amt = normalize_amount(itm.get("discount_amount") or itm.get("discount") or itm.get("discount_value"))
+        
+        cgst_a = normalize_amount(itm.get("cgst_amount") or itm.get("cgst"))
+        sgst_a = normalize_amount(itm.get("sgst_amount") or itm.get("sgst"))
+        igst_a = normalize_amount(itm.get("igst_amount") or itm.get("igst"))
+        taxes = cgst_a + sgst_a + igst_a
+        
+        gross = qty * rate
+        discount = 0.0
+        if disc_pct > 0.0:
+            has_discount = True
+            discount = gross * (disc_pct / 100.0)
+        elif disc_amt > 0.0:
+            has_discount = True
+            discount = disc_amt
+            
+        expected_taxable_a = gross - discount
+        
+        # Layout A: Amount column represents pre-tax post-discount taxable value
+        if abs(expected_taxable_a - amount) <= 1.0 and amount > 0.0:
+            layout_a_matches += 1
+            
+        # Layout B: Amount represents inclusive total
+        if taxable > 0.0 and abs((taxable + taxes) - amount) <= 1.0 and amount > 0.0:
+            layout_b_matches += 1
+
+    if has_discount and layout_a_matches == total_raw_items and total_raw_items > 0:
+        layout_type = "Layout A"
+        layout_confidence = "HIGH"
+    elif layout_b_matches == total_raw_items and total_raw_items > 0:
+        layout_type = "Layout B"
+        layout_confidence = "HIGH"
+    else:
+        layout_type = "Layout C"
+        layout_confidence = "LOW"
+
+    logger.info(f"[LAYOUT_CONVENTION_DETERMINED] record_id={invoice.get('record_id')} layout_type={layout_type} confidence={layout_confidence}")
+
     raw_header = get_normalized_export_record(invoice, tenant_id=tenant_id)
-    raw_items = get_normalized_items(invoice, tenant_id=tenant_id)
+    raw_items = get_normalized_items(invoice, tenant_id=tenant_id, layout_type=layout_type)
 
     # ── [PHASE 3: DETERMINISTIC RECOVERY & PROPAGATION] ──
     import os
@@ -1518,6 +1754,8 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
                 qty=normalize_amount(item.get("qty", 0.0)),
                 uom=str(item.get("uom", "")),
                 rate=normalize_amount(item.get("rate", 0.0)),
+                discount_percent=normalize_amount(item.get("discount_percent", 0.0)),
+                discount_amount=normalize_amount(item.get("discount_amount", 0.0)),
                 taxable_value=normalize_amount(item.get("taxable_value", 0.0)),
                 igst=normalize_amount(item.get("igst", 0.0)),
                 cgst=normalize_amount(item.get("cgst", 0.0)),
@@ -1547,6 +1785,61 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
             logger.error(f"[DTO_ITEM_COERCION_FAIL] item={item} error={ie}")
 
     schema_data["items"] = canonical_items
+
+    # ── Item Consistency Validation ──
+    validation_warnings = []
+    item_consistency = []
+    
+    # Retrieve raw items from _raw_extraction
+    raw_items_extract = []
+    if isinstance(invoice, dict):
+        raw_items_extract = invoice.get("_raw_extraction", {}).get("items") or []
+    
+    # We compare each normalized canonical item against the corresponding raw extracted item
+    for idx, c_item in enumerate(canonical_items):
+        c_taxable = normalize_amount(c_item.taxable_value)
+        r_taxable = 0.0
+        if idx < len(raw_items_extract) and isinstance(raw_items_extract[idx], dict):
+            r_itm = raw_items_extract[idx]
+            r_taxable = normalize_amount(r_itm.get("taxable_value") or r_itm.get("taxableValue"))
+            
+        # Check arithmetic consistency of canonical item itself
+        gross = c_item.qty * c_item.rate
+        discount = gross * (c_item.discount_percent / 100.0) if c_item.discount_percent > 0.0 else c_item.discount_amount
+        expected_taxable = gross - discount
+        
+        is_consistent = abs(expected_taxable - c_taxable) <= 1.0
+        
+        item_consistency.append({
+            "item_index": idx,
+            "description": c_item.description,
+            "gross": gross,
+            "expected_taxable": expected_taxable,
+            "canonical_taxable": c_taxable,
+            "raw_taxable": r_taxable,
+            "is_consistent": is_consistent
+        })
+        
+        if not is_consistent:
+            validation_warnings.append(f"item_{idx}_arithmetic_mismatch")
+            
+        if abs(c_taxable - r_taxable) > 1.0 and r_taxable > 0.0:
+            validation_warnings.append(f"item_{idx}_taxable_reinterpretation")
+
+    if layout_type == "Layout C":
+        validation_warnings.append("ambiguous_invoice_layout")
+        
+    if isinstance(invoice, dict):
+        invoice["_validation_metadata"] = {
+            "layout_confidence": layout_confidence,
+            "layout_type": layout_type,
+            "validation_warnings": validation_warnings,
+            "item_consistency": item_consistency
+        }
+        
+    # Propagate validation warnings to root level warnings for backward compatibility
+    existing_warnings = schema_data.get("warnings") or []
+    schema_data["warnings"] = list(set(list(existing_warnings) + validation_warnings))
     
     try:
         canonical_obj = CanonicalInvoiceSchema(**schema_data)

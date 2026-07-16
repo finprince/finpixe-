@@ -3,6 +3,99 @@ import { httpClient } from '../services/httpClient';
 import { showError, showSuccess } from '../utils/toast';
 import Icon from './Icon';
 
+const round = (num: number, decimals: number = 2): number => {
+    const factor = Math.pow(10, decimals);
+    return Math.round((num + Number.EPSILON) * factor) / factor;
+};
+
+/**
+ * Returns the canonical discount percentage for an item,
+ * checking all known key variants.  Returns 0 when no discount.
+ */
+const getItemDiscountPct = (item: any, rawItem?: any): number => {
+    // Use explicit null/undefined checks so discount_percent = 0 is NOT skipped.
+    let val = 0;
+    if (item.discount_percent !== undefined && item.discount_percent !== null) val = Number(item.discount_percent);
+    else if (item.discount_pct !== undefined && item.discount_pct !== null) val = Number(item.discount_pct);
+    else if (item.discount_percentage !== undefined && item.discount_percentage !== null) val = Number(item.discount_percentage);
+    else if (item.discount_percent_extracted !== undefined && item.discount_percent_extracted !== null) val = Number(item.discount_percent_extracted);
+    
+    if (val === 0 && rawItem) {
+        return getItemDiscountPct(rawItem);
+    }
+    return val;
+};
+
+/**
+ * Returns the canonical discount amount for an item.
+ * Returns 0 when no discount.
+ */
+const getItemDiscountAmt = (item: any, rawItem?: any): number => {
+    let val = 0;
+    if (item.discount_amount !== undefined && item.discount_amount !== null) val = Number(item.discount_amount);
+    else if (item.discount_value !== undefined && item.discount_value !== null) val = Number(item.discount_value);
+    else if (item.discount_extracted !== undefined && item.discount_extracted !== null) val = Number(item.discount_extracted);
+    // Note: item.discount is intentionally NOT used as a fallback here because
+    // the 'discount' key is overloaded in some contexts as a description label.
+    
+    if (val === 0 && rawItem) {
+        return getItemDiscountAmt(rawItem);
+    }
+    return val;
+};
+
+const calculateItemTaxableValue = (item: any, rawItem?: any): number => {
+    const qty  = Number(item.qty || item.quantity || 0);
+    const rate = Number(item.rate || item.unit_price || item.itemRate || 0);
+
+    const discPct = getItemDiscountPct(item, rawItem);
+    const discAmt = getItemDiscountAmt(item, rawItem);
+
+    // Rule 1 – If a discount is specified, compute from gross.
+    if (discPct > 0) {
+        return round((qty * rate) * (1 - discPct / 100), 2);
+    }
+    if (discAmt > 0) {
+        return round((qty * rate) - discAmt, 2);
+    }
+
+    // Rule 2 – No discount: trust the backend-computed taxable_value directly.
+    // The backend already ran calculate_item_taxable_value and stored the result.
+    // Do NOT re-derive from GST amounts or estimate.
+    const explicitTaxable =
+        item.taxable_value !== undefined ? item.taxable_value :
+        item.TaxableValue !== undefined ? item.TaxableValue :
+        item.taxableValue !== undefined ? item.taxableValue : undefined;
+    if (explicitTaxable !== undefined && explicitTaxable !== null && explicitTaxable !== '') {
+        return Number(explicitTaxable);
+    }
+
+    // Rule 3 – Fall back to the line Amount (post-discount, pre-GST) if present.
+    const amt = item.amount !== undefined ? item.amount : item.Amount;
+    if (amt !== undefined && amt !== null && amt !== '') {
+        return Number(amt);
+    }
+
+    // Rule 4 – Last resort: qty × rate (gross, no discount applied).
+    return round(qty * rate, 2);
+};
+
+const getRawExtractionItems = (rec: any): any[] => {
+    const ext = rec?.extracted_data || rec?.extraction_payload || {};
+    return ext._raw_extraction?.items || [];
+};
+
+const getLineItems = (rec: any): any[] => {
+    if (rec?.review_payload?.items) return rec.review_payload.items;
+    const ext = rec?.extracted_data || rec?.extraction_payload || {};
+    if (ext.items) return ext.items;
+    if (ext.sections?.items) return ext.sections.items;
+    if (ext.line_items) return ext.line_items;
+    if (ext.assembled_exports && ext.assembled_exports[0]?.items) return ext.assembled_exports[0].items;
+    if (ext.invoice?.items) return ext.invoice.items;
+    return [];
+};
+
 export interface GstCorrectionModalProps {
     onClose: () => void;
     /** The staging record ID (maps to InvoiceTempOCR.id) */
@@ -21,6 +114,7 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
 }) => {
     // Determine the source of extraction data (varies between SmartInvoiceUploadModal and PendingPurchases)
     const extData = record.extracted_data || record.extraction_payload || {};
+    const items = getLineItems(record);
     const auditTrail = extData.gst_audit_trail || {};
     const expectedValues = auditTrail.expected_tax_values || {};
     const extractedValues = auditTrail.extracted_tax_values || {};
@@ -28,6 +122,7 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
     const expectedCgst = Number(expectedValues.cgst || 0);
     const expectedSgst = Number(expectedValues.sgst || 0);
     const expectedIgst = Number(expectedValues.igst || 0);
+    const isInterstate = expectedIgst > 0 || (expectedCgst === 0 && expectedSgst === 0 && String(extData.canonical_vendor_gstin || extData.vendor_gstin || extData.gstin || record.vendor_gstin || record.gstin || '').trim().toUpperCase().slice(0, 2) !== String(extData.canonical_buyer_gstin || extData.buyer_gstin || extData.bill_to_gstin || record.buyer_gstin || record.bill_to_gstin || '').trim().toUpperCase().slice(0, 2));
 
     const initialCgst = Number(extractedValues.cgst || extData.total_cgst || extData.cgst || 0);
     const initialSgst = Number(extractedValues.sgst || extData.total_sgst || extData.sgst || 0);
@@ -141,6 +236,82 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                             <span className="text-sm font-extrabold text-gray-700">₹{liveTotalGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                     </div>
+
+                    {/* Item-wise GST Breakdown Table */}
+                    {items && items.length > 0 && (
+                        <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                            <div className="bg-slate-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Item-wise GST Breakdown</h4>
+                                <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                                    {items.length} {items.length === 1 ? 'Item' : 'Items'}
+                                </span>
+                            </div>
+                            <div className="overflow-x-auto max-h-[300px]">
+                                <table className="min-w-full divide-y divide-gray-200 text-left text-xs">
+                                    <thead className="bg-slate-100 sticky top-0 backdrop-blur-sm z-10 font-bold text-gray-500 uppercase tracking-wider">
+                                        <tr>
+                                            <th className="px-4 py-2 text-[10px]">Item Name</th>
+                                            <th className="px-4 py-2 text-[10px]">HSN/SAC</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Qty</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Rate</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Discount</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Taxable Value</th>
+                                            <th className="px-4 py-2 text-[10px] text-center">GST Rate</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Expected GST</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Current GST</th>
+                                            <th className="px-4 py-2 text-[10px] text-right">Difference</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-100">
+                                        {items.map((item: any, idx: number) => {
+                                            const itemName = item.description || item.itemName || item.name || item.item_name || '—';
+                                            const hsnSac = item.hsn_sac || item.hsn_code || item.hsnSac || '—';
+                                            const qty = Number(item.qty || item.quantity || 0);
+                                            const rate = Number(item.rate || item.unit_price || item.itemRate || 0);
+                                            
+                                            // ── CANONICAL DISCOUNT EXTRACTION ──
+                                            // Use getItemDiscount* helpers to avoid the 0-is-falsy trap.
+                                            const rawItems = getRawExtractionItems(record);
+                                            const rawItem = rawItems[idx];
+                                            const discPct = getItemDiscountPct(item, rawItem);
+                                            const discAmt = getItemDiscountAmt(item, rawItem);
+                                            const discountStr = discPct > 0 ? `${discPct}%` : discAmt > 0 ? `₹${discAmt.toFixed(2)}` : '—';
+                                            
+                                            const taxable = calculateItemTaxableValue(item, rawItem);
+                                            const grossAmt = round(qty * rate, 2);
+                                            
+                                            const gstRate = Number(item.gst_rate || item.gstRate || item.tax_rate || item.computed_gst_rate || (Number(item.cgst_rate || 0) + Number(item.sgst_rate || 0) + Number(item.igst_rate || 0)) || 0);
+                                            const expectedGst = round(taxable * gstRate / 100, 2);
+                                            
+                                            const currentCgst = Number(item.cgst_amount || item.cgst || 0);
+                                            const currentSgst = Number(item.sgst_amount || item.sgst || 0);
+                                            const currentIgst = Number(item.igst_amount || item.igst || 0);
+                                            const currentGst = currentCgst + currentSgst + currentIgst;
+                                            
+                                            const diff = Math.abs(expectedGst - currentGst);
+                                            
+                                            return (
+                                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-4 py-2.5 font-medium text-gray-900 truncate max-w-[150px]" title={itemName}>{itemName}</td>
+                                                    <td className="px-4 py-2.5 text-gray-500">{hsnSac}</td>
+                                                    <td className="px-4 py-2.5 text-right font-medium text-gray-700">{qty}</td>
+                                                    <td className="px-4 py-2.5 text-right font-medium text-gray-700">₹{rate.toFixed(2)}</td>
+                                                    <td className="px-4 py-2.5 text-right font-semibold text-rose-600">{discountStr}</td>
+                                                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">₹{taxable.toFixed(2)}</td>
+                                                    <td className="px-4 py-2.5 text-center font-semibold text-gray-700">{gstRate}%</td>
+                                                    <td className="px-4 py-2.5 text-right font-bold text-emerald-600">₹{expectedGst.toFixed(2)}</td>
+                                                    <td className="px-4 py-2.5 text-right font-semibold text-gray-700">₹{currentGst.toFixed(2)}</td>
+                                                    <td className={`px-4 py-2.5 text-right font-black ${diff > 0.01 ? 'text-rose-600' : 'text-gray-400'}`}>
+                                                        ₹{diff.toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Main correction columns */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

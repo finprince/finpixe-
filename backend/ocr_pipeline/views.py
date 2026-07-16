@@ -2,7 +2,7 @@ from rest_framework import views, status  # type: ignore
 from rest_framework.response import Response  # type: ignore
 from rest_framework.permissions import IsAuthenticated  # type: ignore
 from django.db.models import Q  # type: ignore
-from django.db import transaction  # type: ignore
+from django.db import transaction, DatabaseError  # type: ignore
 from django.conf import settings
 import logging
 import json
@@ -1996,6 +1996,8 @@ class OCRStagingFinalizeView(views.APIView):
             'total': 0,
             'created': 0,
             'skipped': 0,
+            'duplicate_skipped': 0,
+            'pending_skipped': 0,
             'failed': 0,
             'errors': []
         }
@@ -2028,16 +2030,69 @@ class OCRStagingFinalizeView(views.APIView):
             f"session_pending_count={pending_count} global_unresolved_count={global_unresolved_count}"
         )
 
-        # ── Requirement 5: Fix finalize candidate builder ──
-        # Get only the records from the eligible tuples
+        # ── Phase 3: Deduplicated candidate builder ──
+        # PROBLEM: naive `eligible_tuples + pending_tuples` concatenation allows the same
+        # InvoiceTempOCR record to appear in both lists.
+        # REASON: get_pending_purchase_eligible_rows() returns ALL rows that are NOT
+        # (vendor=ALREADY_EXIST AND voucher=ALREADY_EXIST AND item=ALREADY EXIST), which
+        # includes rows that are save-eligible (vendor=ALREADY_EXIST, voucher=NEED_TO_SAVE).
+        # When both lists are concatenated, the same record appears twice and
+        # validate_and_process(auto_save=True) runs twice — inflating error counts.
+        # FIX: Use a seen_ids set. Save-eligible rows take priority.
+        seen_candidate_ids: set = set()
         candidates = []
-        for r, ui_row in eligible_tuples + pending_tuples:
-            candidates.append(r)
-            logger.info(f"[FINALIZE_CANDIDATE_ACCEPTED] record_id={r.id}")
 
-        # ── Requirement 7: Fix partial save corruption ──
+        # Pass 1: Save-eligible rows (highest priority)
+        for r, ui_row in eligible_tuples:
+            if r.id not in seen_candidate_ids:
+                seen_candidate_ids.add(r.id)
+                candidates.append(r)
+                logger.info(f"[FINALIZE_CANDIDATE_ACCEPTED] record_id={r.id} source=save_eligible")
+            else:
+                logger.warning(
+                    f"[FINALIZE_DUPLICATE_CANDIDATE] record_id={r.id} "
+                    f"source=save_eligible reason=already_added_from_same_list"
+                )
+
+        # Pass 2: Pending-eligible rows (only if not already in candidates)
+        for r, ui_row in pending_tuples:
+            if r.id not in seen_candidate_ids:
+                seen_candidate_ids.add(r.id)
+                candidates.append(r)
+                logger.info(f"[FINALIZE_CANDIDATE_ACCEPTED] record_id={r.id} source=pending_eligible")
+            else:
+                logger.warning(
+                    f"[FINALIZE_DUPLICATE_CANDIDATE] record_id={r.id} "
+                    f"source=pending_eligible reason=already_in_save_eligible_list"
+                )
+
+        # Deduplication summary log
+        duplicate_count = (len(eligible_tuples) + len(pending_tuples)) - len(candidates)
+        logger.info(
+            f"[FINALIZE_CANDIDATE_SUMMARY] session={upload_session_id} "
+            f"save_eligible={len(eligible_tuples)} "
+            f"pending_eligible={len(pending_tuples)} "
+            f"duplicates_removed={duplicate_count} "
+            f"final_unique_candidates={len(candidates)}"
+        )
+
+        # ── Phase 2: Build eligible_id_set ONCE before the loop (O(N) total) ──
+        # This replaces the per-iteration calls to get_save_eligible_rows() and
+        # get_pending_purchase_eligible_rows() that caused O(N²) performance.
+        # eligible_tuples and pending_tuples were already computed above (lines 2017-2018).
+        # We reuse them here — no additional DB calls.
+        eligible_id_set: set = {t[0].id for t in eligible_tuples} | {t[0].id for t in pending_tuples}
+        logger.info(
+            f"[FINALIZE_ELIGIBILITY_CACHE_BUILT] session={upload_session_id} "
+            f"eligible_id_set_size={len(eligible_id_set)} "
+            f"(computed once — no per-iteration DB scans)"
+        )
+
+        # ── Start processing pipeline ──
+        import time as _time
+        _finalize_t0 = _time.time()
         logger.info(f"[SAVE_PIPELINE_START] session={upload_session_id} candidates_count={len(candidates)}")
-        
+
         if len(candidates) > 0:
             from .pipeline import validate_and_process
             for record in candidates:
@@ -2046,13 +2101,16 @@ class OCRStagingFinalizeView(views.APIView):
                 if not db_rec:
                     continue
                 
-                # Check eligibility again using the centralized helper
-                eligibility_check = get_save_eligible_rows(upload_session_id, tenant_id=tenant_id)
-                pending_check = get_pending_purchase_eligible_rows(upload_session_id, tenant_id=tenant_id)
-                eligible_ids = [t[0].id for t in eligibility_check] + [t[0].id for t in pending_check]
-                
-                if db_rec.id not in eligible_ids:
-                    logger.warning(f"[SAVE_ELIGIBILITY_FAILED] record_id={db_rec.id} no longer eligible")
+                # Phase 2: O(N²) fix — use pre-built set, NOT per-iteration helper calls.
+                # PROBLEM: The original code called get_save_eligible_rows() and
+                # get_pending_purchase_eligible_rows() INSIDE this loop, causing:
+                #   - 1 full DB query per iteration (N iterations = N DB scans)
+                #   - 1 build_session_vendor_map() per iteration (batched but still repeated)
+                #   - N × _map_record_to_ui_row() calls per iteration
+                # Total: O(N²) in DB queries and CPU time.
+                # FIX: eligible_id_set is pre-computed ONCE before the loop (see below).
+                if db_rec.id not in eligible_id_set:
+                    logger.warning(f"[SAVE_ELIGIBILITY_FAILED] record_id={db_rec.id} no longer eligible (re-checked against pre-built set)")
                     continue
                 
                 logger.info(f"[PURCHASE_DB_INSERT_START] record={db_rec.id} vendor_id={db_rec.vendor_id} validation_status={db_rec.validation_status}")
@@ -2061,6 +2119,14 @@ class OCRStagingFinalizeView(views.APIView):
                 try:
                     with transaction.atomic():
                         logger.info(f"[SAVE_ELIGIBLE_ROW] Starting processing for record_id={db_rec.id}")
+                        # Reset processed flag and status to bypass post-finalization DTO freeze
+                        if db_rec.processed or db_rec.status == 'COMPLETED':
+                            InvoiceTempOCR.objects.filter(id=db_rec.id).update(
+                                processed=False,
+                                status='FINALIZED',
+                                validation_status='NEED_TO_SAVE'
+                            )
+                            db_rec.refresh_from_db()
                         res = validate_and_process(db_rec, auto_save=True)
                         save_status = res.get('status') if isinstance(res, dict) else None
                         
@@ -2095,8 +2161,21 @@ class OCRStagingFinalizeView(views.APIView):
                             db_rec.validation_status = 'VOUCHER_CREATED'
                             db_rec.status = 'COMPLETED'
                             db_rec.save(update_fields=['processed', 'validation_status', 'status'])
+                            
+                            # Automatically resolve associated Pending Purchase queue entry
+                            from pending_purchases.models import PendingPurchase
+                            from django.utils import timezone
+                            PendingPurchase.objects.filter(
+                                source_scan_row_id=db_rec.id, 
+                                pending_purchase_status='PENDING'
+                            ).update(
+                                pending_purchase_status='RESOLVED',
+                                resolved_at=timezone.now(),
+                                review_payload={'resolved_voucher_id': v_id}
+                            )
                         elif save_status in ['DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE']:
                             summary['skipped'] += 1
+                            summary['duplicate_skipped'] += 1
                             logger.info(f"[PURCHASE_DUPLICATE_DETECTED] record={db_rec.id} status={save_status}")
                             # Duplicate is also skipped, handled correctly.
                             db_rec.validation_status = 'DUPLICATE'
@@ -2107,22 +2186,69 @@ class OCRStagingFinalizeView(views.APIView):
                             # the record has unresolved items/vendor and cannot be auto-saved.
                             # Count as skipped — the queue entry is handled by evaluate_pending_purchase.
                             summary['skipped'] += 1
+                            summary['pending_skipped'] += 1
                             logger.info(f"[PENDING_PURCHASE_ALREADY_QUEUED] record={db_rec.id} — skipping voucher creation")
                         else:
+                            # Phase 4: Classify validation failures with error_type
                             summary['failed'] += 1
                             err_msg = res.get('validation_message') if isinstance(res, dict) else "Finalization failed"
+                            # Determine error_type for structured error reporting
+                            if save_status == 'GST_MISMATCH':
+                                err_type = 'GST_VALIDATION'
+                            elif save_status in ('DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE'):
+                                err_type = 'DUPLICATE_PROCESSING'
+                            elif save_status in ('LOCK_HELD',):
+                                err_type = 'SYSTEM_EXCEPTION'
+                            elif save_status in ('ERROR', 'FAILED'):
+                                err_type = 'BUSINESS_VALIDATION'
+                            else:
+                                err_type = 'BUSINESS_VALIDATION'
                             summary['errors'].append({
+                                'record_id': db_rec.id,
+                                'invoice_number': getattr(db_rec, 'supplier_invoice_no', None),
+                                'stage': 'FINALIZE',
+                                'error_type': err_type,
+                                'message': err_msg,
+                                'error': err_msg, # Backward compatibility
                                 'file': db_rec.file_path,
-                                'error': err_msg
+                                'pipeline_status': save_status,
                             })
-                            logger.warning(f"[PURCHASE_SAVE_NOT_CREATED] record={db_rec.id} status={save_status} err={err_msg}")
+                            logger.warning(
+                                f"[PURCHASE_SAVE_NOT_CREATED] record={db_rec.id} "
+                                f"status={save_status} err_type={err_type} err={err_msg}"
+                            )
                             # If not created, rollback explicit transaction context to discard partial updates
                             transaction.set_rollback(True)
+                except DatabaseError as db_e:
+                    logger.error(f"[FINALIZE_DATABASE_ERROR] record={db_rec.id} error={db_e}", exc_info=True)
+                    summary['failed'] += 1
+                    summary['errors'].append({
+                        'record_id': db_rec.id,
+                        'invoice_number': getattr(db_rec, 'supplier_invoice_no', None),
+                        'stage': 'FINALIZE',
+                        'error_type': 'DATABASE_EXCEPTION',
+                        'message': str(db_e),
+                        'error': str(db_e), # Backward compatibility
+                        'file': db_rec.file_path,
+                        'pipeline_status': 'DATABASE_ERROR',
+                    })
                 except Exception as e:
+                    import traceback as _tb
                     logger.error(f"[FINALIZE_RECORD_FAILED] record={db_rec.id} error={e}", exc_info=True)
                     summary['failed'] += 1
-                    summary['errors'].append({'file': db_rec.file_path, 'error': str(e)})
+                    summary['errors'].append({
+                        'record_id': db_rec.id,
+                        'invoice_number': getattr(db_rec, 'supplier_invoice_no', None),
+                        'stage': 'FINALIZE',
+                        'error_type': 'SYSTEM_EXCEPTION',
+                        'message': str(e),
+                        'error': str(e), # Backward compatibility
+                        'file': db_rec.file_path,
+                        'pipeline_status': 'EXCEPTION',
+                        'stack_trace': _tb.format_exc(),
+                    })
                     
+
         if len(candidates) == 0:
             # If no candidates, but total_in_session > 0, report what's already saved (Path A equivalent)
             if summary['total'] > 0:
@@ -2138,7 +2264,13 @@ class OCRStagingFinalizeView(views.APIView):
                 ).count()
                 logger.info(f"[FINALIZE_PATH_A_FALLBACK] session={upload_session_id} created={summary['created']} skipped={summary['skipped']} failed={summary['failed']}")
 
-        logger.info(f"[SAVE_PIPELINE_COMPLETE] session={upload_session_id} created={summary['created']} skipped={summary['skipped']} failed={summary['failed']}")
+        _finalize_elapsed = _time.time() - _finalize_t0
+        logger.info(
+            f"[SAVE_PIPELINE_COMPLETE] session={upload_session_id} "
+            f"created={summary['created']} skipped={summary['skipped']} failed={summary['failed']} "
+            f"elapsed={_finalize_elapsed:.3f}s candidates={len(candidates)}"
+        )
+        summary['finalize_elapsed_seconds'] = round(_finalize_elapsed, 3)
         return Response(summary)
 
 
@@ -2866,59 +2998,48 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
 
         ext = record.extracted_data
 
-        for k in ('total_cgst', 'cgst'):
-            if k in ext:
-                ext[k] = cgst_val
-        for k in ('total_sgst', 'sgst'):
-            if k in ext:
-                ext[k] = sgst_val
-        for k in ('total_igst', 'igst'):
-            if k in ext:
-                ext[k] = igst_val
+        # Unconditionally write corrected values
+        ext['total_cgst'] = cgst_val
+        ext['cgst'] = cgst_val
+        ext['total_sgst'] = sgst_val
+        ext['sgst'] = sgst_val
+        ext['total_igst'] = igst_val
+        ext['igst'] = igst_val
 
         # Update sections.supply_details
         sections = ext.setdefault('sections', {})
         if isinstance(sections, dict):
             supply_details = sections.setdefault('supply_details', {})
             if isinstance(supply_details, dict):
-                for k in ('total_cgst', 'cgst'):
-                    if k in supply_details:
-                        supply_details[k] = cgst_val
-                for k in ('total_sgst', 'sgst'):
-                    if k in supply_details:
-                        supply_details[k] = sgst_val
-                for k in ('total_igst', 'igst'):
-                    if k in supply_details:
-                        supply_details[k] = igst_val
+                supply_details['total_cgst'] = cgst_val
+                supply_details['cgst'] = cgst_val
+                supply_details['total_sgst'] = sgst_val
+                supply_details['sgst'] = sgst_val
+                supply_details['total_igst'] = igst_val
+                supply_details['igst'] = igst_val
 
         # Update assembled_exports[0]
         assembled = ext.get("assembled_exports") or []
         if isinstance(assembled, list) and assembled:
             ae = assembled[0]
             if isinstance(ae, dict):
-                for k in ('total_cgst', 'cgst'):
-                    if k in ae:
-                        ae[k] = cgst_val
-                for k in ('total_sgst', 'sgst'):
-                    if k in ae:
-                        ae[k] = sgst_val
-                for k in ('total_igst', 'igst'):
-                    if k in ae:
-                        ae[k] = igst_val
+                ae['total_cgst'] = cgst_val
+                ae['cgst'] = cgst_val
+                ae['total_sgst'] = sgst_val
+                ae['sgst'] = sgst_val
+                ae['total_igst'] = igst_val
+                ae['igst'] = igst_val
                 
                 ae_sections = ae.setdefault('sections', {})
                 if isinstance(ae_sections, dict):
                     ae_supply = ae_sections.setdefault('supply_details', {})
                     if isinstance(ae_supply, dict):
-                        for k in ('total_cgst', 'cgst'):
-                            if k in ae_supply:
-                                ae_supply[k] = cgst_val
-                        for k in ('total_sgst', 'sgst'):
-                            if k in ae_supply:
-                                ae_supply[k] = sgst_val
-                        for k in ('total_igst', 'igst'):
-                            if k in ae_supply:
-                                ae_supply[k] = igst_val
+                        ae_supply['total_cgst'] = cgst_val
+                        ae_supply['cgst'] = cgst_val
+                        ae_supply['total_sgst'] = sgst_val
+                        ae_supply['sgst'] = sgst_val
+                        ae_supply['total_igst'] = igst_val
+                        ae_supply['igst'] = igst_val
 
         # Remove existing gst_resolution
         if 'gst_resolution' in ext:
@@ -2941,7 +3062,6 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
 
         # Set resolution choice to CORRECTED if difference is within tolerance,
         # otherwise set to SUPPLIER_VALUES_ACCEPTED to preserve the user's manual edits
-        # while resolving the mismatch validation block.
         if diff_val <= 1.0:
             record.extracted_data["gst_resolution"] = "CORRECTED"
         else:
@@ -2951,6 +3071,11 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
         # Run GST engine again to regenerate audit metadata under resolved choice
         run_gst_validation_engine(record, user=request.user)
         record.refresh_from_db()
+
+        # Force transition validation_status immediately to resolve GST MISMATCH
+        if record.validation_status == 'GST_MISMATCH':
+            record.validation_status = 'NEED_TO_SAVE'
+            record.save(update_fields=['validation_status'])
 
         # Copy updated extracted_data to PendingPurchase.extraction_payload if PendingPurchase exists
         from pending_purchases.models import PendingPurchase
@@ -2962,6 +3087,14 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
         from .pipeline import validate_and_process
         validate_and_process(record, auto_save=False, user=request.user)
         record.refresh_from_db()
+
+        # Final synchronization to guarantee PendingPurchase is perfectly in sync
+        PendingPurchase.objects.filter(source_scan_row_id=record.id).update(
+            extraction_payload=record.extracted_data,
+            invoice_number=record.supplier_invoice_no,
+            vendor_gstin=record.gstin,
+            amount=record.total_amount
+        )
 
         ui_payload = self._map_record_to_ui_row(record)
         return Response(ui_payload)

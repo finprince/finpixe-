@@ -8,7 +8,31 @@ from ocr_pipeline.services.item_identity_repair import repair_item_identity
 try:
     from rapidfuzz import fuzz
 except ImportError:
-    pass
+    class FuzzFallback:
+        @staticmethod
+        def token_set_ratio(s1, s2):
+            if not s1 or not s2:
+                return 0.0
+            from difflib import SequenceMatcher
+            t1 = sorted(list(set(str(s1).lower().split())))
+            t2 = sorted(list(set(str(s2).lower().split())))
+            inter = sorted(list(set(t1).intersection(set(t2))))
+            diff1 = sorted(list(set(t1).difference(set(t2))))
+            diff2 = sorted(list(set(t2).difference(set(t1))))
+            comb0 = " ".join(inter)
+            comb1 = " ".join(inter + diff1)
+            comb2 = " ".join(inter + diff2)
+            ratios = []
+            if comb0 and comb1:
+                ratios.append(SequenceMatcher(None, comb0, comb1).ratio() * 100.0)
+            if comb0 and comb2:
+                ratios.append(SequenceMatcher(None, comb0, comb2).ratio() * 100.0)
+            if comb1 and comb2:
+                ratios.append(SequenceMatcher(None, comb1, comb2).ratio() * 100.0)
+            if str(s1).strip().lower() == str(s2).strip().lower():
+                return 100.0
+            return max(ratios) if ratios else 0.0
+    fuzz = FuzzFallback
 
 logger = logging.getLogger(__name__)
 
@@ -300,6 +324,9 @@ class InventoryItemValidationService:
                         "qty": item.get("qty") or item.get("quantity") or 0.0,
                         "uom": item.get("uom") or "nos",
                         "rate": item.get("rate") or item.get("itemRate") or 0.0,
+                        # ── CANONICAL DISCOUNT FIELDS ──
+                        "discount_percent": item.get("discount_percent") if item.get("discount_percent") is not None else item.get("discount_pct") if item.get("discount_pct") is not None else 0.0,
+                        "discount_amount": item.get("discount_amount") if item.get("discount_amount") is not None else item.get("discount") if item.get("discount") is not None else 0.0,
                         "cgst_rate": item.get("cgst_rate") or item.get("cgst") or 0.0,
                         "sgst_rate": item.get("sgst_rate") or item.get("sgst") or 0.0,
                         "igst_rate": item.get("igst_rate") or item.get("igst") or 0.0,
@@ -566,6 +593,10 @@ class InventoryItemValidationService:
                 "qty": item.get("qty") or item.get("quantity") or 0.0,
                 "uom": item.get("uom") or "nos",
                 "rate": item.get("rate") or item.get("itemRate") or 0.0,
+                # ── CANONICAL DISCOUNT FIELDS ──
+                # Use None-aware extraction so discount_percent=0 is preserved (not skipped as falsy).
+                "discount_percent": item.get("discount_percent") if item.get("discount_percent") is not None else item.get("discount_pct") if item.get("discount_pct") is not None else 0.0,
+                "discount_amount": item.get("discount_amount") if item.get("discount_amount") is not None else item.get("discount") if item.get("discount") is not None else 0.0,
                 "cgst_rate": item.get("cgst_rate") or item.get("cgst") or 0.0,
                 "sgst_rate": item.get("sgst_rate") or item.get("sgst") or 0.0,
                 "igst_rate": item.get("igst_rate") or item.get("igst") or 0.0,

@@ -417,6 +417,9 @@ def sync_record_flattened_fields(record: InvoiceTempOCR, data: Dict[str, Any], c
         if "items" in canonical:
             data["items"] = canonical["items"]
             data["line_items"] = canonical["items"]
+        for k, v in canonical.items():
+            if k.startswith("_"):
+                data[k] = v
 
     record.extracted_data = data
     if 'extracted_data' in valid_fields:
@@ -620,57 +623,6 @@ def run_ocr_pipeline(file_bytes: bytes = None, record: InvoiceTempOCR = None, wa
                 record.status = 'FAILED'
                 record.save(update_fields=['status'])
                 return {"status": "FAILED", "error": extracted.get('_error')}
-
-            # ── [ASYNC_CACHE_BYPASS_FIX] ──
-            # If any pages were CACHED, they won't go through the AIWorker.
-            # We must manually enqueue them to the finalization queue so 
-            # the barrier correctly increments to 100%.
-            for i in range(total_pages):
-                res = extracted.get("_pages", {}).get(str(i+1))
-                
-                # ── [PHASE 10: CACHE INTEGRITY CHECK] ──
-                if isinstance(res, dict) and (res.get('status') == 'OCR_FAILED' or '_integrity_blocked' in res):
-                    logger.warning(f"[CACHE_INTEGRITY_BLOCKED] record={record.id} page={i+1} reason='Failed OCR in cache'")
-                    continue # TERMINATE PROPAGATION for this page
-
-                # If it's a dict but NOT a "queued" status, it's a real result (cache hit, mock, or failure)
-                if isinstance(res, dict) and res.get('status') != 'queued':
-                    logger.info(f"[ASYNC_CACHE_HIT] record={record.id} page={i+1}. Forwarding to finalization.")
-                    fin_task = {
-                        'record_id': record.id,
-                        'page_index': i + 1,
-                        'item_id': item_id,
-                        'job_id': job_id,
-                        'result': res
-                    }
-                    
-                    # [PHASE 11.5] Push to SQS via Canonical Message Factory
-                    from vouchers.message_factory import message_factory
-                    
-                    assembly_msg = message_factory.create_message(
-                        task_type="ASSEMBLY",
-                        tenant_id=str(record.tenant_id),
-                        session_id=record.upload_session_id,
-                        payload=fin_task,
-                        correlation_id=fin_task.get('correlation_id'),
-                        page_number=i + 1
-                    )
-                    
-                    from copy import deepcopy
-                    assembly_msg_copy = deepcopy(assembly_msg)
-                    
-                    try:
-                        queue_service.push(assembly_msg_copy, queue_type='assembly')
-                        logger.info(f"[QUEUE_FORWARD_SUCCESS] target_queue=assembly msg_id={assembly_msg_copy['id']}")
-                    except Exception as e:
-                        logger.error(f"[QUEUE_FORWARD_FAILURE] target_queue=assembly error={e}")
-                        raise
-                    
-                    logger.info(
-                        f"[PAGE_QUEUED] record_id={record.id} page_number={i+1} "
-                        f"expected_total_pages={total_pages} type=CACHED session={record.upload_session_id}"
-                    )
-                    logger.info(f"[FINALIZATION_ENQUEUE] record={record.id} page={i+1} (via CachePath)")
 
             logger.info(f"[PIPELINE ASYNC] Extraction enqueued for record {record.id}. Returning early.")
             return {"status": "ENQUEUED"}
@@ -992,6 +944,34 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
         assembled_exports = []
         for group_id, group_list in groups_dict.items():
             merged_group = merger.merge_group(group_list)
+            
+            # Preserve page-level raw extractions and validation metadata in the merged group
+            raw_pages_list = [p["_raw_extraction"] for p in group_list if "_raw_extraction" in p]
+            if raw_pages_list:
+                flat_items = []
+                for p_raw in raw_pages_list:
+                    flat_items.extend(p_raw.get("items") or [])
+                primary_raw = raw_pages_list[0] if raw_pages_list else {}
+                merged_group["_raw_extraction"] = {
+                    "header": primary_raw.get("header") or {},
+                    "items": flat_items,
+                    "pages": raw_pages_list
+                }
+            
+            val_metadata_list = [p["_validation_metadata"] for p in group_list if "_validation_metadata" in p]
+            if val_metadata_list:
+                flat_warnings = []
+                flat_consistency = []
+                for val_meta in val_metadata_list:
+                    flat_warnings.extend(val_meta.get("validation_warnings") or [])
+                    flat_consistency.extend(val_meta.get("item_consistency") or [])
+                merged_group["_validation_metadata"] = {
+                    "layout_confidence": val_metadata_list[0].get("layout_confidence") if val_metadata_list else None,
+                    "layout_type": val_metadata_list[0].get("layout_type") if val_metadata_list else None,
+                    "validation_warnings": list(set(flat_warnings)),
+                    "item_consistency": flat_consistency,
+                    "pages": val_metadata_list
+                }
             
             # Semantic DTO validation check: run AFTER grouping & merge
             # Reject DTO when has_real_items == False and has_summary_rows == True
@@ -2226,7 +2206,23 @@ def run_gst_validation_engine(record: InvoiceTempOCR, user=None):
 
     canonical = get_canonical_export_record(canonical_data_src, tenant_id=record.tenant_id)
 
-    gstin = (canonical.get("gstin") or record.gstin or "").strip().upper()
+    gstin = (
+        canonical.get("canonical_vendor_gstin") or
+        canonical.get("vendor_gstin") or
+        canonical.get("gstin") or
+        record.gstin or
+        data.get("canonical_vendor_gstin") or
+        data.get("vendor_gstin") or
+        data.get("gstin") or
+        ""
+    ).strip().upper()
+    buyer_gstin = (
+        canonical.get("canonical_buyer_gstin") or
+        canonical.get("buyer_gstin") or
+        data.get("canonical_buyer_gstin") or
+        data.get("buyer_gstin") or
+        ""
+    ).strip().upper()
     invoice_no = (canonical.get("supplier_invoice_no") or canonical.get("invoice_no") or record.supplier_invoice_no or "").strip()
     tenant_id = str(record.tenant_id)
 
@@ -2245,6 +2241,8 @@ def run_gst_validation_engine(record: InvoiceTempOCR, user=None):
         # Determine Interstate vs Intrastate
         branch_record = Branch.objects.filter(id=tenant_id).first()
         company_gstin = branch_record.gstin if branch_record else None
+        if not company_gstin:
+            company_gstin = buyer_gstin
         is_interstate = False
         if gstin and company_gstin and len(gstin) >= 2 and len(company_gstin) >= 2:
             is_interstate = gstin[:2] != company_gstin[:2]
@@ -2270,8 +2268,11 @@ def run_gst_validation_engine(record: InvoiceTempOCR, user=None):
         unique_rates = set()
         
         for item in items:
-            tx_val = to_dec(item.get('taxable_value') or item.get('amount'))
-            gst_rate = to_dec(item.get('gst_rate') or item.get('tax_rate'))
+            from ocr_pipeline.normalize import calculate_item_taxable_value
+            tx_val = calculate_item_taxable_value(item)
+            item['taxable_value'] = tx_val
+            
+            gst_rate = to_dec(item.get('gst_rate') or item.get('tax_rate') or item.get('computed_gst_rate'))
             if gst_rate == 0.0:
                 gst_rate = to_dec(item.get('cgst_rate')) + to_dec(item.get('sgst_rate')) + to_dec(item.get('igst_rate'))
             cess_rate = to_dec(item.get('cess_rate'))

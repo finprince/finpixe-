@@ -3,14 +3,13 @@ import { httpClient } from '../../services';
 import { CheckCircle, Trash2, Save, X } from 'lucide-react';
 import Package from 'lucide-react/dist/esm/icons/package';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import Edit2 from 'lucide-react/dist/esm/icons/edit-2';
 import Zap from 'lucide-react/dist/esm/icons/zap';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import { CreateNewInventoryItemModal } from '../../components/CreateNewInventoryItemModal';
 import { MatchExistingItemModal } from '../../components/MatchExistingItemModal';
 import { GstCorrectionModal } from '../../components/GstCorrectionModal';
 import CreateNewVendorFullModal from '../../components/CreateNewVendorFullModal';
-import { EditInvoiceModal, type ScanResult } from '../../components/SmartInvoiceUploadModal';
+// EditInvoiceModal removed for unified Purchase Voucher page flow
 import { showSuccess, showError } from '../../utils/toast';
 import Icon from '../../components/Icon';
 
@@ -36,11 +35,30 @@ const ItemStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE ITEM</span>;
 };
 
-const VoucherStatusBadge: React.FC<{ status: string }> = ({ status }) => {
+const VoucherStatusBadge: React.FC<{ status: string; onClick?: () => void }> = ({ status, onClick }) => {
   const isNew = status === 'VOUCHER_STATUS_NEW' || status === 'NEED_TO_SAVE' || status === 'NEED TO SAVE';
   const isExisting = status === 'VOUCHER_STATUS_EXISTING' || status === 'ALREADY_EXIST';
   if (isNew) {
-    return <span className="bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">NEED TO SAVE</span>;
+    return (
+      <span
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        className={`bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase transition-all select-none outline-none ${
+          onClick
+            ? 'cursor-pointer hover:bg-indigo-200 hover:text-indigo-800 hover:border-indigo-400 active:scale-95 shadow-sm hover:shadow'
+            : ''
+        }`}
+      >
+        NEED TO SAVE
+      </span>
+    );
   }
   if (isExisting) {
     return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">ALREADY EXIST</span>;
@@ -48,11 +66,10 @@ const VoucherStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return <span className="bg-gray-100 text-gray-500 border border-gray-200 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">PENDING</span>;
 };
 
-const getGstStatus = (purchase: any): 'GST_VALID' | 'GST_MISMATCH' | 'GST_CORRECTED' | 'GST_SUPPLIER_ACCEPTED' | 'GST_NOT_CHECKED' => {
-  const ext = purchase.extraction_payload || {};
+const getGstStatus = (purchase: any): 'GST_VALID' | 'GST_MISMATCH' => {
+  const ext = purchase.extraction_payload || purchase.extracted_data || {};
   const res = ext.gst_resolution;
-  if (res === 'CORRECTED') return 'GST_CORRECTED';
-  if (res === 'SUPPLIER_VALUES_ACCEPTED') return 'GST_SUPPLIER_ACCEPTED';
+  if (res === 'CORRECTED' || res === 'SUPPLIER_VALUES_ACCEPTED') return 'GST_VALID';
 
   // Duplicate invoices: voucher already exists in ERP, GST was validated at first posting.
   // Show GST VALID instead of NOT CHECKED.
@@ -69,22 +86,16 @@ const getGstStatus = (purchase: any): 'GST_VALID' | 'GST_MISMATCH' | 'GST_CORREC
     if (audit.validation_status === 'FAIL') return 'GST_MISMATCH';
     if (audit.validation_status === 'PASS') return 'GST_VALID';
   }
-  return 'GST_NOT_CHECKED';
+  return 'GST_VALID';
 };
 
-const renderGstStatusBadge = (status: 'GST_VALID' | 'GST_MISMATCH' | 'GST_CORRECTED' | 'GST_SUPPLIER_ACCEPTED' | 'GST_NOT_CHECKED') => {
+const renderGstStatusBadge = (status: 'GST_VALID' | 'GST_MISMATCH') => {
   switch (status) {
     case 'GST_VALID':
       return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap">GST VALID</span>;
     case 'GST_MISMATCH':
-      return <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap animate-pulse">GST MISMATCH</span>;
-    case 'GST_CORRECTED':
-      return <span className="bg-blue-100 text-blue-800 border border-blue-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap">CORRECTED</span>;
-    case 'GST_SUPPLIER_ACCEPTED':
-      return <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap">SUPPLIER ACCEPTED</span>;
-    case 'GST_NOT_CHECKED':
     default:
-      return <span className="bg-gray-100 text-gray-800 border border-gray-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap">NOT CHECKED</span>;
+      return <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap animate-pulse">GST MISMATCH</span>;
   }
 };
 
@@ -117,9 +128,8 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
   const [isCreateVendorModalOpen, setIsCreateVendorModalOpen] = useState(false);
   const [vendorResolvingRow, setVendorResolvingRow] = useState<any>(null);
 
-  const [editingRow, setEditingRow] = useState<{ pp: any; stagingRow: ScanResult } | null>(null);
+// editingRow state removed as editing is handled by VouchersPage navigation
   const [gstCorrectionRow, setGstCorrectionRow] = useState<any | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'gst_mismatch'>('all');
 
   // Per-row loading states
   const [revalidating, setRevalidating] = useState<Set<number>>(new Set());
@@ -179,15 +189,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
     fetchPurchases();
   }, [fetchPurchases]);
 
-  const countAll = purchases.length;
-  const countGstMismatch = purchases.filter(p => getGstStatus(p) === 'GST_MISMATCH').length;
-
-  const visiblePurchases = purchases.filter(p => {
-    if (activeFilter === 'gst_mismatch') {
-      return getGstStatus(p) === 'GST_MISMATCH';
-    }
-    return true;
-  });
+  const visiblePurchases = purchases;
 
   // ── Determine if a row is ready to finalize ─────────────────────────────────
   const isReadyToFinalize = (purchase: any) => {
@@ -242,29 +244,13 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
     try {
       const res = await httpClient.get<any>(`/api/pending-purchases/${purchase.id}/staging_row/`);
       const stagingData = res.staging_row;
-      // Map staging record to ScanResult shape expected by EditInvoiceModal
-      const scanResult: ScanResult = {
-        id: String(stagingData.id),
-        file_hash: stagingData.file_hash || '',
-        file_path: stagingData.file_path || '',
-        vendor_status: (purchase.vendor_status === 'VENDOR_STATUS_EXISTING' ? 'EXISTS' : 'NEW') as any,
-        vendor_id: stagingData.vendor_id || null,
-        vendor_name: purchase.vendor_name || '',
-        vendor_gstin: purchase.vendor_gstin || '',
-        invoice_number: purchase.invoice_number || '',
-        invoice_date: purchase.invoice_date || '',
-        total_amount: purchase.amount || 0,
-        status: purchase.pending_purchase_status,
-        extracted_data: stagingData.extracted_data,
-        created_at: purchase.created_at || '',
-        validationStatus: (stagingData.validation_status || 'PENDING_PURCHASE') as any,
-        branch: stagingData.branch || '',
-        item_status: purchase.item_status || '',
-        processed: false,
-      };
-
-      if (onNavigate) {
-        setEditingRow({ pp: purchase, stagingRow: scanResult });
+      if (onNavigate && stagingData?.file_hash) {
+        onNavigate('Vouchers', {
+          editOcrFileHash: stagingData.file_hash,
+          returnTo: 'Pending Purchases'
+        });
+      } else {
+        showError('Could not resolve staging file hash.');
       }
     } catch (error: any) {
       showError(error?.response?.data?.error || 'Failed to load staging record for editing');
@@ -572,36 +558,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
           </button>
         </div>
 
-        {/* GST Mismatch Tabs */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'all'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
-                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
-              }`}
-          >
-            <span>📂 All Pending</span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeFilter === 'all' ? 'bg-indigo-700 text-indigo-100' : 'bg-indigo-200 text-indigo-600'
-              }`}>
-              {countAll}
-            </span>
-          </button>
 
-          <button
-            onClick={() => setActiveFilter('gst_mismatch')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'gst_mismatch'
-                ? 'bg-rose-600 text-white shadow-md shadow-rose-150 border border-rose-600'
-                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100'
-              }`}
-          >
-            <span>⚠️ GST Mismatch</span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeFilter === 'gst_mismatch' ? 'bg-rose-700 text-rose-100' : 'bg-rose-200 text-rose-600'
-              }`}>
-              {countGstMismatch}
-            </span>
-          </button>
-        </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
           <div className="overflow-auto flex-1">
@@ -690,7 +647,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                               const header = ext.header || {};
                               let amt = purchase.amount;
                               if (!amt || Number(amt) === 0) {
-                                amt = header.total_amount || header.invoice_total || ext.total_amount || ext.invoice_total || 0;
+                                amt = header.total_amount || header.invoice_total || header.total_invoice_value || header.grand_total || ext.total_amount || ext.invoice_total || ext.total_invoice_value || ext.grand_total || ext.net_amount || 0;
                               }
                               // Strip commas if it's a formatted string from extraction
                               if (typeof amt === 'string') amt = parseFloat(amt.replace(/[^\d.-]/g, '')) || 0;
@@ -745,12 +702,18 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
                           {/* Voucher Status */}
                           <td className="px-2 py-3 text-center">
-                            <VoucherStatusBadge status={purchase.voucher_status} />
+                            <VoucherStatusBadge 
+                              status={purchase.voucher_status} 
+                              onClick={purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW'
+                                ? () => openEditModal(purchase)
+                                : undefined
+                              }
+                            />
                           </td>
 
                           {/* Actions */}
                           <td className="px-2 py-3 text-center">
-                            <div className="flex items-center justify-center gap-1 flex-wrap">
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {/* Revalidate */}
                               <button
                                 onClick={() => revalidatePurchase(purchase)}
@@ -759,15 +722,6 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                                 title="Revalidate — re-run Purchase Upload validation engine"
                               >
                                 <RefreshCw className={`w-3.5 h-3.5 ${isRevalidating ? 'animate-spin' : ''}`} />
-                              </button>
-
-                              {/* Edit — opens same EditInvoiceModal as Purchase Upload */}
-                              <button
-                                onClick={() => openEditModal(purchase)}
-                                className="p-1.5 hover:bg-indigo-100 rounded text-indigo-600 hover:text-indigo-800 transition-colors"
-                                title="Edit in same modal as Purchase Upload Review"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
                               </button>
 
                               {/* Finalize & Save Vouchers — only enabled when ready */}
@@ -885,22 +839,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
-      {editingRow && (
-        <EditInvoiceModal
-          row={editingRow.stagingRow}
-          voucherType="Purchase"
-          onClose={() => setEditingRow(null)}
-          onSave={async (updatedData, revalidation) => {
-            try {
-              await httpClient.post(`/api/pending-purchases/${editingRow.pp.id}/revalidate/`);
-              await fetchPurchases();
-            } catch (err) {
-              console.error("Failed to revalidate purchase after edit:", err);
-            }
-            setEditingRow(null);
-          }}
-        />
-      )}
+
     </>
   );
 };

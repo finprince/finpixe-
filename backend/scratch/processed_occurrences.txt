@@ -1,0 +1,1290 @@
+File: backend\accounting\models.py
+Function: ExtractedInvoice
+Line Number: 719
+Snippet: gst_rate = models.CharField(max_length=50, null=True, blank=True)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\models_transaction.py
+Function: TransactionFile
+Line Number: 65
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\models_transaction.py
+Function: TransactionFile
+Line Number: 66
+Snippet: cgst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\models_transaction.py
+Function: TransactionFile
+Line Number: 67
+Snippet: sgst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\models_transaction.py
+Function: TransactionFile
+Line Number: 68
+Snippet: igst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\models_voucher_expense.py
+Function: ExpenseLineItem
+Line Number: 67
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\models_voucher_purchase.py
+Function: VoucherPurchaseItem
+Line Number: 239
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_excel_api.py
+Function: _get_time
+Line Number: 437
+Snippet: 'item_code', 'item_name', 'hsn_code', 'uom', 'rate', 'gst_rate'
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_excel_api.py
+Function: _get_time
+Line Number: 440
+Snippet: 'service_code', 'service_name', 'sac_code', 'uom', 'gst_rate'
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_excel_api.py
+Function: _get_time
+Line Number: 557
+Snippet: m_gst = _safe_float(master_item.get("gst_rate") or 0)
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_flow.py
+Function: calculate_item_totals
+Line Number: 262
+Snippet: items: List of item dictionaries with quantity, rate, gst_rate
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_flow.py
+Function: calculate_item_totals
+Line Number: 276
+Snippet: gst_rate = Decimal(str(item.get('gst_rate', 0)))
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_flow.py
+Function: calculate_item_totals
+Line Number: 279
+Snippet: tax_amount = taxable_amount * (gst_rate / Decimal('100'))
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_flow.py
+Function: create_sales_voucher
+Line Number: 416
+Snippet: gst_rate = Decimal(str(item_data.get('gst_rate', 0)))
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\sales_flow.py
+Function: create_sales_voucher
+Line Number: 419
+Snippet: tax_amount = taxable_amount * (gst_rate / Decimal('100'))
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_expense.py
+Function: Meta
+Line Number: 26
+Snippet: 'amount', 'taxable_value', 'gst_rate', 'cgst', 'sgst', 'igst', 'cess', 'show_tax', 'total_amount'
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_expense.py
+Function: _sync_expense_items
+Line Number: 277
+Snippet: gst_rate=_safe_decimal(row.get('gstRate', row.get('taxRate', 0))),
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_transaction.py
+Function: Meta
+Line Number: 37
+Snippet: 'hsn_sac_code', 'gst_rate', 'cgst_rate', 'sgst_rate', 'igst_rate',
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_transaction.py
+Function: Meta
+Line Number: 37
+Snippet: 'hsn_sac_code', 'gst_rate', 'cgst_rate', 'sgst_rate', 'igst_rate',
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_transaction.py
+Function: Meta
+Line Number: 37
+Snippet: 'hsn_sac_code', 'gst_rate', 'cgst_rate', 'sgst_rate', 'igst_rate',
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_transaction.py
+Function: Meta
+Line Number: 37
+Snippet: 'hsn_sac_code', 'gst_rate', 'cgst_rate', 'sgst_rate', 'igst_rate',
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_voucher_purchase.py
+Function: Meta
+Line Number: 30
+Snippet: 'gst_rate', 'invoice_value', 'currency', 'exchange_rate'
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\serializers_voucher_purchase.py
+Function: _sync_relational_data
+Line Number: 595
+Snippet: gst_rate=Decimal(str(item.get('gstRate') or item.get('gst_rate') or 0)),
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0001_initial.py
+Function: Migration
+Line Number: 45
+Snippet: ('gst_rate', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0001_initial.py
+Function: Migration
+Line Number: 46
+Snippet: ('cgst_rate', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0001_initial.py
+Function: Migration
+Line Number: 47
+Snippet: ('sgst_rate', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0001_initial.py
+Function: Migration
+Line Number: 48
+Snippet: ('igst_rate', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0001_initial.py
+Function: Migration
+Line Number: 189
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0001_initial.py
+Function: Migration
+Line Number: 240
+Snippet: ('gst_rate', models.CharField(blank=True, max_length=50, null=True)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\migrations\0006_voucherpurchaseitem_gst_rate_and_more.py
+Function: Migration
+Line Number: 15
+Snippet: name='gst_rate',
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\services\debit_note_service.py
+Function: classify_item
+Line Number: 80
+Snippet: gst_rate = Decimal(str(item.get("gstRate", 0) or 0))
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\services\debit_note_service.py
+Function: classify_item
+Line Number: 85
+Snippet: if gst_rate > 0:
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\services\inventory_sync.py
+Function: sync_sales_to_outward
+Line Number: 167
+Snippet: gst_rate=Decimal("0"),
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\services\inventory_sync.py
+Function: sync_purchase_to_grn
+Line Number: 258
+Snippet: "gst_rate": Decimal("0"),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\services\inventory_sync.py
+Function: sync_purchase_to_grn
+Line Number: 281
+Snippet: "gst_rate": Decimal("0"),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\accounting\services\inventory_sync.py
+Function: sync_purchase_to_grn
+Line Number: 303
+Snippet: "gst_rate": Decimal("0"),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\core\providers\mistral_structured_provider.py
+Function: MistralInvoiceItemSchema
+Line Number: 66
+Snippet: igst_rate: Optional[float] = Field(default=0.0, description="IGST rate percentage")
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\core\providers\mistral_structured_provider.py
+Function: MistralInvoiceItemSchema
+Line Number: 68
+Snippet: cgst_rate: Optional[float] = Field(default=0.0, description="CGST rate percentage")
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\core\providers\mistral_structured_provider.py
+Function: MistralInvoiceItemSchema
+Line Number: 70
+Snippet: sgst_rate: Optional[float] = Field(default=0.0, description="SGST rate percentage")
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\database.py
+Function: CustomerTransactionSalesQuotationGeneralItem
+Line Number: 831
+Snippet: effective_rate = models.DecimalField(max_digits=25, decimal_places=2, help_text='Rate specified in quotation')
+Purpose: Assignment (Write) of effective_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\database.py
+Function: CustomerTransactionSalesQuotationSpecificItem
+Line Number: 890
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\database.py
+Function: CustomerTransactionSalesOrderItemDetails
+Line Number: 971
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='GST Rate (%)')
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\serializers.py
+Function: Meta
+Line Number: 948
+Snippet: fields = ['id', 'item_code', 'item_name', 'quantity', 'uom', 'price', 'taxable_value', 'gst_rate', 'gst', 'net_value', 'packing_notes']
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\migrations\0001_initial.py
+Function: Migration
+Line Number: 385
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, help_text='GST Rate (%)', max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\migrations\0001_initial.py
+Function: Migration
+Line Number: 455
+Snippet: ('effective_rate', models.DecimalField(decimal_places=2, help_text='Rate specified in quotation', max_digits=15)),
+Purpose: Access (Read) of effective_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\migrations\0001_initial.py
+Function: Migration
+Line Number: 500
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\customerportal\migrations\0004_alter_customermaster_credit_limit_and_more.py
+Function: Migration
+Line Number: 90
+Snippet: name='effective_rate',
+Purpose: Access (Read) of effective_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\excel_api.py
+Function: Module Level
+Line Number: 35
+Snippet: {"label": "GST Rate", "key": "gst_rate", "required": False},
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\excel_api.py
+Function: safe_float
+Line Number: 290
+Snippet: "gst_rate": gst_val,
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\excel_api.py
+Function: is_empty
+Line Number: 501
+Snippet: inv_item.gst_rate = gst_val
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\excel_api.py
+Function: is_empty
+Line Number: 522
+Snippet: gst_rate=gst_val,
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\excel_api.py
+Function: get
+Line Number: 606
+Snippet: item.gst_rate if item.gst_rate is not None else "",
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\models.py
+Function: BaseInventoryOperationItem
+Line Number: 22
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\models.py
+Function: InventoryItem
+Line Number: 163
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\serializers.py
+Function: _sync_items
+Line Number: 109
+Snippet: gst_rate=Decimal(str(item.get('gstRate', item.get('gst_rate', 0)))),
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 366
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 456
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 483
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 510
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 537
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 595
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 622
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 649
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\inventory\migrations\0001_initial.py
+Function: Migration
+Line Number: 727
+Snippet: ('gst_rate', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_batch
+Line Number: 661
+Snippet: schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_batch
+Line Number: 661
+Snippet: schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_batch
+Line Number: 661
+Snippet: schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_batch
+Line Number: 680
+Snippet: - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_batch
+Line Number: 680
+Snippet: - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_batch
+Line Number: 680
+Snippet: - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_for_page
+Line Number: 865
+Snippet: tax_rate = random.choice([5, 12, 18, 28])
+Purpose: Assignment (Write) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_for_page
+Line Number: 867
+Snippet: item_tax = (item_taxable * tax_rate) / 100
+Purpose: Access (Read) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_for_page
+Line Number: 876
+Snippet: "igst_rate": float(tax_rate),
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_for_page
+Line Number: 876
+Snippet: "igst_rate": float(tax_rate),
+Purpose: Access (Read) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_for_page
+Line Number: 878
+Snippet: "cgst_rate": 0.0,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\extraction.py
+Function: _call_ai_for_page
+Line Number: 880
+Snippet: "sgst_rate": 0.0,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 306
+Snippet: "cgst_rate": item.get("cgst_rate") or item.get("cgst") or 0.0,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 307
+Snippet: "sgst_rate": item.get("sgst_rate") or item.get("sgst") or 0.0,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 308
+Snippet: "igst_rate": item.get("igst_rate") or item.get("igst") or 0.0,
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 310
+Snippet: "computed_gst_rate": item.get("computed_gst_rate") or item.get("gst_rate") or 0.0,
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 576
+Snippet: "cgst_rate": item.get("cgst_rate") or item.get("cgst") or 0.0,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 577
+Snippet: "sgst_rate": item.get("sgst_rate") or item.get("sgst") or 0.0,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 578
+Snippet: "igst_rate": item.get("igst_rate") or item.get("igst") or 0.0,
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\inventory_validation.py
+Function: resolve_to_inventory
+Line Number: 580
+Snippet: "computed_gst_rate": item.get("computed_gst_rate") or item.get("gstRate") or item.get("gst_rate") or 0.0,
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 852
+Snippet: # Evidence: items correctly carry cgst_rate=9.0 but no top-level header
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 853
+Snippet: # cgst_rate/sgst_rate key exists in extracted_data, causing forensic reports
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 853
+Snippet: # cgst_rate/sgst_rate key exists in extracted_data, causing forensic reports
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 866
+Snippet: record["cgst_rate"] = record["header_cgst_rate"]
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 867
+Snippet: record["sgst_rate"] = record["header_sgst_rate"]
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 869
+Snippet: f"[HEADER_GST_RATE] cgst_rate={record['header_cgst_rate']}% "
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 870
+Snippet: f"sgst_rate={record['header_sgst_rate']}% "
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 875
+Snippet: record["igst_rate"] = record["header_igst_rate"]
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_strict
+Line Number: 877
+Snippet: f"[HEADER_GST_RATE] igst_rate={record['header_igst_rate']}% "
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_tax_rate
+Line Number: 1202
+Snippet: for suffix in ["gst_rate", "gst_pct", "gst_percent", "gst_percentage", "gst_%", "tax_rate", "tax_pct", "tax_percent", "tax_percentage", "tax_%", "GST_RATE", "GST_PCT", "GST_PERCENT", "GST_PERCENTAGE"]:
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_tax_rate
+Line Number: 1202
+Snippet: for suffix in ["gst_rate", "gst_pct", "gst_percent", "gst_percentage", "gst_%", "tax_rate", "tax_pct", "tax_percent", "tax_percentage", "tax_%", "GST_RATE", "GST_PCT", "GST_PERCENT", "GST_PERCENTAGE"]:
+Purpose: Access (Read) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_tax_rate
+Line Number: 1284
+Snippet: "igst_rate": ig_rate,
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_tax_rate
+Line Number: 1285
+Snippet: "cgst_rate": cg_rate,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_tax_rate
+Line Number: 1286
+Snippet: "sgst_rate": sg_rate,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1538
+Snippet: "cgst_rate": normalize_amount(raw_header.get("cgst_rate", 0)),
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1539
+Snippet: "sgst_rate": normalize_amount(raw_header.get("sgst_rate", 0)),
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1540
+Snippet: "igst_rate": normalize_amount(raw_header.get("igst_rate", 0)),
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1583
+Snippet: normalize_amount(item.get("cgst_rate")) == 0.0 and
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1584
+Snippet: normalize_amount(item.get("sgst_rate")) == 0.0 and
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1585
+Snippet: normalize_amount(item.get("igst_rate")) == 0.0
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1598
+Snippet: cgst_rate = snap_to_standard_gst_rate(raw_cgst_rate)
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1599
+Snippet: sgst_rate = snap_to_standard_gst_rate(raw_sgst_rate)
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1602
+Snippet: if abs(cgst_rate - raw_cgst_rate) <= 0.1 and abs(sgst_rate - raw_sgst_rate) <= 0.1:
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1602
+Snippet: if abs(cgst_rate - raw_cgst_rate) <= 0.1 and abs(sgst_rate - raw_sgst_rate) <= 0.1:
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1603
+Snippet: logger.info(f"[TAX_DISTRIBUTION_ELIGIBLE] cgst_rate={cgst_rate} sgst_rate={sgst_rate}")
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1603
+Snippet: logger.info(f"[TAX_DISTRIBUTION_ELIGIBLE] cgst_rate={cgst_rate} sgst_rate={sgst_rate}")
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1607
+Snippet: orig_cgst_rate = item.get("cgst_rate", 0.0)
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1608
+Snippet: orig_sgst_rate = item.get("sgst_rate", 0.0)
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1611
+Snippet: item["cgst_rate"] = cgst_rate
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1612
+Snippet: item["sgst_rate"] = sgst_rate
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1613
+Snippet: item["cgst"] = round(item_taxable * (cgst_rate / 100.0), 2)
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1614
+Snippet: item["sgst"] = round(item_taxable * (sgst_rate / 100.0), 2)
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1625
+Snippet: 'after_value': f"CGST={item['cgst']}({item['cgst_rate']}%), SGST={item['sgst']}({item['sgst_rate']}%)",
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1625
+Snippet: 'after_value': f"CGST={item['cgst']}({item['cgst_rate']}%), SGST={item['sgst']}({item['sgst_rate']}%)",
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1626
+Snippet: 'reason': f"Distributed header rates (calculated={raw_cgst_rate:.2f}%, snapped={cgst_rate}%)",
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1630
+Snippet: logger.warning(f"[TAX_DISTRIBUTION_ABORT] Snapped rates cgst={cgst_rate}% sgst={sgst_rate}% deviate too far from raw values ({raw_cgst_rate:.2f}%, {raw_sgst_rate:.2f}%)")
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1630
+Snippet: logger.warning(f"[TAX_DISTRIBUTION_ABORT] Snapped rates cgst={cgst_rate}% sgst={sgst_rate}% deviate too far from raw values ({raw_cgst_rate:.2f}%, {raw_sgst_rate:.2f}%)")
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1667
+Snippet: igst_rate=normalize_amount(item.get("igst_rate", 0.0)),
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1668
+Snippet: cgst_rate=normalize_amount(item.get("cgst_rate", 0.0)),
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\normalize.py
+Function: get_canonical_export_record
+Line Number: 1669
+Snippet: sgst_rate=normalize_amount(item.get("sgst_rate", 0.0)),
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: sync_record_flattened_fields
+Line Number: 413
+Snippet: "bill_to_gstin", "cgst_rate", "sgst_rate", "igst_rate", "subtotal"
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: sync_record_flattened_fields
+Line Number: 413
+Snippet: "bill_to_gstin", "cgst_rate", "sgst_rate", "igst_rate", "subtotal"
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: sync_record_flattened_fields
+Line Number: 413
+Snippet: "bill_to_gstin", "cgst_rate", "sgst_rate", "igst_rate", "subtotal"
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2275
+Snippet: gst_rate = to_dec(item.get('gst_rate') or item.get('tax_rate') or item.get('computed_gst_rate'))
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2275
+Snippet: gst_rate = to_dec(item.get('gst_rate') or item.get('tax_rate') or item.get('computed_gst_rate'))
+Purpose: Access (Read) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2276
+Snippet: if gst_rate == 0.0:
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2277
+Snippet: gst_rate = to_dec(item.get('cgst_rate')) + to_dec(item.get('sgst_rate')) + to_dec(item.get('igst_rate'))
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2277
+Snippet: gst_rate = to_dec(item.get('cgst_rate')) + to_dec(item.get('sgst_rate')) + to_dec(item.get('igst_rate'))
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2277
+Snippet: gst_rate = to_dec(item.get('cgst_rate')) + to_dec(item.get('sgst_rate')) + to_dec(item.get('igst_rate'))
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2277
+Snippet: gst_rate = to_dec(item.get('cgst_rate')) + to_dec(item.get('sgst_rate')) + to_dec(item.get('igst_rate'))
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2280
+Snippet: if gst_rate > 0.0:
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2281
+Snippet: unique_rates.add(f"{int(gst_rate)}%")
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2287
+Snippet: expected_igst_item = round(tx_val * gst_rate / 100.0, 2)
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2291
+Snippet: expected_cgst_item = round(tx_val * (gst_rate / 2.0) / 100.0, 2)
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2292
+Snippet: expected_sgst_item = round(tx_val * (gst_rate / 2.0) / 100.0, 2)
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 2427
+Snippet: 'gst_rate': gst_rates_str
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 3289
+Snippet: "gstRate": to_dec(item.get('gst_rate') or item.get('tax_rate')),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\pipeline.py
+Function: to_dec
+Line Number: 3289
+Snippet: "gstRate": to_dec(item.get('gst_rate') or item.get('tax_rate')),
+Purpose: Access (Read) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\schema.py
+Function: CanonicalInvoiceItem
+Line Number: 17
+Snippet: igst_rate: float = 0.0
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\schema.py
+Function: CanonicalInvoiceItem
+Line Number: 18
+Snippet: cgst_rate: float = 0.0
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\schema.py
+Function: CanonicalInvoiceItem
+Line Number: 19
+Snippet: sgst_rate: float = 0.0
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\schema.py
+Function: RawInvoiceItem
+Line Number: 147
+Snippet: cgst_rate: Optional[float] = None
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\schema.py
+Function: RawInvoiceItem
+Line Number: 149
+Snippet: sgst_rate: Optional[float] = None
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\schema.py
+Function: RawInvoiceItem
+Line Number: 151
+Snippet: igst_rate: Optional[float] = None
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 312
+Snippet: cgst_rate = 0.0
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 313
+Snippet: sgst_rate = 0.0
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 314
+Snippet: igst_rate = 0.0
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 316
+Snippet: cgst_rate = round((cgst / taxable_value) * 100.0, 1)
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 317
+Snippet: sgst_rate = round((sgst / taxable_value) * 100.0, 1)
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 319
+Snippet: igst_rate = round((igst / taxable_value) * 100.0, 1)
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 353
+Snippet: "igst_rate": igst_rate,
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 355
+Snippet: "cgst_rate": cgst_rate,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\simple_invoice_classifier.py
+Function: classify_simple_invoice
+Line Number: 357
+Snippet: "sgst_rate": sgst_rate,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\table_reconstructor.py
+Function: reconstruct
+Line Number: 197
+Snippet: "igst_rate": self._to_float(item.get("igst_rate")),
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\table_reconstructor.py
+Function: reconstruct
+Line Number: 198
+Snippet: "cgst_rate": self._to_float(item.get("cgst_rate")),
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\table_reconstructor.py
+Function: reconstruct
+Line Number: 199
+Snippet: "sgst_rate": self._to_float(item.get("sgst_rate")),
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 142
+Snippet: igst_rate = self._to_float(item.get("igst_rate"))
+Purpose: Assignment (Write) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 143
+Snippet: cgst_rate = self._to_float(item.get("cgst_rate"))
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 144
+Snippet: sgst_rate = self._to_float(item.get("sgst_rate"))
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 146
+Snippet: total_rate = igst_rate if igst_rate > 0 else (cgst_rate + sgst_rate)
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 146
+Snippet: total_rate = igst_rate if igst_rate > 0 else (cgst_rate + sgst_rate)
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 146
+Snippet: total_rate = igst_rate if igst_rate > 0 else (cgst_rate + sgst_rate)
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\zoho_adapter.py
+Function: resolve_zoho_row
+Line Number: 150
+Snippet: is_interstate = igst_rate > 0 or (self._to_float(invoice.get("total_igst")) > 0)
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\document_validator\test_validator.py
+Function: _forensic_invoice_payload
+Line Number: 128
+Snippet: "cgst_rate": 0.0,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\document_validator\test_validator.py
+Function: _forensic_invoice_payload
+Line Number: 129
+Snippet: "sgst_rate": 0.0,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\document_validator\test_validator.py
+Function: _forensic_invoice_payload
+Line Number: 139
+Snippet: "cgst_rate": 0.0,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\ocr_pipeline\document_validator\test_validator.py
+Function: _forensic_invoice_payload
+Line Number: 140
+Snippet: "sgst_rate": 0.0,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\scripts\migrate_json_to_relational.py
+Function: migrate_inventory
+Line Number: 82
+Snippet: 'gst_rate': to_decimal(item.get('gstRate', 0)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\scripts\migrate_json_to_relational.py
+Function: migrate_customer_quotations
+Line Number: 297
+Snippet: 'effective_rate': to_decimal(item.get('rate', 0))
+Purpose: Access (Read) of effective_rate
+--------------------------------------------------------------------------------
+File: backend\scripts\migrate_json_to_relational.py
+Function: migrate_customer_quotations
+Line Number: 318
+Snippet: 'gst_rate': to_decimal(item.get('gstRate', 0)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\admin.py
+Function: ServiceAdmin
+Line Number: 14
+Snippet: list_display = ('service_code', 'service_name', 'service_group', 'gst_rate', 'is_active', 'created_at')
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\admin.py
+Function: ServiceAdmin
+Line Number: 15
+Snippet: list_filter = ('is_active', 'service_group', 'gst_rate')
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\admin.py
+Function: ServiceAdmin
+Line Number: 25
+Snippet: 'fields': ('sac_code', 'gst_rate', 'expense_ledger')
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\models.py
+Function: Service
+Line Number: 93
+Snippet: gst_rate = models.DecimalField(
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\serializers.py
+Function: ServiceSerializer
+Line Number: 40
+Snippet: gstRate = serializers.DecimalField(source='gst_rate', max_digits=5, decimal_places=2, write_only=True)
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\serializers.py
+Function: Meta
+Line Number: 52
+Snippet: 'gst_rate', 'expense_ledger',
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\serializers.py
+Function: Meta
+Line Number: 62
+Snippet: 'gst_rate': {'read_only': True},
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\serializers.py
+Function: to_representation
+Line Number: 111
+Snippet: 'gstRate': float(instance.gst_rate),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\services\migrations\0001_initial.py
+Function: Migration
+Line Number: 23
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=18, help_text='GST rate percentage', max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_production_e2e_forensic_complete.py
+Function: check_accuracy
+Line Number: 90
+Snippet: * `cgst_rate`/`cgst_amount` (float, Optional): Central tax. Downstream: Tax ledger.
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_production_e2e_forensic_complete.py
+Function: check_accuracy
+Line Number: 91
+Snippet: * `sgst_rate`/`sgst_amount` (float, Optional): State tax. Downstream: Tax ledger.
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_production_e2e_forensic_complete.py
+Function: check_accuracy
+Line Number: 92
+Snippet: * `igst_rate`/`igst_amount` (float, Optional): Integrated tax. Downstream: Tax ledger.
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_root_cause_analysis.py
+Function: run_analysis
+Line Number: 65
+Snippet: | | `cgst_rate` | Yes | Yes | Yes | Yes | Yes | Yes |
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_root_cause_analysis.py
+Function: run_analysis
+Line Number: 67
+Snippet: | | `sgst_rate` | Yes | Yes | Yes | Yes | Yes | Yes |
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_root_cause_analysis.py
+Function: run_analysis
+Line Number: 69
+Snippet: | | `igst_rate` | Yes | Yes | Yes | Yes | Yes | Yes |
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\detailed_root_cause_analysis.py
+Function: run_analysis
+Line Number: 81
+Snippet: | | `tax_rate` | Yes | Yes | Yes | Yes | Yes | Yes |
+Purpose: Access (Read) of tax_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\dump_full.py
+Function: Module Level
+Line Number: 37
+Snippet: "cgst_rate":it.get("cgst_rate"), "total":it.get("total_amount"),
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: Module Level
+Line Number: 49
+Snippet: "cgst_rate":       9.0,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: Module Level
+Line Number: 51
+Snippet: "sgst_rate":       9.0,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: Module Level
+Line Number: 53
+Snippet: "igst_rate":       0.0,
+Purpose: Access (Read) of igst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: Module Level
+Line Number: 63
+Snippet: 6         # subtotal, cgst_amount, sgst_amount, igst_amount, grand_total, cgst_rate
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 279
+Snippet: # cgst_rate / sgst_rate — try header first, then fall back to item[0] rate (populated by Qwen per-item)
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 279
+Snippet: # cgst_rate / sgst_rate — try header first, then fall back to item[0] rate (populated by Qwen per-item)
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 282
+Snippet: cgst_rate   = (get_field(extracted_data, "cgst_rate") or
+Purpose: Assignment (Write) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 284
+Snippet: (_item0.get("cgst_rate") if _item0 else None) or 0)
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 287
+Snippet: sgst_rate   = (get_field(extracted_data, "sgst_rate") or
+Purpose: Assignment (Write) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 289
+Snippet: (_item0.get("sgst_rate") if _item0 else None) or 0)
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 313
+Snippet: "cgst_rate":    cgst_rate,
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: analyze_extracted_data
+Line Number: 315
+Snippet: "sgst_rate":    sgst_rate,
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: run_forensic
+Line Number: 456
+Snippet: ("cgst_rate",    GROUND_TRUTH["cgst_rate"],   "", qwen_fields["cgst_rate"],   api_fields.get("cgst_rate",""),   ""),
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: run_forensic
+Line Number: 458
+Snippet: ("sgst_rate",    GROUND_TRUTH["sgst_rate"],   "", qwen_fields["sgst_rate"],   api_fields.get("sgst_rate",""),   ""),
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: fmt_val
+Line Number: 664
+Snippet: - CGST: `{qwen_fields['cgst_rate']}%` → `{qwen_fields['cgst_amount']}`
+Purpose: Access (Read) of cgst_rate
+--------------------------------------------------------------------------------
+File: backend\sprint3_validation\forensic_e2e_validation.py
+Function: fmt_val
+Line Number: 665
+Snippet: - SGST: `{qwen_fields['sgst_rate']}%` → `{qwen_fields['sgst_amount']}`
+Purpose: Access (Read) of sgst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\models.py
+Function: VendorTransactionPOItem
+Line Number: 764
+Snippet: gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="GST rate percentage")
+Purpose: Assignment (Write) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\vendorpo_database.py
+Function: create_purchase_order
+Line Number: 179
+Snippet: gst_rate,
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\vendorpo_database.py
+Function: create_purchase_order
+Line Number: 200
+Snippet: item.get('gst_rate', 0),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\vendorpo_database.py
+Function: get_purchase_order_by_id
+Line Number: 247
+Snippet: taxable_value, gst_rate, gst_amount, invoice_value
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\vendorpo_database.py
+Function: update_purchase_order
+Line Number: 422
+Snippet: gst_rate, gst_amount, invoice_value, created_at, updated_at
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\vendorpo_database.py
+Function: update_purchase_order
+Line Number: 437
+Snippet: item.get('gst_rate', 0),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\vendorpo_serializers.py
+Function: Meta
+Line Number: 27
+Snippet: 'gst_rate',
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------
+File: backend\vendors\migrations\0001_initial.py
+Function: Migration
+Line Number: 362
+Snippet: ('gst_rate', models.DecimalField(decimal_places=2, default=0.0, help_text='GST rate percentage', max_digits=5)),
+Purpose: Access (Read) of gst_rate
+--------------------------------------------------------------------------------

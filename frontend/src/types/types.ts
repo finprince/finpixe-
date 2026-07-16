@@ -328,6 +328,17 @@ export interface ExtractedLineItem {
   cess?: number;
   taxableValue?: number;
   uom?: string;
+  itemCode?: string;
+  grossAmount?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  gstRate?: number;
+  cgstRate?: number;
+  sgstRate?: number;
+  igstRate?: number;
+  cessRate?: number;
+  lineTotal?: number;
+  invoiceValue?: number;
 }
 
 export interface ExtractedInvoiceData {
