@@ -95,6 +95,22 @@ class VoucherSalesInvoiceDetails(BaseModel):
         blank=True, 
         help_text="E-commerce operator GSTIN"
     )
+    is_ecommerce_operator = models.BooleanField(
+        default=False,
+        help_text="True if the tenant is acting as an E-Commerce Operator (ECO) under Sec 9(5)"
+    )
+    third_party_supplier_gstin = models.CharField(
+        max_length=15,
+        null=True,
+        blank=True,
+        help_text="GSTIN of the third-party supplier. If blank, supplier is URP."
+    )
+    third_party_supplier_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Name of the third-party supplier"
+    )
     irn = models.CharField(max_length=255, null=True, blank=True)
     ack_no = models.CharField(max_length=100, null=True, blank=True)
 
@@ -116,6 +132,7 @@ class VoucherSalesInvoiceDetails(BaseModel):
     # GST Filing & Amendment Tracking
     gst_registered = models.CharField(max_length=3, default='', blank=True, help_text="'Yes' if this voucher has been filed in GST, empty otherwise")
     amendment_date = models.DateField(null=True, blank=True, help_text="Date when this voucher was amended after being GST filed")
+    amendment_filed = models.BooleanField(default=False, help_text="True if the amendment itself has been GST filed")
     original_voucher_snapshot = models.JSONField(null=True, blank=True, help_text="Snapshot of the original voucher before amendment")
 
     # Posting Status Tracking

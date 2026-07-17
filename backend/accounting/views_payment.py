@@ -471,18 +471,17 @@ def get_advances_by_ledger(ledger_id=None, tenant_id=None, category=None):
     Common function to fetch advance payments for a specific ledger from all sources.
     Matches against pay_to_ledger (Vendor-side) or pay_from_ledger (Customer-side).
     """
-    from django.db.models import Q
+    from django.db.models import Q, F
     from accounting.models import AdvanceAllocation, PendingTransaction
     
-    # ── Source 1: AdvanceAllocation (Voucher-based and Portal-based advances) ──
-    # Exclude all receipt-originated entries (type starts with 'receipt_')
-    # so that paying a Receipt does not appear in Sales Voucher Payment Details.
+    #  Source 1: AdvanceAllocation (Voucher-based and Portal-based advances) 
+    # All records in this table represent genuine unutilized advances.
     payment_qs = AdvanceAllocation.objects.filter(
         amount__gt=0
     ).exclude(
-        type__in=['receipt_single_amount_only', 'payment_single_amount_only']
+        type__endswith='_amount_only'
     ).exclude(
-        type__startswith='receipt_'
+        reference_number=F('transaction__voucher_number')
     ).select_related('pay_to_ledger', 'pay_from_ledger')
     
     if ledger_id:

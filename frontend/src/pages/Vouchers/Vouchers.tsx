@@ -114,6 +114,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const [isReadOnlyMode, setIsReadOnlyMode] = useState(!!viewVoucherData);
   // Tracks whether we are viewing/editing an EXISTING voucher (stays true even after clicking Edit)
   const isExistingVoucherRef = useRef(!!viewVoucherData);
+  const loadedVoucherIdRef = useRef<any>(null);
   const [drillDownDetails, setDrillDownDetails] = useState<any>(null);
   const [drillDownLoading, setDrillDownLoading] = useState(false);
   const [amendedVoucherDetails, setAmendedVoucherDetails] = useState<any>(null);
@@ -4656,12 +4657,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
             item_details: {
               items: cnItems,
-              total_taxable_value: totals.taxableValue,
-              total_igst: totals.igst,
-              total_cgst: totals.cgst,
-              total_sgst: totals.sgst,
-              total_cess: totals.cess,
-              total_invoice_value: totals.invoiceValue
+              total_taxable_value: Number((totals.taxableValue || 0).toFixed(2)),
+              total_igst: Number((totals.igst || 0).toFixed(2)),
+              total_cgst: Number((totals.cgst || 0).toFixed(2)),
+              total_sgst: Number((totals.sgst || 0).toFixed(2)),
+              total_cess: Number((totals.cess || 0).toFixed(2)),
+              total_invoice_value: Number((totals.invoiceValue || 0).toFixed(2))
             },
 
             due_details: {
@@ -5424,23 +5425,53 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     setDrillDownLoading(true);
     apiService.getVoucher(voucherId, {}, source).then(apiDetails => {
       if (apiDetails) {
-        const viewAsGSTFiled = viewVoucherData?._viewAsGSTFiled === true && !isViewingAmended;
+        const hasSnapshot = !!apiDetails.original_voucher_snapshot;
+        const fromGST = viewVoucherData?._viewAsGSTFiled === true;
+
+        const isNewVoucher = loadedVoucherIdRef.current !== voucherId;
+        let activeViewingAmended = isViewingAmended;
+        if (isNewVoucher) {
+          loadedVoucherIdRef.current = voucherId;
+          if (!fromGST && hasSnapshot) {
+            activeViewingAmended = true;
+            setIsViewingAmended(true);
+          }
+        }
 
         let displayData = apiDetails;
-        if (viewAsGSTFiled && apiDetails.original_voucher_snapshot) {
-          displayData = apiDetails.original_voucher_snapshot;
-          // Store the amended version for the "View Amendmented" toggle
-          setAmendedVoucherDetails({ ...apiDetails, _mappedType: mappedType, _rawEntry: viewVoucherData });
-        } else if (viewAsGSTFiled) {
-          // Forced GST filed view, no snapshot
-          displayData = { ...apiDetails, amendment_date: null };
-          setAmendedVoucherDetails(null);
-        } else {
-          // Normal view (from Daybook/Vouchers) - shows CURRENT state (Amended if it is)
-          displayData = apiDetails;
-          if (!isViewingAmended) {
-            setAmendedVoucherDetails(null);
+        if (hasSnapshot) {
+          if (activeViewingAmended) {
+            displayData = apiDetails;
+          } else {
+            if (apiDetails.type === 'Receipt' && apiDetails.original_voucher_snapshot && typeof apiDetails.original_voucher_snapshot === 'object' && ('original_amount' in apiDetails.original_voucher_snapshot)) {
+              // For Receipt AT Amendments, the snapshot only contains the amended fields.
+              // We must merge it onto the full apiDetails.
+              const snap = apiDetails.original_voucher_snapshot;
+              const origAmount = snap.original_amount !== undefined && snap.original_amount !== '' ? parseFloat(snap.original_amount) : apiDetails.totalAmount;
+              displayData = {
+                ...apiDetails,
+                totalAmount: origAmount,
+                amount: origAmount,
+                items: (apiDetails.items || []).map((item: any) => ({
+                  ...item,
+                  amount: origAmount,
+                  received_amount: origAmount,
+                  amount_applied: origAmount,
+                  gst_rate: snap.original_rate !== undefined ? snap.original_rate : item.gst_rate,
+                }))
+              };
+            } else {
+              displayData = apiDetails.original_voucher_snapshot;
+            }
           }
+          setAmendedVoucherDetails(apiDetails);
+        } else {
+          displayData = fromGST ? { ...apiDetails, amendment_date: null } : apiDetails;
+          setAmendedVoucherDetails(null);
+        }
+
+        if (viewVoucherData?.gst_registered) {
+          displayData = { ...displayData, gst_registered: viewVoucherData.gst_registered };
         }
 
         setDrillDownDetails({ ...displayData, _mappedType: mappedType, _rawEntry: viewVoucherData });
@@ -5550,14 +5581,22 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             invoiceNumber: details.sales_invoice_no || details.voucher_number || details.voucher_no || '',
             // ── Sales Series ─────────────────────────────────────────────
             voucher_name: details.voucher_name || details.voucher_series || details.sales_series || details.sales_voucher_series || '',
-            branch: details.branch || '',
+            branch: details.customer_branch || details.branch || '',
             gstin: details.gstin || '',
             gst_registered: details.gst_registered,
+            amendment_date: details.amendment_date || null,
             invoiceDate: details.date ? new Date(details.date).toISOString().split('T')[0] : getTodayDate(),
+            // ── E-Commerce fields (CRITICAL: missing these clears ECO status on save) ──
+            ecommerce_gstin: details.ecommerce_gstin || '',
+            is_ecommerce_sales: details.is_ecommerce_sales !== undefined ? details.is_ecommerce_sales : (!!details.ecommerce_gstin || !!details.is_ecommerce_operator),
+            is_ecommerce_operator: details.is_ecommerce_operator ?? false,
+            third_party_supplier_name: details.third_party_supplier_name || '',
+            third_party_supplier_gstin: details.third_party_supplier_gstin || '',
             sellerName: details.party || details.customer_name || '',
             placeOfSupply: details.place_of_supply || details.placeOfSupply || '',
             invoiceType: details.invoice_type || details.invoiceType || 'Regular',
             stateType: details.state_type || details.stateType || 'within',
+            exchangeRate: details.exchange_rate || 1.0,
             totalAmount: details.payment_details?.payment_invoice_value || details.total_amount || details.total || 0,
             subtotal: details.payment_details?.payment_taxable_value || details.total_taxable_amount || 0,
             cgstAmount: details.payment_details?.payment_cgst || details.total_cgst || 0,
@@ -5634,6 +5673,15 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               // Per-row sales ledger so the Sales Ledger column populates
               salesLedger: item.salesLedger || item.sales_ledger || '',
             })),
+            foreignLineItems: (details.foreign_items || []).map((item: any) => ({
+              itemDescription: item.item_name || item.itemName || item.description || '',
+              itemCode: item.item_code || item.itemCode || '',
+              quantity: parseFloat(item.quantity || item.qty || '0') || 0,
+              rate: parseFloat(item.rate || item.item_rate || '0') || 0,
+              amount: parseFloat(item.amount || item.invoice_value || '0') || 0,
+              uom: item.uqc || item.uom || '',
+              salesLedger: item.salesLedger || item.sales_ledger || '',
+            })),
           } as any);
         }
         else if (mappedType === 'Payment' || mappedType === 'Receipt') {
@@ -5656,6 +5704,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             reference_number: details.ref_no || '',
             voucher_type: details.voucher_type || details.type || '',
             items: details.items || details.item_details?.line_items || details.item_details?.items || [],
+            _rawEntry: viewVoucherData,
           } as any);
         }
         else if (mappedType === 'Contra') {
@@ -5723,7 +5772,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         else if (mappedType === 'Credit Note') {
           if (details.credit_note_no || details.voucher_number || details.voucher_no) setCnVoucherNumber(details.credit_note_no || details.voucher_number || details.voucher_no);
           if (details.credit_note_series || details.voucher_series) setSelectedCnConfig(details.credit_note_series || details.voucher_series);
-          if (details.customer_name || details.party) {
+          if (details.customer_id) {
+            setCnCustomerId(details.customer_id.toString());
+            const cst = richCustomers.find(c => c.id.toString() === details.customer_id.toString());
+            if (cst) setCnCustomer(cst.customer_name);
+            else if (details.customer_name) setCnCustomer(details.customer_name);
+          } else if (details.customer_name || details.party) {
             const cname = details.customer_name || details.party;
             setCnCustomer(cname);
             const cst = richCustomers.find(c => c.customer_name === cname);
@@ -12598,7 +12652,36 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     </>
   );
 
+  const handleCancelInvoice = async () => {
+    const salesPk = drillDownDetails?.reference_id
+      || drillDownDetails?.id
+      || viewVoucherData?.reference_id
+      || viewVoucherData?.rawVoucher?.reference_id
+      || viewVoucherData?.id
+      || viewVoucherData?.rawVoucher?.id;
+    console.log('[CancelInvoice] salesPk=', salesPk, '| drillDownDetails=', drillDownDetails, '| viewVoucherData=', viewVoucherData);
+    if (!salesPk) {
+      alert('Cannot determine invoice ID. Please try again.');
+      return;
+    }
+    const confirmed = window.confirm(
+      'Are you sure you want to CANCEL this invoice?\n\nThis action is permanent and cannot be undone.\n- All journal entries will be deleted\n- Invoice totals will be reset to zero\n- The invoice will remain in records as CANCELLED for GST compliance'
+    );
+    if (!confirmed) return;
+
+    try {
+      const data = await httpClient.post<any>(`/api/voucher-sales-new/${salesPk}/cancel/`, {});
+      // Refresh drillDownDetails to reflect the new cancelled status
+      setDrillDownDetails((prev: any) => prev ? { ...prev, status: 'cancelled' } : prev);
+      alert('Invoice has been successfully CANCELLED.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Failed to cancel invoice';
+      alert(`Error cancelling invoice: ${msg}`);
+    }
+  };
+
   const handleCloseVoucher = () => {
+
     if (activeOcrFileHash) {
       setActiveOcrFileHash(null);
       setActiveOcrFileName(null);
@@ -12625,7 +12708,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     setDrillDownDetails(null);
     if (clearViewVoucherData) clearViewVoucherData();
     if (onNavigate) {
-      if (viewVoucherData?.source === 'b2b_drilldown') {
+      if (viewVoucherData?.source && viewVoucherData.source.endsWith('_drilldown')) {
         onNavigate('GST');
       } else if (viewVoucherData?.ledgerName) {
         onNavigate('Reports', { reportType: 'LedgerReport', drillDownLedger: viewVoucherData.ledgerName });
@@ -12671,32 +12754,74 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         </div>
       ) : (
         <>
-          {isReadOnlyMode && (
-            <div className="bg-indigo-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(79,70,229,0.4)] animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
-                  <Icon name="eye" className="w-6 h-6 text-white" />
+          {isReadOnlyMode && (() => {
+            const isCancelledInvoice = drillDownDetails?.status === 'cancelled';
+            const isSalesVoucher = (drillDownDetails?._mappedType || voucherType) === 'Sales';
+
+            return isCancelledInvoice ? (
+              // Red CANCELLED banner
+              <div className="bg-red-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(220,38,38,0.5)] animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
+                    <Icon name="x-circle" className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-black text-lg uppercase tracking-wide leading-tight">⚠ INVOICE CANCELLED</p>
+                    <p className="text-red-100 text-sm font-medium opacity-90">
+                      This invoice has been permanently cancelled. It cannot be edited or reactivated.
+                      It is preserved in your records for GST DOC compliance.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-black text-lg uppercase tracking-wide leading-tight">READ-ONLY VIEW</p>
-                  <p className="text-indigo-100 text-sm font-medium opacity-90">You are currently viewing {drillDownDetails?._mappedType || voucherType} Voucher {drillDownDetails?.voucher_number || drillDownDetails?._rawEntry?.voucherNo || ""}.</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleCloseVoucher}
+                    className="flex items-center gap-2 bg-red-800/60 text-red-50 px-5 py-3 rounded-xl font-bold text-sm border border-red-400/40 hover:bg-red-800/90 transition-all active:scale-95"
+                  >
+                    <Icon name="x" className="w-4 h-4" />
+                    CLOSE
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setIsReadOnlyMode(false)} className="flex items-center gap-2 bg-white text-indigo-700 px-7 py-3 rounded-xl font-black text-sm shadow-md hover:bg-indigo-50 transition-all active:scale-95">
-                  <Icon name="edit" className="w-4 h-4" />
-                  EDIT VOUCHER
-                </button>
-                <button
-                  onClick={handleCloseVoucher}
-                  className="flex items-center gap-2 bg-indigo-800/60 text-indigo-50 px-5 py-3 rounded-xl font-bold text-sm border border-indigo-400/40 hover:bg-indigo-800/90 transition-all active:scale-95"
-                >
-                  <Icon name="x" className="w-4 h-4" />
-                  CLOSE
-                </button>
+            ) : (
+              // Normal read-only banner
+              <div className="bg-indigo-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(79,70,229,0.4)] animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
+                    <Icon name="eye" className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-black text-lg uppercase tracking-wide leading-tight">READ-ONLY VIEW</p>
+                    <p className="text-indigo-100 text-sm font-medium opacity-90">You are currently viewing {drillDownDetails?._mappedType || voucherType} Voucher {drillDownDetails?.voucher_number || drillDownDetails?._rawEntry?.voucherNo || ""}.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setIsReadOnlyMode(false)} className="flex items-center gap-2 bg-white text-indigo-700 px-7 py-3 rounded-xl font-black text-sm shadow-md hover:bg-indigo-50 transition-all active:scale-95">
+                    <Icon name="edit" className="w-4 h-4" />
+                    EDIT VOUCHER
+                  </button>
+                  {isSalesVoucher && (
+                    <button
+                      id="cancel-invoice-btn"
+                      onClick={handleCancelInvoice}
+                      className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+                    >
+                      <Icon name="x-circle" className="w-4 h-4" />
+                      CANCEL INVOICE
+                    </button>
+                  )}
+                  <button
+                    onClick={handleCloseVoucher}
+                    className="flex items-center gap-2 bg-indigo-800/60 text-indigo-50 px-5 py-3 rounded-xl font-bold text-sm border border-indigo-400/40 hover:bg-indigo-800/90 transition-all active:scale-95"
+                  >
+                    <Icon name="x" className="w-4 h-4" />
+                    CLOSE
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
+
 
           {/* Main Tabs */}
           <div className={`erp-tab-container ${isReadOnlyMode ? 'opacity-50 pointer-events-none cursor-not-allowed select-none' : ''}`}>
@@ -12721,6 +12846,14 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   </div>
                 )}
                 {/* GST Status Badges */}
+                {isReadOnlyMode && !amendedVoucherDetails && !drillDownDetails?.amendment_date && (drillDownDetails?.gst_registered === 'Yes') && (
+                  <div className="flex items-center space-x-2">
+                    <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
+                      <Icon name="check-circle" className="w-3.5 h-3.5 mr-1.5" />
+                      GST Filed
+                    </div>
+                  </div>
+                )}
                 {isReadOnlyMode && !isViewingAmended && amendedVoucherDetails && (
                   <div className="flex items-center space-x-2">
                     <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
@@ -12749,12 +12882,6 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <Icon name="eye" className="w-3.5 h-3.5 mr-1.5" />
                       View Original Snapshot
                     </button>
-                  </div>
-                )}
-                {isReadOnlyMode && !amendedVoucherDetails && drillDownDetails?.gst_registered === 'Yes' && !drillDownDetails?.amendment_date && (
-                  <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
-                    <Icon name="check-circle" className="w-3.5 h-3.5 mr-1.5" />
-                    GST Filed
                   </div>
                 )}
               </div>

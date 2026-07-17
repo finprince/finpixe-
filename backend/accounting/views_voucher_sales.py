@@ -243,3 +243,72 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
             
         return super().create(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        from .models import Voucher, VoucherSalesInvoiceDetails
+        tenant_id = getattr(request.user, 'tenant_id', None)
+        
+        try:
+            # Look up directly to bypass get_queryset filters (e.g. show_all)
+            invoice = VoucherSalesInvoiceDetails.objects.get(id=pk, tenant_id=tenant_id)
+        except VoucherSalesInvoiceDetails.DoesNotExist:
+            # Fallback: pk might be the generic Voucher ID instead of the VoucherSalesInvoiceDetails ID
+            try:
+                voucher = Voucher.objects.get(id=pk, type="sales", tenant_id=tenant_id)
+                invoice = VoucherSalesInvoiceDetails.objects.get(id=voucher.reference_id, tenant_id=tenant_id)
+            except (Voucher.DoesNotExist, VoucherSalesInvoiceDetails.DoesNotExist, ValueError):
+                return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                return Response({"error": f"DEBUG: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        if invoice.status == 'cancelled':
+            return Response({"error": "Invoice is already cancelled"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with db_transaction.atomic():
+                # 1. Update status
+                invoice.status = 'cancelled'
+                invoice.save()
+
+                # 2. Delete or reverse Journal Entries for the sales invoice
+                from .models import JournalEntry, Voucher
+                try:
+                    voucher = Voucher.objects.get(
+                        type="sales",
+                        reference_id=invoice.id,
+                        tenant_id=invoice.tenant_id
+                    )
+                    # Clear JEs
+                    JournalEntry.objects.filter(
+                        voucher_id=voucher.id,
+                        tenant_id=invoice.tenant_id
+                    ).delete()
+                    
+                    # Update Voucher total to 0 as it is cancelled
+                    voucher.total = Decimal('0.00')
+                    voucher.total_taxable_amount = Decimal('0.00')
+                    voucher.total_cgst = Decimal('0.00')
+                    voucher.total_sgst = Decimal('0.00')
+                    voucher.total_igst = Decimal('0.00')
+                    voucher.save()
+                except Voucher.DoesNotExist:
+                    pass
+
+                # 3. If there are payment details, clear balance/totals
+                if hasattr(invoice, 'payment_details') and invoice.payment_details:
+                    pay = invoice.payment_details
+                    pay.payment_invoice_value = Decimal('0.00')
+                    pay.payment_taxable_value = Decimal('0.00')
+                    pay.payment_cgst = Decimal('0.00')
+                    pay.payment_sgst = Decimal('0.00')
+                    pay.payment_igst = Decimal('0.00')
+                    pay.payment_cess = Decimal('0.00')
+                    pay.payment_balance = Decimal('0.00')
+                    pay.payment_received = Decimal('0.00')
+                    pay.payment_payable = Decimal('0.00')
+                    pay.save()
+
+                return Response({"message": "Invoice cancelled successfully", "status": invoice.status})
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

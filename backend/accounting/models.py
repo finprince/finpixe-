@@ -1124,10 +1124,16 @@ class AllocationBase(BaseModel):
     
     # Real data fields
     is_advance = models.BooleanField(default=False)
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="GST Rate (e.g. 18.00) for Advance Tax (AT) reporting")
     advance_ref_no = models.CharField(max_length=150, null=True, blank=True)
     posting_note = models.TextField(null=True, blank=True, help_text="Per-row posting note entered in the allocation table")
     narration = models.TextField(null=True, blank=True, help_text="Original narration from bank upload or source")
-
+    gst_registered = models.CharField(max_length=3, default='', blank=True, help_text="'Yes' if this advance has been filed in GST, empty otherwise")
+    
+    # Amendment tracking for Advance Tax (ATA)
+    amendment_date = models.DateField(null=True, blank=True, help_text="Date when the advance was amended")
+    original_voucher_snapshot = models.JSONField(null=True, blank=True, help_text="Snapshot of the original filed AT values")
+    amendment_filed = models.BooleanField(default=False, help_text="True once this ATA amendment has been filed in GST")
     @property
     def amount_applied(self): return self.allocated_amount
     @amount_applied.setter
