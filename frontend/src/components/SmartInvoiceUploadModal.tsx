@@ -1413,7 +1413,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
             const lowerStatus = pipelineStatus.toLowerCase();
             if ((seeded.length > 0 || lowerStatus === 'completed' || lowerStatus === 'finalized' || lowerStatus === 'failed') && isMounted.current) {
                 console.log(`[PURCHASE_SCAN_REVIEW_UNLOCK] progressive unlock: count=${seeded.length} pipelineStatus=${pipelineStatus}`);
-                if (step === 'scanning') setStep('review');
+                const currentStep = useOcrWorkflowStore.getState().step;
+                if (currentStep === 'scanning') setStep('review');
             }
 
             // ── Stop polling if backend says completed or all rows settled ──
@@ -2774,15 +2775,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         {getGstStatus(row) === 'GST_MISMATCH' ? (
                                                                             <button
                                                                                 onClick={() => {
-                                                                                    if (onEditRow) {
-                                                                                        onEditRow({
-                                                                                            ...row,
-                                                                                            uploadSessionId: uploadSessionId,
-                                                                                            file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
-                                                                                        });
-                                                                                    } else {
-                                                                                        setGstCorrectionRow(row);
-                                                                                    }
+                                                                                     setGstCorrectionRow(row);
                                                                                 }}
                                                                                 title="Click to resolve GST Mismatch"
                                                                                 className="hover:scale-105 active:scale-95 transition-transform duration-150 outline-none focus:outline-none cursor-pointer"
@@ -2808,15 +2801,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         ) : getGstStatus(row) === 'GST_MISMATCH' ? (
                                                                             <button
                                                                                 onClick={() => {
-                                                                                    if (onEditRow) {
-                                                                                        onEditRow({
-                                                                                            ...row,
-                                                                                            uploadSessionId: uploadSessionId,
-                                                                                            file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
-                                                                                        });
-                                                                                    } else {
-                                                                                        showInfo("Editing is not available in standalone mode.");
-                                                                                    }
+                                                                                     setGstCorrectionRow(row);
                                                                                 }}
                                                                                 title="Open Invoice to Resolve GST Mismatch"
                                                                                 className="bg-rose-600 text-white border border-rose-700 px-2 py-1 rounded hover:bg-rose-700 transition-colors cursor-pointer font-bold focus:outline-none inline-block shadow-sm"

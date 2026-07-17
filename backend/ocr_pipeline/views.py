@@ -13,6 +13,7 @@ import time
 from .models import InvoiceTempOCR, OCRJob, OCRTask, PipelineStatus, FinalizedSnapshot, RescanHistory
 from vouchers.models import UploadSession
 from .zoho_adapter import get_zoho_adapter
+from .services.gst_restoration import restore_supplier_gst_values
 
 logger = logging.getLogger(__name__)
 
@@ -2998,6 +2999,10 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
 
         ext = record.extracted_data
 
+        items_payload = request.data.get('items')
+        if items_payload and isinstance(items_payload, list):
+            ext['items'] = items_payload
+
         # Unconditionally write corrected values
         ext['total_cgst'] = cgst_val
         ext['cgst'] = cgst_val
@@ -3060,22 +3065,23 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
         if isinstance(audit_trail, dict):
             diff_val = audit_trail.get('difference_amount', 0.0)
 
-        # Set resolution choice to CORRECTED if difference is within tolerance,
-        # otherwise set to SUPPLIER_VALUES_ACCEPTED to preserve the user's manual edits
-        if diff_val <= 1.0:
-            record.extracted_data["gst_resolution"] = "CORRECTED"
-        else:
-            record.extracted_data["gst_resolution"] = "SUPPLIER_VALUES_ACCEPTED"
+        # Set resolution choice from request parameters or auto-infer based on tolerance
+        resolution_choice = request.data.get('resolution') or request.data.get('gst_resolution')
+        if not resolution_choice:
+            if diff_val <= 1.0:
+                resolution_choice = "CORRECTED"
+            else:
+                resolution_choice = "SUPPLIER_VALUES_ACCEPTED"
 
+        if resolution_choice == 'SUPPLIER_VALUES_ACCEPTED' and not items_payload:
+            restore_supplier_gst_values(record)
+
+        record.extracted_data["gst_resolution"] = resolution_choice
         record.save(update_fields=['extracted_data'])
+
         # Run GST engine again to regenerate audit metadata under resolved choice
         run_gst_validation_engine(record, user=request.user)
         record.refresh_from_db()
-
-        # Force transition validation_status immediately to resolve GST MISMATCH
-        if record.validation_status == 'GST_MISMATCH':
-            record.validation_status = 'NEED_TO_SAVE'
-            record.save(update_fields=['validation_status'])
 
         # Copy updated extracted_data to PendingPurchase.extraction_payload if PendingPurchase exists
         from pending_purchases.models import PendingPurchase
@@ -3089,11 +3095,12 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
         record.refresh_from_db()
 
         # Final synchronization to guarantee PendingPurchase is perfectly in sync
+        ext_total = record.extracted_data.get('total_invoice_value') or record.extracted_data.get('total_amount') or 0.0
         PendingPurchase.objects.filter(source_scan_row_id=record.id).update(
             extraction_payload=record.extracted_data,
             invoice_number=record.supplier_invoice_no,
             vendor_gstin=record.gstin,
-            amount=record.total_amount
+            amount=ext_total
         )
 
         ui_payload = self._map_record_to_ui_row(record)
