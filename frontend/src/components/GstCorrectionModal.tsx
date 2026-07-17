@@ -8,6 +8,20 @@ const round = (num: number, decimals: number = 2): number => {
     return Math.round((num + Number.EPSILON) * factor) / factor;
 };
 
+const getTaxVal = (item: any, key1: string, key2: string): number => {
+    const val1 = item?.[key1];
+    const val2 = item?.[key2];
+    const num1 = val1 !== undefined && val1 !== null && val1 !== '' ? Number(val1) : NaN;
+    const num2 = val2 !== undefined && val2 !== null && val2 !== '' ? Number(val2) : NaN;
+    
+    if (!isNaN(num1) && num1 !== 0) return num1;
+    if (!isNaN(num2) && num2 !== 0) return num2;
+    
+    if (!isNaN(num1)) return num1;
+    if (!isNaN(num2)) return num2;
+    return 0;
+};
+
 /**
  * Returns the canonical discount percentage for an item,
  * checking all known key variants.  Returns 0 when no discount.
@@ -15,13 +29,19 @@ const round = (num: number, decimals: number = 2): number => {
 const getItemDiscountPct = (item: any, rawItem?: any): number => {
     // Use explicit null/undefined checks so discount_percent = 0 is NOT skipped.
     let val = 0;
-    if (item.discount_percent !== undefined && item.discount_percent !== null) val = Number(item.discount_percent);
-    else if (item.discount_pct !== undefined && item.discount_pct !== null) val = Number(item.discount_pct);
-    else if (item.discount_percentage !== undefined && item.discount_percentage !== null) val = Number(item.discount_percentage);
-    else if (item.discount_percent_extracted !== undefined && item.discount_percent_extracted !== null) val = Number(item.discount_percent_extracted);
-    
-    if (val === 0 && rawItem) {
-        return getItemDiscountPct(rawItem);
+    if (item.discount_percent !== undefined && item.discount_percent !== null && Number(item.discount_percent) !== 0) {
+        val = Number(item.discount_percent);
+    } else if (item.discount_pct !== undefined && item.discount_pct !== null && Number(item.discount_pct) !== 0) {
+        val = Number(item.discount_pct);
+    } else if (item.discount_percentage !== undefined && item.discount_percentage !== null && Number(item.discount_percentage) !== 0) {
+        val = Number(item.discount_percentage);
+    } else if (item.discount_percent_extracted !== undefined && item.discount_percent_extracted !== null && Number(item.discount_percent_extracted) !== 0) {
+        val = Number(item.discount_percent_extracted);
+    } else if (rawItem) {
+        if (rawItem.discount_percent !== undefined && rawItem.discount_percent !== null) val = Number(rawItem.discount_percent);
+        else if (rawItem.discount_pct !== undefined && rawItem.discount_pct !== null) val = Number(rawItem.discount_pct);
+        else if (rawItem.discount_percentage !== undefined && rawItem.discount_percentage !== null) val = Number(rawItem.discount_percentage);
+        else if (rawItem.discount_percent_extracted !== undefined && rawItem.discount_percent_extracted !== null) val = Number(rawItem.discount_percent_extracted);
     }
     return val;
 };
@@ -32,14 +52,16 @@ const getItemDiscountPct = (item: any, rawItem?: any): number => {
  */
 const getItemDiscountAmt = (item: any, rawItem?: any): number => {
     let val = 0;
-    if (item.discount_amount !== undefined && item.discount_amount !== null) val = Number(item.discount_amount);
-    else if (item.discount_value !== undefined && item.discount_value !== null) val = Number(item.discount_value);
-    else if (item.discount_extracted !== undefined && item.discount_extracted !== null) val = Number(item.discount_extracted);
-    // Note: item.discount is intentionally NOT used as a fallback here because
-    // the 'discount' key is overloaded in some contexts as a description label.
-    
-    if (val === 0 && rawItem) {
-        return getItemDiscountAmt(rawItem);
+    if (item.discount_amount !== undefined && item.discount_amount !== null && Number(item.discount_amount) !== 0) {
+        val = Number(item.discount_amount);
+    } else if (item.discount_value !== undefined && item.discount_value !== null && Number(item.discount_value) !== 0) {
+        val = Number(item.discount_value);
+    } else if (item.discount_extracted !== undefined && item.discount_extracted !== null && Number(item.discount_extracted) !== 0) {
+        val = Number(item.discount_extracted);
+    } else if (rawItem) {
+        if (rawItem.discount_amount !== undefined && rawItem.discount_amount !== null) val = Number(rawItem.discount_amount);
+        else if (rawItem.discount_value !== undefined && rawItem.discount_value !== null) val = Number(rawItem.discount_value);
+        else if (rawItem.discount_extracted !== undefined && rawItem.discount_extracted !== null) val = Number(rawItem.discount_extracted);
     }
     return val;
 };
@@ -80,11 +102,6 @@ const calculateItemTaxableValue = (item: any, rawItem?: any): number => {
     return round(qty * rate, 2);
 };
 
-const getRawExtractionItems = (rec: any): any[] => {
-    const ext = rec?.extracted_data || rec?.extraction_payload || {};
-    return ext._raw_extraction?.items || [];
-};
-
 const getLineItems = (rec: any): any[] => {
     if (rec?.review_payload?.items) return rec.review_payload.items;
     const ext = rec?.extracted_data || rec?.extraction_payload || {};
@@ -114,41 +131,243 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
 }) => {
     // Determine the source of extraction data (varies between SmartInvoiceUploadModal and PendingPurchases)
     const extData = record.extracted_data || record.extraction_payload || {};
-    const items = getLineItems(record);
     const auditTrail = extData.gst_audit_trail || {};
     const expectedValues = auditTrail.expected_tax_values || {};
     const extractedValues = auditTrail.extracted_tax_values || {};
-
-    const expectedCgst = Number(expectedValues.cgst || 0);
-    const expectedSgst = Number(expectedValues.sgst || 0);
-    const expectedIgst = Number(expectedValues.igst || 0);
-    const isInterstate = expectedIgst > 0 || (expectedCgst === 0 && expectedSgst === 0 && String(extData.canonical_vendor_gstin || extData.vendor_gstin || extData.gstin || record.vendor_gstin || record.gstin || '').trim().toUpperCase().slice(0, 2) !== String(extData.canonical_buyer_gstin || extData.buyer_gstin || extData.bill_to_gstin || record.buyer_gstin || record.bill_to_gstin || '').trim().toUpperCase().slice(0, 2));
+    const resolutionChoice = record.gst_resolution || extData.gst_resolution || auditTrail.resolution_choice || '';
 
     const initialCgst = Number(extractedValues.cgst || extData.total_cgst || extData.cgst || 0);
     const initialSgst = Number(extractedValues.sgst || extData.total_sgst || extData.sgst || 0);
     const initialIgst = Number(extractedValues.igst || extData.total_igst || extData.igst || 0);
 
-    const taxableValue = Number(auditTrail.taxable_value || extData.total_taxable_value || extData.taxable_value || 0);
-    const gstRate = auditTrail.gst_rate || extData.gst_rate || '—';
+    const [itemsState, setItemsState] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (record) {
+            const rawItems = getLineItems(record);
+            const mapped = rawItems.map((item: any, idx: number) => {
+                const rawItemsExtract = extData._raw_extraction?.items || extData._raw_extraction?.line_items || [];
+                const rawItem = rawItemsExtract[idx];
+
+                const qty = Number(item.qty || item.quantity || 0);
+                const rate = Number(item.rate || item.unit_price || item.itemRate || 0);
+                
+                let discPct = getItemDiscountPct(item, rawItem);
+                let discAmt = getItemDiscountAmt(item, rawItem);
+                
+                const taxable = calculateItemTaxableValue(item, rawItem);
+                const grossAmt = round(qty * rate, 2);
+                
+                if (discPct === 0 && discAmt === 0 && grossAmt > 0 && taxable < grossAmt) {
+                    discPct = round(((grossAmt - taxable) / grossAmt) * 100, 2);
+                }
+
+                const gstRate = Number(item.gst_rate || item.gstRate || item.tax_rate || item.computed_gst_rate || (Number(item.cgst_rate || 0) + Number(item.sgst_rate || 0) + Number(item.igst_rate || 0)) || 0);
+                
+                let currentCgst = getTaxVal(item, 'cgst_amount', 'cgst');
+                let currentSgst = getTaxVal(item, 'sgst_amount', 'sgst');
+                let currentIgst = getTaxVal(item, 'igst_amount', 'igst');
+                
+                if (currentCgst === 0 && currentSgst === 0 && currentIgst === 0 && rawItem) {
+                    currentCgst = getTaxVal(rawItem, 'cgst_amount', 'cgst');
+                    currentSgst = getTaxVal(rawItem, 'sgst_amount', 'sgst');
+                    currentIgst = getTaxVal(rawItem, 'igst_amount', 'igst');
+                }
+                
+                if (currentCgst === 0 && currentSgst === 0 && currentIgst === 0) {
+                    let cgstRate = Number(item.cgst_rate || (rawItem && rawItem.cgst_rate) || 0);
+                    let sgstRate = Number(item.sgst_rate || (rawItem && rawItem.sgst_rate) || 0);
+                    let igstRate = Number(item.igst_rate || (rawItem && rawItem.igst_rate) || 0);
+                    
+                    if (igstRate === 0) {
+                        if (cgstRate === 0 && sgstRate > 0) cgstRate = sgstRate;
+                        else if (sgstRate === 0 && cgstRate > 0) cgstRate = cgstRate;
+                    }
+                    
+                    if (cgstRate > 0) currentCgst = round(taxable * cgstRate / 100, 2);
+                    if (sgstRate > 0) currentSgst = round(taxable * sgstRate / 100, 2);
+                    if (igstRate > 0) currentIgst = round(taxable * igstRate / 100, 2);
+                }
+
+                let cgstRate = Number(item.cgst_rate || (rawItem && rawItem.cgst_rate) || 0);
+                let sgstRate = Number(item.sgst_rate || (rawItem && rawItem.sgst_rate) || 0);
+                let igstRate = Number(item.igst_rate || (rawItem && rawItem.igst_rate) || 0);
+                
+                if (igstRate === 0 && cgstRate === 0 && sgstRate === 0 && gstRate > 0) {
+                    cgstRate = gstRate / 2;
+                    sgstRate = gstRate / 2;
+                }
+
+                return {
+                    ...item,
+                    description: item.description || item.itemName || item.name || item.item_name || '—',
+                    hsn_sac: item.hsn_sac || item.hsn_code || item.hsnSac || '—',
+                    qty,
+                    rate,
+                    discount_percent: discPct,
+                    discount_amount: discAmt,
+                    taxable_value: taxable,
+                    gst_rate: gstRate,
+                    cgst_rate: cgstRate,
+                    sgst_rate: sgstRate,
+                    igst_rate: igstRate,
+                    cgst: currentCgst,
+                    sgst: currentSgst,
+                    igst: currentIgst,
+                };
+            });
+            setItemsState(mapped);
+        }
+    }, [record]);
+
+    const recalculateGstRate = (item: any, totalGstRate: number) => {
+        item.gst_rate = totalGstRate;
+        const isInterstate = Number(item.igst_rate || extData.total_igst || 0) > 0;
+        if (isInterstate) {
+            item.igst_rate = totalGstRate;
+            item.cgst_rate = 0;
+            item.sgst_rate = 0;
+            
+            item.igst = round(item.taxable_value * totalGstRate / 100, 2);
+            item.cgst = 0;
+            item.sgst = 0;
+        } else {
+            item.cgst_rate = totalGstRate / 2;
+            item.sgst_rate = totalGstRate / 2;
+            item.igst_rate = 0;
+            
+            item.cgst = round(item.taxable_value * (totalGstRate / 2) / 100, 2);
+            item.sgst = round(item.taxable_value * (totalGstRate / 2) / 100, 2);
+            item.igst = 0;
+        }
+        return item;
+    };
+
+    const recalculateItemRow = (item: any) => {
+        const qty = Number(item.qty || 0);
+        const rate = Number(item.rate || 0);
+        const discPct = Number(item.discount_percent || 0);
+        const discAmt = Number(item.discount_amount || 0);
+        
+        const gross = qty * rate;
+        let discount = 0;
+        if (discPct > 0) {
+            discount = gross * (discPct / 100);
+        } else if (discAmt > 0) {
+            discount = discAmt;
+        }
+        
+        item.taxable_value = round(gross - discount, 2);
+        return recalculateGstRate(item, Number(item.gst_rate || 0));
+    };
+
+    const updateField = (idx: number, field: string, value: any) => {
+        const updated = [...itemsState];
+        const item = { ...updated[idx], [field]: value };
+        
+        if (field === 'qty' || field === 'rate' || field === 'discount_percent' || field === 'discount_amount') {
+            updated[idx] = recalculateItemRow(item);
+        } else if (field === 'gst_rate') {
+            updated[idx] = recalculateGstRate(item, Number(value));
+        } else if (field === 'taxable_value') {
+            item.taxable_value = Number(value);
+            updated[idx] = recalculateGstRate(item, Number(item.gst_rate || 0));
+        } else {
+            updated[idx] = item;
+        }
+        setItemsState(updated);
+    };
+
+    const handleDiscountChange = (idx: number, val: string) => {
+        const updated = [...itemsState];
+        const item = { ...updated[idx] };
+        
+        const cleanVal = val.trim();
+        if (cleanVal.endsWith('%')) {
+            const pct = Number(cleanVal.slice(0, -1)) || 0;
+            item.discount_percent = pct;
+            item.discount_amount = 0;
+        } else {
+            const amt = Number(cleanVal.replace(/[₹,]/g, '')) || 0;
+            item.discount_amount = amt;
+            item.discount_percent = 0;
+        }
+        
+        updated[idx] = recalculateItemRow(item);
+        setItemsState(updated);
+    };
+
+    const handleCurrentGstChange = (idx: number, gstVal: number) => {
+        const updated = [...itemsState];
+        const item = { ...updated[idx] };
+        
+        const isInterstate = Number(item.igst_rate || extData.total_igst || 0) > 0;
+        if (isInterstate) {
+            item.igst = gstVal;
+            item.cgst = 0;
+            item.sgst = 0;
+        } else {
+            item.cgst = gstVal / 2;
+            item.sgst = gstVal / 2;
+            item.igst = 0;
+        }
+        
+        updated[idx] = item;
+        setItemsState(updated);
+    };
 
     // Editable form state
     const [cgst, setCgst] = useState<string>(initialCgst.toFixed(2));
     const [sgst, setSgst] = useState<string>(initialSgst.toFixed(2));
     const [igst, setIgst] = useState<string>(initialIgst.toFixed(2));
-
     const [submitting, setSubmitting] = useState(false);
 
-    // Calculate interactive live differences
+    useEffect(() => {
+        let sumCgst = 0;
+        let sumSgst = 0;
+        let sumIgst = 0;
+        
+        itemsState.forEach((item) => {
+            sumCgst += Number(item.cgst || 0);
+            sumSgst += Number(item.sgst || 0);
+            sumIgst += Number(item.igst || 0);
+        });
+        
+        setCgst(sumCgst.toFixed(2));
+        setSgst(sumSgst.toFixed(2));
+        setIgst(sumIgst.toFixed(2));
+    }, [itemsState]);
+
     const cgstVal = Number(cgst) || 0;
     const sgstVal = Number(sgst) || 0;
     const igstVal = Number(igst) || 0;
 
     const liveTotalGst = cgstVal + sgstVal + igstVal;
-    const expectedTotalGst = expectedCgst + expectedSgst + expectedIgst;
+
+    // Dynamically compute expected total, taxable total, and gst rates
+    let expectedTotalGst = 0;
+    let taxableValue = 0;
+    let expectedCgstSum = 0;
+    let expectedSgstSum = 0;
+    let expectedIgstSum = 0;
+
+    itemsState.forEach((item) => {
+        taxableValue += Number(item.taxable_value || 0);
+        const expectedCgst = round(Number(item.taxable_value || 0) * Number(item.cgst_rate || 0) / 100, 2);
+        const expectedSgst = round(Number(item.taxable_value || 0) * Number(item.sgst_rate || 0) / 100, 2);
+        const expectedIgst = round(Number(item.taxable_value || 0) * Number(item.igst_rate || 0) / 100, 2);
+        
+        expectedCgstSum += expectedCgst;
+        expectedSgstSum += expectedSgst;
+        expectedIgstSum += expectedIgst;
+        expectedTotalGst += expectedCgst + expectedSgst + expectedIgst;
+    });
+
     const liveDifference = Math.abs(expectedTotalGst - liveTotalGst);
     const isWithinTolerance = liveDifference <= 1.0;
+    const gstRate = extData.gst_rate || '—';
 
-    const handleSave = async () => {
+    const handleSave = async (chosenResolution: 'CORRECTED' | 'SUPPLIER_VALUES_ACCEPTED') => {
         if (!stagingId) {
             showError('Invalid record ID. Cannot perform GST correction.');
             return;
@@ -159,9 +378,11 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
             const result = await httpClient.post<any>(
                 `/api/ocr-staging/${stagingId}/correct-gst/`,
                 {
-                    cgst: cgstVal,
-                    sgst: sgstVal,
-                    igst: igstVal,
+                    cgst: chosenResolution === 'CORRECTED' ? cgstVal : initialCgst,
+                    sgst: chosenResolution === 'CORRECTED' ? sgstVal : initialSgst,
+                    igst: chosenResolution === 'CORRECTED' ? igstVal : initialIgst,
+                    resolution: chosenResolution,
+                    items: itemsState
                 }
             );
 
@@ -169,7 +390,9 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
             const newAuditTrail = (updatedRow.extracted_data || updatedRow.extraction_payload || {}).gst_audit_trail || {};
             const newDiff = Number(newAuditTrail.difference_amount || 0);
 
-            if (newDiff <= 1.0) {
+            if (chosenResolution === 'SUPPLIER_VALUES_ACCEPTED') {
+                showSuccess('Original OCR extracted GST values preserved!');
+            } else if (newDiff <= 1.0) {
                 showSuccess('GST mismatch corrected successfully! Status updated to VALID/NEED_TO_SAVE.');
             } else {
                 showSuccess(`GST values updated, but difference of ₹${newDiff.toFixed(2)} still exceeds tolerance limit.`);
@@ -179,9 +402,9 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
             onClose();
         } catch (err: any) {
             console.error('[GST_CORRECTION_MODAL] Correction failed:', err);
-            showError(err?.response?.data?.error || 'Failed to update GST values.');
+            showError(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update GST values.');
         } finally {
-            setSubmitting(true);
+            setSubmitting(false);
         }
     };
 
@@ -218,14 +441,10 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                 {/* Body */}
                 <div className="p-6 flex-1 overflow-y-auto space-y-6">
                     {/* Summary Card */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-200/80 rounded-xl shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 border border-slate-200/80 rounded-xl shadow-sm">
                         <div>
                             <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Taxable Value</span>
                             <span className="text-sm font-extrabold text-gray-700">₹{taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                        <div>
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">GST Rate</span>
-                            <span className="text-sm font-extrabold text-gray-700">{gstRate}</span>
                         </div>
                         <div>
                             <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Expected Tax</span>
@@ -238,12 +457,12 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                     </div>
 
                     {/* Item-wise GST Breakdown Table */}
-                    {items && items.length > 0 && (
+                    {itemsState && itemsState.length > 0 && (
                         <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                             <div className="bg-slate-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                                 <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Item-wise GST Breakdown</h4>
                                 <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
-                                    {items.length} {items.length === 1 ? 'Item' : 'Items'}
+                                    {itemsState.length} {itemsState.length === 1 ? 'Item' : 'Items'}
                                 </span>
                             </div>
                             <div className="overflow-x-auto max-h-[300px]">
@@ -263,44 +482,107 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-100">
-                                        {items.map((item: any, idx: number) => {
-                                            const itemName = item.description || item.itemName || item.name || item.item_name || '—';
-                                            const hsnSac = item.hsn_sac || item.hsn_code || item.hsnSac || '—';
-                                            const qty = Number(item.qty || item.quantity || 0);
-                                            const rate = Number(item.rate || item.unit_price || item.itemRate || 0);
-                                            
-                                            // ── CANONICAL DISCOUNT EXTRACTION ──
-                                            // Use getItemDiscount* helpers to avoid the 0-is-falsy trap.
-                                            const rawItems = getRawExtractionItems(record);
-                                            const rawItem = rawItems[idx];
-                                            const discPct = getItemDiscountPct(item, rawItem);
-                                            const discAmt = getItemDiscountAmt(item, rawItem);
-                                            const discountStr = discPct > 0 ? `${discPct}%` : discAmt > 0 ? `₹${discAmt.toFixed(2)}` : '—';
-                                            
-                                            const taxable = calculateItemTaxableValue(item, rawItem);
+                                        {itemsState.map((item: any, idx: number) => {
+                                            const itemName = item.description || '—';
+                                            const hsnSac = item.hsn_sac || '—';
+                                            const qty = Number(item.qty || 0);
+                                            const rate = Number(item.rate || 0);
+                                            const taxable = Number(item.taxable_value || 0);
                                             const grossAmt = round(qty * rate, 2);
                                             
-                                            const gstRate = Number(item.gst_rate || item.gstRate || item.tax_rate || item.computed_gst_rate || (Number(item.cgst_rate || 0) + Number(item.sgst_rate || 0) + Number(item.igst_rate || 0)) || 0);
-                                            const expectedGst = round(taxable * gstRate / 100, 2);
+                                            const gstRateVal = Number(item.gst_rate || 0);
+                                            const expectedGst = round(taxable * gstRateVal / 100, 2);
                                             
-                                            const currentCgst = Number(item.cgst_amount || item.cgst || 0);
-                                            const currentSgst = Number(item.sgst_amount || item.sgst || 0);
-                                            const currentIgst = Number(item.igst_amount || item.igst || 0);
+                                            const currentCgst = Number(item.cgst || 0);
+                                            const currentSgst = Number(item.sgst || 0);
+                                            const currentIgst = Number(item.igst || 0);
                                             const currentGst = currentCgst + currentSgst + currentIgst;
                                             
                                             const diff = Math.abs(expectedGst - currentGst);
                                             
                                             return (
                                                 <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="px-4 py-2.5 font-medium text-gray-900 truncate max-w-[150px]" title={itemName}>{itemName}</td>
-                                                    <td className="px-4 py-2.5 text-gray-500">{hsnSac}</td>
-                                                    <td className="px-4 py-2.5 text-right font-medium text-gray-700">{qty}</td>
-                                                    <td className="px-4 py-2.5 text-right font-medium text-gray-700">₹{rate.toFixed(2)}</td>
-                                                    <td className="px-4 py-2.5 text-right font-semibold text-rose-600">{discountStr}</td>
-                                                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">₹{taxable.toFixed(2)}</td>
-                                                    <td className="px-4 py-2.5 text-center font-semibold text-gray-700">{gstRate}%</td>
+                                                    <td className="px-2 py-1.5 font-medium text-gray-900 max-w-[150px]">
+                                                        <input
+                                                            type="text"
+                                                            className="w-full bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs"
+                                                            value={item.description || ''}
+                                                            onChange={(e) => updateField(idx, 'description', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-gray-500">
+                                                        <input
+                                                            type="text"
+                                                            className="w-16 bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-center"
+                                                            value={item.hsn_sac || ''}
+                                                            onChange={(e) => updateField(idx, 'hsn_sac', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-right font-medium text-gray-700">
+                                                        <input
+                                                            type="number"
+                                                            className="w-12 bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-right"
+                                                            value={item.qty === 0 ? '' : item.qty}
+                                                            onChange={(e) => updateField(idx, 'qty', Number(e.target.value))}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-right font-medium text-gray-700">
+                                                        <div className="flex items-center justify-end gap-0.5">
+                                                            <span className="text-[10px] text-gray-400">₹</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="w-20 bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-right"
+                                                                value={item.rate === 0 ? '' : item.rate}
+                                                                onChange={(e) => updateField(idx, 'rate', Number(e.target.value))}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-right font-semibold text-rose-600">
+                                                        <input
+                                                            type="text"
+                                                            className="w-16 bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-center font-bold text-rose-600"
+                                                            value={item.discount_percent > 0 ? `${item.discount_percent}%` : item.discount_amount > 0 ? `${item.discount_amount}` : ''}
+                                                            placeholder="—"
+                                                            onChange={(e) => handleDiscountChange(idx, e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-right font-bold text-gray-800">
+                                                        <div className="flex items-center justify-end gap-0.5">
+                                                            <span className="text-[10px] text-gray-400">₹</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="w-20 bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-right font-bold"
+                                                                value={item.taxable_value === 0 ? '' : item.taxable_value}
+                                                                onChange={(e) => updateField(idx, 'taxable_value', Number(e.target.value))}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-center font-semibold text-gray-700">
+                                                        <div className="flex items-center justify-center gap-0.5">
+                                                            <input
+                                                                type="number"
+                                                                className="w-10 bg-transparent focus:bg-white px-1 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-center"
+                                                                value={item.gst_rate === 0 ? '' : item.gst_rate}
+                                                                onChange={(e) => updateField(idx, 'gst_rate', Number(e.target.value))}
+                                                            />
+                                                            <span className="text-[10px] text-gray-400">%</span>
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-2.5 text-right font-bold text-emerald-600">₹{expectedGst.toFixed(2)}</td>
-                                                    <td className="px-4 py-2.5 text-right font-semibold text-gray-700">₹{currentGst.toFixed(2)}</td>
+                                                    <td className="px-2 py-1.5 text-right font-semibold text-gray-700">
+                                                        <div className="flex items-center justify-end gap-0.5">
+                                                            <span className="text-[10px] text-gray-400">₹</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="w-18 bg-transparent focus:bg-white px-1.5 py-0.5 border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded text-xs text-right font-semibold"
+                                                                value={currentGst === 0 ? '' : currentGst.toFixed(2)}
+                                                                onChange={(e) => handleCurrentGstChange(idx, Number(e.target.value))}
+                                                            />
+                                                        </div>
+                                                    </td>
                                                     <td className={`px-4 py-2.5 text-right font-black ${diff > 0.01 ? 'text-rose-600' : 'text-gray-400'}`}>
                                                         ₹{diff.toFixed(2)}
                                                     </td>
@@ -321,15 +603,15 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500">Expected CGST:</span>
-                                    <span className="font-bold text-gray-800">₹{expectedCgst.toFixed(2)}</span>
+                                    <span className="font-bold text-gray-800">₹{expectedCgstSum.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500">Expected SGST:</span>
-                                    <span className="font-bold text-gray-800">₹{expectedSgst.toFixed(2)}</span>
+                                    <span className="font-bold text-gray-800">₹{expectedSgstSum.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500">Expected IGST:</span>
-                                    <span className="font-bold text-gray-800">₹{expectedIgst.toFixed(2)}</span>
+                                    <span className="font-bold text-gray-800">₹{expectedIgstSum.toFixed(2)}</span>
                                 </div>
                                 <div className="pt-2 border-t flex justify-between items-center text-xs">
                                     <span className="font-semibold text-gray-500">Expected Total:</span>
@@ -428,26 +710,52 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                     <button
                         id="gst-correction-modal-cancel"
                         onClick={onClose}
-                        className="px-4 py-2 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors cursor-pointer disabled:opacity-50"
+                        className="px-4 py-2 border border-gray-300 text-xs font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors cursor-pointer disabled:opacity-50"
                         disabled={submitting}
                     >
                         Cancel
                     </button>
                     <button
-                        id="gst-correction-modal-submit"
-                        onClick={handleSave}
+                        id="gst-correction-modal-save-extracted"
+                        onClick={() => handleSave('SUPPLIER_VALUES_ACCEPTED')}
                         disabled={submitting}
-                        className="inline-flex items-center justify-center px-5 py-2 text-xs font-bold rounded-lg text-white bg-rose-600 hover:bg-rose-700 border border-rose-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 focus:outline-none shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                        className={`inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg focus:outline-none transition-all flex items-center gap-1.5 cursor-pointer border ${
+                            resolutionChoice === 'SUPPLIER_VALUES_ACCEPTED'
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
-                        {submitting ? (
+                        {submitting && resolutionChoice === 'SUPPLIER_VALUES_ACCEPTED' ? (
                             <>
-                                <Icon name="spinner" className="w-4 h-4 animate-spin" />
-                                Saving Correction...
+                                <Icon name="spinner" className="w-3.5 h-3.5 animate-spin" />
+                                Saving Current GST...
                             </>
                         ) : (
                             <>
-                                <Icon name="check" className="w-4 h-4" />
-                                Save &amp; Correct GST
+                                {resolutionChoice === 'SUPPLIER_VALUES_ACCEPTED' && <Icon name="check" className="w-3.5 h-3.5" />}
+                                Save Current GST
+                            </>
+                        )}
+                    </button>
+                    <button
+                        id="gst-correction-submit"
+                        onClick={() => handleSave('CORRECTED')}
+                        disabled={submitting}
+                        className={`inline-flex items-center justify-center px-5 py-2 text-xs font-bold rounded-lg focus:outline-none shadow-sm transition-all flex items-center gap-2 cursor-pointer border ${
+                            resolutionChoice === 'CORRECTED' || !resolutionChoice
+                                ? 'bg-rose-600 border-rose-700 text-white hover:bg-rose-700'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                        {submitting && (resolutionChoice === 'CORRECTED' || !resolutionChoice) ? (
+                            <>
+                                <Icon name="spinner" className="w-4 h-4 animate-spin" />
+                                Saving Expected GST...
+                            </>
+                        ) : (
+                            <>
+                                {(resolutionChoice === 'CORRECTED' || !resolutionChoice) && <Icon name="check" className="w-4 h-4" />}
+                                Save Expected GST
                             </>
                         )}
                     </button>
