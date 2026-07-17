@@ -50,7 +50,7 @@ class VoucherCreditNoteInvoiceDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = VoucherCreditNoteInvoiceDetails
         fields = '__all__'
-        read_only_fields = ['tenant_id']
+        read_only_fields = ['tenant_id', 'amendment_date', 'original_voucher_snapshot']
 
     def to_internal_value(self, data):
         """Accept JSON strings (multi-part form submissions)."""
@@ -65,6 +65,83 @@ class VoucherCreditNoteInvoiceDetailsSerializer(serializers.ModelSerializer):
                 except (json.JSONDecodeError, TypeError):
                     pass
         return super().to_internal_value(data)
+
+    def validate_credit_note_no(self, value):
+        """
+        Ensures the credit note number is unique globally by auto-incrementing if it already exists.
+        """
+        request = self.context.get('request')
+        tenant_id = self.context.get('tenant_id')
+        if not tenant_id and request:
+            from core.tenant import get_tenant_from_request
+            tenant_id = get_tenant_from_request(request)
+        
+        if not tenant_id:
+            return value
+
+        if value:
+            import re
+            
+            def increment_cn_string(val):
+                match = re.match(r'^(.*?)(?P<num>\d+)([-/]\d{2}(?:-\d{2})?|[^0-9]*)$', val)
+                if match:
+                    prefix = match.group(1)
+                    num_str = match.group('num')
+                    suffix = val[match.end('num'):]
+                    
+                    num = int(num_str) + 1
+                    new_num_str = str(num).zfill(len(num_str))
+                    return f"{prefix}{new_num_str}{suffix}"
+                else:
+                    return val + "-1"
+
+            while True:
+                # MUST NOT filter by tenant_id because the DB has a GLOBAL unique constraint!
+                qs = VoucherCreditNoteInvoiceDetails.objects.filter(
+                    credit_note_no__iexact=value.strip()
+                )
+                if self.instance:
+                    qs = qs.exclude(pk=self.instance.pk)
+                
+                if qs.exists():
+                    value = increment_cn_string(value)
+                else:
+                    break
+        
+        return value
+
+    def _sync_numbering_series(self, tenant_id, voucher_name, credit_note_no):
+        """
+        Ensures that the Master numbering series is ahead of any manually provided credit note number.
+        """
+        from masters.models import MasterVoucherCreditNote
+        import re
+        try:
+            series = MasterVoucherCreditNote.objects.filter(
+                tenant_id=tenant_id, 
+                voucher_name=voucher_name,
+                enable_auto_numbering=True
+            ).first()
+            if not series:
+                return
+
+            next_num = (series.current_number or series.start_from or 1)
+            
+            if credit_note_no:
+                clean_no = str(credit_note_no)
+                if series.prefix and clean_no.startswith(series.prefix):
+                    clean_no = clean_no[len(series.prefix):]
+                if series.suffix and clean_no.endswith(series.suffix):
+                    clean_no = clean_no[:-len(series.suffix)]
+                
+                num_match = re.search(r'\d+', clean_no)
+                if num_match:
+                    num_val = int(num_match.group(0))
+                    if num_val >= next_num:
+                        series.current_number = num_val + 1
+                        series.save()
+        except Exception as e:
+            print(f"[CreditNoteSerializer] Failed to sync numbering series: {e}")
 
     def create(self, validated_data):
         item_data = validated_data.pop('item_details', None) or {}
@@ -103,6 +180,9 @@ class VoucherCreditNoteInvoiceDetailsSerializer(serializers.ModelSerializer):
                 from .models import Voucher
                 
                 cn_number = instance.credit_note_no or f"CN-{instance.id}"
+                
+                # Sync numbering series so next auto-number is correct
+                self._sync_numbering_series(tenant_id, getattr(instance, 'voucher_name', 'Credit Note'), cn_number)
 
                 
                 # Securely calculate totals for Voucher table
@@ -141,6 +221,23 @@ class VoucherCreditNoteInvoiceDetailsSerializer(serializers.ModelSerializer):
         item_data = validated_data.pop('item_details', None)
         due_data = validated_data.pop('due_details', None)
         transit_data = validated_data.pop('transit_details', None)
+
+        # --- Amendment Tracking ---
+        # If this credit note was already GST-filed and is now being updated, record amendment_date
+        if instance.gst_registered == 'Yes':
+            if not instance.amendment_date:
+                from django.utils import timezone
+                # Capture the original snapshot FIRST (before setting amendment_date)
+                snapshot_data = VoucherCreditNoteInvoiceDetailsSerializer(instance).data
+                snapshot_dict = dict(snapshot_data)
+                snapshot_dict['amendment_date'] = None
+                instance.original_voucher_snapshot = snapshot_dict
+                # Now set amendment_date on the live record
+                instance.amendment_date = timezone.now().date()
+                print(f"[CreditNoteSerializer] Amendment recorded for GST-filed voucher {instance.credit_note_no}")
+            
+            # Always mark the amendment as pending again if it is modified
+            instance.amendment_filed = False
 
         try:
             with transaction.atomic():

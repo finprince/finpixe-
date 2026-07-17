@@ -43,6 +43,12 @@ class VoucherCreditNoteInvoiceDetails(BaseModel):
     
     # Document
     supporting_document = models.FileField(upload_to='credit_note_documents/', null=True, blank=True)
+    
+    gst_registered = models.CharField(max_length=3, default='', blank=True, help_text="'Yes' if this voucher has been filed in GST, empty otherwise")
+    
+    amendment_date = models.DateField(null=True, blank=True, help_text="Date when this voucher was amended after being GST filed")
+    original_voucher_snapshot = models.JSONField(null=True, blank=True, help_text="Snapshot of the original voucher before amendment")
+    amendment_filed = models.BooleanField(default=False, help_text="True if the amendment itself has been GST filed")
 
     class Meta:
         db_table = 'voucher_credit_note_invoice_details'

@@ -81,7 +81,7 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
             'tax_type', 'state_type', 'export_type', 'exchange_rate', 'supporting_document',
             'sales_order_no', 'place_of_supply', 'reverse_charge', 'invoice_type',
             'gst_export_type', 'port_code', 'shipping_bill_number', 'shipping_bill_date',
-            'ecommerce_gstin', 'irn', 'ack_no', 'created_at', 'updated_at',
+            'ecommerce_gstin', 'is_ecommerce_operator', 'third_party_supplier_name', 'third_party_supplier_gstin', 'irn', 'ack_no', 'created_at', 'updated_at',
             'posting_status', 'posting_error', 'outward_slip_id', 'status', 'original_voucher_snapshot',
             # GST Filing & Amendment
             'gst_registered', 'amendment_date',
@@ -199,6 +199,53 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
             }
             rep['place_of_supply'] = code_to_state.get(code, code)
         return rep
+
+    def validate(self, attrs):
+        place_of_supply = attrs.get('place_of_supply')
+        if not place_of_supply and self.instance:
+            place_of_supply = self.instance.place_of_supply
+            
+        if place_of_supply:
+            request = self.context.get('request')
+            tenant_id = self.context.get('tenant_id')
+            if not tenant_id and request:
+                tenant_id = getattr(request.user, 'tenant_id', 1)
+            
+            if tenant_id:
+                from core.models import Branch
+                branch = Branch.objects.filter(id=tenant_id).first()
+                if branch and branch.state:
+                    state_name_to_code = {
+                        'jammu and kashmir': '01', 'jammu & kashmir': '01', 'j&k': '01',
+                        'himachal pradesh': '02', 'punjab': '03', 'chandigarh': '04',
+                        'uttarakhand': '05', 'uttaranchal': '05', 'haryana': '06',
+                        'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09', 'up': '09',
+                        'bihar': '10', 'sikkim': '11', 'arunachal pradesh': '12',
+                        'nagaland': '13', 'manipur': '14', 'mizoram': '15', 'tripura': '16',
+                        'meghalaya': '17', 'assam': '18', 'west bengal': '19', 'wb': '19',
+                        'jharkhand': '20', 'odisha': '21', 'orissa': '21', 'chhattisgarh': '22',
+                        'madhya pradesh': '23', 'mp': '23', 'gujarat': '24',
+                        'daman and diu': '25', 'daman & diu': '25',
+                        'dadra and nagar haveli': '26', 'dadra & nagar haveli': '26',
+                        'maharashtra': '27', 'andhra pradesh (old)': '28', 'karnataka': '29',
+                        'goa': '30', 'lakshadweep': '31', 'kerala': '32',
+                        'tamil nadu': '33', 'tamilnadu': '33', 'tn': '33',
+                        'puducherry': '34', 'pondicherry': '34',
+                        'andaman and nicobar islands': '35', 'andaman & nicobar islands': '35',
+                        'telangana': '36', 'andhra pradesh': '37', 'ap': '37', 'ladakh': '38'
+                    }
+                    company_code = state_name_to_code.get(str(branch.state).strip().lower())
+                    pos_code = str(place_of_supply).zfill(2)
+                    if company_code:
+                        invoice_type = attrs.get('invoice_type', self.instance.invoice_type if self.instance else 'Regular')
+                        lower_type = (invoice_type or '').lower()
+                        if 'export' in lower_type and 'deemed' not in lower_type:
+                            attrs['state_type'] = 'export'
+                        elif pos_code == company_code:
+                            attrs['state_type'] = 'within'
+                        else:
+                            attrs['state_type'] = 'other'
+        return attrs
 
     def validate_sales_invoice_no(self, value):
         """
@@ -682,19 +729,23 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
 
         # --- Amendment Tracking ---
         # If this voucher was already GST-filed and is now being updated, record amendment_date
-        if instance.gst_registered == 'Yes' and not instance.amendment_date:
-            from django.utils import timezone
-            # Capture the original snapshot FIRST (before setting amendment_date)
-            # so the snapshot reflects the original GST-filed state
-            from accounting.serializers_voucher_sales import VoucherSalesInvoiceDetailsSerializer
-            snapshot_data = VoucherSalesInvoiceDetailsSerializer(instance).data
-            # Explicitly clear amendment_date in snapshot so it shows as GST Filed, not Amendment
-            snapshot_dict = dict(snapshot_data)
-            snapshot_dict['amendment_date'] = None
-            instance.original_voucher_snapshot = snapshot_dict
-            # Now set amendment_date on the live record
-            instance.amendment_date = timezone.now().date()
-            print(f"[SalesSerializer] Amendment recorded for GST-filed voucher {instance.sales_invoice_no}")
+        if instance.gst_registered == 'Yes':
+            if not instance.amendment_date:
+                from django.utils import timezone
+                # Capture the original snapshot FIRST (before setting amendment_date)
+                # so the snapshot reflects the original GST-filed state
+                from accounting.serializers_voucher_sales import VoucherSalesInvoiceDetailsSerializer
+                snapshot_data = VoucherSalesInvoiceDetailsSerializer(instance).data
+                # Explicitly clear amendment_date in snapshot so it shows as GST Filed, not Amendment
+                snapshot_dict = dict(snapshot_data)
+                snapshot_dict['amendment_date'] = None
+                instance.original_voucher_snapshot = snapshot_dict
+                # Now set amendment_date on the live record
+                instance.amendment_date = timezone.now().date()
+                print(f"[SalesSerializer] Amendment recorded for GST-filed voucher {instance.sales_invoice_no}")
+            
+            # Always mark the amendment as pending again if it is modified
+            instance.amendment_filed = False
 
         # Update custom mapped fields from frontend
         if 'party' in self.initial_data:
@@ -707,7 +758,40 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
             instance.sales_invoice_no = self.initial_data.get('voucher_number', '')
         if 'voucher_series' in self.initial_data:
             instance.voucher_name = self.initial_data.get('voucher_series', '')
-        
+
+        # --- ECO Classification Protection ---
+        # If the existing record is an E-Commerce Operator record (is_ecommerce_operator=True),
+        # protect these classification fields from being accidentally cleared by the frontend
+        # when it submits with default values (e.g. is_ecommerce_operator=False).
+        # This prevents the voucher from disappearing from ECOB2B after editing.
+        if instance.is_ecommerce_operator:
+            incoming_eco_flag = validated_data.get('is_ecommerce_operator')
+            if incoming_eco_flag is False:
+                # Preserve the existing True value - do not let it be overwritten
+                validated_data.pop('is_ecommerce_operator', None)
+                print(f"[SalesSerializer] ECO Protection: Preserving is_ecommerce_operator=True for voucher {instance.sales_invoice_no}")
+
+            # Also protect third_party_supplier_gstin and third_party_supplier_name
+            # if the incoming value is blank/None but the existing record has them
+            if instance.third_party_supplier_gstin:
+                incoming_gstin = validated_data.get('third_party_supplier_gstin')
+                if not incoming_gstin:
+                    validated_data.pop('third_party_supplier_gstin', None)
+                    print(f"[SalesSerializer] ECO Protection: Preserving third_party_supplier_gstin for voucher {instance.sales_invoice_no}")
+
+            if instance.third_party_supplier_name:
+                incoming_name = validated_data.get('third_party_supplier_name')
+                if not incoming_name:
+                    validated_data.pop('third_party_supplier_name', None)
+                    print(f"[SalesSerializer] ECO Protection: Preserving third_party_supplier_name for voucher {instance.sales_invoice_no}")
+
+            # Also protect gstin (recipient GSTIN) — ECOB2B requires it to be non-empty
+            if instance.gstin and instance.gstin.lower() != 'unregistered':
+                incoming_gstin_recipient = validated_data.get('gstin')
+                if not incoming_gstin_recipient:
+                    validated_data.pop('gstin', None)
+                    print(f"[SalesSerializer] ECO Protection: Preserving recipient gstin={instance.gstin} for voucher {instance.sales_invoice_no}")
+
         # Update Invoice Header
         instance = super().update(instance, validated_data)
         tenant_id = instance.tenant_id

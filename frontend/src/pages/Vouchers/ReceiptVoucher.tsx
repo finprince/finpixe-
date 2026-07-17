@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { httpClient, apiService } from '../../services';
 import { showError, showSuccess } from '../../utils/toast';
 
@@ -26,6 +26,7 @@ interface ReceiptRow {
     amount: number;
     advanceAmount?: number;
     advanceRefNo?: string;
+    advanceGstRate?: string;
     allocations?: BulkTransaction[];
 }
 
@@ -351,6 +352,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
     const [showAdvanceSection, setShowAdvanceSection] = useState<boolean>(false);
     const [advanceRefNo, setAdvanceRefNo] = useState<string>('');
     const [advanceAmount, setAdvanceAmount] = useState<number>(0);
+    const [advanceGstRate, setAdvanceGstRate] = useState<string>('');
     const [postingNote, setPostingNote] = useState<string>('');
     const [runningBalance, setRunningBalance] = useState<number>(0);
 
@@ -358,6 +360,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
     const [showSingleAdvanceSection, setShowSingleAdvanceSection] = useState<boolean>(false);
     const [singleAdvanceRefNo, setSingleAdvanceRefNo] = useState<string>('');
     const [singleAdvanceAmount, setSingleAdvanceAmount] = useState<number>(0);
+    const [singleAdvanceGstRate, setSingleAdvanceGstRate] = useState<string>('');
 
     // Sync balances
     useEffect(() => {
@@ -374,9 +377,15 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
         }
     }, [receiveIn, allLedgers]);
 
+    const isAtDrilldown = (prefilledData as any)?._rawEntry?.source === 'receipt_voucher';
+
     // Populate from AI Extraction / Drill-down
     useEffect(() => {
         if (!prefilledData) return;
+
+        if (isAtDrilldown) {
+            setShowSingleAdvanceSection(true);
+        }
 
         // Helper to find exact ledger name from allLedgers (case-insensitive)
         const findLedgerName = (name: string) => {
@@ -460,6 +469,9 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                     setShowSingleAdvanceSection(true);
                     setSingleAdvanceRefNo(itemRefNo);
                     setSingleAdvanceAmount(parseFloat(advanceItem.received_amount || advanceItem.amount_applied || advanceItem.amount || '0'));
+                    if (advanceItem.gst_rate !== undefined && advanceItem.gst_rate !== null) {
+                        setSingleAdvanceGstRate(parseFloat(advanceItem.gst_rate).toFixed(2));
+                    }
                 }
             }
 
@@ -1007,6 +1019,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
             // Use functional updates to ensure we have latest values
             setAdvanceAmount(prev => row.advanceAmount !== undefined ? row.advanceAmount : 0);
             setAdvanceRefNo(prev => row.advanceRefNo || '');
+            setAdvanceGstRate(prev => row.advanceGstRate || '');
             setBulkTransactions(prev => row.allocations || []);
             setSelectedCustomer(prev => row.receiveFrom || '');
         }
@@ -1023,6 +1036,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                     const hasChanged =
                         row.advanceAmount !== advanceAmount ||
                         row.advanceRefNo !== advanceRefNo ||
+                        row.advanceGstRate !== advanceGstRate ||
                         JSON.stringify(row.allocations) !== JSON.stringify(bulkTransactions);
 
                     if (hasChanged) {
@@ -1030,6 +1044,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                             ...row,
                             advanceAmount: advanceAmount,
                             advanceRefNo: advanceRefNo,
+                            advanceGstRate: advanceGstRate,
                             allocations: bulkTransactions
                         };
                     }
@@ -1110,45 +1125,37 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                     return;
                 }
 
-                let items = [
-                    ...pendingTransactions
-                        .filter(t => t.receipt > 0)
-                        .map(t => ({
-                            customer: receiveFromId,
-                            reference_id: t.referenceNumber,
-                            reference_type: 'invoice',
-                            pending_transaction: { ...t, customer_name: resolvedName },
-                            amount: Number(Number(t.amount).toFixed(2)),
-                            pending_before: Number(Number(t.amount).toFixed(2)),
-                            received_amount: Number(Number(t.receipt).toFixed(2)),
-                            balance_after: Number(Math.max(0, t.amount - t.receipt).toFixed(2)),
-                            invoice_date: t.date,
-                            posting_note: t.postingNote
-                        })),
-                    // Advance item if applicable
-                    ...(singleAdvanceAmount > 0 ? [{
+                const invoiceItems = pendingTransactions
+                    .filter(t => t.receipt > 0)
+                    .map(t => ({
                         customer: receiveFromId,
-                        reference_id: singleAdvanceRefNo || 'ADVANCE',
-                        reference_type: 'advance',
-                        pending_transaction: { customer_name: resolvedName },
-                        amount: Number(Number(singleAdvanceAmount).toFixed(2)),
-                        received_amount: Number(Number(singleAdvanceAmount).toFixed(2)),
-                        is_advance: true,
-                        advance_ref_no: singleAdvanceRefNo
-                    }] : [])
-                ];
+                        reference_id: t.referenceNumber,
+                        reference_type: 'invoice',
+                        pending_transaction: { ...t, customer_name: resolvedName },
+                        amount: Number(Number(t.amount).toFixed(2)),
+                        pending_before: Number(Number(t.amount).toFixed(2)),
+                        received_amount: Number(Number(t.receipt).toFixed(2)),
+                        balance_after: Number(Math.max(0, t.amount - t.receipt).toFixed(2)),
+                        invoice_date: t.date,
+                        posting_note: t.postingNote
+                    }));
 
-                // 3. Fallback: If amount entered but not fully allocated, treat remainder as 'Advance'
-                if (items.length === 0 && finalAmount > 0) {
+                const invoicesTotal = invoiceItems.reduce((sum, t) => sum + t.received_amount, 0);
+                const actualAdvanceAmount = Math.max(0, finalAmount - invoicesTotal);
+
+                let items: any[] = [...invoiceItems];
+
+                if (actualAdvanceAmount > 0) {
                     items.push({
                         customer: receiveFromId,
                         reference_id: singleAdvanceRefNo || 'ADVANCE',
                         reference_type: 'advance',
                         pending_transaction: { customer_name: resolvedName },
-                        amount: Number(Number(finalAmount).toFixed(2)),
-                        received_amount: Number(Number(finalAmount).toFixed(2)),
+                        amount: Number(actualAdvanceAmount.toFixed(2)),
+                        received_amount: Number(actualAdvanceAmount.toFixed(2)),
                         is_advance: true,
-                        advance_ref_no: singleAdvanceRefNo || 'ADVANCE'
+                        advance_ref_no: singleAdvanceRefNo || 'ADVANCE',
+                        gst_rate: singleAdvanceGstRate || null
                     });
                 }
 
@@ -1273,16 +1280,17 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                         const totalAllocated = allocatedItems.reduce((sum, item) => sum + item.received_amount, 0);
                         const remaining = row.amount - totalAllocated;
 
-                        if (remaining > 0 || rowAdvanceAmount > 0) {
+                        if (remaining > 0) {
                             allItems.push({
                                 customer: rowCustomerId,
                                 reference_id: rowAdvanceRefNo || 'ADVANCE',
                                 reference_type: 'advance',
                                 pending_transaction: { customer_name: resolvedRowName },
-                                amount: Number(Math.max(remaining, rowAdvanceAmount, row.amount).toFixed(2)),
-                                received_amount: Number(Math.max(remaining, rowAdvanceAmount).toFixed(2)),
+                                amount: Number(remaining.toFixed(2)),
+                                received_amount: Number(remaining.toFixed(2)),
                                 is_advance: true,
-                                advance_ref_no: rowAdvanceRefNo
+                                advance_ref_no: rowAdvanceRefNo,
+                                gst_rate: row.advanceGstRate ?? (selectedRowId === row.id ? advanceGstRate : null)
                             });
                         }
                     } else if (row.allocations && row.allocations.length > 0) {
@@ -1306,16 +1314,17 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                         const totalAllocated = allocatedItems.reduce((sum, item) => sum + item.received_amount, 0);
                         const remaining = row.amount - totalAllocated;
 
-                        if (remaining > 0 || rowAdvanceAmount > 0) {
+                        if (remaining > 0) {
                             allItems.push({
                                 customer: rowCustomerId,
                                 reference_id: rowAdvanceRefNo || 'ADVANCE',
                                 reference_type: 'advance',
                                 pending_transaction: { customer_name: resolvedRowName },
-                                amount: Math.max(remaining, rowAdvanceAmount, row.amount),
-                                received_amount: Math.max(remaining, rowAdvanceAmount),
+                                amount: Number(remaining.toFixed(2)),
+                                received_amount: Number(remaining.toFixed(2)),
                                 is_advance: true,
-                                advance_ref_no: rowAdvanceRefNo
+                                advance_ref_no: rowAdvanceRefNo,
+                                gst_rate: row.advanceGstRate || null
                             });
                         }
                     } else {
@@ -1329,7 +1338,8 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                             amount: Number(Number(row.amount).toFixed(2)),
                             received_amount: Number(Number(row.amount).toFixed(2)),
                             is_advance: isAdvance,
-                            advance_ref_no: rowAdvanceRefNo || row.referenceNumber
+                            advance_ref_no: rowAdvanceRefNo || row.referenceNumber,
+                            gst_rate: row.advanceGstRate ?? (selectedRowId === row.id ? advanceGstRate : null)
                         });
                     }
                 }
@@ -1513,12 +1523,14 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                 >
                                     Advance
                                 </button>
-                                <button
-                                    onClick={handleReceiveAmountOnly}
-                                    className="px-4 py-2 border border-indigo-200 rounded-[4px] text-sm font-bold text-indigo-600 bg-white hover:bg-indigo-50 transition-colors whitespace-nowrap"
-                                >
-                                    Receive Amount Only
-                                </button>
+                                {!isAtDrilldown && !showSingleAdvanceSection && (
+                                    <button
+                                        onClick={handleReceiveAmountOnly}
+                                        className="px-4 py-2 border border-indigo-200 rounded-[4px] text-sm font-bold text-indigo-600 bg-white hover:bg-indigo-50 transition-colors whitespace-nowrap"
+                                    >
+                                        Receive Amount Only
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1572,126 +1584,143 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                         placeholder="0.00"
                                     />
                                 </div>
+                                <div className="w-[120px]">
+                                    <label className="block text-xs font-medium text-indigo-700 mb-1">GST Rate</label>
+                                    <select
+                                        value={singleAdvanceGstRate}
+                                        onChange={(e) => setSingleAdvanceGstRate(e.target.value)}
+                                        className="w-full px-3 py-2 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                                    >
+                                        <option value="">Default (18%)</option>
+                                        <option value="0.00">0%</option>
+                                        <option value="5.00">5%</option>
+                                        <option value="12.00">12%</option>
+                                        <option value="18.00">18%</option>
+                                        <option value="28.00">28%</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* Pending Transactions */}
-                    <div>
-                        <div className="flex justify-between items-end mb-4">
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">
-                                    Pending Transactions
-                                </h3>
+                    {!isAtDrilldown && !showSingleAdvanceSection && (
+                        <div>
+                            <div className="flex justify-between items-end mb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">
+                                        Pending Transactions
+                                    </h3>
+                                </div>
                             </div>
+
+                            {receiveFrom ? (
+                                <>
+                                    <div className="border-2 border-gray-200 rounded-[4px] overflow-hidden">
+                                        <table className="w-full">
+                                            <thead className="bg-indigo-600 border-b-2 border-indigo-700 text-white">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase">DATE</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase">REFERENCE NUMBER</th>
+                                                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase">BILL STATUS</th>
+                                                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase">ALLOCATION</th>
+                                                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase">PENDING</th>
+                                                    <th className="px-6 py-3 text-center text-xs font-semibold uppercase">ACTION</th>
+                                                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase">RECEIPT</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {pendingTransactions.map((txn, index) => {
+                                                    const status = getRowStatus(txn.receipt || 0, txn.amount);
+                                                    const isProblemRow = (isUnderAllocated && (txn.receipt === 0 || txn.receipt < txn.amount - 0.01)) || (isOverAllocated && txn.receipt > txn.amount + 0.01);
+
+                                                    return (
+                                                        <tr key={index} className={`transition-colors ${isProblemRow ? 'bg-red-50/30' : 'hover:bg-gray-50'}`}>
+                                                            <td className="px-6 py-4 text-sm text-gray-700">{txn.date}</td>
+                                                            <td className="px-6 py-4 text-sm text-gray-700">
+                                                                <div className="font-medium">{txn.referenceNumber}</div>
+                                                                {txn.dueDate && (
+                                                                    <div className="text-[10px] text-gray-400">Due: {txn.dueDate}</div>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-4 text-center">
+                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${txn.status === 'Due' || txn.status === 'Due Today'
+                                                                    ? 'bg-red-100 text-red-600 border border-red-200'
+                                                                    : (txn.status === 'Partially Received' || txn.status === 'Partially Paid')
+                                                                        ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                                                                        : 'bg-green-100 text-green-600 border border-green-200'
+                                                                    }`}>
+                                                                    {txn.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-4 text-center">
+                                                                <div className={`px-2 py-1 rounded-[4px] border text-[10px] font-black uppercase tracking-tight ${status.bg} ${status.text} ${status.border}`}>
+                                                                    {status.label}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm text-gray-700 text-right font-medium text-red-600">
+                                                                ₹{Math.max(0, txn.amount - txn.receipt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-center">
+                                                                <button
+                                                                    onClick={() => handleReceive(index)}
+                                                                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-600 text-white text-xs font-medium rounded shadow-sm transition-colors uppercase font-bold"
+                                                                >
+                                                                    Receive
+                                                                </button>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <input
+                                                                    type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                                    value={txn.receipt || ''}
+                                                                    onChange={(e) => handleReceiptChange(index, parseFloat(e.target.value) || 0)}
+                                                                    placeholder="0"
+                                                                    className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
+                                                                        status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' :
+                                                                            status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
+                                                                        }`}
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {/* Allocation Summary Strip */}
+                                    <div className={`border-2 mt-2 px-6 py-3 flex items-center justify-between rounded-[4px] ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+                                        <div className="flex flex-col">
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-orange-700'}`}>
+                                                Balance Status
+                                            </span>
+                                            <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-orange-600'}`}>
+                                                {isExactMatch ? '₹0.00 (Balanced)' : isUnderAllocated ? `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} remaining` : `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Over allocated)`}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-6 text-xs">
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[10px] text-gray-400 uppercase font-bold">Total Allocated</span>
+                                                <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                    ₹{totalReceipt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                            <div className="h-8 w-px bg-gray-200"></div>
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[10px] text-gray-400 uppercase font-bold">Entered Amount</span>
+                                                <span className="font-bold text-sm text-gray-700">
+                                                    ₹{topAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-16 text-gray-500 border-2 border-gray-200 rounded-[4px] bg-gray-50">
+                                    <p className="text-sm">Please select a "Receive From" account to view pending transactions.</p>
+                                </div>
+                            )}
                         </div>
-
-                        {receiveFrom ? (
-                            <>
-                                <div className="border-2 border-gray-200 rounded-[4px] overflow-hidden">
-                                    <table className="w-full">
-                                        <thead className="bg-indigo-600 border-b-2 border-indigo-700 text-white">
-                                            <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-semibold uppercase">DATE</th>
-                                                <th className="px-6 py-3 text-left text-xs font-semibold uppercase">REFERENCE NUMBER</th>
-                                                <th className="px-3 py-3 text-center text-xs font-semibold uppercase">BILL STATUS</th>
-                                                <th className="px-3 py-3 text-center text-xs font-semibold uppercase">ALLOCATION</th>
-                                                <th className="px-6 py-3 text-right text-xs font-semibold uppercase">PENDING</th>
-                                                <th className="px-6 py-3 text-center text-xs font-semibold uppercase">ACTION</th>
-                                                <th className="px-6 py-3 text-right text-xs font-semibold uppercase">RECEIPT</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {pendingTransactions.map((txn, index) => {
-                                                const status = getRowStatus(txn.receipt || 0, txn.amount);
-                                                const isProblemRow = (isUnderAllocated && (txn.receipt === 0 || txn.receipt < txn.amount - 0.01)) || (isOverAllocated && txn.receipt > txn.amount + 0.01);
-
-                                                return (
-                                                    <tr key={index} className={`transition-colors ${isProblemRow ? 'bg-red-50/30' : 'hover:bg-gray-50'}`}>
-                                                        <td className="px-6 py-4 text-sm text-gray-700">{txn.date}</td>
-                                                        <td className="px-6 py-4 text-sm text-gray-700">
-                                                            <div className="font-medium">{txn.referenceNumber}</div>
-                                                            {txn.dueDate && (
-                                                                <div className="text-[10px] text-gray-400">Due: {txn.dueDate}</div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-4 text-center">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${txn.status === 'Due' || txn.status === 'Due Today'
-                                                                ? 'bg-red-100 text-red-600 border border-red-200'
-                                                                : (txn.status === 'Partially Received' || txn.status === 'Partially Paid')
-                                                                    ? 'bg-orange-100 text-orange-600 border border-orange-200'
-                                                                    : 'bg-green-100 text-green-600 border border-green-200'
-                                                                }`}>
-                                                                {txn.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-4 text-center">
-                                                            <div className={`px-2 py-1 rounded-[4px] border text-[10px] font-black uppercase tracking-tight ${status.bg} ${status.text} ${status.border}`}>
-                                                                {status.label}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-sm text-gray-700 text-right font-medium text-red-600">
-                                                            ₹{Math.max(0, txn.amount - txn.receipt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-center">
-                                                            <button
-                                                                onClick={() => handleReceive(index)}
-                                                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-600 text-white text-xs font-medium rounded shadow-sm transition-colors uppercase font-bold"
-                                                            >
-                                                                Receive
-                                                            </button>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <input
-                                                                type="number" onWheel={(e) => e.currentTarget.blur()}
-                                                                value={txn.receipt || ''}
-                                                                onChange={(e) => handleReceiptChange(index, parseFloat(e.target.value) || 0)}
-                                                                placeholder="0"
-                                                                className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
-                                                                    status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' :
-                                                                        status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
-                                                                    }`}
-                                                            />
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                {/* Allocation Summary Strip */}
-                                <div className={`border-2 mt-2 px-6 py-3 flex items-center justify-between rounded-[4px] ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
-                                    <div className="flex flex-col">
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-orange-700'}`}>
-                                            Balance Status
-                                        </span>
-                                        <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-orange-600'}`}>
-                                            {isExactMatch ? '₹0.00 (Balanced)' : isUnderAllocated ? `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} remaining` : `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Over allocated)`}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-6 text-xs">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[10px] text-gray-400 uppercase font-bold">Total Allocated</span>
-                                            <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                ₹{totalReceipt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                        <div className="h-8 w-px bg-gray-200"></div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[10px] text-gray-400 uppercase font-bold">Entered Amount</span>
-                                            <span className="font-bold text-sm text-gray-700">
-                                                ₹{topAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="text-center py-16 text-gray-500 border-2 border-gray-200 rounded-[4px] bg-gray-50">
-                                <p className="text-sm">Please select a "Receive From" account to view pending transactions.</p>
-                            </div>
-                        )}
-                    </div>
+                    )}
 
                     {/* Posting Note */}
                     <div className="bg-indigo-50/50 border-2 border-slate-200 rounded-[4px] p-4 mb-4">
@@ -2034,9 +2063,23 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                     type="number" onWheel={(e) => e.currentTarget.blur()}
                                                     value={advanceAmount || ''}
                                                     onChange={e => setAdvanceAmount(parseFloat(e.target.value) || 0)}
-
                                                     className="w-full px-3 py-2 border border-gray-300 rounded"
                                                 />
+                                            </div>
+                                            <div className="w-[120px]">
+                                                <label className="block text-xs font-medium text-gray-700 mb-1">GST Rate</label>
+                                                <select
+                                                    value={advanceGstRate}
+                                                    onChange={e => setAdvanceGstRate(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                >
+                                                    <option value="">Default (18%)</option>
+                                                    <option value="0.00">0%</option>
+                                                    <option value="5.00">5%</option>
+                                                    <option value="12.00">12%</option>
+                                                    <option value="18.00">18%</option>
+                                                    <option value="28.00">28%</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>

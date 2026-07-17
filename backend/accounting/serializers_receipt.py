@@ -38,6 +38,7 @@ class ReceiptVoucherItemSerializer(SafeModelSerializerMixin, serializers.ModelSe
     amount = serializers.DecimalField(source='amount_applied', max_digits=25, decimal_places=2, required=False)
     amount_applied = serializers.DecimalField(max_digits=25, decimal_places=2, required=False)
     advance_ref_no = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    gst_rate = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
 
     def to_internal_value(self, data):
         # Normalize reference_type to uppercase for choice validation (INVOICE -> INVOICE)
@@ -54,7 +55,7 @@ class ReceiptVoucherItemSerializer(SafeModelSerializerMixin, serializers.ModelSe
             'id', 'customer', 'customer_name', 'reference_id', 'reference_number', 'reference_type', 
             'pending_transaction', 'amount', 'amount_applied', 'pending_before', 'received_amount', 
             'balance_after', 'is_advance', 'advance_ref_no', 'ref_no', 'invoice_date',
-            'allocations', 'narration', 'posting_note'
+            'allocations', 'narration', 'posting_note', 'gst_rate'
         ]
         extra_kwargs = {
             'balance_after': {'max_digits': 25, 'decimal_places': 2},
@@ -195,6 +196,16 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
             if items_qs:
                 ret['items'] = ReceiptVoucherItemSerializer(items_qs, many=True, context=self.context).data
 
+        # 3. Hydrate gst_registered from AdvanceAllocation
+        if getattr(instance, 'transaction_type', '') == 'RECEIPT':
+            from accounting.models import AdvanceAllocation
+            adv = AdvanceAllocation.objects.filter(transaction=instance).first()
+            if adv and adv.gst_registered:
+                ret['gst_registered'] = adv.gst_registered
+            if adv and adv.amendment_date:
+                ret['amendment_date'] = str(adv.amendment_date)
+                ret['original_voucher_snapshot'] = adv.original_voucher_snapshot or {}
+
         return ret
 
     def _get_party_ids(self, ledger):
@@ -307,7 +318,7 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
             mode = 'receipt_bulk' if len(items_data) > 1 else 'receipt_single'
             
             # Calculate sum of allocated items
-            sum_items = sum(_safe_decimal(i.get('received_amount', i.get('amount', 0))) for i in items_data)
+            sum_items = sum(_safe_decimal(i.get('amount_applied') or i.get('received_amount') or i.get('amount') or i.get('receipt') or i.get('payment') or 0) for i in items_data)
             
             # Check if there are already explicit advance items in items_data.
             # If yes, the items loop below will create AdvanceAllocation records for them,
@@ -424,6 +435,7 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
                     invoice_date=det_date,
                     pending_before=_safe_decimal(item_data.get('pending_before') or it_pending_raw.get('pending') or it_amt),
                     balance_after=_safe_decimal(item_data.get('balance_after', 0)),
+                    gst_rate=item_data.get('gst_rate'),
                     
                     # Party Sync
                     ledger_id_val=p_l_id,
@@ -518,6 +530,28 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
             instance.save()
 
             if items_data is not None:
+                # Capture old filed advances before deletion for ATA
+                old_advances = {}
+                for old_item in AdvanceAllocation.objects.filter(transaction=instance):
+                    if old_item.gst_registered == 'Yes':
+                        key = f"{old_item.advance_ref_no or 'ADVANCE'}"
+                        
+                        # Preserve existing snapshot if already amended, otherwise create one
+                        snapshot = old_item.original_voucher_snapshot
+                        if not snapshot:
+                            snapshot = {
+                                'original_month': instance.date.strftime('%B') if instance.date else '',
+                                'original_year': instance.date.year if instance.date else '',
+                                'original_amount': str(old_item.amount),
+                                'original_rate': str(old_item.gst_rate) if old_item.gst_rate else ''
+                            }
+                        
+                        old_advances[key] = {
+                            'gst_registered': 'Yes',
+                            'amendment_date': timezone.now().date(),
+                            'original_voucher_snapshot': snapshot
+                        }
+
                 instance.delete_items()
                 total = Decimal("0")
                 for item_data in items_data:
@@ -548,6 +582,11 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
                         item_data['is_advance'] = True
                         if not item_data.get('advance_ref_no'):
                             item_data['advance_ref_no'] = item_data.get('reference_id') or 'ADVANCE'
+                            
+                        # Restore filed ATA data if it was previously filed
+                        adv_key = f"{item_data.get('advance_ref_no', '')}"
+                        if adv_key in old_advances:
+                            item_data.update(old_advances[adv_key])
 
                     target_model.objects.create(
                         tenant_id=instance.tenant_id,
@@ -558,6 +597,7 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
                         pay_from_ledger=customer_ledger,
                         pay_to_ledger=instance.pay_to_ledger,
                         vouch_amount=instance.vouch_amount,
+                        amount=amt,
                         **item_data
                     )
 

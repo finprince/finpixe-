@@ -23,7 +23,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsBranchMember]
     # permission_classes = [AllowAny] # Uncomment for testing if auth issues
 
-    def get_queryset(self):
+    def get_queryset(self, include_cancelled=False):
         # Helper to get filtered vouchers
         user = self.request.user
         tenant_id = getattr(user, 'tenant_id', None)
@@ -57,6 +57,9 @@ class GSTR1ViewSet(viewsets.ViewSet):
                         queryset = queryset.filter(date__year=filter_year, date__month=month_num)
             except Exception:
                 pass # Fail silently on invalid date params
+        
+        if not include_cancelled:
+            queryset = queryset.exclude(status='cancelled')
         
         return queryset
 
@@ -178,9 +181,12 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'amended_invoice_date': str(v.date),
                 'amended_invoice_value': amended_val,
                 'amended_taxable_value': amended_taxable,
-                'amended_igst': amended_igst,
-                'amended_cgst': amended_cgst,
-                'amended_sgst': amended_sgst,
+                'rate': 0,
+                'revised_igst': amended_igst,
+                'revised_cgst': amended_cgst,
+                'revised_sgst': amended_sgst,
+                'source': 'b2ba_drilldown',
+                'amendment_filed': v.amendment_filed,
                 'amended_gstin': v.gstin,
                 'amended_recipient_name': v.customer_name,
                 'amended_place_of_supply': pos,
@@ -224,8 +230,10 @@ class GSTR1ViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def b2cs(self, request):
-        """Get B2C Small aggregated"""
-        all_vouchers = self.get_queryset().filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered'))
+        """Get B2C Small aggregated (excludes amended)"""
+        all_vouchers = self.get_queryset().filter(
+            Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')
+        ).filter(amendment_date__isnull=True)
         
         # Manually aggregate
         agg_map = {} # POS -> {taxable, igst...}
@@ -247,12 +255,21 @@ class GSTR1ViewSet(viewsets.ViewSet):
             pos = '29' if v.state_type == 'within' else '27'
             
             if pos not in agg_map:
-                agg_map[pos] = {'taxable': 0, 'igst': 0, 'cgst': 0, 'sgst': 0}
+                agg_map[pos] = {'taxable': 0, 'igst': 0, 'cgst': 0, 'sgst': 0, 'vouchers': []}
             
             agg_map[pos]['taxable'] += float(taxable)
             agg_map[pos]['igst'] += float(igst)
             agg_map[pos]['cgst'] += float(cgst)
             agg_map[pos]['sgst'] += float(sgst)
+            agg_map[pos]['vouchers'].append({
+                'id': v.id,
+                'invoice_no': v.sales_invoice_no,
+                'invoice_date': str(v.date),
+                'invoice_value': float(val),
+                'source': 'b2cs_drilldown',
+                'gst_registered': v.gst_registered,
+                'amendment_date': str(v.amendment_date) if v.amendment_date else None
+            })
 
         data = []
         for pos, vals in agg_map.items():
@@ -264,7 +281,8 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'igst': vals['igst'],
                 'cgst': vals['cgst'],
                 'sgst': vals['sgst'],
-                'cess': 0
+                'cess': 0,
+                'vouchers': vals['vouchers']
             })
         return Response(data)
 
@@ -298,12 +316,22 @@ class GSTR1ViewSet(viewsets.ViewSet):
             orig_pos = pos # In a real system, track POS changes
             
             if pos not in agg_map:
-                agg_map[pos] = {'taxable': 0, 'igst': 0, 'cgst': 0, 'sgst': 0, 'orig_month': orig_month, 'orig_pos': orig_pos}
+                agg_map[pos] = {'taxable': 0, 'igst': 0, 'cgst': 0, 'sgst': 0, 'orig_month': orig_month, 'orig_pos': orig_pos, 'vouchers': []}
             
             agg_map[pos]['taxable'] += float(taxable)
             agg_map[pos]['igst'] += float(igst)
             agg_map[pos]['cgst'] += float(cgst)
             agg_map[pos]['sgst'] += float(sgst)
+            agg_map[pos]['vouchers'].append({
+                'id': v.id,
+                'invoice_no': v.sales_invoice_no,
+                'invoice_date': str(v.date),
+                'invoice_value': float(val),
+                'source': 'b2csa_drilldown',
+                'gst_registered': v.gst_registered,
+                'amendment_date': str(v.amendment_date) if v.amendment_date else None,
+                'amendment_filed': v.amendment_filed
+            })
 
         data = []
         for pos, vals in agg_map.items():
@@ -317,7 +345,8 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'original_rate': 0,
                 'taxable_value': vals['taxable'],
                 'cess': 0,
-                'ecommerce_gstin': ''
+                'ecommerce_gstin': '',
+                'vouchers': vals['vouchers']
             })
         return Response(data)
 
@@ -369,6 +398,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'revised_taxable_value': taxable,
                 'revised_igst': igst,
                 'amendment_date': str(v.amendment_date),
+                'amendment_filed': v.amendment_filed,
                 'rate': 0,
                 'cess': 0,
                 'source': 'b2cla_drilldown'
@@ -376,9 +406,123 @@ class GSTR1ViewSet(viewsets.ViewSet):
         return Response(data)
 
     @action(detail=False, methods=['get'])
+    def ecoaurp2b(self, request):
+        """Get Amended URP B2B supplies through E-Commerce (Table 15B I(a) - ECOAURP2B)"""
+        vouchers = self.get_queryset().filter(is_ecommerce_operator=True).exclude(amendment_date__isnull=True).filter(Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')).exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered')
+        data = []
+        for v in vouchers:
+            snap = v.original_voucher_snapshot or {}
+            orig_pay = snap.get('payment_details', {})
+            
+            pay = get_payment_details(v)
+            val = pay.payment_invoice_value if pay else 0
+            taxable = pay.payment_taxable_value if pay else 0
+            igst = pay.payment_igst if pay else 0
+            cgst = pay.payment_cgst if pay else 0
+            sgst = pay.payment_sgst if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            orig_pos = snap.get('place_of_supply', '')
+            pos = v.place_of_supply or ''
+
+            orig_taxable = orig_pay.get('payment_taxable_value', 0) if orig_pay else 0
+
+            rate = 0
+            items = v.items.all() if hasattr(v, 'items') else []
+            if items:
+                try:
+                    rate = max([float(item.gst_rate) for item in items if getattr(item, 'gst_rate', 0)])
+                except (ValueError, TypeError):
+                    rate = 0
+
+            data.append({
+                'id': v.id,
+                'supplier_name': v.third_party_supplier_name,
+                
+                'original_invoice_no': snap.get('sales_invoice_no', snap.get('invoice_no', '')),
+                'original_invoice_date': snap.get('date', snap.get('invoice_date', '')),
+                'original_pos': orig_pos,
+                
+                'revised_invoice_no': v.sales_invoice_no or v.invoice_no,
+                'revised_invoice_date': str(v.date) if v.date else (str(v.invoice_date) if v.invoice_date else ''),
+                'revised_customer_gstin': v.gstin,
+                'revised_customer_name': v.customer_name,
+                'revised_pos': pos,
+                
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'rate': rate,
+                
+                'original_taxable_value': float(orig_taxable),
+                'revised_taxable_value': float(taxable),
+                'igst': float(igst),
+                'cgst': float(cgst),
+                'sgst': float(sgst),
+                'cess': float(cess),
+                'source': 'ecoaurp2b_drilldown',
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecoaurp2c(self, request):
+        """Get Amended URP B2C supplies through E-Commerce (Table 15B I(b) - ECOAURP2C)"""
+        vouchers = self.get_queryset().filter(is_ecommerce_operator=True).exclude(amendment_date__isnull=True).filter(Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')).filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered'))
+        data = []
+        for v in vouchers:
+            snap = v.original_voucher_snapshot or {}
+            orig_pay = snap.get('payment_details', {})
+            
+            pay = get_payment_details(v)
+            val = pay.payment_invoice_value if pay else 0
+            taxable = pay.payment_taxable_value if pay else 0
+            igst = pay.payment_igst if pay else 0
+            cgst = pay.payment_cgst if pay else 0
+            sgst = pay.payment_sgst if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            orig_pos = snap.get('place_of_supply', '')
+            pos = v.place_of_supply or ''
+
+            orig_taxable = orig_pay.get('payment_taxable_value', 0) if orig_pay else 0
+
+            rate = 0
+            items = v.items.all() if hasattr(v, 'items') else []
+            if items:
+                try:
+                    rate = max([float(item.gst_rate) for item in items if getattr(item, 'gst_rate', 0)])
+                except (ValueError, TypeError):
+                    rate = 0
+
+            data.append({
+                'id': v.id,
+                'supplier_name': v.third_party_supplier_name,
+                
+                'original_invoice_no': snap.get('sales_invoice_no', snap.get('invoice_no', '')),
+                'original_invoice_date': snap.get('date', snap.get('invoice_date', '')),
+                'original_pos': orig_pos,
+                
+                'revised_invoice_no': v.sales_invoice_no or v.invoice_no,
+                'revised_invoice_date': str(v.date) if v.date else (str(v.invoice_date) if v.invoice_date else ''),
+                'revised_pos': pos,
+                
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'rate': rate,
+                
+                'original_taxable_value': float(orig_taxable),
+                'revised_taxable_value': float(taxable),
+                'igst': float(igst),
+                'cgst': float(cgst),
+                'sgst': float(sgst),
+                'cess': float(cess),
+                'source': 'ecoaurp2c_drilldown',
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
     def exp(self, request):
-        """Get Export invoices"""
-        vouchers = self.get_queryset().filter(state_type='export')
+        """Get Export invoices — excludes amended exports (those move to EXPA)"""
+        vouchers = self.get_queryset().filter(state_type='export').filter(amendment_date__isnull=True)
         
         data = []
         for v in vouchers:
@@ -392,11 +536,504 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'invoice_no': v.sales_invoice_no,
                 'invoice_date': v.date,
                 'invoice_value': val,
-                'port_code': '',
-                'shipping_bill_number': '',
-                'shipping_bill_date': '',
+                'port_code': v.port_code or '',
+                'shipping_bill_number': v.shipping_bill_number or '',
+                'shipping_bill_date': v.shipping_bill_date or '',
                 'rate': 0,
                 'taxable_value': taxable
+            })
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def eco(self, request):
+        """Get supplies made through E-Commerce Operators (Table 14 - ECO)"""
+        vouchers = self.get_queryset().exclude(ecommerce_gstin__isnull=True).exclude(ecommerce_gstin__exact='').filter(amendment_date__isnull=True, is_ecommerce_operator=False)
+        agg_map = {}
+        for v in vouchers:
+            pay = get_payment_details(v)
+            taxable = pay.payment_taxable_value if pay else 0
+            igst = pay.payment_igst if pay else 0
+            cgst = pay.payment_cgst if pay else 0
+            sgst = pay.payment_sgst if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            pos = v.place_of_supply
+            if not pos:
+                if v.gstin and len(v.gstin) >= 2:
+                    pos = v.gstin[:2]
+                elif v.state_type == 'within': pos = '29'
+                elif v.state_type == 'other': pos = '27'
+                else: pos = '29'
+
+            is_b2b = bool(v.gstin and v.gstin.strip() and v.gstin.strip().lower() != 'unregistered')
+            nature = 'B2B' if is_b2b else 'B2C'
+            
+            eco_gstin = v.ecommerce_gstin
+            from accounting.models import MasterLedger
+            eco_name = "E-Commerce Operator"
+            tenant_id = getattr(request.user, 'tenant_id', None)
+            
+            ledger_qs = MasterLedger.objects.filter(gstin=eco_gstin)
+            if tenant_id:
+                ledger_qs = ledger_qs.filter(tenant_id=tenant_id)
+            eco_ledger = ledger_qs.first()
+            
+            if eco_ledger:
+                eco_name = eco_ledger.name
+            else:
+                try:
+                    from customerportal.database import CustomerMasterCustomerGSTDetails
+                    gst_qs = CustomerMasterCustomerGSTDetails.objects.select_related('customer_basic_detail').filter(gstin=eco_gstin)
+                    if tenant_id:
+                        gst_qs = gst_qs.filter(tenant_id=tenant_id)
+                    first_gst = gst_qs.first()
+                    if first_gst and hasattr(first_gst, 'customer_basic_detail') and first_gst.customer_basic_detail:
+                        eco_name = first_gst.customer_basic_detail.customer_name
+                except Exception:
+                    pass
+            
+            key = (eco_gstin, pos, nature)
+            if key not in agg_map:
+                agg_map[key] = {
+                    'nature_of_supply': nature,
+                    'place_of_supply': pos,
+                    'ecommerce_gstin': eco_gstin,
+                    'ecommerce_name': eco_name,
+                    'net_value': 0,
+                    'igst': 0,
+                    'cgst': 0,
+                    'sgst': 0,
+                    'cess': 0,
+                    'vouchers': []
+                }
+            agg_map[key]['net_value'] += float(taxable)
+            agg_map[key]['igst'] += float(igst)
+            agg_map[key]['cgst'] += float(cgst)
+            agg_map[key]['sgst'] += float(sgst)
+            agg_map[key]['cess'] += float(cess)
+            
+            pay = get_payment_details(v)
+            agg_map[key]['vouchers'].append({
+                'id': v.id,
+                'invoice_no': v.sales_invoice_no,
+                'invoice_date': str(v.date),
+                'invoice_value': float(pay.payment_invoice_value) if pay else 0,
+                'source': 'eco_drilldown'
+            })
+            
+        data = []
+        for key, vals in agg_map.items():
+            data.append({
+                'nature_of_supply': vals['nature_of_supply'],
+                'place_of_supply': f"{vals['place_of_supply']} ({vals['ecommerce_gstin']})",
+                'ecommerce_name': vals['ecommerce_name'],
+                'net_value': vals['net_value'],
+                'igst': vals['igst'],
+                'cgst': vals['cgst'],
+                'sgst': vals['sgst'],
+                'cess': vals['cess'],
+                'vouchers': vals['vouchers']
+            })
+
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecob2b(self, request):
+        """Get B2B supplies made through E-Commerce Operators (Table 15A I(a) - ECO B2B)"""
+        vouchers = self.get_queryset().filter(
+            is_ecommerce_operator=True,
+            amendment_date__isnull=True
+        ).exclude(
+            third_party_supplier_gstin__isnull=True
+        ).exclude(
+            third_party_supplier_gstin__exact=''
+        ).exclude(
+            gstin__isnull=True
+        ).exclude(
+            gstin__exact=''
+        ).exclude(
+            gstin__iexact='unregistered'
+        )
+        data = []
+        for v in vouchers:
+            pay = get_payment_details(v)
+            val = pay.payment_invoice_value if pay else 0
+            taxable = pay.payment_taxable_value if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            pos = v.place_of_supply
+            if not pos:
+                pos = v.gstin[:2] if (v.gstin and len(v.gstin) >= 2) else '29'
+            supply_type = 'Inter-State' if v.state_type == 'other' else 'Intra-State'
+
+            data.append({
+                'id': v.id,
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'supplier_gstin': v.third_party_supplier_gstin,
+                'recipient_gstin': v.gstin,
+                'recipient_name': v.customer_name,
+                'invoice_no': v.sales_invoice_no,
+                'invoice_date': str(v.date),
+                'invoice_value': float(val),
+                'place_of_supply': pos,
+                'supply_type': supply_type,
+                'document_type': 'Invoice',
+                'rate': 0,
+                'taxable_value': float(taxable),
+                'cess': float(cess),
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True,
+                'supplier_name': getattr(v, 'third_party_supplier_name', '')})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecob2c(self, request):
+        """Get B2C supplies made through E-Commerce Operators (Table 15A I(b) - ECO B2C)"""
+        vouchers = self.get_queryset().filter(
+            is_ecommerce_operator=True,
+            amendment_date__isnull=True
+        ).exclude(
+            third_party_supplier_gstin__isnull=True
+        ).exclude(
+            third_party_supplier_gstin__exact=''
+        ).filter(
+            Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')
+        )
+        data = []
+        for v in vouchers:
+            pay = get_payment_details(v)
+            taxable = pay.payment_taxable_value if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            pos = v.place_of_supply
+            if not pos:
+                pos = '29' if v.state_type == 'within' else '27'
+
+            data.append({
+                'id': v.id,
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'supplier_gstin': v.third_party_supplier_gstin,
+                'supplier_name': v.third_party_supplier_name,
+                'place_of_supply': pos,
+                'rate': 0,
+                'taxable_value': float(taxable),
+                'cess': float(cess),
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecourp2b(self, request):
+        """Get supplies made through ECO to URP B2B (Table 15A II(a) - ECOURP2B)"""
+        vouchers = self.get_queryset().filter(
+            is_ecommerce_operator=True,
+            amendment_date__isnull=True
+        ).filter(
+            Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')
+        ).exclude(
+            gstin__isnull=True
+        ).exclude(
+            gstin__exact=''
+        ).exclude(
+            gstin__iexact='unregistered'
+        )
+        data = []
+        for v in vouchers:
+            pay = get_payment_details(v)
+            val = pay.payment_invoice_value if pay else 0
+            taxable = pay.payment_taxable_value if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            pos = v.place_of_supply
+            if not pos:
+                pos = v.gstin[:2] if (v.gstin and len(v.gstin) >= 2) else '29'
+            supply_type = 'Inter-State' if v.state_type == 'other' else 'Intra-State'
+
+            data.append({
+                'id': v.id,
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'supplier_gstin': '',
+                'recipient_gstin': v.gstin,
+                'recipient_name': v.customer_name,
+                'invoice_no': v.sales_invoice_no,
+                'invoice_date': str(v.date),
+                'invoice_value': float(val),
+                'place_of_supply': pos,
+                'supply_type': supply_type,
+                'document_type': 'Invoice',
+                'rate': 0,
+                'taxable_value': float(taxable),
+                'cess': float(cess),
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True,
+                'supplier_name': getattr(v, 'third_party_supplier_name', '')})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecourp2c(self, request):
+        """Get supplies made through ECO to URP B2C (Table 15A II(b) - ECOURP2C)"""
+        vouchers = self.get_queryset().filter(
+            is_ecommerce_operator=True,
+            amendment_date__isnull=True
+        ).filter(
+            Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')
+        ).filter(
+            Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')
+        )
+        data = []
+        for v in vouchers:
+            pay = get_payment_details(v)
+            taxable = pay.payment_taxable_value if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            pos = v.place_of_supply
+            if not pos:
+                pos = '29' if v.state_type == 'within' else '27'
+
+            data.append({
+                'id': v.id,
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'supplier_gstin': '',
+                'supplier_name': v.third_party_supplier_name,
+                'place_of_supply': pos,
+                'rate': 0,
+                'taxable_value': float(taxable),
+                'cess': float(cess),
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True})
+        return Response(data)
+
+
+    @action(detail=False, methods=['get'])
+    def ecoa(self, request):
+        """Get Amended supplies made through E-Commerce Operators (Table 14A)"""
+        vouchers = self.get_queryset().exclude(ecommerce_gstin__isnull=True).exclude(ecommerce_gstin__exact='').exclude(amendment_date__isnull=True).filter(is_ecommerce_operator=False)
+        agg_map = {}
+        for v in vouchers:
+            pay = get_payment_details(v)
+            taxable = pay.payment_taxable_value if pay else 0
+            igst = pay.payment_igst if pay else 0
+            cgst = pay.payment_cgst if pay else 0
+            sgst = pay.payment_sgst if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            snap = v.original_voucher_snapshot or {}
+            orig_eco_gstin = snap.get('ecommerce_gstin', v.ecommerce_gstin)
+            # Note: ecommerce_name is not on model; use gstin as key for lookup
+            orig_eco_name = orig_eco_gstin or ''
+            curr_eco_name = v.ecommerce_gstin or ''
+            
+            key = (orig_eco_gstin, v.ecommerce_gstin)
+            if key not in agg_map:
+                agg_map[key] = {
+                    'original_ecommerce_gstin': orig_eco_gstin,
+                    'original_ecommerce_name': orig_eco_name,
+                    'ecommerce_gstin': v.ecommerce_gstin,
+                    'ecommerce_name': curr_eco_name,
+                    'taxable_value': 0,
+                    'igst': 0,
+                    'cgst': 0,
+                    'sgst': 0,
+                    'cess': 0,
+                    'vouchers': []
+                }
+            agg_map[key]['taxable_value'] += float(taxable)
+            agg_map[key]['igst'] += float(igst)
+            agg_map[key]['cgst'] += float(cgst)
+            agg_map[key]['sgst'] += float(sgst)
+            agg_map[key]['cess'] += float(cess)
+            agg_map[key]['vouchers'].append({
+                'id': v.id,
+                'invoice_no': v.sales_invoice_no,
+                'invoice_date': str(v.date) if v.date else '',
+                'invoice_value': float(pay.payment_invoice_value) if pay else 0,
+                'source': 'ecoa_drilldown'
+            })
+
+        data = list(agg_map.values())
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecoab2b(self, request):
+        """Get Amended B2B supplies through E-Commerce (Table 15A I(a) - ECOAB2B)"""
+        vouchers = self.get_queryset().filter(is_ecommerce_operator=True).exclude(third_party_supplier_gstin__isnull=True).exclude(third_party_supplier_gstin__exact='').exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').exclude(amendment_date__isnull=True)
+        data = []
+        for v in vouchers:
+            snap = v.original_voucher_snapshot or {}
+            orig_pay = snap.get('payment_details', {})
+            
+            pay = get_payment_details(v)
+            val = pay.payment_invoice_value if pay else 0
+            taxable = pay.payment_taxable_value if pay else 0
+            igst = pay.payment_igst if pay else 0
+            cgst = pay.payment_cgst if pay else 0
+            sgst = pay.payment_sgst if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            orig_pos = ''
+            orig_gstin = snap.get('gstin', '')
+            if orig_gstin and len(orig_gstin) >= 2:
+                orig_pos = orig_gstin[:2]
+            elif snap.get('place_of_supply'):
+                orig_pos = snap.get('place_of_supply')
+
+            pos = ''
+            if v.gstin and len(v.gstin) >= 2:
+                pos = v.gstin[:2]
+            elif v.place_of_supply:
+                pos = v.place_of_supply
+
+            orig_taxable = orig_pay.get('payment_taxable_value', 0) if orig_pay else 0
+
+            rate = 0
+            items = v.items.all() if hasattr(v, 'items') else []
+            if items:
+                try:
+                    rate = max([float(item.gst_rate) for item in items if getattr(item, 'gst_rate', 0)])
+                except (ValueError, TypeError):
+                    rate = 0
+
+            data.append({
+                'id': v.id,
+                'supplier_gstin': v.third_party_supplier_gstin,
+                
+                'original_invoice_no': snap.get('sales_invoice_no', snap.get('invoice_no', '')),
+                'original_invoice_date': snap.get('date', snap.get('invoice_date', '')),
+                'original_customer_gstin': orig_gstin,
+                'original_customer_name': snap.get('customer_name', ''),
+                'original_pos': orig_pos,
+                
+                'revised_invoice_no': v.sales_invoice_no or v.invoice_no,
+                'revised_invoice_date': str(v.date) if v.date else (str(v.invoice_date) if v.invoice_date else ''),
+                'revised_customer_gstin': v.gstin,
+                'revised_customer_name': v.customer_name,
+                'revised_pos': pos,
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'rate': rate,
+                
+                'original_taxable_value': float(orig_taxable),
+                'revised_taxable_value': float(taxable),
+                'igst': float(igst),
+                'cgst': float(cgst),
+                'sgst': float(sgst),
+                'cess': float(cess),
+                'source': 'ecoab2b_drilldown',
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True,
+                'supplier_name': getattr(v, 'third_party_supplier_name', '')})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ecoab2c(self, request):
+        """Get Amended B2C supplies through E-Commerce (Table 15A I(b) - ECOAB2C)"""
+        vouchers = self.get_queryset().filter(is_ecommerce_operator=True).exclude(third_party_supplier_gstin__isnull=True).exclude(third_party_supplier_gstin__exact='').filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).exclude(amendment_date__isnull=True)
+        data = []
+        for v in vouchers:
+            snap = v.original_voucher_snapshot or {}
+            orig_pay = snap.get('payment_details', {})
+            
+            pay = get_payment_details(v)
+            val = pay.payment_invoice_value if pay else 0
+            taxable = pay.payment_taxable_value if pay else 0
+            igst = pay.payment_igst if pay else 0
+            cgst = pay.payment_cgst if pay else 0
+            sgst = pay.payment_sgst if pay else 0
+            cess = pay.payment_cess if pay else 0
+
+            orig_pos = snap.get('place_of_supply', '')
+            pos = v.place_of_supply or ''
+
+            orig_taxable = orig_pay.get('payment_taxable_value', 0) if orig_pay else 0
+
+            rate = 0
+            items = v.items.all() if hasattr(v, 'items') else []
+            if items:
+                try:
+                    rate = max([float(item.gst_rate) for item in items if getattr(item, 'gst_rate', 0)])
+                except (ValueError, TypeError):
+                    rate = 0
+
+            data.append({
+                'id': v.id,
+                'supplier_name': v.third_party_supplier_name,
+                'supplier_gstin': v.third_party_supplier_gstin,
+                
+                'original_invoice_no': snap.get('sales_invoice_no', snap.get('invoice_no', '')),
+                'original_invoice_date': snap.get('date', snap.get('invoice_date', '')),
+                'original_pos': orig_pos,
+                
+                'revised_invoice_no': v.sales_invoice_no or v.invoice_no,
+                'revised_invoice_date': str(v.date) if v.date else (str(v.invoice_date) if v.invoice_date else ''),
+                'revised_pos': pos,
+                
+                'ecommerce_gstin': v.ecommerce_gstin,
+                'rate': rate,
+                
+                'original_taxable_value': float(orig_taxable),
+                'revised_taxable_value': float(taxable),
+                'igst': float(igst),
+                'cgst': float(cgst),
+                'sgst': float(sgst),
+                'cess': float(cess),
+                'source': 'ecoab2c_drilldown',
+                'is_ecommerce_operator': True,
+                'is_ecommerce_sales': True})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def expa(self, request):
+        """Get EXPA - Amended Export invoices (GST-filed exports that were later edited)"""
+        vouchers = self.get_queryset().filter(state_type='export').exclude(amendment_date__isnull=True)
+
+        data = []
+        for v in vouchers:
+            snap = v.original_voucher_snapshot or {}
+            pay = get_payment_details(v)
+
+            # --- Original (GST Filed) values from snapshot ---
+            orig_pay = snap.get('payment_details', {})
+            if orig_pay:
+                orig_val = orig_pay.get('payment_invoice_value', 0)
+                orig_taxable = orig_pay.get('payment_taxable_value', 0)
+            else:
+                orig_val = pay.payment_invoice_value if pay else 0
+                orig_taxable = pay.payment_taxable_value if pay else 0
+
+            # Original invoice details from snapshot
+            orig_invoice_no = snap.get('sales_invoice_no', v.sales_invoice_no)
+            orig_date = snap.get('date', str(v.date))
+            orig_export_type = snap.get('export_type', v.export_type or 'WPAY')
+            orig_port_code = snap.get('port_code', v.port_code or '')
+            orig_sb_number = snap.get('shipping_bill_number', v.shipping_bill_number or '')
+            orig_sb_date = snap.get('shipping_bill_date', v.shipping_bill_date or '')
+
+            # Amended (current) values
+            amended_val = pay.payment_invoice_value if pay else 0
+            amended_taxable = pay.payment_taxable_value if pay else 0
+
+            data.append({
+                'id': v.id,
+                'has_snapshot': bool(snap),
+                # Original (GST-filed) values
+                'export_type': orig_export_type,
+                'original_invoice_no': orig_invoice_no,
+                'original_invoice_date': orig_date,
+                'invoice_value': orig_val,
+                'port_code': orig_port_code,
+                'shipping_bill_number': orig_sb_number,
+                'shipping_bill_date': str(orig_sb_date) if orig_sb_date else '',
+                'rate': 0,
+                'taxable_value': orig_taxable,
+                # Amended (current) values
+                'revised_invoice_no': v.sales_invoice_no,
+                'revised_invoice_date': str(v.amendment_date),
+                'revised_invoice_value': amended_val,
+                'revised_taxable_value': amended_taxable,
+                'revised_export_type': v.export_type or 'WPAY',
+                'revised_port_code': v.port_code or '',
+                'revised_shipping_bill_number': v.shipping_bill_number or '',
+                'revised_shipping_bill_date': str(v.shipping_bill_date) if v.shipping_bill_date else '',
+                'amendment_filed': v.amendment_filed
             })
         return Response(data)
 
@@ -405,6 +1042,10 @@ class GSTR1ViewSet(viewsets.ViewSet):
     def stats(self, request):
         """Returns counts for each GSTR1 category for the selected period"""
         queryset = self.get_queryset()
+        user = request.user
+        tenant_id = getattr(user, 'tenant_id', None)
+        year_str = request.query_params.get('year')
+        month_str = request.query_params.get('month')
         
         # B2B (excludes amended vouchers)
         b2b_count = queryset.exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').filter(amendment_date__isnull=True).count()
@@ -437,16 +1078,106 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 else:
                     b2cs_count += 1   # Non-amended B2CS
         
-        exp_count = queryset.filter(state_type='export').count()
+        exp_count = queryset.filter(state_type='export').filter(amendment_date__isnull=True).count()
+        expa_count = queryset.filter(state_type='export').exclude(amendment_date__isnull=True).count()
 
-        # ATADJ count
+        # ATADJ count (non-amended vouchers with advance applied)
         atadj_count = 0
+        atadja_count = 0
         for v in queryset:
+            snap = v.original_voucher_snapshot or {}
             pay = get_payment_details(v)
-            if pay and pay.payment_advance > 0:
-                atadj_count += 1
+            
+            orig_pay = snap.get('payment_details', {})
+            orig_advance = float(orig_pay.get('payment_advance', 0)) if orig_pay else 0
+            amended_advance = float(pay.payment_advance) if pay and pay.payment_advance else 0
+            
+            if v.amendment_date is not None:
+                # For amended, count if either original or new has advance > 0
+                if orig_advance > 0 or amended_advance > 0:
+                    atadja_count += 1
+            else:
+                # For non-amended, count if current has advance > 0
+                if amended_advance > 0:
+                    atadj_count += 1
 
-        doc_count = queryset.count() if queryset.exists() else 0
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+
+        doc_count = self.get_queryset(include_cancelled=True).count()
+
+        # CDNR count - registered customers (with GSTIN)
+        cn_qs = VoucherCreditNoteInvoiceDetails.objects.all()
+        if tenant_id:
+            cn_qs = cn_qs.filter(tenant_id=tenant_id)
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year_cn = int(year_str.split('-')[0])
+                    end_year_cn = start_year_cn + 1
+                    months_map_cn = {
+                        'April': (4, start_year_cn), 'May': (5, start_year_cn), 'June': (6, start_year_cn),
+                        'July': (7, start_year_cn), 'August': (8, start_year_cn), 'September': (9, start_year_cn),
+                        'October': (10, start_year_cn), 'November': (11, start_year_cn), 'December': (12, start_year_cn),
+                        'January': (1, end_year_cn), 'February': (2, end_year_cn), 'March': (3, end_year_cn)
+                    }
+                    mn, fy = months_map_cn.get(month_str, (None, None))
+                    if mn and fy:
+                        cn_qs = cn_qs.filter(date__year=fy, date__month=mn)
+            except Exception:
+                pass
+        cdnr_count = cn_qs.exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').filter(amendment_date__isnull=True).count()
+        cdnra_count = cn_qs.exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').exclude(amendment_date__isnull=True).count()
+        cdnur_count = cn_qs.filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).filter(amendment_date__isnull=True).count()
+        cdnura_count = cn_qs.filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).exclude(amendment_date__isnull=True).count()
+
+        # ECO counts (unamended only — amended go to ECOA)
+        eco_count = queryset.exclude(ecommerce_gstin__isnull=True).exclude(ecommerce_gstin__exact='').filter(amendment_date__isnull=True, is_ecommerce_operator=False).count()
+        ecob2b_count = queryset.filter(is_ecommerce_operator=True, amendment_date__isnull=True).exclude(third_party_supplier_gstin__isnull=True).exclude(third_party_supplier_gstin__exact='').exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').count()
+        ecob2c_count = queryset.filter(is_ecommerce_operator=True, amendment_date__isnull=True).exclude(third_party_supplier_gstin__isnull=True).exclude(third_party_supplier_gstin__exact='').filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).count()
+        # ECOA counts (amended ECO vouchers)
+        ecoa_count = queryset.exclude(ecommerce_gstin__isnull=True).exclude(ecommerce_gstin__exact='').exclude(amendment_date__isnull=True).filter(is_ecommerce_operator=False).count()
+        ecoab2b_count = queryset.filter(is_ecommerce_operator=True).exclude(amendment_date__isnull=True).exclude(third_party_supplier_gstin__isnull=True).exclude(third_party_supplier_gstin__exact='').exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').count()
+        ecoab2c_count = queryset.filter(is_ecommerce_operator=True).exclude(amendment_date__isnull=True).exclude(third_party_supplier_gstin__isnull=True).exclude(third_party_supplier_gstin__exact='').filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).count()
+        
+        # ECOURP counts
+        ecourp2b_count = queryset.filter(is_ecommerce_operator=True, amendment_date__isnull=True).filter(Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')).exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').count()
+        ecourp2c_count = queryset.filter(is_ecommerce_operator=True, amendment_date__isnull=True).filter(Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')).filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).count()
+
+
+        # ECOAURP counts
+        ecoaurp2b_count = queryset.filter(is_ecommerce_operator=True).exclude(amendment_date__isnull=True).filter(Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')).exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').count()
+        ecoaurp2c_count = queryset.filter(is_ecommerce_operator=True).exclude(amendment_date__isnull=True).filter(Q(third_party_supplier_gstin__isnull=True) | Q(third_party_supplier_gstin__exact='')).filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).count()
+
+
+        from accounting.models import AdvanceAllocation
+        from decimal import Decimal
+        
+        at_count = 0
+        ata_count = 0
+        try:
+            advances = AdvanceAllocation.objects.filter(
+                tenant_id=tenant_id,
+                transaction__transaction_type='RECEIPT',
+            )
+            if 'fy' in locals() and 'mn' in locals() and fy and mn:
+                # Normal AT filters by transaction__date
+                at_advances = advances.filter(transaction__date__year=fy, transaction__date__month=mn, amendment_date__isnull=True)
+                # ATA filters by transaction__date (to show amendments for the selected period's vouchers)
+                ata_advances = advances.filter(transaction__date__year=fy, transaction__date__month=mn, amendment_date__isnull=False, gst_registered='Yes')
+            else:
+                at_advances = advances.filter(amendment_date__isnull=True)
+                ata_advances = advances.filter(amendment_date__isnull=False, gst_registered='Yes')
+
+            for adv in at_advances:
+                if Decimal(str(adv.amount)) > 0:
+                    at_count += 1
+                    
+            for adv in ata_advances:
+                if Decimal(str(adv.amount)) > 0:
+                    ata_count += 1
+        except Exception:
+            pass
+
 
         return Response({
             'B2B': b2b_count,
@@ -456,47 +1187,607 @@ class GSTR1ViewSet(viewsets.ViewSet):
             'B2CS': b2cs_count,
             'B2CSA': b2csa_count,
             'EXP': exp_count,
+            'EXPA': expa_count,
             'ATADJ': atadj_count,
+            'ATADJA': atadja_count,
+            'AT': at_count,
+            'ATA': ata_count,
             'DOC': doc_count,
-            # Placeholder for others
-            'CDNR': 0,
-            'CDNUR': 0,
-            'AT': 0,
+            'CDNR': cdnr_count,
+            'CDNRA': cdnra_count,
+            'CDNUR': cdnur_count,
+            'CDNURA': cdnura_count,
+            'AT': at_count,
             'HSN': 0,
+            'ECO': eco_count,
+            'ECOB2B': ecob2b_count,
+            'ECOB2C': ecob2c_count,
+            'ECOA': ecoa_count,
+            'ECOURP2B': ecourp2b_count,
+            'ECOURP2C': ecourp2c_count,
+            'ECOAB2B': ecoab2b_count,
+            'ECOAB2C': ecoab2c_count,
+            'ECOAURP2B': ecoaurp2b_count,
+            'ECOAURP2C': ecoaurp2c_count,
         })
 
     @action(detail=False, methods=['get'])
     def cdnr(self, request):
-        """Get CDNR - Credit/Debit Notes (Registered)"""
-        # TODO: Implement actual credit/debit note model and query
-        return Response([])
+        """Get CDNR - Credit/Debit Notes (Registered)
+        Pulls Credit Notes issued to customers with a valid GSTIN for the selected period.
+        """
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails, VoucherCreditNoteItemDetails
+        from decimal import Decimal
+
+        user = request.user
+        tenant_id = getattr(user, 'tenant_id', None)
+
+        # Date filtering (same month/year logic as get_queryset)
+        year_str = request.query_params.get('year')
+        month_str = request.query_params.get('month')
+
+        print(f"[CDNR DEBUG] user={user}, tenant_id={tenant_id}, year={year_str}, month={month_str}")
+
+        qs = VoucherCreditNoteInvoiceDetails.objects.all()
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        print(f"[CDNR DEBUG] total CNs for tenant: {qs.count()}")
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year = int(year_str.split('-')[0])
+                    end_year = start_year + 1
+                    months_map = {
+                        'April': (4, start_year), 'May': (5, start_year), 'June': (6, start_year),
+                        'July': (7, start_year), 'August': (8, start_year), 'September': (9, start_year),
+                        'October': (10, start_year), 'November': (11, start_year), 'December': (12, start_year),
+                        'January': (1, end_year), 'February': (2, end_year), 'March': (3, end_year)
+                    }
+                    month_num, filter_year = months_map.get(month_str, (None, None))
+                    if month_num and filter_year:
+                        qs = qs.filter(date__year=filter_year, date__month=month_num)
+            except Exception:
+                pass
+
+        # CDNR = only registered customers (those with a valid GSTIN) and not amended
+        qs = qs.exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered').filter(amendment_date__isnull=True)
+
+        data = []
+        for cn in qs:
+            # Get totals from related item details
+            try:
+                item_det = cn.item_details
+                total_taxable = float(item_det.total_taxable_value or 0)
+                total_igst    = float(item_det.total_igst or 0)
+                total_cgst    = float(item_det.total_cgst or 0)
+                total_sgst    = float(item_det.total_sgst or 0)
+                total_cess    = float(item_det.total_cess or 0)
+                note_value    = float(item_det.total_invoice_value or 0)
+            except Exception:
+                total_taxable = total_igst = total_cgst = total_sgst = total_cess = note_value = 0
+
+            # Derive Place of Supply from GSTIN first two digits, else use branch state
+            pos = ''
+            if cn.gstin and len(cn.gstin) >= 2:
+                pos = cn.gstin[:2]
+
+            # Determine supply type based on tax
+            note_supply_type = 'Intra-State'
+            if total_igst > 0:
+                note_supply_type = 'Inter-State'
+
+            data.append({
+                'id': cn.id,
+                'gstin': cn.gstin,
+                'recipient_name': cn.customer_name,
+                'note_number': cn.credit_note_no,
+                'note_date': str(cn.date),
+                'note_type': 'C',  # C = Credit Note, D = Debit Note
+                'place_of_supply': pos,
+                'reverse_charge': 'N',
+                'note_supply_type': note_supply_type,
+                'note_value': note_value,
+                'applicable_tax_rate': '',
+                'rate': 0,
+                'taxable_value': total_taxable,
+                'igst': total_igst,
+                'cgst': total_cgst,
+                'sgst': total_sgst,
+                'cess': total_cess,
+                'sales_invoice_nos': cn.sales_invoice_nos or '',
+                'gst_registered': getattr(cn, 'gst_registered', '') or '',
+            })
+
+        return Response(data)
 
     @action(detail=False, methods=['get'])
     def cdnur(self, request):
-        """Get CDNUR - Credit/Debit Notes (Unregistered)"""
-        # TODO: Implement actual credit/debit note model for unregistered customers
-        return Response([])
+        """Get CDNUR - Credit/Debit Notes (Unregistered)
+        Pulls Credit Notes issued to customers WITHOUT a GSTIN for the selected period.
+        """
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+
+        user = request.user
+        tenant_id = getattr(user, 'tenant_id', None)
+
+        year_str = request.query_params.get('year')
+        month_str = request.query_params.get('month')
+
+        qs = VoucherCreditNoteInvoiceDetails.objects.all()
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year = int(year_str.split('-')[0])
+                    end_year = start_year + 1
+                    months_map = {
+                        'April': (4, start_year), 'May': (5, start_year), 'June': (6, start_year),
+                        'July': (7, start_year), 'August': (8, start_year), 'September': (9, start_year),
+                        'October': (10, start_year), 'November': (11, start_year), 'December': (12, start_year),
+                        'January': (1, end_year), 'February': (2, end_year), 'March': (3, end_year)
+                    }
+                    month_num, filter_year = months_map.get(month_str, (None, None))
+                    if month_num and filter_year:
+                        qs = qs.filter(date__year=filter_year, date__month=month_num)
+            except Exception:
+                pass
+
+        # CDNUR = only unregistered customers (no GSTIN or explicitly "unregistered") and not amended
+        qs = qs.filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered')).filter(amendment_date__isnull=True)
+
+        data = []
+        for cn in qs:
+            try:
+                item_det = cn.item_details
+                total_taxable = float(item_det.total_taxable_value or 0)
+                total_igst    = float(item_det.total_igst or 0)
+                total_cgst    = float(item_det.total_cgst or 0)
+                total_sgst    = float(item_det.total_sgst or 0)
+                total_cess    = float(item_det.total_cess or 0)
+                note_value    = float(item_det.total_invoice_value or 0)
+            except Exception:
+                total_taxable = total_igst = total_cgst = total_sgst = total_cess = note_value = 0
+
+            note_supply_type = 'Intra-State'
+            if total_igst > 0:
+                note_supply_type = 'Inter-State'
+
+            data.append({
+                'id': cn.id,
+                'recipient_name': cn.customer_name,
+                'note_type': 'C',
+                'note_supply_type': note_supply_type,
+                'note_number': cn.credit_note_no,
+                'note_date': str(cn.date),
+                'note_value': note_value,
+                'applicable_tax_rate': '',
+                'rate': 0,
+                'taxable_value': total_taxable,
+                'igst': total_igst,
+                'cgst': total_cgst,
+                'sgst': total_sgst,
+                'cess': total_cess,
+                'sales_invoice_nos': cn.sales_invoice_nos or '',
+                'gst_registered': getattr(cn, 'gst_registered', '') or '',
+            })
+
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def cdnra(self, request):
+        """Get CDNRA - Credit/Debit Notes (Registered) Amendment
+        Pulls Credit Notes issued to customers with a valid GSTIN that have been amended.
+        """
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+        from decimal import Decimal
+
+        user = request.user
+        tenant_id = getattr(user, 'tenant_id', None)
+
+        year_str = request.query_params.get('year')
+        month_str = request.query_params.get('month')
+
+        qs = VoucherCreditNoteInvoiceDetails.objects.filter(amendment_date__isnull=False)
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year = int(year_str.split('-')[0])
+                    end_year = start_year + 1
+                    months_map = {
+                        'April': (4, start_year), 'May': (5, start_year), 'June': (6, start_year),
+                        'July': (7, start_year), 'August': (8, start_year), 'September': (9, start_year),
+                        'October': (10, start_year), 'November': (11, start_year), 'December': (12, start_year),
+                        'January': (1, end_year), 'February': (2, end_year), 'March': (3, end_year)
+                    }
+                    month_num, filter_year = months_map.get(month_str, (None, None))
+                    if month_num and filter_year:
+                        qs = qs.filter(date__year=filter_year, date__month=month_num)
+            except Exception:
+                pass
+
+        # Registered customers only
+        qs = qs.exclude(gstin__isnull=True).exclude(gstin__exact='').exclude(gstin__iexact='unregistered')
+
+        data = []
+        for cn in qs:
+            snap = cn.original_voucher_snapshot or {}
+            
+            # Original (GST Filed) values from snapshot
+            orig_note_no = snap.get('credit_note_no', cn.credit_note_no)
+            orig_date = snap.get('date', str(cn.date))
+            orig_gstin = snap.get('gstin', cn.gstin)
+            orig_customer = snap.get('customer_name', cn.customer_name)
+            
+            orig_item_det = snap.get('item_details', {})
+            orig_val = float(orig_item_det.get('total_invoice_value', 0) if orig_item_det else 0)
+            orig_taxable = float(orig_item_det.get('total_taxable_value', 0) if orig_item_det else 0)
+            orig_igst = float(orig_item_det.get('total_igst', 0) if orig_item_det else 0)
+            orig_cgst = float(orig_item_det.get('total_cgst', 0) if orig_item_det else 0)
+            orig_sgst = float(orig_item_det.get('total_sgst', 0) if orig_item_det else 0)
+            orig_cess = float(orig_item_det.get('total_cess', 0) if orig_item_det else 0)
+
+            # Current amended values
+            try:
+                item_det = cn.item_details
+                amended_val = float(item_det.total_invoice_value or 0)
+                amended_taxable = float(item_det.total_taxable_value or 0)
+                amended_igst = float(item_det.total_igst or 0)
+                amended_cgst = float(item_det.total_cgst or 0)
+                amended_sgst = float(item_det.total_sgst or 0)
+                amended_cess = float(item_det.total_cess or 0)
+            except Exception:
+                amended_val = amended_taxable = amended_igst = amended_cgst = amended_sgst = amended_cess = 0
+
+            pos = ''
+            if cn.gstin and len(cn.gstin) >= 2:
+                pos = cn.gstin[:2]
+            
+            orig_pos = orig_gstin[:2] if orig_gstin and len(orig_gstin) >= 2 else pos
+
+            data.append({
+                'id': cn.id,
+                # Original (GST Filed) values shown in the table
+                'gstin': orig_gstin,
+                'recipient_name': orig_customer,
+                'original_note_number': orig_note_no,
+                'original_note_date': orig_date,
+                'revised_note_number': cn.credit_note_no,
+                'revised_note_date': str(cn.amendment_date),
+                'note_value': orig_val,
+                'taxable_value': orig_taxable,
+                'igst': orig_igst,
+                'cgst': orig_cgst,
+                'sgst': orig_sgst,
+                'cess': orig_cess,
+                'place_of_supply': orig_pos,
+                'reverse_charge': 'N',
+                'applicable_tax_rate': '',
+                'rate': 0,
+                'has_snapshot': bool(snap),
+                # Amended values for the drilldown/modal
+                'amended_note_number': cn.credit_note_no,
+                'amended_note_date': str(cn.date),
+                'amended_note_value': amended_val,
+                'amended_taxable_value': amended_taxable,
+                'revised_igst': amended_igst,
+                'revised_cgst': amended_cgst,
+                'revised_sgst': amended_sgst,
+                'revised_cess': amended_cess,
+                'source': 'cdnra_drilldown',
+                'amendment_filed': cn.amendment_filed,
+                'amended_gstin': cn.gstin,
+                'amended_recipient_name': cn.customer_name,
+                'amended_place_of_supply': pos,
+                'gst_registered': getattr(cn, 'gst_registered', '') or '',
+            })
+            
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def cdnura(self, request):
+        """Get CDNURA - Credit/Debit Notes (Unregistered) Amendment
+        Pulls Credit Notes issued to unregistered customers (no GSTIN) that have been amended.
+        """
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+        from django.db.models import Q
+        from decimal import Decimal
+
+        user = request.user
+        tenant_id = getattr(user, 'tenant_id', None)
+
+        year_str = request.query_params.get('year')
+        month_str = request.query_params.get('month')
+
+        qs = VoucherCreditNoteInvoiceDetails.objects.filter(amendment_date__isnull=False)
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year = int(year_str.split('-')[0])
+                    end_year = start_year + 1
+                    months_map = {
+                        'April': (4, start_year), 'May': (5, start_year), 'June': (6, start_year),
+                        'July': (7, start_year), 'August': (8, start_year), 'September': (9, start_year),
+                        'October': (10, start_year), 'November': (11, start_year), 'December': (12, start_year),
+                        'January': (1, end_year), 'February': (2, end_year), 'March': (3, end_year)
+                    }
+                    month_num, filter_year = months_map.get(month_str, (None, None))
+                    if month_num and filter_year:
+                        qs = qs.filter(date__year=filter_year, date__month=month_num)
+            except Exception:
+                pass
+
+        # Unregistered customers only
+        qs = qs.filter(Q(gstin__isnull=True) | Q(gstin__exact='') | Q(gstin__iexact='unregistered'))
+
+        data = []
+        for cn in qs:
+            snap = cn.original_voucher_snapshot or {}
+            
+            # Original (GST Filed) values from snapshot
+            orig_note_no = snap.get('credit_note_no', cn.credit_note_no)
+            orig_date = snap.get('date', str(cn.date))
+            orig_gstin = snap.get('gstin', cn.gstin)
+            orig_customer = snap.get('customer_name', cn.customer_name)
+            
+            orig_item_det = snap.get('item_details', {})
+            orig_val = float(orig_item_det.get('total_invoice_value', 0) if orig_item_det else 0)
+            orig_taxable = float(orig_item_det.get('total_taxable_value', 0) if orig_item_det else 0)
+            orig_igst = float(orig_item_det.get('total_igst', 0) if orig_item_det else 0)
+            orig_cgst = float(orig_item_det.get('total_cgst', 0) if orig_item_det else 0)
+            orig_sgst = float(orig_item_det.get('total_sgst', 0) if orig_item_det else 0)
+            orig_cess = float(orig_item_det.get('total_cess', 0) if orig_item_det else 0)
+
+            # Current amended values
+            try:
+                item_det = cn.item_details
+                amended_val = float(item_det.total_invoice_value or 0)
+                amended_taxable = float(item_det.total_taxable_value or 0)
+                amended_igst = float(item_det.total_igst or 0)
+                amended_cgst = float(item_det.total_cgst or 0)
+                amended_sgst = float(item_det.total_sgst or 0)
+                amended_cess = float(item_det.total_cess or 0)
+            except Exception:
+                amended_val = amended_taxable = amended_igst = amended_cgst = amended_sgst = amended_cess = 0
+
+            # POS state code
+            pos = ''
+            if cn.gstin and len(cn.gstin) >= 2:
+                pos = cn.gstin[:2]
+            orig_pos = orig_gstin[:2] if orig_gstin and len(orig_gstin) >= 2 else pos
+
+            data.append({
+                'id': cn.id,
+                # Original (GST Filed) values shown in the table
+                'gstin': orig_gstin,
+                'recipient_name': orig_customer,
+                'original_note_number': orig_note_no,
+                'original_note_date': orig_date,
+                'revised_note_number': cn.credit_note_no,
+                'revised_note_date': str(cn.amendment_date),
+                'note_value': orig_val,
+                'taxable_value': orig_taxable,
+                'igst': orig_igst,
+                'cgst': orig_cgst,
+                'sgst': orig_sgst,
+                'cess': orig_cess,
+                'place_of_supply': orig_pos,
+                'reverse_charge': 'N',
+                'applicable_tax_rate': '',
+                'rate': 0,
+                'has_snapshot': bool(snap),
+                # Amended values for the drilldown/modal
+                'amended_note_number': cn.credit_note_no,
+                'amended_note_date': str(cn.date),
+                'amended_note_value': amended_val,
+                'amended_taxable_value': amended_taxable,
+                'revised_igst': amended_igst,
+                'revised_cgst': amended_cgst,
+                'revised_sgst': amended_sgst,
+                'revised_cess': amended_cess,
+                'source': 'cdnur_drilldown',
+                'amendment_filed': cn.amendment_filed,
+                'amended_gstin': cn.gstin,
+                'amended_recipient_name': cn.customer_name,
+                'amended_place_of_supply': pos,
+                'gst_registered': getattr(cn, 'gst_registered', '') or '',
+            })
+            
+        return Response(data)
 
     @action(detail=False, methods=['get'])
     def at(self, request):
         """Get AT - Advance Tax"""
-        # Not fully implemented in SalesVoucherPaymentDetails independently as a transaction
-        # But we can check for booking advance? 
-        # For now placeholder, as Advance Receipt is usually a separate voucher type in other systems
-        return Response([])
+        from decimal import Decimal
+        from accounting.models import Transaction, AdvanceAllocation
+        
+        year_str = self.request.query_params.get('year')
+        month_str = self.request.query_params.get('month')
+        
+        q_filter = {}
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year = int(year_str.split('-')[0])
+                    end_year = start_year + 1
+                    
+                    months_map = {
+                        'April': (4, start_year), 'May': (5, start_year), 'June': (6, start_year),
+                        'July': (7, start_year), 'August': (8, start_year), 'September': (9, start_year),
+                        'October': (10, start_year), 'November': (11, start_year), 'December': (12, start_year),
+                        'January': (1, end_year), 'February': (2, end_year), 'March': (3, end_year)
+                    }
+                    
+                    month_num, filter_year = months_map.get(month_str, (None, None))
+                    if month_num and filter_year:
+                        q_filter['transaction__date__year'] = filter_year
+                        q_filter['transaction__date__month'] = month_num
+            except Exception:
+                pass
+
+        # 1. Fetch Advance Allocations linked to Receipts
+        advances = AdvanceAllocation.objects.filter(
+            tenant_id=request.user.tenant_id if hasattr(request.user, 'tenant_id') else (request.user.branch_id if hasattr(request.user, 'branch_id') else None),
+            transaction__transaction_type='RECEIPT',
+            amendment_date__isnull=True,
+            **q_filter
+        ).select_related('transaction', 'pay_from_ledger')
+        
+        data = []
+        for adv in advances:
+            t = adv.transaction
+            # Skip if amount is zero
+            advance_amount = Decimal(str(adv.amount))
+            if advance_amount <= 0:
+                continue
+                
+            # Determine POS
+            pos = ''
+            customer_ledger = adv.pay_from_ledger
+            if customer_ledger:
+                # We can check portal customer if needed, but for now we try to get POS from state
+                from customerportal.database import CustomerMasterCustomerBasicDetails, CustomerMasterCustomerGSTDetails
+                cust = CustomerMasterCustomerBasicDetails.objects.filter(ledger_id=customer_ledger.id).first()
+                if cust:
+                    gst_detail = CustomerMasterCustomerGSTDetails.objects.filter(customer_basic_detail=cust).first()
+                    if gst_detail:
+                        if gst_detail.gstin and len(gst_detail.gstin) >= 2:
+                            pos = gst_detail.gstin[:2]
+                        elif gst_detail.state:
+                            # State to POS logic - omitted for brevity, default to generic
+                            pass
+                        
+            # If no POS found, fallback to generic
+            if not pos:
+                pos = '29' # Defaulting for now if missing
+                
+            # Get GST rate
+            rate = Decimal(str(adv.gst_rate)) if adv.gst_rate is not None else Decimal('18.00')
+            
+            # Since advance is typically inclusive of tax, we calculate taxable value
+            # Taxable Value = Advance Amount * 100 / (100 + Rate)
+            # But the AT format might require "gross_advance_received" which is the full amount
+            # Let's provide it in the format the frontend AT tab expects.
+            
+            data.append({
+                'voucher_id': t.id,
+                'voucher_no': t.voucher_number,
+                'place_of_supply': pos,
+                'rate': float(rate),
+                'gross_advance_received': float(advance_amount),
+                'cess_amount': 0.0, # Receipts don't typically capture cess rate at advance stage
+                'gst_registered': adv.gst_registered
+            })
+            
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def ata(self, request):
+        """Get ATA - Advance Tax (Amendment)"""
+        from decimal import Decimal
+        from accounting.models import AdvanceAllocation
+        
+        year_str = self.request.query_params.get('year')
+        month_str = self.request.query_params.get('month')
+        
+        q_filter = {}
+        if year_str and month_str:
+            try:
+                if '-' in year_str:
+                    start_year = int(year_str.split('-')[0])
+                    end_year = start_year + 1
+                    
+                    months_map = {
+                        'April': (4, start_year), 'May': (5, start_year), 'June': (6, start_year),
+                        'July': (7, start_year), 'August': (8, start_year), 'September': (9, start_year),
+                        'October': (10, start_year), 'November': (11, start_year), 'December': (12, start_year),
+                        'January': (1, end_year), 'February': (2, end_year), 'March': (3, end_year)
+                    }
+                    
+                    month_num, filter_year = months_map.get(month_str, (None, None))
+                    if month_num and filter_year:
+                        q_filter['transaction__date__year'] = filter_year
+                        q_filter['transaction__date__month'] = month_num
+            except Exception:
+                pass
+
+        user_tenant = request.user.tenant_id if hasattr(request.user, 'tenant_id') else (request.user.branch_id if hasattr(request.user, 'branch_id') else None)
+        
+        advances = AdvanceAllocation.objects.filter(
+            tenant_id=user_tenant,
+            transaction__transaction_type='RECEIPT',
+            gst_registered='Yes',
+            amendment_date__isnull=False,
+            **q_filter
+        ).select_related('transaction', 'pay_from_ledger')
+        
+        data = []
+        for adv in advances:
+            t = adv.transaction
+            advance_amount = Decimal(str(adv.amount))
+            if advance_amount <= 0:
+                continue
+                
+            pos = ''
+            customer_ledger = adv.pay_from_ledger
+            if customer_ledger:
+                from customerportal.database import CustomerMasterCustomerBasicDetails, CustomerMasterCustomerGSTDetails
+                cust = CustomerMasterCustomerBasicDetails.objects.filter(ledger_id=customer_ledger.id).first()
+                if cust:
+                    gst_detail = CustomerMasterCustomerGSTDetails.objects.filter(customer_basic_detail=cust).first()
+                    if gst_detail and gst_detail.gstin and len(gst_detail.gstin) >= 2:
+                        pos = gst_detail.gstin[:2]
+                        
+            if not pos:
+                pos = '29'
+                
+            rate = Decimal(str(adv.gst_rate)) if adv.gst_rate is not None else Decimal('18.00')
+            snapshot = adv.original_voucher_snapshot or {}
+            
+            orig_rate_str = snapshot.get('original_rate', 18.0)
+            orig_rate = float(orig_rate_str) if orig_rate_str else 18.0
+            
+            orig_amount_str = snapshot.get('original_amount', 0)
+            orig_amount = float(orig_amount_str) if orig_amount_str else 0.0
+            
+            data.append({
+                'voucher_id': t.id,
+                'voucher_no': t.voucher_number,
+                'original_month': snapshot.get('original_month', ''),
+                'original_year': snapshot.get('original_year', ''),
+                'original_pos': pos,  # Assuming POS didn't change, or fetch from snapshot if available
+                'original_rate': orig_rate,
+                'original_amount': orig_amount,
+                'revised_pos': pos,
+                'revised_rate': float(rate),
+                'revised_amount': float(advance_amount),
+                'cess_amount': 0.0,
+                'gst_registered': adv.gst_registered
+            })
+            
+        return Response(data)
 
     @action(detail=False, methods=['get'])
     def atadj(self, request):
         """
         Get ATADJ - Advance Tax Adjustment
-        Query vouchers where advance was used/adjusted.
+        Query vouchers where advance was used/adjusted and apportion across tax rates.
         """
-        queryset = self.get_queryset()
+        from decimal import Decimal
+        queryset = self.get_queryset().filter(amendment_date__isnull=True)
         data = []
         
         for v in queryset:
             pay = get_payment_details(v)
-            if pay and pay.payment_advance > 0: # Adjusted advance
+            if pay and pay.payment_advance and pay.payment_advance > 0: # Adjusted advance
                 # Determine POS
                 pos = ''
                 if v.gstin and len(v.gstin) >= 2:
@@ -504,36 +1795,303 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 elif v.state_type == 'within': pos = '29' 
                 elif v.state_type == 'other': pos = '27'
                 
-                # Assuming rate is 0 for composite, or derived from items. 
-                # Ideally need weighted average rate or separate rows. 
-                # Simplifying: Rate 0 or need logic.
+                # Get total invoice value to calculate proportions
+                total_invoice_value = sum((item.invoice_value or Decimal('0')) for item in v.items.all())
                 
+                if total_invoice_value > 0:
+                    advance_amount = Decimal(str(pay.payment_advance))
+                    
+                    # Group items by their implied tax rate
+                    rate_groups = {}
+                    
+                    for item in v.items.all():
+                        inv_val = item.invoice_value or Decimal('0')
+                        if inv_val <= 0:
+                            continue
+                            
+                        taxable = item.taxable_value or Decimal('0')
+                        igst = item.igst or Decimal('0')
+                        cgst = item.cgst or Decimal('0')
+                        sgst = item.sgst or Decimal('0')
+                        cess = item.cess or Decimal('0')
+                        
+                        total_tax = igst + cgst + sgst
+                        
+                        # Implied rate calculation
+                        implied_rate = Decimal('0')
+                        if taxable > 0:
+                            implied_rate = round((total_tax / taxable) * 100)
+                            
+                        rate = float(implied_rate)
+                        
+                        if rate not in rate_groups:
+                            rate_groups[rate] = {'invoice_value': Decimal('0'), 'cess': Decimal('0')}
+                            
+                        rate_groups[rate]['invoice_value'] += inv_val
+                        rate_groups[rate]['cess'] += cess
+                        
+                    # Now apportion the advance amount to these rate groups
+                    for rate, totals in rate_groups.items():
+                        proportion = totals['invoice_value'] / total_invoice_value
+                        apportioned_advance = advance_amount * proportion
+                        apportioned_cess = totals['cess'] * (apportioned_advance / totals['invoice_value']) if totals['invoice_value'] > 0 else Decimal('0')
+                        
+                        data.append({
+                            'voucher_id': v.id,
+                            'voucher_no': v.sales_invoice_no,
+                            'place_of_supply': pos,
+                            'rate': rate,
+                            'gross_advance_received': float(round(apportioned_advance, 2)),
+                            'cess_amount': float(round(apportioned_cess, 2))
+                        })
+                else:
+                    # Fallback if invoice value is 0 (should rarely happen)
+                    data.append({
+                        'voucher_id': v.id,
+                        'voucher_no': v.sales_invoice_no,
+                        'place_of_supply': pos,
+                        'rate': 0,
+                        'gross_advance_received': float(pay.payment_advance),
+                        'cess_amount': 0
+                    })
+        
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def atadja(self, request):
+        """
+        Get ATADJA - Amended Advance Tax Adjustment
+        Query amended vouchers where advance was used/adjusted and apportion across tax rates.
+        """
+        from decimal import Decimal
+        queryset = self.get_queryset().exclude(amendment_date__isnull=True)
+        data = []
+        
+        for v in queryset:
+            snap = v.original_voucher_snapshot or {}
+            pay = get_payment_details(v)
+            
+            orig_pay = snap.get('payment_details', {})
+            orig_advance = Decimal(str(orig_pay.get('payment_advance', 0))) if orig_pay else Decimal('0')
+            amended_advance = Decimal(str(pay.payment_advance)) if pay and pay.payment_advance else Decimal('0')
+            
+            # If both are 0, no advance was involved in original or amended
+            if orig_advance <= 0 and amended_advance <= 0:
+                continue
+                
+            orig_gstin = snap.get('gstin', v.gstin) or ''
+            orig_pos = ''
+
+            # Priority 1: Try place_of_supply from the snapshot (stored as state name or code)
+            snap_pos = snap.get('place_of_supply', '') or ''
+            STATE_TO_CODE = {
+                'jammu and kashmir': '01', 'himachal pradesh': '02', 'punjab': '03',
+                'chandigarh': '04', 'uttarakhand': '05', 'haryana': '06', 'delhi': '07',
+                'rajasthan': '08', 'uttar pradesh': '09', 'bihar': '10', 'sikkim': '11',
+                'arunachal pradesh': '12', 'nagaland': '13', 'manipur': '14', 'mizoram': '15',
+                'tripura': '16', 'meghalaya': '17', 'assam': '18', 'west bengal': '19',
+                'jharkhand': '20', 'odisha': '21', 'chhattisgarh': '22', 'madhya pradesh': '23',
+                'gujarat': '24', 'daman and diu': '25', 'dadra and nagar haveli': '26',
+                'maharashtra': '27', 'andhra pradesh (old)': '28', 'karnataka': '29', 'goa': '30',
+                'lakshadweep': '31', 'kerala': '32', 'tamil nadu': '33', 'puducherry': '34',
+                'andaman and nicobar islands': '35', 'telangana': '36', 'andhra pradesh': '37',
+                'ladakh': '38', 'other territory': '97',
+            }
+            if snap_pos:
+                lower_pos = snap_pos.strip().lower()
+                if lower_pos.isdigit():
+                    orig_pos = lower_pos.zfill(2)
+                else:
+                    orig_pos = STATE_TO_CODE.get(lower_pos, '')
+
+            # Priority 2: Real registered GSTIN
+            if not orig_pos and orig_gstin and len(orig_gstin) >= 2 and orig_gstin[:2].isdigit():
+                orig_pos = orig_gstin[:2]
+
+            # Priority 3: state_type fallback
+            if not orig_pos:
+                st = snap.get('state_type', v.state_type) or v.state_type or ''
+                orig_pos = '33' if st == 'within' else ('27' if st == 'other' else '33')
+            
+            # Extract month name
+            months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+            orig_month = months[v.date.month - 1] if v.date else "June"
+            
+            total_invoice_value = sum((item.invoice_value or Decimal('0')) for item in v.items.all())
+            
+            if total_invoice_value > 0 and amended_advance > 0:
+                rate_groups = {}
+                for item in v.items.all():
+                    inv_val = item.invoice_value or Decimal('0')
+                    if inv_val <= 0: continue
+                    taxable = item.taxable_value or Decimal('0')
+                    total_tax = (item.igst or Decimal('0')) + (item.cgst or Decimal('0')) + (item.sgst or Decimal('0'))
+                    cess = item.cess or Decimal('0')
+                    
+                    implied_rate = round((total_tax / taxable) * 100) if taxable > 0 else Decimal('0')
+                    rate = float(implied_rate)
+                    
+                    if rate not in rate_groups:
+                        rate_groups[rate] = {'invoice_value': Decimal('0'), 'cess': Decimal('0')}
+                    rate_groups[rate]['invoice_value'] += inv_val
+                    rate_groups[rate]['cess'] += cess
+                    
+                for rate, totals in rate_groups.items():
+                    proportion = totals['invoice_value'] / total_invoice_value
+                    apportioned_amended = amended_advance * proportion
+                    apportioned_cess = totals['cess'] * (apportioned_amended / totals['invoice_value']) if totals['invoice_value'] > 0 else Decimal('0')
+                    
+                    data.append({
+                        'voucher_id': v.id,
+                        'voucher_no': v.sales_invoice_no,
+                        'original_month': orig_month,
+                        'original_place_of_supply': orig_pos,
+                        'rate': rate,
+                        'gross_advance_adjusted': float(round(apportioned_amended, 2)),
+                        'cess_amount': float(round(apportioned_cess, 2))
+                    })
+            else:
                 data.append({
-                    'place_of_supply': pos,
-                    'rate': 0, # Placeholder, needs item level logic
-                    'gross_advance_received': pay.payment_advance, # Adjusted amount
+                    'voucher_id': v.id,
+                    'voucher_no': v.sales_invoice_no,
+                    'original_month': orig_month,
+                    'original_place_of_supply': orig_pos,
+                    'rate': 0,
+                    'gross_advance_adjusted': float(round(amended_advance, 2)),
                     'cess_amount': 0
                 })
-        
+                
         return Response(data)
 
     @action(detail=False, methods=['get'])
     def exemp(self, request):
         """Get EXEMP - Exempted Supplies"""
-        return Response([])
+        queryset = self.get_queryset()
+        
+        items = VoucherSalesItems.objects.filter(invoice__in=queryset).select_related('invoice')
+        
+        # Cache branch states to avoid N+1 queries
+        from core.models import Branch
+        tenant_ids = list(queryset.values_list('tenant_id', flat=True).distinct())
+        branch_map = {b.id: b.state for b in Branch.objects.filter(id__in=tenant_ids)}
+        
+        state_name_to_code = {
+            'jammu and kashmir': '01', 'jammu & kashmir': '01', 'j&k': '01',
+            'himachal pradesh': '02', 'punjab': '03', 'chandigarh': '04',
+            'uttarakhand': '05', 'uttaranchal': '05', 'haryana': '06',
+            'delhi': '07', 'rajasthan': '08', 'uttar pradesh': '09', 'up': '09',
+            'bihar': '10', 'sikkim': '11', 'arunachal pradesh': '12',
+            'nagaland': '13', 'manipur': '14', 'mizoram': '15', 'tripura': '16',
+            'meghalaya': '17', 'assam': '18', 'west bengal': '19', 'wb': '19',
+            'jharkhand': '20', 'odisha': '21', 'orissa': '21', 'chhattisgarh': '22',
+            'madhya pradesh': '23', 'mp': '23', 'gujarat': '24',
+            'daman and diu': '25', 'daman & diu': '25',
+            'dadra and nagar haveli': '26', 'dadra & nagar haveli': '26',
+            'maharashtra': '27', 'andhra pradesh (old)': '28', 'karnataka': '29',
+            'goa': '30', 'lakshadweep': '31', 'kerala': '32',
+            'tamil nadu': '33', 'tamilnadu': '33', 'tn': '33',
+            'puducherry': '34', 'pondicherry': '34',
+            'andaman and nicobar islands': '35', 'andaman & nicobar islands': '35',
+            'telangana': '36', 'andhra pradesh': '37', 'ap': '37', 'ladakh': '38'
+        }
+
+        results_map = {
+            'Inter-State supplies to registered persons': {'description': 'Inter-State supplies to registered persons', 'nil_rated_supplies': 0.0, 'exempted': 0.0, 'non_gst_supplies': 0.0, 'vouchers': {}},
+            'Intra-State supplies to registered persons': {'description': 'Intra-State supplies to registered persons', 'nil_rated_supplies': 0.0, 'exempted': 0.0, 'non_gst_supplies': 0.0, 'vouchers': {}},
+            'Inter-State supplies to unregistered persons': {'description': 'Inter-State supplies to unregistered persons', 'nil_rated_supplies': 0.0, 'exempted': 0.0, 'non_gst_supplies': 0.0, 'vouchers': {}},
+            'Intra-State supplies to unregistered persons': {'description': 'Intra-State supplies to unregistered persons', 'nil_rated_supplies': 0.0, 'exempted': 0.0, 'non_gst_supplies': 0.0, 'vouchers': {}},
+        }
+        
+        for item in items:
+            igst = float(item.igst or 0)
+            cgst = float(item.cgst or 0)
+            sgst = float(item.sgst or 0)
+            cess = float(item.cess or 0)
+            
+            # EXEMP only considers zero tax items
+            if (igst + cgst + sgst + cess) > 0:
+                continue
+                
+            taxable_val = float(item.taxable_value or 0)
+            if taxable_val == 0:
+                continue
+                
+            # Classify into Nil-Rated, Exempted, Non-GST based on ledger name
+            ledger = str(item.sales_ledger or '').lower()
+            if 'non-gst' in ledger or 'non gst' in ledger:
+                e_type = 'non_gst_supplies'
+            elif 'exempt' in ledger:
+                e_type = 'exempted'
+            else:
+                e_type = 'nil_rated_supplies'
+                
+            inv = item.invoice
+            gstin = str(inv.gstin or '').strip()
+            is_registered = bool(gstin and gstin.lower() != 'unregistered')
+            
+            # Resolve is_inter dynamically by comparing place_of_supply with company state code
+            is_inter = (inv.state_type == 'other')
+            if inv.place_of_supply:
+                # Cache-like lookup using branch_map
+                branch_state = branch_map.get(inv.tenant_id)
+                if branch_state:
+                    company_code = state_name_to_code.get(str(branch_state).strip().lower())
+                    pos_code = str(inv.place_of_supply).zfill(2)
+                    if company_code:
+                        is_inter = (pos_code != company_code)
+            
+            if is_inter and is_registered:
+                desc = 'Inter-State supplies to registered persons'
+            elif not is_inter and is_registered:
+                desc = 'Intra-State supplies to registered persons'
+            elif is_inter and not is_registered:
+                desc = 'Inter-State supplies to unregistered persons'
+            else:
+                desc = 'Intra-State supplies to unregistered persons'
+                
+            results_map[desc][e_type] += taxable_val
+            
+            # Add voucher to list
+            v_id = inv.id
+            if v_id not in results_map[desc]['vouchers']:
+                results_map[desc]['vouchers'][v_id] = {
+                    'voucher_id': v_id,
+                    'voucher_no': inv.sales_invoice_no,
+                    'date': str(inv.date),
+                    'customer_name': inv.customer_name,
+                    'total_taxable_value': 0.0
+                }
+            results_map[desc]['vouchers'][v_id]['total_taxable_value'] += taxable_val
+            
+        final_list = []
+        for v in results_map.values():
+            v['nil_rated_supplies'] = round(v['nil_rated_supplies'], 2)
+            v['exempted'] = round(v['exempted'], 2)
+            v['non_gst_supplies'] = round(v['non_gst_supplies'], 2)
+            
+            # Convert dictionary to list
+            v['vouchers'] = list(v['vouchers'].values())
+            for vouch in v['vouchers']:
+                vouch['total_taxable_value'] = round(vouch['total_taxable_value'], 2)
+                
+            final_list.append(v)
+            
+        return Response(final_list)
 
     @action(detail=False, methods=['get'])
     def doc(self, request):
         """
         Get DOC - Document Details
         From VoucherSalesInvoiceDetails
+        Includes cancelled invoices in the sequence range but counts them separately.
         """
-        queryset = self.get_queryset()
+        # Fetch ALL invoices (including cancelled) to preserve the serial number range
+        all_qs = self.get_queryset(include_cancelled=True)
         
-        # Invoices
-        inv_count = queryset.count()
-        min_no = queryset.aggregate(Min('sales_invoice_no'))['sales_invoice_no__min']
-        max_no = queryset.aggregate(Max('sales_invoice_no'))['sales_invoice_no__max']
+        inv_count = all_qs.count()
+        min_no = all_qs.aggregate(Min('sales_invoice_no'))['sales_invoice_no__min']
+        max_no = all_qs.aggregate(Max('sales_invoice_no'))['sales_invoice_no__max']
+        cancelled_count = all_qs.filter(status='cancelled').count()
         
         data = []
         if inv_count > 0:
@@ -542,10 +2100,28 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'sr_no_from': min_no,
                 'sr_no_to': max_no,
                 'total_number': inv_count,
-                'cancelled': 0 # TODO: Add status check
+                'cancelled': cancelled_count
             })
             
         return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def doc_details(self, request):
+        """
+        Returns the detailed list of all invoices (including cancelled) for the DOC drill-down.
+        """
+        all_qs = self.get_queryset(include_cancelled=True).order_by('date', 'sales_invoice_no')
+        data = []
+        for inv in all_qs:
+            data.append({
+                'id': inv.id,
+                'invoice_no': inv.sales_invoice_no,
+                'invoice_date': str(inv.date),
+                'customer_name': inv.customer_name,
+                'status': inv.status
+            })
+        return Response(data)
+
 
     def _get_hsn_pandas(self, queryset, is_b2b):
         """
@@ -555,7 +2131,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
         # Fetch items with invoice__gstin
         items_qs = VoucherSalesItems.objects.filter(invoice__in=queryset).values(
             'hsn_sac', 'uom', 'item_rate', 'qty', 'invoice_value', 
-            'taxable_value', 'igst', 'cgst', 'cess', 'invoice__gstin'
+            'taxable_value', 'igst', 'cgst', 'sgst', 'cess', 'invoice__gstin'
         )
         
         if not items_qs.exists():
@@ -564,12 +2140,12 @@ class GSTR1ViewSet(viewsets.ViewSet):
         df = pd.DataFrame(items_qs)
         
         # Ensure numeric types
-        numeric_cols = ['qty', 'invoice_value', 'taxable_value', 'igst', 'cgst', 'cess']
+        numeric_cols = ['qty', 'invoice_value', 'taxable_value', 'igst', 'cgst', 'sgst', 'cess']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
         # Determine B2B/B2C
-        df['is_b2b'] = df['invoice__gstin'].apply(lambda x: True if (x and str(x).strip()) else False)
+        df['is_b2b'] = df['invoice__gstin'].apply(lambda x: True if (x and str(x).strip() and str(x).lower() != 'unregistered') else False)
         
         if is_b2b:
             df_filtered = df[df['is_b2b']]
@@ -595,7 +2171,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 'taxable_value': row['taxable_value'],
                 'integrated_tax_amount': row['igst'],
                 'central_tax_amount': row['cgst'],
-                'state_ut_tax_amount': row['cgst'], # Assumption
+                'state_ut_tax_amount': row['sgst'],
                 'cess_amount': row['cess']
             })
         return data
@@ -614,6 +2190,63 @@ class GSTR1ViewSet(viewsets.ViewSet):
         """Get HSN Summary B2C"""
         data = self._get_hsn_pandas(self.get_queryset(), is_b2b=False)
         return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def hsn_invoices(self, request):
+        """Get list of invoices for a specific HSN drilldown"""
+        hsn_code = request.query_params.get('hsn_code')
+        rate = request.query_params.get('rate')
+        is_b2b_param = request.query_params.get('is_b2b', 'true').lower() == 'true'
+
+        if not hsn_code or rate is None:
+            return Response({'error': 'hsn_code and rate are required'}, status=400)
+            
+        try:
+            rate = float(rate)
+        except ValueError:
+            return Response({'error': 'Invalid rate'}, status=400)
+
+        queryset = self.get_queryset()
+        
+        # Filter items based on hsn and rate
+        items_qs = VoucherSalesItems.objects.filter(
+            invoice__in=queryset,
+            hsn_sac=hsn_code,
+            item_rate=rate
+        ).select_related('invoice')
+        
+        data = []
+        for item in items_qs:
+            inv = item.invoice
+            has_gstin = bool(inv.gstin and inv.gstin.strip() and inv.gstin.strip().lower() != 'unregistered')
+            
+            if is_b2b_param and not has_gstin:
+                continue
+            if not is_b2b_param and has_gstin:
+                continue
+                
+            data.append({
+                'id': inv.id,
+                'reference_id': inv.id,
+                'voucher_pk': str(inv.voucher_id) if inv.voucher_id else None,
+                'invoice_no': inv.sales_invoice_no,
+                'invoice_date': inv.date,
+                'customer_name': inv.customer_name,
+                'gstin': inv.gstin if has_gstin else 'Unregistered',
+                'hsn': item.hsn_sac,
+                'rate': item.item_rate,
+                'qty': item.qty,
+                'uom': item.uom,
+                'taxable_value': item.taxable_value,
+                'igst': item.igst,
+                'cgst': item.cgst,
+                'sgst': item.sgst,
+                'cess': item.cess,
+                'total_value': item.invoice_value
+            })
+            
+        return Response(data)
+
 
     @action(detail=False, methods=['get'])
     def download_excel(self, request):
@@ -703,6 +2336,19 @@ class GSTR1ViewSet(viewsets.ViewSet):
                     'cess': 'Cess Amount'
                 })
 
+            # ATA
+            ata_rows = get_data(self.ata)
+            ata_data = pd.DataFrame(ata_rows)
+            if not ata_data.empty:
+                ata_data = ata_data.rename(columns={
+                    'original_year': 'Financial Year',
+                    'original_month': 'Original Month*',
+                    'original_pos': 'Original Place of Supply(POS)*',
+                    'revised_rate': 'Rate*',
+                    'revised_amount': 'Gross advance received*',
+                    'cess_amount': 'Cess Amount'
+                })
+
             # DOC
             doc_rows = get_data(self.doc)
             doc_data = pd.DataFrame(doc_rows)
@@ -715,11 +2361,58 @@ class GSTR1ViewSet(viewsets.ViewSet):
                     'cancelled': 'Cancelled'
                 })
 
+            # ECO Data
+            eco_rows = get_data(self.eco)
+            eco_data = pd.DataFrame(eco_rows)
+            if not eco_data.empty:
+                eco_data = eco_data.rename(columns={
+                    'nature_of_supply': 'Nature of Supply*',
+                    'place_of_supply': 'Place of Supply(POS)/ GSTIN*',
+                    'ecommerce_name': 'E-Commerce Operator Name',
+                    'net_value': 'Net value of supplies*',
+                    'igst': 'Integrated Tax Amount',
+                    'cgst': 'Central Tax Amount',
+                    'sgst': 'State/UT Tax Amount',
+                    'cess': 'Cess Amount'
+                })
+
+            # ECOB2B Data
+            ecob2b_rows = get_data(self.ecob2b)
+            ecob2b_data = pd.DataFrame(ecob2b_rows)
+            if not ecob2b_data.empty:
+                ecob2b_data = ecob2b_data.rename(columns={
+                    'supplier_gstin': 'GSTIN/UIN of Supplier',
+                    'recipient_gstin': 'GSTIN/UIN of Recipient',
+                    'recipient_name': 'Recipient Name',
+                    'invoice_no': 'Invoice Number',
+                    'invoice_date': 'Document date',
+                    'invoice_value': 'Value of supplies made',
+                    'place_of_supply': 'Place of Supply*',
+                    'supply_type': 'Supply Type*',
+                    'document_type': 'Document type',
+                    'rate': 'Rate*',
+                    'taxable_value': 'Taxable value*',
+                    'cess': 'Cess Amount'
+                })
+
+            # ECOB2C Data
+            ecob2c_rows = get_data(self.ecob2c)
+            ecob2c_data = pd.DataFrame(ecob2c_rows)
+            if not ecob2c_data.empty:
+                ecob2c_data = ecob2c_data.rename(columns={
+                    'supplier_gstin': 'GSTIN/UIN of Supplier',
+                    'supplier_name': 'Supplier Name',
+                    'place_of_supply': 'Place of Supply*',
+                    'rate': 'Rate*',
+                    'taxable_value': 'Taxable Value*',
+                    'cess': 'Cess Amount'
+                })
+
             # HSN Logic (Direct Pandas Implementation to avoid ORM errors)
             # Fetch invoice__gstin to split B2B/B2C
             items_qs = VoucherSalesItems.objects.filter(invoice__in=queryset).values(
                 'hsn_sac', 'uom', 'item_rate', 'qty', 'invoice_value', 
-                'taxable_value', 'igst', 'cgst', 'cess', 'invoice__gstin'
+                'taxable_value', 'igst', 'cgst', 'sgst', 'cess', 'invoice__gstin'
             )
             
             hsn_b2b_rows = []
@@ -731,13 +2424,13 @@ class GSTR1ViewSet(viewsets.ViewSet):
             if items_qs.exists():
                 df_hsn = pd.DataFrame(items_qs)
                 # Ensure numeric types
-                numeric_cols = ['qty', 'invoice_value', 'taxable_value', 'igst', 'cgst', 'cess']
+                numeric_cols = ['qty', 'invoice_value', 'taxable_value', 'igst', 'cgst', 'sgst', 'cess']
                 for col in numeric_cols:
                     df_hsn[col] = pd.to_numeric(df_hsn[col], errors='coerce').fillna(0)
                 
                 # Split B2B (Has GSTIN) vs B2C (No GSTIN)
                 # Check for None or Empty String
-                df_hsn['is_b2b'] = df_hsn['invoice__gstin'].apply(lambda x: True if (x and str(x).strip()) else False)
+                df_hsn['is_b2b'] = df_hsn['invoice__gstin'].apply(lambda x: True if (x and str(x).strip() and str(x).lower() != 'unregistered') else False)
                 
                 df_b2b = df_hsn[df_hsn['is_b2b']]
                 df_b2c = df_hsn[~df_hsn['is_b2b']]
@@ -757,7 +2450,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
                             'Taxable Value*': row['taxable_value'],
                             'Integrated Tax Amount': row['igst'],
                             'Central Tax Amount': row['cgst'],
-                            'State/UT Tax Amount': row['cgst'], # Assumption
+                            'State/UT Tax Amount': row['sgst'],
                             'Cess Amount': row['cess']
                         })
 
@@ -787,7 +2480,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
             cols_b2csa = ['Type*', 'Financial Year', 'Original Month', 'Original Place of Supply(POS)', 'Revised Place of Supply(POS)', 'Applicable % of Tax Rate', 'Original Rate*', 'Taxable Value*', 'Cess Amount', 'E-Commerce GSTIN']
             cols_expa = ['Export Type*', 'Original Invoice number*', 'Original Invoice Date*', 'Revised Invoice number*', 'Revised Invoice Date*', 'Invoice value*', 'Port Code', 'Shipping Bill Number', 'Shipping Bill Date', 'Applicable % of Tax Rate', 'Rate', 'Taxable Value']
             cols_cdnra = ['GSTIN/UIN*', 'Name of Recipient', 'Original Note Number*', 'Original Note date*', 'Revised Note Number*', 'Revised Note date*', 'Note Type*', 'Place of Supply*', 'Reverse charge*', 'Note Supply Type*', 'Note value*', 'Applicable % of Tax Rate', 'Rate*', 'Taxable value*', 'Cess Amount']
-            cols_ata = ['Place of Supply(POS)*', 'Rate*', 'Gross advance received*', 'Cess Amount']
+            cols_ata = ['Financial Year', 'Original Month*', 'Original Place of Supply(POS)*', 'Applicable % of Tax Rate', 'Rate*', 'Gross advance received*', 'Cess Amount']
             cols_atadja = ['Financial Year', 'Original Month*', 'Original Place of Supply(POS)*', 'Applicable % of Tax Rate', 'Rate*', 'Gross advance adjusted*', 'Cess Amount']
             
             cols_eco = ['Nature of Supply*', 'Place of Supply(POS)/ GSTIN*', 'E-Commerce Operator Name', 'Net value of supplies*', 'Integrated Tax Amount', 'Central Tax Amount', 'State/UT Tax Amount', 'Cess Amount']
@@ -838,16 +2531,16 @@ class GSTR1ViewSet(viewsets.ViewSet):
                 get_df([], cols_b2cla).to_excel(writer, sheet_name='B2CLA', index=False)
                 get_df([], cols_b2csa).to_excel(writer, sheet_name='B2CSA', index=False)
                 get_df([], cols_expa).to_excel(writer, sheet_name='EXPA', index=False)
-                get_df([], cols_cdnra).to_excel(writer, sheet_name='CDNRA', index=False)
-                get_df([], cols_ata).to_excel(writer, sheet_name='ATA', index=False)
+                get_df(cdnra_data if 'cdnra_data' in locals() and not cdnra_data.empty else [], cols_cdnra).to_excel(writer, sheet_name='CDNRA', index=False)
+                get_df(ata_data if 'ata_data' in locals() and not ata_data.empty else [], cols_ata).to_excel(writer, sheet_name='ATA', index=False)
                 get_df([], cols_atadja).to_excel(writer, sheet_name='ATADJA', index=False)
                 
                 # ECO Shells
-                get_df([], cols_eco).to_excel(writer, sheet_name='ECO', index=False)
+                get_df(eco_data if not eco_data.empty else [], cols_eco).to_excel(writer, sheet_name='ECO', index=False)
                 get_df([], cols_ecoa).to_excel(writer, sheet_name='ECOA', index=False)
-                get_df([], cols_ecob2b).to_excel(writer, sheet_name='ECOB2B', index=False)
+                get_df(ecob2b_data if not ecob2b_data.empty else [], cols_ecob2b).to_excel(writer, sheet_name='ECOB2B', index=False)
                 get_df([], cols_ecourp2b).to_excel(writer, sheet_name='ECOURP2B', index=False)
-                get_df([], cols_ecob2c).to_excel(writer, sheet_name='ECOB2C', index=False)
+                get_df(ecob2c_data if not ecob2c_data.empty else [], cols_ecob2c).to_excel(writer, sheet_name='ECOB2C', index=False)
                 get_df([], cols_ecourp2c).to_excel(writer, sheet_name='ECOURP2C', index=False)
                 get_df([], cols_ecoab2b).to_excel(writer, sheet_name='ECOAB2B', index=False)
                 get_df([], cols_ecoab2c).to_excel(writer, sheet_name='ECOAB2C', index=False)
@@ -1029,21 +2722,166 @@ class GSTR1ViewSet(viewsets.ViewSet):
         if tenant_id:
             qs = qs.filter(tenant_id=tenant_id)
 
+        # Also file Credit Notes
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+        cn_qs = VoucherCreditNoteInvoiceDetails.objects.filter(
+            date__year=filter_year,
+            date__month=month_num,
+            gst_registered=''
+        )
+        if tenant_id:
+            cn_qs = cn_qs.filter(tenant_id=tenant_id)
+
         count = qs.count()
-        if count == 0:
+        cn_count = cn_qs.count()
+        
+        if count == 0 and cn_count == 0:
             return Response({
                 'message': f'No unfiled vouchers found for {month_str} {filter_year}.',
                 'updated_count': 0
             })
 
         # Mark as GST-registered
-        qs.update(gst_registered='Yes')
+        if count > 0:
+            qs.update(gst_registered='Yes')
+        if cn_count > 0:
+            cn_qs.update(gst_registered='Yes')
+            
+        # Also mark Advance Allocations
+        adv_qs = AdvanceAllocation.objects.filter(
+            transaction__date__year=filter_year,
+            transaction__date__month=month_num,
+            transaction__transaction_type='RECEIPT',
+            gst_registered=''
+        )
+        if tenant_id:
+            adv_qs = adv_qs.filter(tenant_id=tenant_id)
+        adv_count = adv_qs.count()
+        if adv_count > 0:
+            adv_qs.update(gst_registered='Yes')
 
         return Response({
             'message': f'Successfully filed GST return for {month_str} {filter_year}.',
-            'updated_count': count,
+            'updated_count': count + cn_count + adv_count,
             'month': month_str,
             'year': year_str,
             'filter_year': filter_year,
             'month_num': month_num
         })
+
+    @action(detail=False, methods=['post'])
+    def file_amendment(self, request):
+        """
+        File all pending amendments (EXPA + B2BA) for a given month/year.
+
+        What it does:
+        - Finds all sales vouchers in the period that have amendment_date set
+          (these are the records showing in EXPA and B2BA tabs).
+        - Clears amendment_date and original_voucher_snapshot so they are
+          treated as freshly filed and exit the amendment tabs.
+        - Updates gst_registered = 'Yes' to confirm they remain GST-filed.
+
+        Restrictions:
+        - Cannot file for the current month.
+        """
+        from django.utils import timezone
+
+        year_str = request.data.get('year')
+        month_str = request.data.get('month')
+
+        if not year_str or not month_str:
+            return Response({'error': 'year and month are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        months_map = {
+            'April': (4, 0), 'May': (5, 0), 'June': (6, 0),
+            'July': (7, 0), 'August': (8, 0), 'September': (9, 0),
+            'October': (10, 0), 'November': (11, 0), 'December': (12, 0),
+            'January': (1, 1), 'February': (2, 1), 'March': (3, 1)
+        }
+
+        try:
+            start_year = int(year_str.split('-')[0])
+        except Exception:
+            return Response({'error': 'Invalid year format. Use e.g. 2025-26.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        month_info = months_map.get(month_str)
+        if not month_info:
+            return Response({'error': f'Invalid month: {month_str}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        month_num, year_offset = month_info
+        filter_year = start_year + year_offset
+
+        # --- Restriction: Cannot file for current month ---
+        today = timezone.now().date()
+        if filter_year == today.year and month_num == today.month:
+            return Response(
+                {'error': 'Amendment cannot be filed for the current month. Only previous months are allowed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get tenant
+        user = request.user
+        tenant_id = getattr(user, 'tenant_id', None)
+
+        # Find all amended vouchers for the period (have amendment_date set)
+        qs = VoucherSalesInvoiceDetails.objects.filter(
+            date__year=filter_year,
+            date__month=month_num,
+        ).exclude(amendment_date__isnull=True).filter(amendment_filed=False)
+
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        # Do the same for Credit Notes
+        from .models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+        cn_qs = VoucherCreditNoteInvoiceDetails.objects.filter(
+            date__year=filter_year,
+            date__month=month_num,
+        ).exclude(amendment_date__isnull=True).filter(amendment_filed=False)
+        
+        if tenant_id:
+            cn_qs = cn_qs.filter(tenant_id=tenant_id)
+
+        # Also handle ATA (AdvanceAllocation) amendments
+        adv_qs = AdvanceAllocation.objects.filter(
+            transaction__date__year=filter_year,
+            transaction__date__month=month_num,
+            transaction__transaction_type='RECEIPT',
+            gst_registered='Yes',        # already GST-filed (AT original)
+            amendment_date__isnull=False, # has been amended
+            amendment_filed=False         # not yet filed as ATA
+        )
+        if tenant_id:
+            adv_qs = adv_qs.filter(tenant_id=tenant_id)
+
+        adv_count = adv_qs.count()
+        count = qs.count()
+        cn_count = cn_qs.count()
+
+        if count == 0 and cn_count == 0 and adv_count == 0:
+            return Response({
+                'message': f'No pending amendments found for {month_str} {filter_year}.',
+                'updated_count': 0
+            })
+
+        # Mark amendment as filed (keep history in EXPA/B2BA/CDNRA/ATA tabs)
+        if count > 0:
+            qs.update(
+                amendment_filed=True,
+                gst_registered='Yes'
+            )
+        if cn_count > 0:
+            cn_qs.update(
+                amendment_filed=True,
+                gst_registered='Yes'
+            )
+        if adv_count > 0:
+            adv_qs.update(amendment_filed=True)
+
+        return Response({
+            'message': f'Successfully filed amendments for {month_str} {filter_year}. (Sales: {count}, Credit Notes: {cn_count}, ATA: {adv_count})',
+            'updated_count': count + cn_count + adv_count,
+            'month': month_str,
+            'year': year_str,
+        })
+

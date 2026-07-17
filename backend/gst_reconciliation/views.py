@@ -331,12 +331,31 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             start_year = int(year.split('-')[0])
             filter_year = start_year + month_info[1]
             from accounting.models_voucher_sales import VoucherSalesInvoiceDetails
-            qs = VoucherSalesInvoiceDetails.objects.filter(
+            from accounting.models_voucher_credit_note import VoucherCreditNoteInvoiceDetails
+            
+            sales_qs = VoucherSalesInvoiceDetails.objects.filter(
                 date__year=filter_year,
                 date__month=month_info[0],
                 gst_registered=''
             )
-            count = qs.update(gst_registered='Yes')
-            file_result['message'] += f" (Updated {count} vouchers in database)"
+            sales_count = sales_qs.update(gst_registered='Yes')
+            
+            cn_qs = VoucherCreditNoteInvoiceDetails.objects.filter(
+                date__year=filter_year,
+                date__month=month_info[0],
+                gst_registered=''
+            )
+            cn_count = cn_qs.update(gst_registered='Yes')
+            
+            from accounting.models import AdvanceAllocation
+            adv_qs = AdvanceAllocation.objects.filter(
+                transaction__date__year=filter_year,
+                transaction__date__month=month_info[0],
+                transaction__transaction_type='RECEIPT',
+                gst_registered=''
+            )
+            adv_count = adv_qs.update(gst_registered='Yes')
+            
+            file_result['message'] += f" (Updated {sales_count} sales vouchers, {cn_count} credit notes, and {adv_count} advances in database)"
 
         return Response(file_result)

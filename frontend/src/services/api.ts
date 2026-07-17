@@ -656,11 +656,16 @@ class ApiService {
         try {
             const isSalesDrilldown = [
                 'b2b_drilldown', 'b2ba_drilldown', 'b2cl_drilldown', 'b2cla_drilldown',
-                'b2cs_drilldown', 'b2csa_drilldown', 'voucher_sales_new'
+                'b2cs_drilldown', 'b2csa_drilldown', 'exp_drilldown', 'voucher_sales_new',
+                'atadj_drilldown', 'exemp_drilldown', 'eco_drilldown',
+                'ecoa_drilldown', 'ecoab2b_drilldown', 'ecoab2c_drilldown',
+                'ecob2b_drilldown', 'ecob2c_drilldown',
+                'ecourp2b_drilldown', 'ecourp2c_drilldown',
+                'ecoaurp2b_drilldown', 'ecoaurp2c_drilldown'
             ].includes(normalizedSource);
 
             if (isSalesDrilldown) {
-                response = await httpClient.get<any>(`/api/voucher-sales-new/${id}/`, undefined, options);
+                response = await httpClient.get<any>(`/api/voucher-sales-new/${id}/?show_all=true`, undefined, options);
                 response.type = 'Sales';
                 fetchedAsDetail = true;
             } else if (normalizedSource === 'sales_invoice' || normalizedSource === 'sales') {
@@ -746,13 +751,17 @@ class ApiService {
                 }
                 response.type = 'Receipt';
                 fetchedAsDetail = true;
-            } else if (normalizedSource === 'credit_note_voucher' || normalizedSource === 'credit note' || normalizedSource === 'credit_note') {
-                try {
-                    const genericVoucher = await httpClient.get<any>(`/api/vouchers/${id}/`, undefined, options);
-                    const refId = genericVoucher.data?.reference_id || genericVoucher.reference_id || id;
-                    response = await httpClient.get<any>(`/api/vouchers/credit-note/${refId}/`, undefined, options);
-                } catch (innerE) {
+            } else if (normalizedSource === 'credit_note_voucher' || normalizedSource === 'credit note' || normalizedSource === 'credit_note' || normalizedSource === 'cdnr_drilldown' || normalizedSource === 'cdnur_drilldown') {
+                if (normalizedSource === 'cdnr_drilldown' || normalizedSource === 'cdnur_drilldown') {
                     response = await httpClient.get<any>(`/api/vouchers/credit-note/${id}/`, undefined, options);
+                } else {
+                    try {
+                        const genericVoucher = await httpClient.get<any>(`/api/vouchers/${id}/`, undefined, options);
+                        const refId = genericVoucher.data?.reference_id || genericVoucher.reference_id || id;
+                        response = await httpClient.get<any>(`/api/vouchers/credit-note/${refId}/`, undefined, options);
+                    } catch (innerE) {
+                        response = await httpClient.get<any>(`/api/vouchers/credit-note/${id}/`, undefined, options);
+                    }
                 }
                 response.type = 'Credit Note';
                 fetchedAsDetail = true;
@@ -897,6 +906,9 @@ class ApiService {
                     invoiceNumber: detail.voucher_number || base.voucher_number || '',
                     totalAmount: detail.total_amount || detail.amount || base.amount || 0,
                     reference_number: detail.ref_no || base.ref_no || '',
+                    // ── Amendment fields (for ATA — shows 'View Amended Version' badge) ──
+                    original_voucher_snapshot: detail.original_voucher_snapshot || null,
+                    amendment_date: detail.amendment_date || null,
                 };
             }
             if (['Contra', 'Journal', 'Expenses', 'Expense', 'Credit Note', 'Debit Note'].includes(base.type)) {
@@ -1006,6 +1018,9 @@ class ApiService {
                             voucher_number: detail.voucher_number || base.voucher_number || '',
                             // ── Allocation Items ──────────────────────────────────────
                             items: detail.items || [],
+                            // ── Amendment fields (for ATA — shows 'View Amended Version' badge) ──
+                            original_voucher_snapshot: detail.original_voucher_snapshot || null,
+                            amendment_date: detail.amendment_date || null,
                         };
                     }
 

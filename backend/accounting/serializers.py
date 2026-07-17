@@ -354,7 +354,14 @@ class VoucherSerializer(BranchModelSerializerMixin, serializers.ModelSerializer)
                         ret['voucher_type'] = matched_cfg.voucher_name
                     elif configs.exists():
                         ret['voucher_type'] = configs.first().voucher_name
-        
+                        
+            # Expose gst_registered for receipts based on AdvanceAllocation
+            if v_type_lower in ['receipt', 'receipts']:
+                from accounting.models import AdvanceAllocation
+                adv = AdvanceAllocation.objects.filter(transaction=instance).first()
+                if adv and adv.gst_registered:
+                    ret['gst_registered'] = adv.gst_registered
+
         return ret
     
     def validate(self, data):

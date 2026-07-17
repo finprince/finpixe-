@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { apiService } from '../../services/api';
 import { httpClient } from '../../services/httpClient';
 import { showError, showSuccess } from '../../utils/toast';
@@ -228,17 +228,28 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     // Populate from AI Extraction
     React.useEffect(() => {
         if (prefilledData) {
+            // Cast to any so we can access both camelCase (ExtractedInvoiceData / OCR)
+            // and snake_case fields (drill-down edit mode) without TS errors.
+            const pd = prefilledData as any;
 
-            setDate(prefilledData.invoiceDate || new Date().toISOString().split('T')[0]);
-            setSalesInvoiceNo(prefilledData.invoiceNumber || '');
-            const sellerName = prefilledData.sellerName || '';
+            setDate(pd.invoiceDate || pd.date || pd.invoice_date || pd.original_invoice_date || pd.revised_invoice_date || new Date().toISOString().split('T')[0]);
+            setSalesInvoiceNo(pd.invoiceNumber || pd.sales_invoice_no || pd.voucherNo || pd.invoice_no || pd.original_invoice_no || pd.revised_invoice_no || '');
+            const sellerName = pd.sellerName || pd.customer_name || pd.recipient_name || pd.revised_customer_name || '';
             setCustomerName(sellerName);
             if (sellerName) handleCustomerChange(sellerName);
-            if (prefilledData.gstin) setGstin(prefilledData.gstin);
-            if (prefilledData.branch) setCustomerBranch(prefilledData.branch);
-            if (prefilledData.placeOfSupply) setPlaceOfSupply(prefilledData.placeOfSupply);
-            if (prefilledData.invoiceType) setInvoiceType(prefilledData.invoiceType);
+            const gstinVal = pd.gstin || pd.recipient_gstin || pd.revised_customer_gstin || '';
+            if (gstinVal) setGstin(gstinVal);
+            if (pd.branch) setCustomerBranch(pd.branch);
+            if (pd.placeOfSupply || pd.place_of_supply) {
+                const val = pd.placeOfSupply || pd.place_of_supply;
+                const matchedState = val.length === 2 && !isNaN(Number(val))
+                    ? { code: val }
+                    : INDIA_STATE_CODES.find(s => s.name.toLowerCase() === val.toLowerCase());
+                setPlaceOfSupply(matchedState ? matchedState.code : val);
+            }
+            if (pd.invoiceType || pd.invoice_type) setInvoiceType(pd.invoiceType || pd.invoice_type);
             if (prefilledData.currency) setCustomerBillingCurrency(prefilledData.currency);
+            if ((prefilledData as any).exchangeRate) setExchangeRate(String((prefilledData as any).exchangeRate));
 
             // ── Capture existing voucher ID for edit mode (drill-down) ─────
             const refId = (prefilledData as any).voucherId || (prefilledData as any).reference_id || (prefilledData as any).referenceId || (prefilledData as any).id || null;
@@ -251,6 +262,40 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             // ── GST Filing & Amendment ─────────────────────────────────────
             setGstRegistered((prefilledData as any).gst_registered === 'Yes');
             setAmendmentDate((prefilledData as any).amendment_date || null);
+
+            // ── E-Commerce fields (CRITICAL: must restore these on edit or ECO status is lost) ──
+            const pdSource = String((prefilledData as any).source || '').toLowerCase();
+            const isECO = pdSource.includes('eco');
+            const isTable14 = pdSource.startsWith('eco_') || pdSource.startsWith('ecoa_') || pdSource === 'eco' || pdSource === 'ecoa';
+            const isTable15 = pdSource.includes('ecob2b') || pdSource.includes('ecob2c') || pdSource.includes('ecourp2b') || pdSource.includes('ecourp2c');
+            
+            if ((prefilledData as any).ecommerce_gstin !== undefined) {
+                setEcommerceGstin((prefilledData as any).ecommerce_gstin);
+            }
+            
+            if ((prefilledData as any).is_ecommerce_sales !== undefined) {
+                setIsEcommerceSales((prefilledData as any).is_ecommerce_sales ? 'Yes' : 'No');
+            } else if (isTable14 || isTable15 || isECO) {
+                setIsEcommerceSales('Yes');
+            }
+            
+            if ((prefilledData as any).is_ecommerce_operator !== undefined) {
+                setIsEcommerceOperator((prefilledData as any).is_ecommerce_operator ? 'Yes' : 'No');
+            } else if (isTable15) {
+                setIsEcommerceOperator('Yes');
+            }
+            
+            if ((prefilledData as any).third_party_supplier_name !== undefined) {
+                setThirdPartySupplierName((prefilledData as any).third_party_supplier_name);
+            } else if ((prefilledData as any).supplier_name !== undefined) {
+                setThirdPartySupplierName((prefilledData as any).supplier_name);
+            }
+            
+            if ((prefilledData as any).third_party_supplier_gstin !== undefined) {
+                setThirdPartySupplierGstin((prefilledData as any).third_party_supplier_gstin);
+            } else if ((prefilledData as any).supplier_gstin !== undefined) {
+                setThirdPartySupplierGstin((prefilledData as any).supplier_gstin);
+            }
 
             // ── Sales Invoice Series (drill-down) ─────────────────────────
             const vNameFromPrefill = (prefilledData as any).voucher_name || (prefilledData as any).voucher_series || '';
@@ -343,6 +388,28 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                     };
                 });
                 setItemRows(newRows);
+            }
+
+            if ((prefilledData as any).foreignLineItems && (prefilledData as any).foreignLineItems.length > 0) {
+                const newForeignRows = (prefilledData as any).foreignLineItems.map((item: any, index: number) => {
+                    const qty = item.quantity || 1;
+                    const rate = item.rate || 0;
+                    const amount = item.amount || (qty * rate);
+                    return {
+                        id: index + 1000,
+                        itemCode: item.itemCode || '',
+                        itemName: item.itemDescription || '',
+                        hsnSac: '',
+                        qty: qty.toString(),
+                        uom: item.uom || '',
+                        itemRate: rate.toString(),
+                        taxableValue: amount.toFixed(2),
+                        salesLedger: item.salesLedger || '',
+                        description: item.itemDescription || '',
+                        igst: '0', cgst: '0', sgst: '0', cess: '0', cessRate: '0', invoiceValue: amount.toFixed(2), alternateUnit: '', gstRate: '0', selected: true
+                    };
+                });
+                setForeignItemRows(newForeignRows);
             }
 
             if (clearPrefilledData) clearPrefilledData();
@@ -1198,21 +1265,79 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     const [shippingBillDate, setShippingBillDate] = useState('');
     const [ecommerceGstin, setEcommerceGstin] = useState('');
     const [isEcommerceSales, setIsEcommerceSales] = useState('No');
+    
+    // Aggregator Accounting (Table 15) Fields
+    const [isEcommerceOperator, setIsEcommerceOperator] = useState('No');
+    const [thirdPartySupplierName, setThirdPartySupplierName] = useState('');
+    const [thirdPartySupplierGstin, setThirdPartySupplierGstin] = useState('');
     const [ecommerceOperator, setEcommerceOperator] = useState('');
 
     const ecommerceOperatorOptions = useMemo(() => {
-        const defaults = ['Amazon', 'Flipkart', 'Myntra', 'Meesho', 'GlowRoad', 'JioMart'];
-        const ledgerNames = ledgers.map(l => l.name);
-        return Array.from(new Set([...defaults, ...ledgerNames])).sort();
-    }, [ledgers]);
+        const ledgerNames = ledgers
+            .filter(l => l.group === 'Sundry Debtors' || l.group?.toLowerCase() === 'sundry debtors')
+            .map(l => l.name);
+        
+        const allCustomers = [...(customers || []), ...(masterCustomers || [])];
+        const custNames = allCustomers.map(c => c.customer_name || c.name || '').filter(Boolean);
+        
+        return Array.from(new Set([...ledgerNames, ...custNames])).sort();
+    }, [ledgers, customers, masterCustomers]);
 
     const handleEcommerceOperatorChange = (val: string) => {
         setEcommerceOperator(val);
         const ledger = ledgers.find(l => l.name === val);
+        const valTrimmed = val.trim().toLowerCase();
+        const allCustomers = [...(customers || []), ...(masterCustomers || [])];
+        const matchingCustomer = allCustomers.find(c => {
+            const custName = (c.customer_name || c.name || '').toString().trim().toLowerCase();
+            return custName === valTrimmed;
+        });
+
+        let foundGstin = '';
         if (ledger && ledger.gstin) {
-            setEcommerceGstin(ledger.gstin);
+            foundGstin = ledger.gstin;
+        } else if (matchingCustomer) {
+            if (matchingCustomer.gstin) {
+                foundGstin = matchingCustomer.gstin;
+            } else if (matchingCustomer.gst_details?.branches?.length > 0) {
+                const registeredBranch = matchingCustomer.gst_details.branches.find((b: any) => b.gstin);
+                if (registeredBranch) {
+                    foundGstin = registeredBranch.gstin;
+                }
+            } else if (matchingCustomer.gstDetails?.branches?.length > 0) {
+                const registeredBranch = matchingCustomer.gstDetails.branches.find((b: any) => b.gstin);
+                if (registeredBranch) {
+                    foundGstin = registeredBranch.gstin;
+                }
+            }
         }
+        setEcommerceGstin(foundGstin);
     };
+
+    // Auto-resolve ecommerce operator name from GSTIN when prefilled data is loaded
+    React.useEffect(() => {
+        if (ecommerceGstin && !ecommerceOperator && ledgers && ledgers.length > 0) {
+            let foundName = '';
+            const foundLedger = ledgers.find(l => l.gstin === ecommerceGstin);
+            if (foundLedger) {
+                foundName = foundLedger.name;
+            } else {
+                const allCustomers = [...(customers || []), ...(masterCustomers || [])];
+                const foundCust = allCustomers.find(c => {
+                    if (c.gstin === ecommerceGstin) return true;
+                    const branches = c.gst_details?.branches || c.gstDetails?.branches || [];
+                    return branches.some((b: any) => b.gstin === ecommerceGstin);
+                });
+                if (foundCust) {
+                    foundName = foundCust.customer_name || foundCust.name || '';
+                }
+            }
+            
+            if (foundName) {
+                setEcommerceOperator(foundName);
+            }
+        }
+    }, [ecommerceGstin, ecommerceOperator, ledgers, customers, masterCustomers]);
 
     // --- TAX HELPERS ---
     const getPlaceOfSupplyName = (code: string) => {
@@ -2058,6 +2183,18 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             return;
         }
 
+        if (isEcommerceOperator === 'Yes' && !thirdPartySupplierName.trim()) {
+            showError("Please enter the Third-Party Supplier Name.");
+            setActiveTab('invoice');
+            return;
+        }
+
+        if (isEcommerceOperator === 'Yes' && thirdPartySupplierGstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(thirdPartySupplierGstin)) {
+            showError("Invalid Third-Party Supplier GSTIN format. Please enter a valid 15-character GSTIN.");
+            setActiveTab('invoice');
+            return;
+        }
+
         const validItems = itemRows.filter(row => row.itemCode || row.itemName);
         if (validItems.length === 0) {
             showError("Please add at least one item.");
@@ -2142,6 +2279,9 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                 shipping_bill_date: stateType === 'export' ? formatDate(shippingBillDate) : null,
                 ecommerce_gstin: ecommerceGstin || null,
                 is_ecommerce_sales: isEcommerceSales === 'Yes',
+                is_ecommerce_operator: isEcommerceOperator === 'Yes',
+                third_party_supplier_name: thirdPartySupplierName,
+                third_party_supplier_gstin: thirdPartySupplierGstin,
 
                 // Items (Domestic/INR)
                 items: itemRows.filter(row => row.selected !== false).map(row => ({
@@ -2300,6 +2440,12 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     };
 
     const handlePostAndPrint = async () => {
+        if (isEcommerceOperator === 'Yes' && thirdPartySupplierGstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(thirdPartySupplierGstin)) {
+            showError("Invalid Third-Party Supplier GSTIN format. Please enter a valid 15-character GSTIN.");
+            setActiveTab('invoice');
+            return;
+        }
+
         if (!validateQtyMatch()) {
             setActiveTab('item_tax_inr');
             return;
@@ -2337,6 +2483,9 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                 shipping_bill_number: stateType === 'export' ? shippingBillNumber : null, shipping_bill_date: stateType === 'export' ? formatDate(shippingBillDate) : null,
                 ecommerce_gstin: ecommerceGstin || null,
                 is_ecommerce_sales: isEcommerceSales === 'Yes',
+                is_ecommerce_operator: isEcommerceOperator === 'Yes',
+                third_party_supplier_name: thirdPartySupplierName,
+                third_party_supplier_gstin: thirdPartySupplierGstin,
                 items: itemRows.filter(row => row.selected !== false).map(row => ({ item_code: row.itemCode, item_name: row.itemName, hsn_sac: row.hsnSac, qty: parseNum(row.qty), uom: row.uom, item_rate: parseNum(row.itemRate), taxable_value: parseNum(row.taxableValue), igst: parseNum(row.igst), cgst: parseNum(row.cgst), sgst: parseNum(row.sgst), cess: parseNum(row.cess), invoice_value: parseNum(row.invoiceValue), sales_ledger: row.salesLedger, description: row.description, alternate_unit: row.alternateUnit })),
                 foreign_items: stateType === 'export' ? foreignItemRows.filter(row => row.selected !== false).map(row => ({ description: row.description, quantity: parseNum(row.qty), uqc: row.uom, rate: parseNum(row.itemRate), amount: parseNum(row.invoiceValue) })) : [],
                 payment_details: { payment_taxable_value: calculateTotals().taxableValue, payment_igst: calculateTotals().igst, payment_cgst: calculateTotals().cgst, payment_sgst: calculateTotals().sgst, payment_cess: calculateTotals().cess, payment_state_cess: parseNum(paymentStateCess), payment_invoice_value: calculateTotals().invoiceValue, payment_tds_income_tax: parseNum(paymentTdsIncomeTax), payment_tds_gst: parseNum(paymentTdsGst), payment_advance: parseNum(paymentAdvance), payment_payable: parseNum(paymentPayable), posting_note: paymentPostingNote, terms_conditions: termsConditions, advance_references: JSON.stringify(advanceReferences) },
@@ -2711,6 +2860,20 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                         // Sync basic details to the INR tab immediately
                         setItemRows(prevInr => prevInr.map(inrRow => {
                             if (inrRow.id === id) {
+                                const taxableVal = qty * inrRate;
+                                const gstRate = parseFloat(matchedItem?.gst_rate || matchedItem?.gstRate || '0');
+                                const cessRate = parseFloat(matchedItem?.cess_rate || matchedItem?.cessRate || '0');
+                                
+                                let igst = 0, cgst = 0, sgst = 0;
+                                if (isInterState) {
+                                    igst = taxableVal * gstRate / 100;
+                                } else {
+                                    cgst = taxableVal * gstRate / 100 * 0.5;
+                                    sgst = taxableVal * gstRate / 100 * 0.5;
+                                }
+                                const cess = (igst + cgst + sgst) * cessRate / 100;
+                                const invoiceValue = taxableVal + igst + cgst + sgst + cess;
+
                                 return {
                                     ...inrRow,
                                     itemCode: updatedRow.itemCode,
@@ -2718,9 +2881,16 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                     hsnSac: updatedRow.hsnSac,
                                     uom: updatedRow.uom,
                                     itemRate: inrRate.toFixed(2),
-                                    taxableValue: (qty * inrRate).toFixed(2),
+                                    taxableValue: taxableVal.toFixed(2),
                                     qty: updatedRow.qty,
-                                    description: updatedRow.description
+                                    description: updatedRow.description,
+                                    gstRate: gstRate.toString(),
+                                    cessRate: cessRate.toString(),
+                                    igst: igst.toFixed(2),
+                                    cgst: cgst.toFixed(2),
+                                    sgst: sgst.toFixed(2),
+                                    cess: cess.toFixed(2),
+                                    invoiceValue: invoiceValue.toFixed(2)
                                 };
                             }
                             return inrRow;
@@ -2740,15 +2910,44 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             return row;
         }));
 
-        // Sync Qty to the INR tab when qty changes in Foreign Currency tab
-        if (field === 'qty') {
+        // Sync Qty and Rate to the INR tab when they change in Foreign Currency tab
+        if (field === 'qty' || field === 'itemRate') {
             const cleanValue = parseFloat(value as string) < 0 ? '0' : value as string;
             setItemRows(prev => prev.map(row => {
                 if (row.id === id) {
-                    const qty = parseFloat(cleanValue) || 0;
-                    const rate = parseFloat(row.itemRate) || 0;
-                    const taxable = (qty * rate).toFixed(2);
-                    return { ...row, qty: cleanValue, taxableValue: taxable };
+                    const qty = parseFloat(field === 'qty' ? cleanValue : row.qty) || 0;
+                    
+                    let inrRate = parseFloat(row.itemRate) || 0;
+                    if (field === 'itemRate') {
+                        const convRate = parseFloat(exchangeRate) || 1;
+                        inrRate = parseFloat(cleanValue) * convRate;
+                    }
+
+                    const taxableVal = qty * inrRate;
+                    const gstRate = parseFloat(row.gstRate) || 0;
+                    const cessRate = parseFloat(row.cessRate) || 0;
+
+                    let igst = 0, cgst = 0, sgst = 0;
+                    if (isInterState) {
+                        igst = taxableVal * gstRate / 100;
+                    } else {
+                        cgst = taxableVal * gstRate / 100 * 0.5;
+                        sgst = taxableVal * gstRate / 100 * 0.5;
+                    }
+                    const cess = (igst + cgst + sgst) * cessRate / 100;
+                    const invoiceValue = taxableVal + igst + cgst + sgst + cess;
+
+                    return { 
+                        ...row, 
+                        qty: field === 'qty' ? cleanValue : row.qty,
+                        itemRate: field === 'itemRate' ? inrRate.toFixed(2) : row.itemRate,
+                        taxableValue: taxableVal.toFixed(2),
+                        igst: igst.toFixed(2),
+                        cgst: cgst.toFixed(2),
+                        sgst: sgst.toFixed(2),
+                        cess: cess.toFixed(2),
+                        invoiceValue: invoiceValue.toFixed(2)
+                    };
                 }
                 return row;
             }));
@@ -3558,17 +3757,96 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                 </div>
 
                                 {isEcommerceSales === 'Yes' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            E-Commerce Operator <span className="text-red-500">*</span>
-                                        </label>
-                                        <SearchableDropdown
-                                            value={ecommerceOperator}
-                                            onChange={handleEcommerceOperatorChange}
-                                            options={ecommerceOperatorOptions}
-                                            placeholder="Select Operator"
-                                        />
-                                    </div>
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                E-Commerce Operator <span className="text-red-500">*</span>
+                                            </label>
+                                            <SearchableDropdown
+                                                value={ecommerceOperator}
+                                                onChange={handleEcommerceOperatorChange}
+                                                options={ecommerceOperatorOptions}
+                                                placeholder="Select Operator"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                ECO GSTIN
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={ecommerceGstin}
+                                                readOnly
+                                                className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-[4px] text-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs shadow-sm transition-colors cursor-not-allowed"
+                                                placeholder="Auto-populated"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                
+                                {/* Aggregator Accounting (Table 15) */}
+                                {isEcommerceSales === 'Yes' && (
+                                    <>
+                                        <div className={isEcommerceOperator === 'Yes' ? 'md:col-span-1' : ''}>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Are you the E-Commerce Operator for this sale? (Sec 9(5))
+                                            </label>
+                                            <div className="flex gap-4 mt-3">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="isEcommerceOperator"
+                                                        value="No"
+                                                        checked={isEcommerceOperator === 'No'}
+                                                        onChange={(e) => setIsEcommerceOperator(e.target.value)}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-gray-700">No</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="isEcommerceOperator"
+                                                        value="Yes"
+                                                        checked={isEcommerceOperator === 'Yes'}
+                                                        onChange={(e) => setIsEcommerceOperator(e.target.value)}
+                                                        className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-gray-700">Yes</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {isEcommerceOperator === 'Yes' && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Third-Party Supplier Name <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={thirdPartySupplierName}
+                                                        onChange={(e) => setThirdPartySupplierName(e.target.value)}
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                                        placeholder="Enter Supplier Name"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Third-Party Supplier GSTIN
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={thirdPartySupplierGstin}
+                                                        onChange={(e) => setThirdPartySupplierGstin(e.target.value)}
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 uppercase"
+                                                placeholder="Leave blank if Unregistered"
+                                                maxLength={15}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                    </>
                                 )}
                             </div>
 
