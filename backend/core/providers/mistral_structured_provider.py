@@ -131,7 +131,8 @@ class MistralStructuredProvider(BaseAIProvider):
             TerminalTaskError = _get_terminal_error()
             raise TerminalTaskError("INVALID_AI_ENDPOINT: MISTRAL_API_KEY environment variable is missing.")
 
-        return Mistral(api_key=resolved_key)
+        timeout_ms = int(os.getenv("MISTRAL_TIMEOUT_MS", "60000"))
+        return Mistral(api_key=resolved_key, timeout_ms=timeout_ms)
 
     def call_single(
         self,

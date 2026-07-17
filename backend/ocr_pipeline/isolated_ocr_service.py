@@ -269,7 +269,8 @@ def _ocr_single_pass(
         max_retries = int(os.getenv("MISTRAL_OCR_MAX_RETRIES", "5"))
         retry_delay_s = float(os.getenv("MISTRAL_OCR_RETRY_DELAY_S", "2.0"))
 
-        client = Mistral(api_key=api_key)
+        timeout_ms = int(os.getenv("MISTRAL_TIMEOUT_MS", "60000"))
+        client = Mistral(api_key=api_key, timeout_ms=timeout_ms)
 
         # ── API call with exponential-backoff retry ─────────────────────────
         response = None

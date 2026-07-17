@@ -749,7 +749,8 @@ def process_ai_request(request_data: dict) -> dict:
 
             from mistralai.client import Mistral
             mistral_key = api_key if api_key and api_key.strip() else os.getenv("MISTRAL_API_KEY")
-            agent_client = Mistral(api_key=mistral_key)
+            timeout_ms = int(os.getenv("MISTRAL_TIMEOUT_MS", "60000"))
+            agent_client = Mistral(api_key=mistral_key, timeout_ms=timeout_ms)
 
             t_ai_start = time.time()
             observability.ai_metric(event="PARALLEL_AI_EXECUTION", tenant_id=tenant_id, status="START")
