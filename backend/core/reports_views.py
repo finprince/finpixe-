@@ -24,11 +24,14 @@ class BaseExcelView(APIView):
 
     def get_filtered_vouchers(self, request):
         """Fetch vouchers from all split tables and combine them"""
-        from accounting.models import (
-            VoucherSales, VoucherPurchase, VoucherPayment,
-            VoucherReceipt, VoucherContra, VoucherJournal,
-            Voucher as GenericVoucher
-        )
+        from accounting.models_voucher_sales import VoucherSalesInvoiceDetails as VoucherSales
+        from accounting.models_voucher_purchase import VoucherPurchaseSupplierDetails as VoucherPurchase
+        from accounting.models import Transaction  # Payment and Receipt both use Transaction model
+        from accounting.models_voucher_contra import VoucherContra
+        from accounting.models_voucher_journal import VoucherJournal
+        from accounting.models import Voucher as GenericVoucher
+        VoucherPayment = Transaction
+        VoucherReceipt = Transaction
         
         tenant_id = request.tenant_id
         start_date = request.query_params.get('startDate')
@@ -42,17 +45,26 @@ class BaseExcelView(APIView):
             sales_qs = sales_qs.filter(date__gte=start_date)
         if end_date:
             sales_qs = sales_qs.filter(date__lte=end_date)
+        payment_details_prefetch = {}
+        try:
+            from accounting.models_voucher_sales import VoucherSalesPaymentDetails
+            for pd in VoucherSalesPaymentDetails.objects.filter(invoice__in=sales_qs).select_related('invoice'):
+                payment_details_prefetch[pd.invoice_id] = pd
+        except Exception:
+            pass
         for v in sales_qs:
+            pd = payment_details_prefetch.get(v.id)
+            total_val = float(pd.payment_invoice_value if pd else 0) or float(getattr(v, 'total', 0) or 0)
             vouchers.append({
                 'date': v.date,
                 'type': 'Sales',
-                'voucher_number': v.voucher_number,
-                'invoice_no': v.invoice_no or v.voucher_number,
-                'party': v.party,
+                'voucher_number': v.sales_invoice_no,
+                'invoice_no': v.sales_invoice_no,
+                'party': v.customer_name,
                 'account': '',
-                'total': float(v.total),
-                'amount': float(v.total),
-                'narration': v.narration or '',
+                'total': total_val,
+                'amount': total_val,
+                'narration': getattr(v, 'narration', '') or '',
                 'id': v.id,
             })
         
@@ -63,53 +75,64 @@ class BaseExcelView(APIView):
         if end_date:
             purchase_qs = purchase_qs.filter(date__lte=end_date)
         for v in purchase_qs:
+            # Get total from related supply details (INR or foreign)
+            inr_total = 0.0
+            try:
+                inr = v.supply_inr_details.first()
+                inr_total = float(inr.invoice_total if inr else 0)
+            except Exception:
+                pass
             vouchers.append({
                 'date': v.date,
                 'type': 'Purchase',
-                'voucher_number': v.voucher_number,
-                'invoice_no': v.invoice_no or v.voucher_number,
-                'party': v.party,
+                'voucher_number': v.purchase_voucher_no or v.supplier_invoice_no,
+                'invoice_no': v.supplier_invoice_no,
+                'party': v.vendor_name,
                 'account': '',
-                'total': float(v.total),
-                'amount': float(v.total),
-                'narration': v.narration or '',
+                'total': inr_total,
+                'amount': inr_total,
+                'narration': '',
                 'id': v.id,
             })
         
-        # Fetch Payment vouchers
-        payment_qs = VoucherPayment.objects.filter(tenant_id=tenant_id)
+        # Fetch Payment vouchers (Transaction model, transaction_type=PAYMENT)
+        payment_qs = VoucherPayment.objects.filter(tenant_id=tenant_id, transaction_type='PAYMENT')
         if start_date:
             payment_qs = payment_qs.filter(date__gte=start_date)
         if end_date:
             payment_qs = payment_qs.filter(date__lte=end_date)
         for v in payment_qs:
+            party_name = v.pay_to_ledger.name if v.pay_to_ledger else ''
+            account_name = v.pay_from_ledger.name if v.pay_from_ledger else ''
             vouchers.append({
                 'date': v.date,
                 'type': 'Payment',
                 'voucher_number': v.voucher_number,
                 'invoice_no': v.voucher_number,
-                'party': v.party,
-                'account': v.account,
+                'party': party_name,
+                'account': account_name,
                 'total': 0,
                 'amount': float(v.amount),
                 'narration': v.narration or '',
                 'id': v.id,
             })
         
-        # Fetch Receipt vouchers
-        receipt_qs = VoucherReceipt.objects.filter(tenant_id=tenant_id)
+        # Fetch Receipt vouchers (Transaction model, transaction_type=RECEIPT)
+        receipt_qs = VoucherReceipt.objects.filter(tenant_id=tenant_id, transaction_type='RECEIPT')
         if start_date:
             receipt_qs = receipt_qs.filter(date__gte=start_date)
         if end_date:
             receipt_qs = receipt_qs.filter(date__lte=end_date)
         for v in receipt_qs:
+            party_name = v.pay_from_ledger.name if v.pay_from_ledger else ''
+            account_name = v.pay_to_ledger.name if v.pay_to_ledger else ''
             vouchers.append({
                 'date': v.date,
                 'type': 'Receipt',
                 'voucher_number': v.voucher_number,
                 'invoice_no': v.voucher_number,
-                'party': v.party,
-                'account': v.account,
+                'party': party_name,
+                'account': account_name,
                 'total': 0,
                 'amount': float(v.amount),
                 'narration': v.narration or '',
@@ -348,61 +371,48 @@ class LedgerExcelView(BaseExcelView):
 
 class TrialBalanceExcelView(BaseExcelView):
     def get(self, request):
-        vouchers = self.get_filtered_vouchers(request)
-        ledgers = {} 
-        
-        def add_amt(name, type_, amt):
-            if not name: return
-            if name not in ledgers: ledgers[name] = {'debit': 0.0, 'credit': 0.0}
-            ledgers[name][type_] += float(amt or 0)
+        """Trial Balance using JournalEntry as the authoritative accounting source."""
+        from django.db.models import Sum
+        from accounting.models import JournalEntry
 
-        for v in vouchers:
-            if v['type'] == 'Sales':
-                add_amt(v['party'], 'debit', v['amount'])
-                add_amt('Sales', 'credit', v['amount'])
-            elif v['type'] == 'Purchase':
-                add_amt(v['party'], 'credit', v['amount'])
-                add_amt('Purchases', 'debit', v['amount'])
-            elif v['type'] == 'Receipt':
-                add_amt(v['account'], 'debit', v['amount'])
-                add_amt(v['party'], 'credit', v['amount'])
-            elif v['type'] == 'Payment':
-                add_amt(v['party'], 'debit', v['amount'])
-                add_amt(v['account'], 'credit', v['amount'])
-            elif v['type'] == 'Contra':
-                add_amt(v['account'], 'debit', v['amount'])
-                add_amt(v['party'], 'credit', v['amount'])
-            elif v['type'] == 'Journal':
-                # Would need to fetch journal entries
-                pass
-            elif v['type'] == 'Debit Note':
-                add_amt(v['party'], 'debit', v['amount'])
-                add_amt('Purchase Return A/c', 'credit', v['amount'])
-            elif v['type'] == 'Credit Note':
-                add_amt(v['party'], 'credit', v['amount'])
-                add_amt('Sales Return A/c', 'debit', v['amount'])
-            
+        tenant_id = request.tenant_id
+        start_date = request.query_params.get('startDate')
+        end_date = request.query_params.get('endDate')
+
+        entries = JournalEntry.objects.filter(tenant_id=tenant_id)
+        if start_date:
+            entries = entries.filter(transaction_date__gte=start_date)
+        if end_date:
+            entries = entries.filter(transaction_date__lte=end_date)
+
+        balances = entries.values('ledger__name').annotate(
+            total_debit=Sum('debit'),
+            total_credit=Sum('credit')
+        ).order_by('ledger__name')
+
         data = []
-        total_debit = 0
-        total_credit = 0
+        total_debit = 0.0
+        total_credit = 0.0
 
-        for name, vals in ledgers.items():
-            net = vals['debit'] - vals['credit']
-            debit = net if net > 0 else 0
-            credit = abs(net) if net < 0 else 0
-            if debit > 0.001 or credit > 0.001:
+        for item in balances:
+            d = float(item['total_debit'] or 0)
+            c = float(item['total_credit'] or 0)
+            net = d - c
+            net_debit = net if net > 0 else 0
+            net_credit = abs(net) if net < 0 else 0
+            if net_debit > 0.001 or net_credit > 0.001:
                 data.append({
-                    'Ledger': name,
-                    'Debit': debit,
-                    'Credit': credit
+                    'Ledger': item['ledger__name'] or '(Unlinked)',
+                    'Debit': net_debit,
+                    'Credit': net_credit
                 })
-                total_debit += debit
-                total_credit += credit
-                
+                total_debit += net_debit
+                total_credit += net_credit
+
         df = pd.DataFrame(data)
         if df.empty:
-             df = pd.DataFrame(columns=['Ledger', 'Debit', 'Credit'])
-             
+            df = pd.DataFrame(columns=['Ledger', 'Debit', 'Credit'])
+
         if not df.empty:
             total_row = pd.DataFrame([{
                 'Ledger': 'Total', 
@@ -525,7 +535,70 @@ class AIReportExcelView(BaseExcelView):
             return self.export_excel(df, filename)
 
         except Exception as e:
-            # Fallback text response if critical failure, or plain error
-            # But user wants Excel. If error, maybe return a Text file or JSON error?
-            # Standard DRF error is better
+            return Response({'error': str(e)}, status=500)
+
+# =============================================================================
+# Phase 5: Additive JSON API Views
+# These views call the shared reports flow service layer (reports.flow).
+# They are additive — they do NOT modify any existing Excel or API views.
+# =============================================================================
+
+class DaybookReportView(APIView):
+    """JSON API for Day Book report — additive endpoint."""
+    permission_classes = [IsAuthenticated, IsBranchMember]
+
+    def get(self, request):
+        from reports.flow import generate_daybook_data
+        start_date = request.query_params.get('startDate')
+        end_date = request.query_params.get('endDate')
+        try:
+            vouchers = generate_daybook_data(request.user, start_date, end_date)
+            data = []
+            for v in vouchers:
+                data.append({
+                    'date': str(v.date),
+                    'type': v.type,
+                    'voucher_number': v.voucher_number,
+                    'party': v.party or '',
+                    'amount': float(v.total or v.amount or 0),
+                    'narration': v.narration or '',
+                })
+            return Response({'results': data, 'count': len(data)})
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+
+class TrialBalanceReportView(APIView):
+    """JSON API for Trial Balance — uses JournalEntry as authoritative source."""
+    permission_classes = [IsAuthenticated, IsBranchMember]
+
+    def get(self, request):
+        from reports.flow import generate_trial_balance_data
+        start_date = request.query_params.get('startDate')
+        end_date = request.query_params.get('endDate')
+        try:
+            tb = generate_trial_balance_data(request.user, start_date, end_date)
+            total_debit = sum(r['debit'] for r in tb)
+            total_credit = sum(r['credit'] for r in tb)
+            return Response({
+                'results': tb,
+                'total_debit': total_debit,
+                'total_credit': total_credit,
+                'is_balanced': abs(total_debit - total_credit) < 0.01,
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+
+class BalanceSheetReportView(APIView):
+    """JSON API for Balance Sheet — uses ledger classification from Chart of Accounts."""
+    permission_classes = [IsAuthenticated, IsBranchMember]
+
+    def get(self, request):
+        from reports.flow import generate_balance_sheet_data
+        end_date = request.query_params.get('endDate')
+        try:
+            bs = generate_balance_sheet_data(request.user, end_date)
+            return Response(bs)
+        except Exception as e:
             return Response({'error': str(e)}, status=500)

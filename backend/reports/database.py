@@ -63,14 +63,42 @@ def get_vouchers_for_ledger(tenant_id, ledger_name, start_date=None, end_date=No
 # TRIAL BALANCE QUERIES
 # ============================================================================
 
-def get_trial_balance_data(tenant_id):
-    """Get aggregated ledger balances for trial balance."""
+def get_trial_balance_data(tenant_id, start_date=None, end_date=None):
+    """Get aggregated ledger balances for trial balance with date filtering."""
     entries = JournalEntry.objects.filter(tenant_id=tenant_id)
     
-    return entries.values('ledger').annotate(
+    if start_date:
+        entries = entries.filter(transaction_date__gte=start_date)
+    if end_date:
+        entries = entries.filter(transaction_date__lte=end_date)
+        
+    return entries.values('ledger', 'ledger__name').annotate(
         total_debit=Sum('debit'),
         total_credit=Sum('credit')
-    ).order_by('ledger')
+    ).order_by('ledger__name')
+
+
+# ============================================================================
+# BALANCE SHEET QUERIES
+# ============================================================================
+
+def get_ledger_balances(tenant_id, as_of_date=None):
+    """Get all ledger balances as of a specific date."""
+    entries = JournalEntry.objects.filter(tenant_id=tenant_id)
+    if as_of_date:
+        entries = entries.filter(transaction_date__lte=as_of_date)
+        
+    return entries.values(
+        'ledger__id',
+        'ledger__name',
+        'ledger__category',
+        'ledger__group',
+        'ledger__opening_balance',
+        'ledger__opening_balance_type'
+    ).annotate(
+        total_debit=Sum('debit'),
+        total_credit=Sum('credit')
+    )
 
 
 # ============================================================================

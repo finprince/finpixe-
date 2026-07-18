@@ -16,7 +16,8 @@ from .direct_registration import DirectRegisterView
 from .company_settings_views import CompanySettingsView
 from .reports_views import (
     DayBookExcelView, LedgerExcelView, TrialBalanceExcelView, 
-    StockSummaryExcelView, GSTReportExcelView
+    StockSummaryExcelView, GSTReportExcelView,
+    DaybookReportView, TrialBalanceReportView, BalanceSheetReportView,
 )
 
 from .tools_api import NoteReminderViewSet
@@ -43,6 +44,10 @@ urlpatterns = [
     path('reports/trialbalance/excel/', TrialBalanceExcelView.as_view(), name='report-trialbalance-excel'),
     path('reports/stocksummary/excel/', StockSummaryExcelView.as_view(), name='report-stocksummary-excel'),
     path('reports/gst/excel/', GSTReportExcelView.as_view(), name='report-gst-excel'),
+    # Phase 5: Additive JSON report endpoints
+    path('reports/daybook/json/', DaybookReportView.as_view(), name='report-daybook-json'),
+    path('reports/trialbalance/json/', TrialBalanceReportView.as_view(), name='report-trialbalance-json'),
+    path('reports/balancesheet/json/', BalanceSheetReportView.as_view(), name='report-balancesheet-json'),
 
     # Admin endpoints
     path('admin/subscriptions/', AdminSubscriptionsView.as_view(), name='admin-subscriptions'),
