@@ -624,29 +624,42 @@ class StockSummaryReportView(APIView):
             if end_date:
                 movements_qs = movements_qs.filter(date__lte=end_date)
 
-            inward_agg = movements_qs.filter(movement_type='IN').values('item_id').annotate(total=Sum('quantity'))
-            outward_agg = movements_qs.filter(movement_type='OUT').values('item_id').annotate(total=Sum('quantity'))
-
-            inward_map = {r['item_id']: float(r['total'] or 0) for r in inward_agg}
-            outward_map = {r['item_id']: float(r['total'] or 0) for r in outward_agg}
+            # StockMovement uses item_code to identify stock items
+            movement_agg = movements_qs.values('item_code').annotate(
+                total_inward=Sum('inward_qty'),
+                total_outward=Sum('outward_qty'),
+            )
+            movement_map = {
+                r['item_code']: {
+                    'inward': float(r['total_inward'] or 0),
+                    'outward': float(r['total_outward'] or 0),
+                }
+                for r in movement_agg
+            }
 
             data = []
             for item in items:
-                inward = inward_map.get(item.id, 0)
-                outward = outward_map.get(item.id, 0)
+                # InventoryStockItem item_code field (may be name or a code field)
+                item_code = getattr(item, 'item_code', None) or item.name
+                mov = movement_map.get(item_code, {'inward': 0, 'outward': 0})
                 opening = float(getattr(item, 'opening_balance', 0) or 0)
+                inward = mov['inward']
+                outward = mov['outward']
                 closing = opening + inward - outward
+                unit = getattr(item, 'unit', '') or getattr(item, 'unit_of_measurement', '') or ''
                 data.append({
                     'name': item.name,
-                    'unit': getattr(item, 'unit', ''),
+                    'unit': unit,
                     'opening': opening,
                     'inward': inward,
                     'outward': outward,
                     'closing': closing,
                 })
 
+
             return Response({'results': data, 'count': len(data)})
         except Exception as e:
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=500)
+
