@@ -398,6 +398,43 @@ class ApiService {
         return httpClient.get<any[]>(url);
     }
 
+    // ─── Reports JSON API (Phase 5 additive endpoints) ─────────────────────
+    async getDaybookReport(startDate?: string, endDate?: string) {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return httpClient.get<any>(`/api/reports/daybook/json/?${params.toString()}`);
+    }
+
+    async getTrialBalanceReport(startDate?: string, endDate?: string) {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return httpClient.get<any>(`/api/reports/trialbalance/json/?${params.toString()}`);
+    }
+
+    async getBalanceSheetReport(endDate?: string) {
+        const params = new URLSearchParams();
+        if (endDate) params.append('endDate', endDate);
+        return httpClient.get<any>(`/api/reports/balancesheet/json/?${params.toString()}`);
+    }
+
+    async getGSTR3BPreview(month: string, year: string) {
+        return httpClient.get<any>(`/api/gst/reconciliation/gstr3b_preview/?month=${month}&year=${year}`);
+    }
+
+    async getGSTR1Stats(month: string, year: string) {
+        return httpClient.get<any>(`/api/gst/gstr1/stats/?month=${month}&year=${year}`);
+    }
+
+    async getGSTR1B2B(month: string, year: string) {
+        return httpClient.get<any>(`/api/gst/gstr1/b2b/?month=${month}&year=${year}`);
+    }
+
+    async getGSTR1B2CS(month: string, year: string) {
+        return httpClient.get<any>(`/api/gst/gstr1/b2cs/?month=${month}&year=${year}`);
+    }
+
     /**
      * Get Purchase Orders for a specific vendor
      * @param vendorName - Vendor name to filter by (optional)

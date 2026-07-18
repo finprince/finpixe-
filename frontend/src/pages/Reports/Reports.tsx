@@ -307,6 +307,46 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     });
   };
 
+  // ─── Backend-backed API state for reports (presentation-only) ───────────
+  const [tbData, setTbData] = useState<{ results: any[]; total_debit: number; total_credit: number; is_balanced: boolean } | null>(null);
+  const [tbLoading, setTbLoading] = useState(false);
+  const [bsData, setBsData] = useState<any | null>(null);
+  const [bsLoading, setBsLoading] = useState(false);
+  const [daybookData, setDaybookData] = useState<{ results: any[]; count: number } | null>(null);
+  const [daybookLoading, setDaybookLoading] = useState(false);
+
+  // Fetch Trial Balance from backend when report type changes or dates change
+  useEffect(() => {
+    if (reportType !== 'TrialBalance') return;
+    setTbLoading(true);
+    apiService.getTrialBalanceReport(startDate || undefined, endDate || undefined)
+      .then(res => setTbData(res.data))
+      .catch(err => console.error('Trial Balance API error:', err))
+      .finally(() => setTbLoading(false));
+  }, [reportType, startDate, endDate]);
+
+  // Fetch Balance Sheet from backend when report type changes or end date changes
+  useEffect(() => {
+    if (reportType !== 'BalanceSheet') return;
+    setBsLoading(true);
+    apiService.getBalanceSheetReport(endDate || undefined)
+      .then(res => setBsData(res.data))
+      .catch(err => console.error('Balance Sheet API error:', err))
+      .finally(() => setBsLoading(false));
+  }, [reportType, endDate]);
+
+  // Fetch Day Book from backend when report type changes or dates change
+  useEffect(() => {
+    if (reportType !== 'DayBook') return;
+    setDaybookLoading(true);
+    apiService.getDaybookReport(startDate || undefined, endDate || undefined)
+      .then(res => setDaybookData(res.data))
+      .catch(err => console.error('Day Book API error:', err))
+      .finally(() => setDaybookLoading(false));
+  }, [reportType, startDate, endDate]);
+
+
+
   // Fetch voucher details when a transaction is selected
   useEffect(() => {
     const voucherId = selectedTransaction?.voucher_id || selectedTransaction?.rawVoucher?.voucher_id || selectedTransaction?.voucherId || selectedTransaction?.rawVoucher?.voucherId;
@@ -4042,20 +4082,29 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
-          {trialBalanceData?.result.map(item => (
+          {tbLoading && (
+            <tr><td colSpan={3} className="text-center py-8 text-gray-400">Loading trial balance…</td></tr>
+          )}
+          {!tbLoading && tbData?.results.map(item => (
             <tr key={item.ledger} className="hover:bg-gray-50 transition-colors">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{item.ledger}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.debit > 0 ? `₹${item.debit.toFixed(2)}` : ''}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.credit > 0 ? `₹${item.credit.toFixed(2)}` : ''}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.debit > 0 ? `₹${Number(item.debit).toFixed(2)}` : ''}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.credit > 0 ? `₹${Number(item.credit).toFixed(2)}` : ''}</td>
             </tr>
           ))}
+          {!tbLoading && !tbData?.results?.length && (
+            <tr><td colSpan={3} className="text-center py-8 text-gray-400">No data available for selected period.</td></tr>
+          )}
         </tbody>
         <tfoot className="bg-gray-100">
           <tr>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right text-gray-900">Total</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{trialBalanceData?.totals.debit.toFixed(2)}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{trialBalanceData?.totals.credit.toFixed(2)}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{Number(tbData?.total_debit || 0).toFixed(2)}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{Number(tbData?.total_credit || 0).toFixed(2)}</td>
           </tr>
+          {tbData && !tbData.is_balanced && (
+            <tr><td colSpan={3} className="text-center text-xs text-amber-600 py-1">⚠ Trial Balance difference: ₹{Math.abs(Number(tbData.total_debit) - Number(tbData.total_credit)).toFixed(2)}</td></tr>
+          )}
         </tfoot>
       </table>
     </div>
