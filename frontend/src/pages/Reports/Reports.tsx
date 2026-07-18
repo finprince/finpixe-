@@ -320,7 +320,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     if (reportType !== 'TrialBalance') return;
     setTbLoading(true);
     apiService.getTrialBalanceReport(startDate || undefined, endDate || undefined)
-      .then(res => setTbData(res.data))
+      .then(res => setTbData(res?.data || res))
       .catch(err => console.error('Trial Balance API error:', err))
       .finally(() => setTbLoading(false));
   }, [reportType, startDate, endDate]);
@@ -330,7 +330,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     if (reportType !== 'BalanceSheet') return;
     setBsLoading(true);
     apiService.getBalanceSheetReport(endDate || undefined)
-      .then(res => setBsData(res.data))
+      .then(res => setBsData(res?.data || res))
       .catch(err => console.error('Balance Sheet API error:', err))
       .finally(() => setBsLoading(false));
   }, [reportType, endDate]);
@@ -340,7 +340,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     if (reportType !== 'DayBook') return;
     setDaybookLoading(true);
     apiService.getDaybookReport(startDate || undefined, endDate || undefined)
-      .then(res => setDaybookData(res.data))
+      .then(res => setDaybookData(res?.data || res))
       .catch(err => console.error('Day Book API error:', err))
       .finally(() => setDaybookLoading(false));
   }, [reportType, startDate, endDate]);
@@ -353,10 +353,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     if (reportType !== 'StockSummary') return;
     setStockLoading(true);
     apiService.getStockSummaryReport(startDate || undefined, endDate || undefined)
-      .then(res => setStockData(res.data))
+      .then(res => setStockData(res?.data || res))
       .catch(err => console.error('Stock Summary API error:', err))
       .finally(() => setStockLoading(false));
   }, [reportType, startDate, endDate]);
+
 
 
   // Fetch voucher details when a transaction is selected
