@@ -551,19 +551,32 @@ class DaybookReportView(BaseExcelView):
             vouchers = self.get_filtered_vouchers(request)
             data = []
             for v in vouchers:
+                v_id = v.get('id')
+                amt = float(v.get('amount') or v.get('total') or 0)
                 data.append({
+                    'id': v_id,
+                    'voucher_id': v_id,
+                    'reference_id': v_id,
+                    'source_id': v_id,
                     'date': str(v['date']),
                     'type': v.get('type', ''),
+                    'voucher_type': v.get('type', ''),
                     'voucher_number': v.get('voucher_number') or v.get('invoice_no') or '',
-                    'party': v.get('party') or v.get('account') or '',
-                    'amount': float(v.get('amount') or v.get('total') or 0),
+                    'invoice_no': v.get('voucher_number') or v.get('invoice_no') or '',
+                    'party': v.get('party') or '',
+                    'account': v.get('account') or '',
+                    'amount': amt,
+                    'total': amt,
+                    'total_amount': amt,
                     'narration': v.get('narration') or '',
+                    'raw_voucher': v,
                 })
             return Response({'results': data, 'count': len(data)})
         except Exception as e:
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=500)
+
 
 
 class TrialBalanceReportView(APIView):

@@ -5922,17 +5922,21 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         setInvoiceNo(rawVoucher.voucher_no || rawVoucher.voucher_number || viewVoucherData.voucherNo || '');
         setSupplierInvoiceDate(fallbackDate ? new Date(fallbackDate).toISOString().split('T')[0] : getTodayDate());
       } else if (mappedType === 'Payment' || mappedType === 'Receipt') {
+        const amt = parseFloat(rawVoucher.amount || rawVoucher.total_amount || rawVoucher.total || viewVoucherData.amount || viewVoucherData.debit || viewVoucherData.credit || 0);
         setLocalPrefilledData({
           voucherId: voucherId,
-          invoiceNumber: rawVoucher.voucher_no || rawVoucher.voucher_number || viewVoucherData.voucherNo || '',
+          invoiceNumber: rawVoucher.voucher_no || rawVoucher.voucher_number || viewVoucherData.voucher_number || viewVoucherData.voucherNo || '',
           invoiceDate: fallbackDate ? new Date(fallbackDate).toISOString().split('T')[0] : getTodayDate(),
-          sellerName: rawVoucher.party || fallbackParty,
-          account: rawVoucher.account || '',
-          totalAmount: rawVoucher.total_amount || viewVoucherData.debit || viewVoucherData.credit || 0,
+          sellerName: rawVoucher.party || viewVoucherData.party || fallbackParty,
+          account: rawVoucher.account || viewVoucherData.account || '',
+          totalAmount: amt,
+          amount: amt,
           narration: rawVoucher.narration || viewVoucherData.narration || '',
-          reference_number: rawVoucher.ref_no || '',
-          voucher_type: rawVoucher.voucher_type || rawVoucher.type || '',
+          reference_number: rawVoucher.ref_no || rawVoucher.reference_no || '',
+          voucher_type: rawVoucher.voucher_type || rawVoucher.type || mappedType,
           items: rawVoucher.items || rawVoucher.item_details?.line_items || rawVoucher.item_details?.items || [],
+          ...rawVoucher,
+          ...viewVoucherData
         } as any);
       } else if (mappedType === 'Contra') {
         if (rawVoucher.fromAccount || rawVoucher.from_account) setFromAccount(rawVoucher.fromAccount || rawVoucher.from_account);
