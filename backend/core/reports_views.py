@@ -543,28 +543,26 @@ class AIReportExcelView(BaseExcelView):
 # They are additive — they do NOT modify any existing Excel or API views.
 # =============================================================================
 
-class DaybookReportView(APIView):
-    """JSON API for Day Book report — additive endpoint."""
-    permission_classes = [IsAuthenticated, IsBranchMember]
+class DaybookReportView(BaseExcelView):
+    """JSON API for Day Book report — uses the same get_filtered_vouchers as Excel export."""
 
     def get(self, request):
-        from reports.flow import generate_daybook_data
-        start_date = request.query_params.get('startDate')
-        end_date = request.query_params.get('endDate')
         try:
-            vouchers = generate_daybook_data(request.user, start_date, end_date)
+            vouchers = self.get_filtered_vouchers(request)
             data = []
             for v in vouchers:
                 data.append({
-                    'date': str(v.date),
-                    'type': v.type,
-                    'voucher_number': v.voucher_number,
-                    'party': v.party or '',
-                    'amount': float(v.total or v.amount or 0),
-                    'narration': v.narration or '',
+                    'date': str(v['date']),
+                    'type': v.get('type', ''),
+                    'voucher_number': v.get('voucher_number') or v.get('invoice_no') or '',
+                    'party': v.get('party') or v.get('account') or '',
+                    'amount': float(v.get('amount') or v.get('total') or 0),
+                    'narration': v.get('narration') or '',
                 })
             return Response({'results': data, 'count': len(data)})
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({'error': str(e)}, status=500)
 
 
@@ -601,4 +599,54 @@ class BalanceSheetReportView(APIView):
             bs = generate_balance_sheet_data(request.user, end_date)
             return Response(bs)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=500)
+
+
+class StockSummaryReportView(APIView):
+    """JSON API for Stock Summary — uses inventory stock movement data."""
+    permission_classes = [IsAuthenticated, IsBranchMember]
+
+    def get(self, request):
+        start_date = request.query_params.get('startDate')
+        end_date = request.query_params.get('endDate')
+        try:
+            from inventory.models import InventoryStockItem, StockMovement
+            from django.db.models import Sum
+
+            tenant_id = request.tenant_id
+            items = InventoryStockItem.objects.filter(tenant_id=tenant_id)
+
+            movements_qs = StockMovement.objects.filter(tenant_id=tenant_id)
+            if start_date:
+                movements_qs = movements_qs.filter(date__gte=start_date)
+            if end_date:
+                movements_qs = movements_qs.filter(date__lte=end_date)
+
+            inward_agg = movements_qs.filter(movement_type='IN').values('item_id').annotate(total=Sum('quantity'))
+            outward_agg = movements_qs.filter(movement_type='OUT').values('item_id').annotate(total=Sum('quantity'))
+
+            inward_map = {r['item_id']: float(r['total'] or 0) for r in inward_agg}
+            outward_map = {r['item_id']: float(r['total'] or 0) for r in outward_agg}
+
+            data = []
+            for item in items:
+                inward = inward_map.get(item.id, 0)
+                outward = outward_map.get(item.id, 0)
+                opening = float(getattr(item, 'opening_balance', 0) or 0)
+                closing = opening + inward - outward
+                data.append({
+                    'name': item.name,
+                    'unit': getattr(item, 'unit', ''),
+                    'opening': opening,
+                    'inward': inward,
+                    'outward': outward,
+                    'closing': closing,
+                })
+
+            return Response({'results': data, 'count': len(data)})
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({'error': str(e)}, status=500)

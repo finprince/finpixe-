@@ -345,6 +345,18 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       .finally(() => setDaybookLoading(false));
   }, [reportType, startDate, endDate]);
 
+  const [stockData, setStockData] = useState<{ results: any[]; count: number } | null>(null);
+  const [stockLoading, setStockLoading] = useState(false);
+
+  // Fetch Stock Summary from backend when report type changes or dates change
+  useEffect(() => {
+    if (reportType !== 'StockSummary') return;
+    setStockLoading(true);
+    apiService.getStockSummaryReport(startDate || undefined, endDate || undefined)
+      .then(res => setStockData(res.data))
+      .catch(err => console.error('Stock Summary API error:', err))
+      .finally(() => setStockLoading(false));
+  }, [reportType, startDate, endDate]);
 
 
   // Fetch voucher details when a transaction is selected
@@ -2076,15 +2088,17 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Reference No</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Party</th>
             <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider print:hidden">Action</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Narration</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
-          {filteredVouchers.length > 0 ? filteredVouchers.map((v, idx) => {
-            const party = getVoucherParty(v);
-            return (
+          {daybookLoading && (
+            <tr><td colSpan={6} className="px-6 py-12 text-sm text-center text-gray-400">Loading day book…</td></tr>
+          )}
+          {!daybookLoading && (daybookData?.results || []).length > 0
+            ? (daybookData!.results).map((v, idx) => (
               <tr
-                key={`daybook-${v.type}-${v.date}-${v.id || idx}`}
+                key={`daybook-${v.type}-${v.date}-${idx}`}
                 className="hover:bg-indigo-50 transition-colors cursor-pointer group"
                 onClick={() => {
                   if (setViewVoucherData && onNavigate) {
@@ -2092,51 +2106,51 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                     onNavigate('Vouchers');
                   }
                 }}
-                title={`View Voucher`}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{new Date(v.date).toLocaleDateString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{new Date(v.date).toLocaleDateString('en-IN')}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{v.type}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-600">{(v as any).ref_no || (v as any).voucher_number || (v as any).invoice_no || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-600">{v.voucher_number || '-'}</td>
                 <td
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 group-hover:text-indigo-600 group-hover:font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 group-hover:text-indigo-600 group-hover:font-semibold transition-colors cursor-pointer"
                   onClick={(e) => {
+                    if (!v.party) return;
                     e.stopPropagation();
                     setReportType('LedgerReport');
-                    setDrillDownLedger(party);
-                    setDrillDownSourceType(v.type);
+                    setDrillDownLedger(v.party);
                   }}
-                  title={`View Ledger Report for ${party}`}
+                  title={v.party ? `View Ledger Report for ${v.party}` : ''}
                 >
-                  {party}
-                  <svg className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  {v.party || '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">₹{getVoucherAmount(v).toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-center print:hidden" onClick={(e) => {
-                  e.stopPropagation();
-                  if (setViewVoucherData && onNavigate) {
-                    setViewVoucherData(v);
-                    onNavigate('Vouchers');
-                  }
-                }}>
-                  <button className="text-indigo-600 hover:text-indigo-900 mx-auto inline-block" title="View Voucher">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  </button>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">₹{Number(v.amount).toFixed(2)}</td>
+                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={v.narration}>{v.narration || ''}</td>
+              </tr>
+            ))
+            : !daybookLoading && (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-sm text-center text-gray-500">
+                  {(startDate || endDate) ? 'No transactions found for the selected filter.' : 'No transactions found.'}
                 </td>
               </tr>
-            );
-          }) : (
-            <tr>
-              <td colSpan={5} className="px-6 py-12 text-sm text-center text-gray-500">
-                {(startDate || endDate) ? 'No transactions found for the selected filter.' : 'No transactions found.'}
-              </td>
-            </tr>
-          )}
+            )
+          }
         </tbody>
+        {!daybookLoading && daybookData && (
+          <tfoot className="bg-gray-50 border-t border-gray-200">
+            <tr>
+              <td colSpan={4} className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total ({daybookData.count} entries)</td>
+              <td className="px-6 py-3 text-sm font-mono text-right font-bold text-gray-900">
+                ₹{(daybookData.results || []).reduce((s, v) => s + Number(v.amount || 0), 0).toFixed(2)}
+              </td>
+              <td />
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
+
+
 
   // ═══ LEVEL 1: Summary view — Ledger Name + Balance only (clickable) ════════
   const renderLedgerSummary = () => (
@@ -4116,6 +4130,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Name</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit</th>
             <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Opening Stock</th>
             <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Inward</th>
             <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Outward</th>
@@ -4123,19 +4138,28 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
-          {stockSummaryData?.map(item => (
+          {stockLoading && (
+            <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading stock summary…</td></tr>
+          )}
+          {!stockLoading && (stockData?.results || []).map(item => (
             <tr key={item.name} className="hover:bg-gray-50 transition-colors">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{item.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.opening}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.inward}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.outward}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.closing}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.unit || '—'}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{Number(item.opening).toFixed(2)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-green-700">{Number(item.inward).toFixed(2)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-red-600">{Number(item.outward).toFixed(2)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">{Number(item.closing).toFixed(2)}</td>
             </tr>
           ))}
+          {!stockLoading && !(stockData?.results?.length) && (
+            <tr><td colSpan={6} className="text-center py-8 text-gray-400">No stock data available.</td></tr>
+          )}
         </tbody>
       </table>
     </div>
   );
+
+
 
   // GST Report Render Functions
   const renderGSTR1 = () => (
@@ -4610,11 +4634,128 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             </div>
 
             <div className="bg-white border rounded-[4px] overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b font-bold text-center">Balance Sheet</div>
-              <div className="p-8 text-center text-gray-500">
-                Feature coming soon
-              </div>
+              <div className="p-4 bg-gray-50 border-b font-bold text-center text-gray-800">Balance Sheet</div>
+              {bsLoading && (
+                <div className="p-8 text-center text-gray-400">Loading balance sheet…</div>
+              )}
+              {!bsLoading && !bsData && (
+                <div className="p-8 text-center text-gray-400">No data available. Select a date or ensure journal entries exist.</div>
+              )}
+              {!bsLoading && bsData && (
+                <>
+                  {bsData.is_balanced === false && (
+                    <div className="p-2 text-center text-xs bg-amber-50 text-amber-700 border-b border-amber-200">
+                      ⚠ Balance Sheet does not balance. Difference: ₹{Math.abs(Number(bsData.assets?.total || 0) - Number((bsData.liabilities?.total || 0) + (bsData.capital?.total || 0))).toFixed(2)}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 divide-x divide-gray-200">
+                    {/* LEFT — Assets */}
+                    <div className="p-4">
+                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Assets</h3>
+                      {/* Fixed Assets */}
+                      {(bsData.assets?.fixed_assets?.length > 0) && (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Fixed Assets</p>
+                          {bsData.assets.fixed_assets.map((item: any) => (
+                            <div key={item.name} className="flex justify-between py-1 text-sm">
+                              <span className="text-gray-700">{item.name}</span>
+                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                            <span className="text-gray-600">Total Fixed Assets</span>
+                            <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_fixed_assets).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {/* Current Assets */}
+                      {(bsData.assets?.current_assets?.length > 0) && (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Assets</p>
+                          {bsData.assets.current_assets.map((item: any) => (
+                            <div key={item.name} className="flex justify-between py-1 text-sm">
+                              <span className="text-gray-700">{item.name}</span>
+                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                            <span className="text-gray-600">Total Current Assets</span>
+                            <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_current_assets).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
+                        <span>Total Assets</span>
+                        <span className="font-mono">₹{Number(bsData.assets?.total || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                    {/* RIGHT — Liabilities + Capital */}
+                    <div className="p-4">
+                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Liabilities & Capital</h3>
+                      {/* Capital */}
+                      {(bsData.capital?.capital_account?.length > 0) && (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Capital</p>
+                          {bsData.capital.capital_account.map((item: any) => (
+                            <div key={item.name} className="flex justify-between py-1 text-sm">
+                              <span className="text-gray-700">{item.name}</span>
+                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                            </div>
+                          ))}
+                          {bsData.capital.retained_earnings !== 0 && (
+                            <div className="flex justify-between py-1 text-sm">
+                              <span className="text-gray-700">Retained Earnings</span>
+                              <span className={`font-mono font-semibold ${Number(bsData.capital.retained_earnings) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                ₹{Number(bsData.capital.retained_earnings).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                            <span className="text-gray-600">Total Capital</span>
+                            <span className="font-mono text-gray-900">₹{Number(bsData.capital.total).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {/* Long-term Liabilities */}
+                      {(bsData.liabilities?.long_term_liabilities?.length > 0) && (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Long-term Liabilities</p>
+                          {bsData.liabilities.long_term_liabilities.map((item: any) => (
+                            <div key={item.name} className="flex justify-between py-1 text-sm">
+                              <span className="text-gray-700">{item.name}</span>
+                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {/* Current Liabilities */}
+                      {(bsData.liabilities?.current_liabilities?.length > 0) && (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Liabilities</p>
+                          {bsData.liabilities.current_liabilities.map((item: any) => (
+                            <div key={item.name} className="flex justify-between py-1 text-sm">
+                              <span className="text-gray-700">{item.name}</span>
+                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {(bsData.liabilities?.total > 0) && (
+                        <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                          <span className="text-gray-600">Total Liabilities</span>
+                          <span className="font-mono text-gray-900">₹{Number(bsData.liabilities.total).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
+                        <span>Total Liabilities + Capital</span>
+                        <span className="font-mono">₹{(Number(bsData.liabilities?.total || 0) + Number(bsData.capital?.total || 0)).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+
           </>
         )}
         {reportType === 'StockSummary' && (

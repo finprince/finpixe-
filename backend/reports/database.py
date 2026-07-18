@@ -64,18 +64,45 @@ def get_vouchers_for_ledger(tenant_id, ledger_name, start_date=None, end_date=No
 # ============================================================================
 
 def get_trial_balance_data(tenant_id, start_date=None, end_date=None):
-    """Get aggregated ledger balances for trial balance with date filtering."""
+    """Get aggregated ledger balances for trial balance with date filtering.
+    Groups by ledger FK first, then falls back to ledger_name for unlinked entries.
+    """
+    from django.db.models import Value
+    from django.db.models.functions import Coalesce
+
     entries = JournalEntry.objects.filter(tenant_id=tenant_id)
     
     if start_date:
         entries = entries.filter(transaction_date__gte=start_date)
     if end_date:
         entries = entries.filter(transaction_date__lte=end_date)
-        
-    return entries.values('ledger', 'ledger__name').annotate(
+
+    # Aggregate by ledger FK id when available; unlinked entries have ledger=None
+    # We union both groups: FK-linked entries grouped by FK, non-FK by ledger_name
+    from collections import defaultdict
+
+    # Raw aggregate with both fields — Python-level merge handles the coalesce
+    raw = entries.values('ledger_id', 'ledger__name', 'ledger_name').annotate(
         total_debit=Sum('debit'),
         total_credit=Sum('credit')
-    ).order_by('ledger__name')
+    )
+
+    # Merge by effective name
+    merged = defaultdict(lambda: {'total_debit': 0, 'total_credit': 0})
+    for item in raw:
+        # Prefer FK ledger name, fall back to stored ledger_name string
+        name = item['ledger__name'] or item['ledger_name'] or '(Unknown)'
+        merged[name]['total_debit'] += float(item['total_debit'] or 0)
+        merged[name]['total_credit'] += float(item['total_credit'] or 0)
+
+    result = []
+    for name, vals in sorted(merged.items()):
+        result.append({
+            'ledger__name': name,
+            'total_debit': vals['total_debit'],
+            'total_credit': vals['total_credit'],
+        })
+    return result
 
 
 # ============================================================================

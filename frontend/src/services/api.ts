@@ -419,6 +419,13 @@ class ApiService {
         return httpClient.get<any>(`/api/reports/balancesheet/json/?${params.toString()}`);
     }
 
+    async getStockSummaryReport(startDate?: string, endDate?: string) {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return httpClient.get<any>(`/api/reports/stocksummary/json/?${params.toString()}`);
+    }
+
     async getGSTR3BPreview(month: string, year: string) {
         return httpClient.get<any>(`/api/gst/reconciliation/gstr3b_preview/?month=${month}&year=${year}`);
     }
