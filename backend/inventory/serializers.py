@@ -18,7 +18,10 @@ from .models import (
     InventoryOperationScrapItem,
     InventoryOperationOutwardItem,
     InventoryOperationNewGRNItem,
-    InventoryOperationDeliveryChallan
+    InventoryOperationDeliveryChallan,
+    InventoryStockGroup,
+    InventoryStockItem,
+    StockMovement
 )
 import json
 from decimal import Decimal
@@ -694,3 +697,24 @@ class InventoryOperationNewGRNSerializer(InventoryOperationItemSyncMixin, serial
         model = InventoryOperationNewGRN
         fields = '__all__'
         read_only_fields = ['tenant_id', 'id', 'created_at', 'updated_at']
+
+# --- Centralized Stock Summary Serializers ---
+
+class InventoryStockGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryStockGroup
+        fields = '__all__'
+        read_only_fields = ['tenant_id', 'id', 'created_at', 'updated_at']
+
+class InventoryStockItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryStockItem
+        fields = '__all__'
+        read_only_fields = ['tenant_id', 'id', 'created_at', 'updated_at']
+
+class StockMovementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StockMovement
+        fields = '__all__'
+        read_only_fields = ['tenant_id', 'id', 'created_at', 'updated_at']
+
