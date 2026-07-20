@@ -2012,7 +2012,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                 </div>
             </div>
 
-            {/* Inline Create Vendor Modal triggered during Upload to Finpixe */}
+            {/* Inline Create Vendor Modal triggered during Upload to Kiki */}
             {isCreateVendorModalOpen && (
                 <CreateNewVendorFullModal
                     prefilledData={extractedVendorData || {}}

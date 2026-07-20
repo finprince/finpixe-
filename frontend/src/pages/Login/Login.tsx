@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { apiService } from '../../services';
 import PremiumBackground from '../../components/PremiumBackground';
 import Icon from '../../components/Icon';
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import KIKILogo from '../../assets/branding/logo';
 
 interface LoginPageProps {
     onLogin: (payload: any) => void;
@@ -71,10 +71,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
     };
 
     const inputClass = (hasError?: string) =>
-        `w-full h-[42px] bg-white border rounded-xl px-3.5 text-xs font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none transition-all ${
+        `w-full h-[42px] bg-[#FFF9F4] border rounded-xl px-3.5 text-xs font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none transition-all ${
             hasError
                 ? 'border-rose-400 focus:border-rose-500 bg-rose-50/30'
-                : 'border-[#C9CCFF]/40 focus:border-[#4B3CFF]/50'
+                : 'border-[#FED7AA]/60 focus:border-[#F97316]/50'
         }`;
 
     return (
@@ -84,15 +84,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                 {/* Compact Brand Header */}
                 <div className="text-center mb-6 w-full flex flex-col items-center">
                     <div className="flex items-center justify-center gap-3 mb-2.5 scale-[0.9]">
-                        <div className="w-12 h-12 rounded-[14px] bg-white border border-[#E0E2FF] shadow-[0_12px_28px_rgba(75,60,255,0.1)] flex items-center justify-center overflow-hidden">
+                        <div className="w-12 h-12 rounded-[14px] bg-[#FFF3E8] border border-[#FED7AA] shadow-[0_12px_28px_rgba(249,115,22,0.15)] flex items-center justify-center overflow-hidden">
                             <img
-                                src={finpixeLogo}
-                                alt="Finpixe logo"
-                                className="w-10 h-10 object-contain drop-shadow-[0_2px_4px_rgba(75,60,255,0.15)]"
+                                src={KIKILogo}
+                                alt="KIKI logo"
+                                className="w-10 h-10 object-contain drop-shadow-[0_2px_4px_rgba(249,115,22,0.15)]"
                             />
                         </div>
                         <h1 className="text-4xl font-black text-[#1a1a2e] tracking-widest">
-                            FINPIXE
+                            KIKI
                         </h1>
                     </div>
                     <p className="text-[9px] font-black text-[#5a5f9e] uppercase tracking-[0.4em] leading-none">
@@ -101,12 +101,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                 </div>
 
                 {/* Login Card */}
-                <div className="w-full p-[1.5px] rounded-[16px] bg-gradient-to-br from-[#4B3CFF] via-[#7A6CFF] to-[#A5A8FF] shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-                    <div className="bg-white/90 backdrop-blur-md rounded-[14.5px] p-7 w-full flex flex-col items-start">
+                <div className="w-full rounded-[16px] border border-white/15 bg-[#FFF6EE]/92 backdrop-blur-xl shadow-[0_12px_32px_rgba(15,23,42,0.08)] sm:shadow-[0_24px_64px_rgba(15,23,42,0.10)] overflow-hidden">
+                    <div className="p-7 w-full flex flex-col items-start">
                         {/* Domain badge */}
-                        <div className="flex items-center gap-2 px-2.5 py-1 bg-indigo-50 border border-indigo-100 rounded-lg mb-5 w-fit">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                            <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">
+                        <div className="flex items-center gap-2 px-2.5 py-1 bg-orange-50 border border-orange-100 rounded-lg mb-5 w-fit">
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                            <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">
                                 Business Portal Access
                             </span>
                         </div>
@@ -174,7 +174,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                                     />
                                     <button
                                         type="button"
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#4B3CFF] transition-colors"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-orange-600 transition-colors"
                                         onClick={() => setShowPassword(!showPassword)}
                                     >
                                         <Icon name={showPassword ? "eye-off" : "eye"} className="w-4 h-4" />
@@ -189,7 +189,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full h-[46px] bg-[#4B3CFF] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#3d31d4] hover:scale-[1.01] active:scale-[0.98] transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                                    className="w-full h-[46px] bg-[#F97316] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#EA580C] hover:scale-[1.01] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
                                 >
                                     {loading ? 'Authenticating...' : 'Sign In Now'}
                                 </button>
@@ -199,7 +199,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                         <footer className="w-full pt-1 mt-1 text-center space-y-2">
                             <button
                                 onClick={handleBackToPortal}
-                                className="w-full py-3 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hover:bg-slate-100 hover:text-[#4B3CFF] transition-all flex items-center justify-center gap-2"
+                                className="w-full py-3 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hover:bg-slate-100 hover:text-[#F97316] transition-all flex items-center justify-center gap-2"
                             >
                                 <Icon name="arrow-left" size={14} />
                                 Back to Portal Selection
@@ -207,7 +207,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
 
                             <button
                                 onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
-                                className="w-full py-2.5 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] hover:text-[#4B3CFF] transition-all flex items-center justify-center gap-2"
+                                className="w-full py-2.5 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] hover:text-[#F97316] transition-all flex items-center justify-center gap-2"
                             >
                                 <Icon name="link" size={12} />
                                 Return to Main Website

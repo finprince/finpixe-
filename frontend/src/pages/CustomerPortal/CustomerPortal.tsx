@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
@@ -217,8 +217,8 @@ const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPref
             <div className="erp-section-title">
                 <div>
                     <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#E0E2FF] shadow-[0_8px_16px_rgba(75,60,255,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
           </div>
           <div>
 <h1 className="page-title">Customer Portal</h1>
@@ -1704,10 +1704,10 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
 
                                 {/* Dynamic Vendor Logic */}
                                 {isVendor && (
-                                    <div className="pl-4 border-l-2 border-indigo-200 space-y-4">
+                                    <div className="pl-4 border-l-2 border-[#F97316] space-y-4">
                                         {vendorSearchStatus === 'searching' && (
-                                            <div className="flex items-center text-indigo-600 text-sm">
-                                                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <div className="flex items-center text-[#F97316] text-sm">
+                                                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-[#F97316]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                 </svg>
@@ -1718,25 +1718,25 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                         {vendorSearchStatus === 'found' && (
                                             <div className="space-y-3 animate-fadeIn">
                                                 <p className="text-sm font-semibold text-gray-800">
-                                                    <span className="text-indigo-600">✓</span> Vendor found matching PAN/Name.
+                                                    <span className="text-[#F97316]">✓</span> Vendor found matching PAN/Name.
                                                 </p>
 
                                                 <div className="flex items-center gap-4">
                                                     <label className="text-sm text-gray-700">Link the customer to this vendor?</label>
                                                     <div className="flex gap-4">
                                                         <label className="flex items-center gap-1 cursor-pointer">
-                                                            <input type="radio" name="linkVendor" checked={linkVendor === true} onChange={() => setLinkVendor(true)} className="text-indigo-600 w-4 h-4" />
+                                                            <input type="radio" name="linkVendor" checked={linkVendor === true} onChange={() => setLinkVendor(true)} className="text-[#F97316] w-4 h-4" />
                                                             <span className="text-sm">Yes</span>
                                                         </label>
                                                         <label className="flex items-center gap-1 cursor-pointer">
-                                                            <input type="radio" name="linkVendor" checked={linkVendor === false} onChange={() => setLinkVendor(false)} className="text-indigo-600 w-4 h-4" />
+                                                            <input type="radio" name="linkVendor" checked={linkVendor === false} onChange={() => setLinkVendor(false)} className="text-[#F97316] w-4 h-4" />
                                                             <span className="text-sm">No</span>
                                                         </label>
                                                     </div>
                                                 </div>
 
                                                 {linkVendor === true && (
-                                                    <div className="p-3 bg-indigo-50 rounded border border-indigo-100 text-sm text-indigo-800 font-medium">
+                                                    <div className="p-3 bg-[#FFF7ED] rounded border border-[#FED7AA] text-sm text-[#C2410C] font-medium">
                                                         Vendor Code: VEND-001 - Acme Supplies (Linked)
                                                     </div>
                                                 )}
@@ -1752,11 +1752,11 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                     <label className="text-sm text-gray-700">Create a Vendor?</label>
                                                     <div className="flex gap-4">
                                                         <label className="flex items-center gap-1 cursor-pointer">
-                                                            <input type="radio" name="createVendor" checked={createVendor === true} onChange={() => setCreateVendor(true)} className="text-indigo-600 w-4 h-4" />
+                                                            <input type="radio" name="createVendor" checked={createVendor === true} onChange={() => setCreateVendor(true)} className="text-[#F97316] w-4 h-4" />
                                                             <span className="text-sm">Yes</span>
                                                         </label>
                                                         <label className="flex items-center gap-1 cursor-pointer">
-                                                            <input type="radio" name="createVendor" checked={createVendor === false} onChange={() => setCreateVendor(false)} className="text-indigo-600 w-4 h-4" />
+                                                            <input type="radio" name="createVendor" checked={createVendor === false} onChange={() => setCreateVendor(false)} className="text-[#F97316] w-4 h-4" />
                                                             <span className="text-sm">No</span>
                                                         </label>
                                                     </div>
@@ -1774,7 +1774,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                         type="button"
                                         onClick={() => handleCustomerFieldChange('gst_tds_applicable', true)}
                                         className={`px-6 py-1.5 text-sm border-2 rounded focus:outline-none transition-colors ${customerFormData.gst_tds_applicable === true
-                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                                            ? 'border-[#F97316] bg-[#FFF7ED] text-[#C2410C] font-medium'
                                             : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                             }`}
                                     >
@@ -1784,7 +1784,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                         type="button"
                                         onClick={() => handleCustomerFieldChange('gst_tds_applicable', false)}
                                         className={`px-6 py-1.5 text-sm border-2 rounded focus:outline-none transition-colors ${customerFormData.gst_tds_applicable === false
-                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                                            ? 'border-[#F97316] bg-[#FFF7ED] text-[#C2410C] font-medium'
                                             : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                             }`}
                                     >
@@ -1837,7 +1837,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                         }
                                         setActiveTab('GST Details');
                                     }}
-                                    className="px-6 py-2 bg-indigo-600 text-white rounded-[4px] text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                    className="px-6 py-2 bg-[#F97316] text-white rounded-[4px] text-sm font-medium hover:bg-[#C2410C] transition-colors"
                                 >
                                     Next
                                 </button>
@@ -1862,7 +1862,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             <label className="block text-sm font-semibold text-gray-700 mb-2">Taxpayer Type</label>
                                             <div className="relative">
                                                 <input type="text" value="Unregistered" readOnly className="w-full px-4 py-2 border border-green-200 rounded-[4px] bg-green-50 text-slate-700 font-medium ring-1 ring-green-200" />
-                                                <span className="absolute right-3 top-2.5 text-xs text-indigo-600">Auto-set</span>
+                                                <span className="absolute right-3 top-2.5 text-xs text-[#F97316]">Auto-set</span>
                                             </div>
                                         </div>
                                     </>
@@ -1872,7 +1872,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             <label className="block text-sm font-semibold text-gray-700 mb-2">GSTIN No. <span className="text-red-500">*</span></label>
                                             <input
                                                 type="text"
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                                 placeholder={selectedGSTINs.length > 0 ? `${selectedGSTINs.length} selected... Type to add more` : "Enter or Select GSTIN"}
                                                 value={gstInput}
                                                 onChange={(e) => setGstInput(e.target.value)}
@@ -1885,13 +1885,13 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                     {mockGSTINs.map(gst => (
                                                         <div
                                                             key={gst}
-                                                            className={`px-4 py-2 hover:bg-indigo-50 cursor-pointer flex items-center gap-3 text-sm ${selectedGSTINs.includes(gst) ? 'bg-indigo-50/50' : ''}`}
+                                                            className={`px-4 py-2 hover:bg-[#FFF7ED] cursor-pointer flex items-center gap-3 text-sm ${selectedGSTINs.includes(gst) ? 'bg-[#FFF7ED]/50' : ''}`}
                                                             onMouseDown={(e) => {
                                                                 e.preventDefault(); // Prevent input blur
                                                                 handleGstSelect(gst);
                                                             }}
                                                         >
-                                                            <input type="checkbox" checked={selectedGSTINs.includes(gst)} readOnly className="w-4 h-4 text-indigo-600 rounded" />
+                                                            <input type="checkbox" checked={selectedGSTINs.includes(gst)} readOnly className="w-4 h-4 text-[#F97316] rounded" />
                                                             <span className="text-gray-700">{gst}</span>
                                                         </div>
                                                     ))}
@@ -1915,7 +1915,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             type="checkbox"
                                             checked={isUnregistered}
                                             onChange={(e) => setIsUnregistered(e.target.checked)}
-                                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                            className="w-4 h-4 text-[#F97316] rounded focus:ring-[#F97316]"
                                         />
                                         <span className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Customer is Unregistered</span>
                                     </label>
@@ -1954,7 +1954,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Reference Name</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.referenceName}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'referenceName', e.target.value)}
                                                                         placeholder="e.g. Warehouse, Main Office"
@@ -1964,7 +1964,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Address Line 1</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.addressLine1 || ''}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'addressLine1', e.target.value)}
                                                                         placeholder="Enter address line 1"
@@ -1974,7 +1974,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Address Line 2</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.addressLine2 || ''}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'addressLine2', e.target.value)}
                                                                         placeholder="Enter address line 2"
@@ -1984,7 +1984,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Address Line 3</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.addressLine3 || ''}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'addressLine3', e.target.value)}
                                                                         placeholder="Enter address line 3"
@@ -1993,7 +1993,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                 <div>
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Country</label>
                                                                     <select
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                                         value={Country.getAllCountries().find(c => c.name === branch.country)?.isoCode || ''}
                                                                         onChange={(e) => {
                                                                             const countryCode = e.target.value;
@@ -2014,7 +2014,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                 <div>
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">State</label>
                                                                     <select
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                                         value={getAvailableStates(Country.getAllCountries().find(c => c.name === branch.country)?.isoCode || '').find(s => s.name === branch.state)?.isoCode || ''}
                                                                         onChange={(e) => {
                                                                             const countryCode = Country.getAllCountries().find(c => c.name === branch.country)?.isoCode || '';
@@ -2044,7 +2044,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
 
                                                                         return cities.length > 0 ? (
                                                                             <select
-                                                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                                                 value={branch.city || ''}
                                                                                 onChange={(e) => handleManualBranchChange(branch.id, 'city', e.target.value)}
                                                                                 disabled={!branch.state}
@@ -2059,7 +2059,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                         ) : (
                                                                             <input
                                                                                 type="text"
-                                                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                                 value={branch.city || ''}
                                                                                 onChange={(e) => handleManualBranchChange(branch.id, 'city', e.target.value)}
                                                                                 placeholder="Enter city"
@@ -2072,7 +2072,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Pincode</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.pincode || ''}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'pincode', e.target.value)}
                                                                         placeholder="Enter pincode"
@@ -2082,7 +2082,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Contact Person</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.contactPerson}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'contactPerson', e.target.value)}
                                                                     />
@@ -2091,7 +2091,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Contact Number</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.contactNumber}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'contactNumber', e.target.value)}
                                                                     />
@@ -2100,7 +2100,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Email Address</label>
                                                                     <input
                                                                         type="email"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.email}
                                                                         onChange={(e) => handleManualBranchChange(branch.id, 'email', e.target.value)}
                                                                     />
@@ -2112,7 +2112,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             })}
                                             <button
                                                 onClick={handleAddManualBranch}
-                                                className="w-full py-2 border-2 border-dashed border-gray-300 rounded-[4px] text-gray-500 font-medium hover:border-indigo-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+                                                className="w-full py-2 border-2 border-dashed border-gray-300 rounded-[4px] text-gray-500 font-medium hover:border-[#F97316] hover:text-[#C2410C] transition-colors flex items-center justify-center gap-2"
                                             >
                                                 <span>+</span> Add Another Branch
                                             </button>
@@ -2130,10 +2130,10 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 const isExpanded = expandedBranches.includes(index + 1);
 
                                                 return (
-                                                    <div key={gstin} className="border border-indigo-100 rounded-[4px] overflow-hidden bg-white shadow-none border border-slate-200-none border border-slate-200">
+                                                    <div key={gstin} className="border border-[#FED7AA] rounded-[4px] overflow-hidden bg-white shadow-none border border-slate-200-none border border-slate-200">
                                                         {/* Header */}
                                                         <div
-                                                            className="flex items-center justify-between px-6 py-4 bg-indigo-50/50 cursor-pointer hover:bg-indigo-50"
+                                                            className="flex items-center justify-between px-6 py-4 bg-[#FFF7ED]/50 cursor-pointer hover:bg-[#FFF7ED]"
                                                             onClick={() => toggleBranchExpand(index + 1)}
                                                         >
                                                             <div className="flex items-center gap-3">
@@ -2173,7 +2173,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Address Line 1</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.addressLine1 || ''}
                                                                         onChange={(e) => handleRegisteredBranchChange(gstin, 'addressLine1', e.target.value)}
                                                                         placeholder="Enter address line 1"
@@ -2183,7 +2183,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Address Line 2</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.addressLine2 || ''}
                                                                         onChange={(e) => handleRegisteredBranchChange(gstin, 'addressLine2', e.target.value)}
                                                                         placeholder="Enter address line 2"
@@ -2193,7 +2193,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <label className="block text-xs font-medium text-gray-500 mb-1">Address Line 3</label>
                                                                     <input
                                                                         type="text"
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         value={branch.addressLine3 || ''}
                                                                         onChange={(e) => handleRegisteredBranchChange(gstin, 'addressLine3', e.target.value)}
                                                                         placeholder="Enter address line 3"
@@ -2203,7 +2203,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <div>
                                                                         <label className="block text-xs font-medium text-gray-500 mb-1">Country</label>
                                                                         <select
-                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                                             value={Country.getAllCountries().find(c => c.name === branch.country)?.isoCode || ''}
                                                                             onChange={(e) => {
                                                                                 const countryCode = e.target.value;
@@ -2224,7 +2224,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                     <div>
                                                                         <label className="block text-xs font-medium text-gray-500 mb-1">State</label>
                                                                         <select
-                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                                             value={getAvailableStates(Country.getAllCountries().find(c => c.name === branch.country)?.isoCode || '').find(s => s.name === branch.state)?.isoCode || ''}
                                                                             onChange={(e) => {
                                                                                 const countryCode = Country.getAllCountries().find(c => c.name === branch.country)?.isoCode || '';
@@ -2256,7 +2256,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
 
                                                                             return cities.length > 0 ? (
                                                                                 <select
-                                                                                    className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                                                    className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                                                     value={branch.city || ''}
                                                                                     onChange={(e) => handleRegisteredBranchChange(gstin, 'city', e.target.value)}
                                                                                     disabled={!branch.state}
@@ -2271,7 +2271,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                             ) : (
                                                                                 <input
                                                                                     type="text"
-                                                                                    className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                                    className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                                     value={branch.city || ''}
                                                                                     onChange={(e) => handleRegisteredBranchChange(gstin, 'city', e.target.value)}
                                                                                     placeholder="Enter city"
@@ -2284,7 +2284,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                         <label className="block text-xs font-medium text-gray-500 mb-1">Pincode</label>
                                                                         <input
                                                                             type="text"
-                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                             value={branch.pincode || ''}
                                                                             onChange={(e) => handleRegisteredBranchChange(gstin, 'pincode', e.target.value)}
                                                                             placeholder="Enter pincode"
@@ -2298,7 +2298,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                         type="text"
                                                                         value={branch.defaultRef}
                                                                         onChange={(e) => handleRegisteredBranchChange(gstin, 'defaultRef', e.target.value)}
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                     />
                                                                 </div>
 
@@ -2309,7 +2309,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                             type="text"
                                                                             value={branch.contactPerson || ''}
                                                                             onChange={(e) => handleRegisteredBranchChange(gstin, 'contactPerson', e.target.value)}
-                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -2318,7 +2318,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                             type="text"
                                                                             value={branch.contactNumber || ''}
                                                                             onChange={(e) => handleRegisteredBranchChange(gstin, 'contactNumber', e.target.value)}
-                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -2329,7 +2329,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                         type="email"
                                                                         value={branch.email || ''}
                                                                         onChange={(e) => handleRegisteredBranchChange(gstin, 'email', e.target.value)}
-                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                                     />
                                                                 </div>
                                                             </div>
@@ -2361,7 +2361,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('Products/Services')}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-[4px] text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                        className="px-6 py-2 bg-[#F97316] text-white rounded-[4px] text-sm font-medium hover:bg-[#C2410C] transition-colors"
                                     >
                                         Next
                                     </button>
@@ -2396,7 +2396,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <div className="text-sm text-gray-500 font-medium">{index + 1}</div>
                                                 <div>
                                                     <select
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                         value={row.itemCode}
                                                         onChange={(e) => handleProductRowChange(row.id, 'itemCode', e.target.value)}
                                                     >
@@ -2408,7 +2408,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 </div>
                                                 <div>
                                                     <select
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                         value={row.itemName}
                                                         onChange={(e) => handleProductRowChange(row.id, 'itemName', e.target.value)}
                                                     >
@@ -2422,7 +2422,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <div>
                                                     <input
                                                         type="text"
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                         placeholder="HSN/SAC"
                                                         value={(row as any).hsnCode || ''}
                                                         onChange={(e) => handleProductRowChange(row.id, 'hsnCode', e.target.value)}
@@ -2436,7 +2436,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         </span>
                                                     ) : (
                                                         <select
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                             value={(row as any).uom || ''}
                                                             onChange={(e) => handleProductRowChange(row.id, 'uom', e.target.value)}
                                                         >
@@ -2451,7 +2451,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <div>
                                                     <input
                                                         type="text"
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                         placeholder="Optional"
                                                         value={row.custItemCode}
                                                         onChange={(e) => handleProductRowChange(row.id, 'custItemCode', e.target.value)}
@@ -2461,7 +2461,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <div>
                                                     <input
                                                         type="text"
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                         placeholder="Optional"
                                                         value={row.custItemName}
                                                         onChange={(e) => handleProductRowChange(row.id, 'custItemName', e.target.value)}
@@ -2473,7 +2473,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Packing Notes</label>
                                                 <input
                                                     type="text"
-                                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                     placeholder="Enter packing notes for this item..."
                                                     value={row.packingNotes || ''}
                                                     onChange={(e) => handleProductRowChange(row.id, 'packingNotes', e.target.value)}
@@ -2488,7 +2488,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                             <div className="mb-12">
                                 <button
                                     onClick={handleAddProductRow}
-                                    className="w-10 h-10 flex items-center justify-center rounded-[4px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-none border border-slate-200-none border border-slate-200 border border-indigo-200"
+                                    className="w-10 h-10 flex items-center justify-center rounded-[4px] bg-[#FFF7ED] text-[#F97316] hover:bg-[#FED7AA] transition-colors shadow-none border border-slate-200-none border border-slate-200 border border-[#FED7AA]"
                                 >
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -2516,7 +2516,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('TDS & Other Statutory Details')}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-[4px] text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                        className="px-6 py-2 bg-[#F97316] text-white rounded-[4px] text-sm font-medium hover:bg-[#C2410C] transition-colors"
                                     >
                                         Next
                                     </button>
@@ -2539,14 +2539,14 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 bg-white"
+                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 bg-white"
                                             placeholder="UDYAM-XX-00-000000"
                                             value={statutoryDetails.msmeNo}
                                             onChange={(e) => setStatutoryDetails({ ...statutoryDetails, msmeNo: e.target.value })}
                                         />
                                         <button
                                             type="button"
-                                            className="px-4 py-2 bg-indigo-50/50 border border-indigo-300 rounded-[4px] hover:bg-indigo-50 transition-colors flex items-center gap-2 text-slate-700"
+                                            className="px-4 py-2 bg-[#FFF7ED]/50 border border-[#FED7AA] rounded-[4px] hover:bg-[#FFF7ED] transition-colors flex items-center gap-2 text-slate-700"
                                             title="Upload MSME Registration Certificate"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2562,7 +2562,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 bg-white"
+                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 bg-white"
                                             placeholder="14-digit License Number"
                                             value={statutoryDetails.fssaiNo}
                                             onChange={(e) => {
@@ -2575,7 +2575,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                         />
                                         <button
                                             type="button"
-                                            className="px-4 py-2 bg-indigo-50/50 border border-indigo-300 rounded-[4px] hover:bg-indigo-50 transition-colors flex items-center gap-2 text-slate-700"
+                                            className="px-4 py-2 bg-[#FFF7ED]/50 border border-[#FED7AA] rounded-[4px] hover:bg-[#FFF7ED] transition-colors flex items-center gap-2 text-slate-700"
                                             title="Upload FSSAI License / Registration Certificate"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2591,14 +2591,14 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 bg-white"
+                                            className="flex-1 px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 bg-white"
                                             placeholder="10-DIGIT IEC CODE"
                                             value={statutoryDetails.iecCode}
                                             onChange={(e) => setStatutoryDetails({ ...statutoryDetails, iecCode: e.target.value })}
                                         />
                                         <button
                                             type="button"
-                                            className="px-4 py-2 bg-indigo-50/50 border border-indigo-300 rounded-[4px] hover:bg-indigo-50 transition-colors flex items-center gap-2 text-slate-700"
+                                            className="px-4 py-2 bg-[#FFF7ED]/50 border border-[#FED7AA] rounded-[4px] hover:bg-[#FFF7ED] transition-colors flex items-center gap-2 text-slate-700"
                                             title="Upload IEC Certificate"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2612,7 +2612,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                         EOU Status
                                     </label>
                                     <select
-                                        className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                         value={statutoryDetails.eouStatus}
                                         onChange={(e) => setStatutoryDetails({ ...statutoryDetails, eouStatus: e.target.value })}
                                     >
@@ -2629,7 +2629,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <span className="text-sm text-gray-500">Letter of Permission</span>
                                                 <button
                                                     type="button"
-                                                    className="p-1.5 border border-indigo-200 bg-indigo-50/50 rounded-[4px] text-slate-700 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                                                    className="p-1.5 border border-[#FED7AA] bg-[#FFF7ED]/50 rounded-[4px] text-slate-700 hover:text-[#C2410C] hover:border-[#FED7AA] hover:bg-[#FFF7ED] transition-colors"
                                                     title="Upload Letter of Permission"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2641,7 +2641,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 <span className="text-sm text-gray-500">Green Card</span>
                                                 <button
                                                     type="button"
-                                                    className="p-1.5 border border-indigo-200 bg-indigo-50/50 rounded-[4px] text-slate-700 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                                                    className="p-1.5 border border-[#FED7AA] bg-[#FFF7ED]/50 rounded-[4px] text-slate-700 hover:text-[#C2410C] hover:border-[#FED7AA] hover:bg-[#FFF7ED] transition-colors"
                                                     title="Upload Green Card"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2667,8 +2667,8 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             tcsEnabled: false,
                                         })}
                                         className={`px-6 py-2 text-sm font-semibold rounded-[4px] border transition-colors ${statutoryDetails.taxType === 'TDS'
-                                            ? 'bg-indigo-600 text-white border-indigo-600'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                                            ? 'bg-[#F97316] text-white border-[#F97316]'
+                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#FDBA74]'
                                             }`}
                                     >TDS</button>
                                     <button
@@ -2680,8 +2680,8 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             tdsEnabled: false,
                                         })}
                                         className={`px-6 py-2 text-sm font-semibold rounded-[4px] border transition-colors ${statutoryDetails.taxType === 'TCS'
-                                            ? 'bg-emerald-600 text-white border-emerald-600'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
+                                            ? 'bg-[#F97316] text-white border-[#F97316]'
+                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#FDBA74]'
                                             }`}
                                     >TCS</button>
                                     <button
@@ -2740,12 +2740,12 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                             const isCurrentlyViewed = selectedTcsInfo && `${selectedTcsInfo.section} ${selectedTcsInfo.name}` === fullString && showTcsInfo;
 
                                                             return (
-                                                                <div key={fullString} className={`flex items-center justify-between p-2 rounded-[4px] border transition-all ${isCurrentlyViewed ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`}>
+                                                                <div key={fullString} className={`flex items-center justify-between p-2 rounded-[4px] border transition-all ${isCurrentlyViewed ? 'bg-[#FFF7ED] border-[#FED7AA] shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`}>
                                                                     <span className="text-[13px] text-gray-700 font-medium truncate flex-1 pl-1">{fullString}</span>
                                                                     <div className="flex items-center gap-1 ml-4">
                                                                         <button
                                                                             type="button"
-                                                                            className={`p-1.5 rounded-full transition-colors ${isCurrentlyViewed ? 'text-emerald-600 bg-emerald-100' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                                                                            className={`p-1.5 rounded-full transition-colors ${isCurrentlyViewed ? 'text-[#F97316] bg-[#FFF7ED]' : 'text-gray-400 hover:text-[#F97316] hover:bg-[#FFF7ED]'}`}
                                                                             onClick={() => {
                                                                                 if (isCurrentlyViewed) {
                                                                                     setShowTcsInfo(false);
@@ -2785,14 +2785,14 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 )}
 
                                                 {showTcsInfo && selectedTcsInfo && (
-                                                    <div className="p-4 bg-emerald-50/50 border-l-4 border-emerald-500 rounded-[4px] mt-3 animate-in fade-in slide-in-from-top-1">
+                                                    <div className="p-4 bg-[#FFF7ED]/50 border-l-4 border-[#F97316] rounded-[4px] mt-3 animate-in fade-in slide-in-from-top-1">
                                                         <div className="flex items-start gap-3">
-                                                            <svg className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-5 h-5 text-[#F97316] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                             </svg>
                                                             <div className="flex-1">
-                                                                <h4 className="text-sm font-semibold text-emerald-900 mb-1">Section Details</h4>
-                                                                <div className="space-y-1 text-sm text-emerald-800">
+                                                                <h4 className="text-sm font-semibold text-[#C2410C] mb-1">Section Details</h4>
+                                                                <div className="space-y-1 text-sm text-[#C2410C]">
                                                                     <p><span className="font-medium">Section:</span> {selectedTcsInfo.section}</p>
                                                                     <p><span className="font-medium">Name:</span> {selectedTcsInfo.name}</p>
                                                                     <p><span className="font-medium">Rate:</span> {selectedTcsInfo.rate}</p>
@@ -2806,7 +2806,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             <label className="flex items-center gap-2 cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                    className="w-4 h-4 text-[#F97316] rounded focus:ring-[#F97316]"
                                                     checked={statutoryDetails.tcsEnabled}
                                                     onChange={(e) => setStatutoryDetails({ ...statutoryDetails, tcsEnabled: e.target.checked })}
                                                 />
@@ -2854,12 +2854,12 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                             const isCurrentlyViewed = selectedTdsInfo && `${selectedTdsInfo.section} ${selectedTdsInfo.name}` === fullString && showTdsInfo;
 
                                                             return (
-                                                                <div key={fullString} className={`flex items-center justify-between p-2 rounded-[4px] border transition-all ${isCurrentlyViewed ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`}>
+                                                                <div key={fullString} className={`flex items-center justify-between p-2 rounded-[4px] border transition-all ${isCurrentlyViewed ? 'bg-[#FFF7ED] border-[#FED7AA] shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`}>
                                                                     <span className="text-[13px] text-gray-700 font-medium truncate flex-1 pl-1">{fullString}</span>
                                                                     <div className="flex items-center gap-1 ml-4">
                                                                         <button
                                                                             type="button"
-                                                                            className={`p-1.5 rounded-full transition-colors ${isCurrentlyViewed ? 'text-indigo-600 bg-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                                                                            className={`p-1.5 rounded-full transition-colors ${isCurrentlyViewed ? 'text-[#F97316] bg-[#FFF7ED]' : 'text-gray-400 hover:text-[#F97316] hover:bg-[#FFF7ED]'}`}
                                                                             onClick={() => {
                                                                                 if (isCurrentlyViewed) {
                                                                                     setShowTdsInfo(false);
@@ -2899,14 +2899,14 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 )}
 
                                                 {showTdsInfo && selectedTdsInfo && (
-                                                    <div className="p-4 bg-indigo-50/50 border-l-4 border-indigo-500 rounded-[4px] mt-3 animate-in fade-in slide-in-from-top-1">
+                                                    <div className="p-4 bg-[#FFF7ED]/50 border-l-4 border-[#F97316] rounded-[4px] mt-3 animate-in fade-in slide-in-from-top-1">
                                                         <div className="flex items-start gap-3">
-                                                            <svg className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-5 h-5 text-[#F97316] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                             </svg>
                                                             <div className="flex-1">
-                                                                <h4 className="text-sm font-semibold text-indigo-900 mb-1">Section Details</h4>
-                                                                <div className="space-y-1 text-sm text-indigo-800">
+                                                                <h4 className="text-sm font-semibold text-[#C2410C] mb-1">Section Details</h4>
+                                                                <div className="space-y-1 text-sm text-[#C2410C]">
                                                                     <p><span className="font-medium">Section:</span> {selectedTdsInfo.section}</p>
                                                                     <p><span className="font-medium">Name:</span> {selectedTdsInfo.name}</p>
                                                                     <p><span className="font-medium">Rate:</span> {selectedTdsInfo.rate}</p>
@@ -2920,7 +2920,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                             <label className="flex items-center gap-2 cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                    className="w-4 h-4 text-[#F97316] rounded focus:ring-[#F97316]"
                                                     checked={statutoryDetails.tdsEnabled}
                                                     onChange={(e) => setStatutoryDetails({ ...statutoryDetails, tdsEnabled: e.target.checked })}
                                                 />
@@ -2955,7 +2955,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('Banking Information')}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-[4px] text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                        className="px-6 py-2 bg-[#F97316] text-white rounded-[4px] text-sm font-medium hover:bg-[#C2410C] transition-colors"
                                     >
                                         Next
                                     </button>
@@ -3005,7 +3005,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         <input
                                                             type="text"
                                                             placeholder="Enter account number"
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                             value={account.accountNumber}
                                                             onChange={(e) => handleBankChange(account.id, 'accountNumber', e.target.value)}
                                                         />
@@ -3015,7 +3015,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         <input
                                                             type="text"
                                                             placeholder="ABCD0123456"
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                             value={account.ifscCode}
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
@@ -3039,7 +3039,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         <input
                                                             type="text"
                                                             placeholder="ENTER SWIFT CODE"
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                             value={account.swiftCode}
                                                             onChange={(e) => handleBankChange(account.id, 'swiftCode', e.target.value)}
                                                         />
@@ -3053,7 +3053,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         <input
                                                             type="text"
                                                             placeholder="Enter bank name"
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                             value={account.bankName}
                                                             onChange={(e) => handleBankChange(account.id, 'bankName', e.target.value)}
                                                         />
@@ -3063,7 +3063,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         <input
                                                             type="text"
                                                             placeholder="Enter branch name"
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                                                             value={account.branchName}
                                                             onChange={(e) => handleBankChange(account.id, 'branchName', e.target.value)}
                                                         />
@@ -3080,7 +3080,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                         <button
                                                             type="button"
                                                             onClick={() => setOpenBranchDropdown(openBranchDropdown === account.id ? null : account.id)}
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-white text-sm text-left hover:border-indigo-400 transition-colors flex items-center justify-between"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-white text-sm text-left hover:border-[#F97316] transition-colors flex items-center justify-between"
                                                         >
                                                             <span className="text-gray-700">
                                                                 {(account.associatedBranches || []).length > 0
@@ -3108,7 +3108,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                                         <label key={branch} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1.5 rounded">
                                                                             <input
                                                                                 type="checkbox"
-                                                                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                                                className="w-4 h-4 text-[#F97316] rounded focus:ring-[#F97316]"
                                                                                 checked={(account.associatedBranches || []).includes(branch)}
                                                                                 onChange={(e) => {
                                                                                     const currentBranches = account.associatedBranches || [];
@@ -3164,7 +3164,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     <div>
                                         <button
                                             onClick={handleAddBank}
-                                            className="px-4 py-2 border border-indigo-200 text-indigo-600 rounded-[4px] text-sm font-medium hover:bg-indigo-50 transition-colors flex items-center gap-2"
+                                            className="px-4 py-2 border border-[#FED7AA] text-[#F97316] rounded-[4px] text-sm font-medium hover:bg-[#FFF7ED] transition-colors flex items-center gap-2"
                                         >
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                             Add Another Bank
@@ -3192,7 +3192,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('Terms & Conditions')}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-[4px] text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                        className="px-6 py-2 bg-[#F97316] text-white rounded-[4px] text-sm font-medium hover:bg-[#C2410C] transition-colors"
                                     >
                                         Next
                                     </button>
@@ -3211,7 +3211,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Credit Period</label>
                                 <input
                                     type="number"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="e.g., 30"
                                     value={termsDetails.creditPeriod}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, creditPeriod: e.target.value })}
@@ -3223,7 +3223,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Credit Terms</label>
                                 <textarea
                                     rows={3}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="Enter credit terms details"
                                     value={termsDetails.creditTerms}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, creditTerms: e.target.value })}
@@ -3234,7 +3234,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Penalty Terms</label>
                                 <textarea
                                     rows={3}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="Enter penalty terms"
                                     value={termsDetails.penaltyTerms}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, penaltyTerms: e.target.value })}
@@ -3245,7 +3245,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Delivery Terms</label>
                                 <textarea
                                     rows={3}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="Enter delivery terms"
                                     value={termsDetails.deliveryTerms}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, deliveryTerms: e.target.value })}
@@ -3256,7 +3256,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Warranty / Guarantee Details</label>
                                 <textarea
                                     rows={3}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="Enter warranty or guarantee details"
                                     value={termsDetails.warrantyDetails}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, warrantyDetails: e.target.value })}
@@ -3267,7 +3267,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Force Majeure</label>
                                 <textarea
                                     rows={3}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="Enter force majeure terms"
                                     value={termsDetails.forceMajeure}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, forceMajeure: e.target.value })}
@@ -3278,7 +3278,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Dispute Redressal Terms</label>
                                 <textarea
                                     rows={3}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                     placeholder="Enter dispute redressal terms"
                                     value={termsDetails.disputeTerms}
                                     onChange={(e) => setTermsDetails({ ...termsDetails, disputeTerms: e.target.value })}
@@ -3309,7 +3309,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 // View change is handled inside handleSaveCustomer when exit: true
                                             }
                                         }}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-[4px] text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                                        className="px-6 py-2 bg-[#F97316] text-white rounded-[4px] text-sm font-medium hover:bg-[#C2410C] transition-colors flex items-center gap-2"
                                     >
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
@@ -3383,7 +3383,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                             });
                             setView('create');
                         }}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-[4px] hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-[#F97316] text-white text-sm font-medium rounded-[4px] hover:bg-[#C2410C] transition-colors flex items-center gap-2"
                     >
                         <span>+</span> Create New Customer
                     </button>
@@ -3396,14 +3396,14 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                     <input
                         type="text"
                         placeholder="Search by customer name or code..."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <div className="md:col-span-2">
                     <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-700"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm text-gray-700"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                     >
@@ -3414,7 +3414,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                 </div>
                 <div className="md:col-span-2">
                     <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-700"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm text-gray-700"
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}
                     >
@@ -3482,7 +3482,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                     <div className="flex items-center justify-end gap-3">
                                         <button
-                                            className="text-indigo-600 hover:text-indigo-900 transition-colors"
+                                            className="text-[#F97316] hover:text-[#C2410C] transition-colors"
                                             title="View"
                                             onClick={() => handleViewCustomer(customer)}
                                         >
@@ -3743,7 +3743,7 @@ const SalesOrderContent: React.FC = () => {
                             key={tab}
                             onClick={() => setSubTab(tab as any)}
                             className={`px-6 py-2 rounded-[4px] text-sm font-medium transition-all ${subTab === tab
-                                ? 'bg-white text-indigo-600 shadow-none border border-slate-200'
+                                ? 'bg-white text-[#F97316] shadow-none border border-slate-200'
                                 : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
@@ -3764,7 +3764,7 @@ const SalesOrderContent: React.FC = () => {
                             <label className="label-text">Name of {subTab} Series <span className="text-red-500">*</span></label>
                             <input
                                 type="text"
-                                className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                 placeholder={`e.g. Retail ${subTab}`}
                                 value={form.name}
                                 onChange={(e) => handleChange('name', e.target.value)}
@@ -3788,7 +3788,7 @@ const SalesOrderContent: React.FC = () => {
                                 <label className="label-text">Prefix</label>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                     placeholder={isSQ ? 'SQ/' : 'SO/'}
                                     value={form.prefix}
                                     onChange={(e) => handleChange('prefix', e.target.value)}
@@ -3798,7 +3798,7 @@ const SalesOrderContent: React.FC = () => {
                                 <label className="label-text">Suffix</label>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                     placeholder="/24-25"
                                     value={form.suffix}
                                     onChange={(e) => handleChange('suffix', e.target.value)}
@@ -3810,7 +3810,7 @@ const SalesOrderContent: React.FC = () => {
                             <label className="label-text">Digits</label>
                             <input
                                 type="number"
-                                className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-4 py-2 border border-slate-200 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                 value={form.digits}
                                 onChange={(e) => handleChange('digits', Number(e.target.value))}
                             />
@@ -3825,7 +3825,7 @@ const SalesOrderContent: React.FC = () => {
                             <button
                                 onClick={handleSaveSeries}
                                 disabled={!form.name || !form.category}
-                                className={`flex-1 px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200 text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed ${editingId ? 'w-1/2' : 'w-full'}`}
+                                className={`flex-1 px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200 text-white bg-[#F97316] hover:bg-[#C2410C] focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed ${editingId ? 'w-1/2' : 'w-full'}`}
                             >
                                 {editingId ? 'Update Series' : 'Save Series'}
                             </button>
@@ -3872,11 +3872,11 @@ const SalesOrderContent: React.FC = () => {
                                         <tr key={series.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{series.series_name}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{series.customer_category}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#F97316]">
                                                 {(series.prefix || '') + '0'.repeat(Math.max(0, series.required_digits - 1)) + '1' + (series.suffix || '')}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button onClick={() => handleEditSeries(series)} className="text-indigo-600 hover:text-indigo-900 mr-4">EDIT</button>
+                                                <button onClick={() => handleEditSeries(series)} className="text-[#F97316] hover:text-[#C2410C] mr-4">EDIT</button>
                                                 <button onClick={() => handleDeleteSeries(series.id)} className="text-red-600 hover:text-red-900">DELETE</button>
                                             </td>
                                         </tr>
@@ -4241,7 +4241,7 @@ const LongTermContractsContent: React.FC = () => {
                     <div className="px-8 py-6 border-b border-gray-200 flex justify-between items-center">
                         <h3 className="text-lg font-bold text-gray-900">{isEditing ? 'Edit Long-term Contract' : 'Add New Contract'}</h3>
                         {isEditing && (
-                            <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-100 uppercase tracking-wider">
+                            <span className="px-3 py-1 bg-[#FFF7ED] text-[#C2410C] text-xs font-semibold rounded-full border border-[#FED7AA] uppercase tracking-wider">
                                 Update Mode
                             </span>
                         )}
@@ -4255,7 +4255,7 @@ const LongTermContractsContent: React.FC = () => {
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
                                     className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab
-                                        ? 'border-indigo-500 text-indigo-600'
+                                        ? 'border-[#F97316] text-[#C2410C]'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
@@ -4278,13 +4278,13 @@ const LongTermContractsContent: React.FC = () => {
                                                 type="text"
                                                 disabled
                                                 value={basicDetails.contractNumber}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-gray-500 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-gray-500 text-sm focus:ring-[#F97316] focus:border-[#F97316]"
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Contract Type <span className="text-red-500">*</span></label>
                                             <select
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                 value={basicDetails.contractType}
                                                 onChange={(e) => setBasicDetails({ ...basicDetails, contractType: e.target.value })}
                                             >
@@ -4298,7 +4298,7 @@ const LongTermContractsContent: React.FC = () => {
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Contract Validity From <span className="text-red-500">*</span></label>
                                             <input
                                                 type="date"
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                                 value={basicDetails.validityFrom}
                                                 onChange={(e) => setBasicDetails({ ...basicDetails, validityFrom: e.target.value })}
                                             />
@@ -4310,7 +4310,7 @@ const LongTermContractsContent: React.FC = () => {
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Customer Name <span className="text-red-500">*</span></label>
                                             <select
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                 value={basicDetails.customerId}
                                                 onChange={async (e) => {
                                                     const selectedId = e.target.value;
@@ -4355,7 +4355,7 @@ const LongTermContractsContent: React.FC = () => {
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Branch <span className="text-red-500">*</span></label>
                                             <select
-                                                className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white ${(!basicDetails.customerId || branchLoading) ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
+                                                className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white ${(!basicDetails.customerId || branchLoading) ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''}`}
                                                 value={basicDetails.branchId}
                                                 disabled={!basicDetails.customerId || branchLoading}
                                                 onChange={(e) => setBasicDetails({ ...basicDetails, branchId: e.target.value })}
@@ -4376,7 +4376,7 @@ const LongTermContractsContent: React.FC = () => {
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Contract Validity To <span className="text-red-500">*</span></label>
                                             <input
                                                 type="date"
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400"
                                                 value={basicDetails.validityTo}
                                                 onChange={(e) => setBasicDetails({ ...basicDetails, validityTo: e.target.value })}
                                             />
@@ -4401,7 +4401,7 @@ const LongTermContractsContent: React.FC = () => {
                                         <input
                                             type="checkbox"
                                             id="automate-billing"
-                                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                                            className="w-4 h-4 text-[#F97316] rounded focus:ring-[#F97316] border-gray-300"
                                             checked={automateBilling}
                                             onChange={(e) => setAutomateBilling(e.target.checked)}
                                         />
@@ -4417,7 +4417,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Bill Start Date <span className="text-red-500">*</span></label>
                                                     <input
                                                         type="date"
-                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                         value={billingConfig.billStartDate}
                                                         onChange={(e) => setBillingConfig({ ...billingConfig, billStartDate: e.target.value })}
                                                     />
@@ -4425,7 +4425,7 @@ const LongTermContractsContent: React.FC = () => {
                                                 <div>
                                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Billing Frequency <span className="text-red-500">*</span></label>
                                                     <select
-                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white"
                                                         value={billingConfig.billingFrequency}
                                                         onChange={(e) => setBillingConfig({ ...billingConfig, billingFrequency: e.target.value })}
                                                     >
@@ -4444,7 +4444,7 @@ const LongTermContractsContent: React.FC = () => {
                                                             <span className="text-xs text-gray-500 mb-1 block">From</span>
                                                             <input
                                                                 type="date"
-                                                                className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white ${basicDetails.validityFrom && billingConfig.billPeriodFrom && billingConfig.billPeriodFrom < basicDetails.validityFrom ? 'border-red-500' : ''}`}
+                                                                className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white ${basicDetails.validityFrom && billingConfig.billPeriodFrom && billingConfig.billPeriodFrom < basicDetails.validityFrom ? 'border-red-500' : ''}`}
                                                                 value={billingConfig.billPeriodFrom}
                                                                 min={basicDetails.validityFrom}
                                                                 onChange={(e) => setBillingConfig({ ...billingConfig, billPeriodFrom: e.target.value })}
@@ -4455,7 +4455,7 @@ const LongTermContractsContent: React.FC = () => {
                                                             <span className="text-xs text-gray-500 mb-1 block">To</span>
                                                             <input
                                                                 type="date"
-                                                                className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white ${basicDetails.validityTo && billingConfig.billPeriodTo && billingConfig.billPeriodTo > basicDetails.validityTo ? 'border-red-500' : ''}`}
+                                                                className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm bg-white ${basicDetails.validityTo && billingConfig.billPeriodTo && billingConfig.billPeriodTo > basicDetails.validityTo ? 'border-red-500' : ''}`}
                                                                 value={billingConfig.billPeriodTo}
                                                                 max={basicDetails.validityTo}
                                                                 onChange={(e) => setBillingConfig({ ...billingConfig, billPeriodTo: e.target.value })}
@@ -4501,7 +4501,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <div className="relative">
                                                             <select
-                                                                className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-[4px]"
+                                                                className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-[#F97316] focus:border-[#F97316] rounded-[4px]"
                                                                 value={product.itemCode}
                                                                 onChange={(e) => handleProductChange(product.id, 'itemCode', e.target.value)}
                                                             >
@@ -4516,7 +4516,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     </td>
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <select
-                                                            className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-[4px]"
+                                                            className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-[#F97316] focus:border-[#F97316] rounded-[4px]"
                                                             value={product.itemName}
                                                             onChange={(e) => handleProductChange(product.id, 'itemName', e.target.value)}
                                                         >
@@ -4530,7 +4530,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     </td>
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <select
-                                                            className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-[4px]"
+                                                            className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-[#F97316] focus:border-[#F97316] rounded-[4px]"
                                                             value={product.uom}
                                                             onChange={(e) => handleProductChange(product.id, 'uom', e.target.value)}
                                                         >
@@ -4551,7 +4551,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <input
                                                             type="text"
-                                                            className="block w-full px-3 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                                            className="block w-full px-3 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                                             placeholder="Customer item name"
                                                             value={product.customerItemName}
                                                             onChange={(e) => handleProductChange(product.id, 'customerItemName', e.target.value)}
@@ -4560,7 +4560,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-2 py-3 whitespace-nowrap">
                                                         <input
                                                             type="number"
-                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-center"
                                                             value={product.qtyMin}
                                                             onChange={(e) => handleProductChange(product.id, 'qtyMin', e.target.value)}
                                                         />
@@ -4568,7 +4568,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-2 py-3 whitespace-nowrap">
                                                         <input
                                                             type="number"
-                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-center"
                                                             value={product.qtyMax}
                                                             onChange={(e) => handleProductChange(product.id, 'qtyMax', e.target.value)}
                                                         />
@@ -4576,7 +4576,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-2 py-3 whitespace-nowrap">
                                                         <input
                                                             type="number"
-                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-center"
                                                             value={product.priceMin}
                                                             onChange={(e) => handleProductChange(product.id, 'priceMin', e.target.value)}
                                                         />
@@ -4584,7 +4584,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-2 py-3 whitespace-nowrap">
                                                         <input
                                                             type="number"
-                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                                            className="block w-full px-2 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-center"
                                                             value={product.priceMax}
                                                             onChange={(e) => handleProductChange(product.id, 'priceMax', e.target.value)}
                                                         />
@@ -4592,7 +4592,7 @@ const LongTermContractsContent: React.FC = () => {
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <input
                                                             type="text"
-                                                            className="block w-full px-3 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                                                            className="block w-full px-3 py-1.5 text-sm border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316]"
                                                             placeholder="e.g., ±5%"
                                                             value={product.deviation}
                                                             onChange={(e) => handleProductChange(product.id, 'deviation', e.target.value)}
@@ -4604,7 +4604,7 @@ const LongTermContractsContent: React.FC = () => {
                                                             className="text-gray-400 hover:text-red-500 transition-colors"
                                                             disabled={contractProducts.length === 1}
                                                         >
-                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2v2"></path></svg>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -4614,7 +4614,7 @@ const LongTermContractsContent: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={handleAddProduct}
-                                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1"
+                                    className="text-[#F97316] hover:text-[#C2410C] text-sm font-medium flex items-center gap-1"
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     Add New Product
@@ -4628,7 +4628,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Terms</label>
                                     <textarea
                                         rows={4}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 resize-none"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 resize-none"
                                         placeholder="Enter payment terms"
                                         value={terms.paymentTerms}
                                         onChange={(e) => setTerms({ ...terms, paymentTerms: e.target.value })}
@@ -4638,7 +4638,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Penalty Terms</label>
                                     <textarea
                                         rows={4}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 resize-none"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 resize-none"
                                         placeholder="Enter penalty terms"
                                         value={terms.penaltyTerms}
                                         onChange={(e) => setTerms({ ...terms, penaltyTerms: e.target.value })}
@@ -4648,7 +4648,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Force Majeure</label>
                                     <textarea
                                         rows={4}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 resize-none"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 resize-none"
                                         placeholder="Enter force majeure details"
                                         value={terms.forceMajeure}
                                         onChange={(e) => setTerms({ ...terms, forceMajeure: e.target.value })}
@@ -4658,7 +4658,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Termination Clause</label>
                                     <textarea
                                         rows={4}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 resize-none"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 resize-none"
                                         placeholder="Enter termination clause"
                                         value={terms.terminationClause}
                                         onChange={(e) => setTerms({ ...terms, terminationClause: e.target.value })}
@@ -4668,7 +4668,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Dispute Redressal Terms</label>
                                     <textarea
                                         rows={4}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 resize-none"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 resize-none"
                                         placeholder="Enter dispute redressal terms"
                                         value={terms.disputeTerms}
                                         onChange={(e) => setTerms({ ...terms, disputeTerms: e.target.value })}
@@ -4678,7 +4678,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Others</label>
                                     <textarea
                                         rows={4}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm placeholder-gray-400 resize-none"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#F97316] focus:border-[#F97316] text-sm placeholder-gray-400 resize-none"
                                         placeholder="Any other terms"
                                         value={terms.others}
                                         onChange={(e) => setTerms({ ...terms, others: e.target.value })}
@@ -4740,7 +4740,7 @@ const LongTermContractsContent: React.FC = () => {
                                         }
                                     }}
                                     disabled={loading}
-                                    className={`px-8 py-2 text-white rounded-[4px] text-sm font-medium transition-colors ${activeTab === 'Terms & Conditions' ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
+                                    className={`px-8 py-2 text-white rounded-[4px] text-sm font-medium transition-colors ${activeTab === 'Terms & Conditions' ? 'bg-[#F97316] hover:bg-[#C2410C] disabled:bg-gray-400' : 'bg-[#F97316] hover:bg-[#C2410C]'
                                         }`}
                                 >
                                     {loading ? 'Saving...' : (activeTab === 'Terms & Conditions' ? (isEditing ? 'Update' : 'Save') : 'Next')}
@@ -4766,7 +4766,7 @@ const LongTermContractsContent: React.FC = () => {
                         resetForm();
                         setView('create');
                     }}
-                    className="px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-[4px] hover:bg-indigo-700 transition-colors shadow-none border border-slate-200-none border border-slate-200 flex items-center gap-2"
+                    className="px-5 py-2.5 bg-[#F97316] text-white text-sm font-medium rounded-[4px] hover:bg-[#C2410C] transition-colors shadow-none border border-slate-200-none border border-slate-200 flex items-center gap-2"
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Add New Contract
@@ -4804,7 +4804,7 @@ const LongTermContractsContent: React.FC = () => {
                                     <div className="flex items-center justify-center gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => handleEditClick(contract)}
-                                            className="text-gray-500 hover:text-indigo-600 transition-colors"
+                                            className="text-gray-500 hover:text-[#F97316] transition-colors"
                                             title="View/Edit Details"
                                         >
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -5065,7 +5065,7 @@ function ReceiptContent() {
                                                 <span>Date</span>
                                                 <div className="ml-2">
                                                     <Filter
-                                                        className={`w-4 h-4 cursor-pointer ${activeFilter === 'date' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                        className={`w-4 h-4 cursor-pointer ${activeFilter === 'date' ? 'text-[#F97316]' : 'text-gray-400 hover:text-gray-600'}`}
                                                         onClick={() => toggleFilter('date')}
                                                     />
                                                     {activeFilter === 'date' && (
@@ -5077,11 +5077,11 @@ function ReceiptContent() {
                                                             <div className="space-y-2">
                                                                 <div>
                                                                     <label className="text-[10px] text-gray-500 block mb-1">Start Date</label>
-                                                                    <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-indigo-500" />
+                                                                    <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#F97316]" />
                                                                 </div>
                                                                 <div>
                                                                     <label className="text-[10px] text-gray-500 block mb-1">End Date</label>
-                                                                    <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-indigo-500" />
+                                                                    <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#F97316]" />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -5094,7 +5094,7 @@ function ReceiptContent() {
                                                 <span>Customer Reference Name</span>
                                                 <div className="ml-2">
                                                     <Filter
-                                                        className={`w-4 h-4 cursor-pointer ${activeFilter === 'customer' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                        className={`w-4 h-4 cursor-pointer ${activeFilter === 'customer' ? 'text-[#F97316]' : 'text-gray-400 hover:text-gray-600'}`}
                                                         onClick={() => toggleFilter('customer')}
                                                     />
                                                     {activeFilter === 'customer' && (
@@ -5108,7 +5108,7 @@ function ReceiptContent() {
                                                                 placeholder="Search Customer..."
                                                                 value={customerFilter}
                                                                 onChange={(e) => setCustomerFilter(e.target.value)}
-                                                                className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-indigo-500"
+                                                                className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#F97316]"
                                                                 autoFocus
                                                             />
                                                         </div>
@@ -5124,7 +5124,7 @@ function ReceiptContent() {
                                                 <span>Amount</span>
                                                 <div className="ml-2">
                                                     <Filter
-                                                        className={`w-4 h-4 cursor-pointer ${activeFilter === 'amount' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                        className={`w-4 h-4 cursor-pointer ${activeFilter === 'amount' ? 'text-[#F97316]' : 'text-gray-400 hover:text-gray-600'}`}
                                                         onClick={() => toggleFilter('amount')}
                                                     />
                                                     {activeFilter === 'amount' && (
@@ -5135,9 +5135,9 @@ function ReceiptContent() {
                                                             </div>
                                                             <div className="space-y-2">
                                                                 <div className="flex items-center gap-2">
-                                                                    <input type="number" placeholder="Min" value={amountFilter.min} onChange={(e) => setAmountFilter({ ...amountFilter, min: e.target.value })} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-indigo-500" />
+                                                                    <input type="number" placeholder="Min" value={amountFilter.min} onChange={(e) => setAmountFilter({ ...amountFilter, min: e.target.value })} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#F97316]" />
                                                                     <span className="text-gray-500">-</span>
-                                                                    <input type="number" placeholder="Max" value={amountFilter.max} onChange={(e) => setAmountFilter({ ...amountFilter, max: e.target.value })} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-indigo-500" />
+                                                                    <input type="number" placeholder="Max" value={amountFilter.max} onChange={(e) => setAmountFilter({ ...amountFilter, max: e.target.value })} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#F97316]" />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -5155,7 +5155,7 @@ function ReceiptContent() {
                                         <tr>
                                             <td colSpan={5} className="px-6 py-20 text-center">
                                                 <div className="flex flex-col items-center justify-center">
-                                                    <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                                    <div className="w-8 h-8 border-3 border-[#F97316] border-t-transparent rounded-full animate-spin mb-4"></div>
                                                     <p className="text-gray-500 font-medium">Loading due invoices...</p>
                                                 </div>
                                             </td>
@@ -7577,7 +7577,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
 
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
-                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F97316] mb-4"></div>
                             <p className="text-gray-500">Loading ledger entries...</p>
                         </div>
                     ) : error ? (
@@ -7972,7 +7972,7 @@ function SalesContent({ onNavigate, setPrefilledVoucherData }: { onNavigate?: (p
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-20 bg-white rounded-[4px] border border-gray-200 min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div className="w-10 h-10 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-gray-500 font-medium">Loading transactions...</p>
             </div>
         );

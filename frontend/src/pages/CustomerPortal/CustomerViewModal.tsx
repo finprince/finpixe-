@@ -63,7 +63,7 @@ const CustomerViewModal: React.FC<CustomerViewModalProps> = ({ customer, onClose
         return (
             <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-pulse">
-                    <Icon name="loader" className="w-12 h-12 text-indigo-600 animate-spin" />
+                    <Icon name="loader" className="w-12 h-12 text-[#F97316] animate-spin" />
                     <p className="text-gray-600 font-medium">Preparing Customer Profile...</p>
                 </div>
             </div>

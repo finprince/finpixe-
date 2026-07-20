@@ -3,7 +3,7 @@ import "./Register.css";
 import { apiService } from "../../services";
 import PremiumBackground from "../../components/PremiumBackground";
 import Icon from "../../components/Icon";
-import finpixeLogo from "../../assets/finpixe with empty bg.png";
+import KIKILogo from "../../assets/branding/logo";
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
@@ -152,16 +152,16 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
     <div className="flex items-center gap-10 mb-12 relative overflow-hidden">
       {[1, 2, 3].map((s) => (
         <div key={s} className="flex flex-col items-center gap-2 relative z-10 transition-all duration-500">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black shadow-lg transition-all duration-500 border-2 ${step >= s ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-indigo-200' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black shadow-lg transition-all duration-500 border-2 ${step >= s ? 'bg-[#F97316] border-[#F97316] text-white scale-110 shadow-orange-200' : 'bg-[#FFF6EE] border-orange-100 text-slate-400'}`}>
             {step > s ? <Icon name="check" size={14} /> : s}
           </div>
-          <span className={`text-[9px] font-black uppercase tracking-widest transition-colors duration-500 ${step >= s ? 'text-indigo-600' : 'text-slate-400'}`}>
+          <span className={`text-[9px] font-black uppercase tracking-widest transition-colors duration-500 ${step >= s ? 'text-[#F97316]' : 'text-slate-400'}`}>
             {s === 1 ? 'Identity' : s === 2 ? 'Regional' : 'Access'}
           </span>
         </div>
       ))}
       <div className="absolute top-5 left-8 right-8 h-[2px] bg-slate-100 -z-0">
-        <div className="h-full bg-indigo-600 transition-all duration-700" style={{ width: `${(step - 1) * 50}%` }} />
+        <div className="h-full bg-[#F97316] transition-all duration-700" style={{ width: `${(step - 1) * 50}%` }} />
       </div>
     </div>
   );
@@ -192,15 +192,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         {/* Brand Header */}
         <div className="text-center mb-10 w-full flex flex-col items-center">
             <div className="flex items-center justify-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-2xl bg-white border border-indigo-100 flex items-center justify-center shadow-2xl overflow-hidden">
+                <div className="w-14 h-14 rounded-2xl bg-[#FFF3E8] border border-orange-100 flex items-center justify-center shadow-md overflow-hidden">
                     <img
-                        src={finpixeLogo}
-                        alt="Finpixe logo"
-                        className="w-12 h-12 object-contain drop-shadow-[0_2px_4px_rgba(79,70,229,0.15)]"
+                        src={KIKILogo}
+                        alt="KIKI logo"
+                        className="w-12 h-12 object-contain"
                     />
                 </div>
                 <h1 className="text-5xl font-black text-slate-900 tracking-tighter">
-                    FINPIXE <span className="text-indigo-600">MASTER</span>
+                    KIKI <span className="text-[#F97316]">MASTER</span>
                 </h1>
             </div>
             <p className="text-xs font-black text-slate-400 uppercase tracking-[0.5em] leading-none">
@@ -208,7 +208,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
             </p>
         </div>
 
-        <div className="w-full bg-white/95 backdrop-blur-xl rounded-[40px] shadow-[0_22px_70px_rgba(0,0,0,0.1)] border border-white overflow-hidden flex flex-col items-center p-12">
+        <div className="w-full bg-[#FFF6EE]/90 backdrop-blur-xl rounded-[24px] shadow-[0_12px_32px_rgba(15,23,42,0.08)] sm:shadow-[0_24px_64px_rgba(15,23,42,0.10)] border border-gray-200/90 overflow-hidden flex flex-col items-center p-12">
           
           <StepIndicator />
 
@@ -327,7 +327,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Email</label>
-                        <input id="email" type="email" required className="reg-input-v2 h-14" placeholder="admin@finpixe.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => handleEnter(e, 'pwd')} />
+                        <input id="email" type="email" required className="reg-input-v2 h-14" placeholder="admin@KIKI.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => handleEnter(e, 'pwd')} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-6">
@@ -335,7 +335,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Global Password</label>
                         <div className="relative">
                           <input id="pwd" type={showPassword ? 'text' : 'password'} required className="reg-input-v2 h-14 pr-10" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => handleEnter(e, 'pwd2')} />
-                          <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors" onClick={() => setShowPassword(!showPassword)}>
+                          <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#F97316] transition-colors" onClick={() => setShowPassword(!showPassword)}>
                             <Icon name={showPassword ? 'eye-off' : 'eye'} size={16} />
                           </button>
                         </div>
@@ -344,7 +344,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
                         <div className="relative">
                           <input id="pwd2" type={showConfirmPassword ? 'text' : 'password'} required className="reg-input-v2 h-14 pr-10" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onKeyDown={e => handleEnter(e, undefined, true)} />
-                          <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                          <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#F97316] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                             <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={16} />
                           </button>
                         </div>
@@ -352,8 +352,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     </div>
                   </div>
 
-                  <div className="p-6 rounded-[24px] bg-indigo-50/50 border border-indigo-100 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg shadow-sm">🔒</div>
+                  <div className="p-6 rounded-[24px] bg-orange-50/50 border border-orange-100 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-[#FFF6EE] flex items-center justify-center text-lg shadow-sm">🔒</div>
                     <p className="text-[10px] font-medium text-slate-500 leading-relaxed max-w-sm">Your master admin account holds global authority. Ensure your password is stored securely and MFA is enabled after initialization.</p>
                   </div>
                 </div>
@@ -367,12 +367,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                 )}
                 
                 {step < 3 ? (
-                  <button type="button" onClick={nextStep} className="flex-[2] h-16 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-900 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2">
+                  <button type="button" onClick={nextStep} className="flex-[2] h-16 bg-[#F97316] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EA580C] transition-all shadow-xl shadow-orange-200 flex items-center justify-center gap-2">
                     Continue to {step === 1 ? 'Regional Settings' : 'Access Control'}
                     <Icon name="arrow-right" size={12} />
                   </button>
                 ) : (
-                  <button type="submit" disabled={loading} className="flex-[2] h-16 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-900 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3">
+                  <button type="submit" disabled={loading} className="flex-[2] h-16 bg-[#F97316] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EA580C] transition-all shadow-xl shadow-orange-200 flex items-center justify-center gap-3">
                     {loading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -392,12 +392,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
 
           <footer className="mt-12 pt-8 border-t border-slate-100 w-full flex flex-col items-center gap-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Already registered? <button onClick={() => { window.location.href = '/master/login'; }} className="text-indigo-600 ml-1 hover:underline font-black">Sign In to Dashboard</button>
+                  Already registered? <button onClick={() => { window.location.href = '/master/login'; }} className="text-[#F97316] ml-1 hover:underline font-black">Sign In to Dashboard</button>
               </p>
               
               <button
                   onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
-                  className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] hover:text-indigo-600 transition-all flex items-center gap-2"
+                  className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] hover:text-[#F97316] transition-all flex items-center gap-2"
               >
                   <Icon name="link" size={12} />
                   Return to Main Website

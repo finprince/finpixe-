@@ -2260,7 +2260,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     {/* ── Header ── */}
                     <div
                         className="flex items-center justify-between px-6 py-4 flex-shrink-0"
-                        style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}
+                        style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }}
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -2436,7 +2436,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                 <div className="w-full max-w-sm">
                                     <div className="flex justify-between text-xs font-bold text-indigo-600 mb-2"><span>Scanning Progress</span><span>{scanProgress}%</span></div>
                                     <div className="h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${scanProgress}%`, background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }} />
+                                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${scanProgress}%`, background: 'linear-gradient(90deg, #fb923c, #f97316)' }} />
                                     </div>
                                     {countdownSeconds !== null && (
                                         <div className="flex items-center justify-center gap-1.5 mt-4 text-indigo-600 font-bold bg-indigo-50 py-2 rounded-lg border border-indigo-100">

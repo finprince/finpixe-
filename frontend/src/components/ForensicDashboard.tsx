@@ -82,7 +82,7 @@ const ForensicDashboard: React.FC = () => {
                 <XAxis dataKey="name" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                <Bar dataKey="depth" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="depth" fill="#F97316" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -96,15 +96,15 @@ const ForensicDashboard: React.FC = () => {
               <AreaChart data={history}>
                 <defs>
                   <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#F97316" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#F97316" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="timestamp" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                <Area type="monotone" dataKey={(d) => d.ai_latency.p95} stroke="#a855f7" fillOpacity={1} fill="url(#colorLatency)" />
+                <Area type="monotone" dataKey={(d) => d.ai_latency.p95} stroke="#F97316" fillOpacity={1} fill="url(#colorLatency)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

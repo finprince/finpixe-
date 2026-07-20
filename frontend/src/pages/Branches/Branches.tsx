@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/branding/logo';
 import { masterApiService } from '../../services/masterApi';
 import Modal from '../../components/Modal';
 import Icon from '../../components/Icon';
@@ -231,7 +231,7 @@ const BranchesPage: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
@@ -241,8 +241,8 @@ const BranchesPage: React.FC = () => {
             {/* Header */}
             <div className="flex items-start justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-2xl bg-white border border-[#E0E2FF] shadow-[0_8px_16px_rgba(75,60,255,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-                        <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+                    <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+                        <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
                     </div>
                     <div>
                         <h1 className="text-[22px] font-black text-slate-900 tracking-tight m-0">

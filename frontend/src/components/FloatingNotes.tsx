@@ -333,8 +333,8 @@ const FloatingNotes: React.FC = () => {
           <span
             className="flex items-center justify-center w-10 h-10 rounded-full text-white"
             style={{
-              background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
-              boxShadow: '0 6px 18px rgba(124,58,237,0.45)',
+              background: 'linear-gradient(135deg, #fb923c 0%, #f97316 100%)',
+              boxShadow: '0 6px 18px rgba(249,115,22,0.45)',
             }}
           >
             <Icon name="file-text" className="w-4 h-4" />

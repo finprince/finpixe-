@@ -7,7 +7,7 @@ interface StatCardProps {
     icon?: string;
     trend?: string;
     trendLabel?: string;
-    color?: 'emerald' | 'rose' | 'amber' | 'blue' | 'indigo' | 'slate' | 'cyan' | 'purple';
+    color?: 'emerald' | 'rose' | 'amber' | 'blue' | 'orange' | 'slate' | 'cyan';
     className?: string;
     onClick?: () => void;
     subValue?: string;
@@ -17,18 +17,19 @@ const colorMap: Record<string, { accent: string; iconBg: string; iconColor: stri
     emerald: { accent: '#059669', iconBg: '#ECFDF5', iconColor: '#059669' },
     rose: { accent: '#E11D48', iconBg: '#FFF1F2', iconColor: '#E11D48' },
     amber: { accent: '#D97706', iconBg: '#FFFBEB', iconColor: '#D97706' },
-    blue: { accent: '#2563EB', iconBg: '#EFF6FF', iconColor: '#2563EB' },
-    indigo: { accent: '#4F46E5', iconBg: '#EEF2FF', iconColor: '#4F46E5' },
+    blue: { accent: '#F97316', iconBg: '#FFF7ED', iconColor: '#EA580C' },
+    orange: { accent: '#F97316', iconBg: '#FFF7ED', iconColor: '#EA580C' },
+    indigo: { accent: '#F97316', iconBg: '#FFF7ED', iconColor: '#EA580C' },
+    purple: { accent: '#EA580C', iconBg: '#FFF7ED', iconColor: '#EA580C' },
     slate: { accent: '#475569', iconBg: '#F1F5F9', iconColor: '#475569' },
-    cyan: { accent: '#0891B2', iconBg: '#ECFEFF', iconColor: '#0891B2' },
-    purple: { accent: '#9333EA', iconBg: '#FAF5FF', iconColor: '#9333EA' },
+    cyan: { accent: '#FB923C', iconBg: '#FFF7ED', iconColor: '#EA580C' },
 };
 
 const StatCard: React.FC<StatCardProps> = ({
     title, value, icon, trend, trendLabel = 'vs last period',
-    color = 'indigo', className = '', onClick, subValue
+    color = 'orange', className = '', onClick, subValue
 }) => {
-    const theme = colorMap[color] || colorMap.indigo;
+    const theme = colorMap[color] || colorMap.orange;
 
     return (
         <div

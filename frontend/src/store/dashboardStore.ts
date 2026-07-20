@@ -76,7 +76,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
             properties: {
                 showLegend: true,
                 showGridlines: true,
-                colorTheme: '#4f46e5',
+                colorTheme: '#f97316',
                 numberFormat: 'Currency',
             },
             settings: {},

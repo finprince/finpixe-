@@ -75,7 +75,7 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
                     yField: 'Amount',
                     x: 40, y: 40, width: 600, height: 320,
                     aggregation: 'sum',
-                    properties: { showLegend: true, showGridlines: true, colorTheme: '#4f46e5', numberFormat: 'Currency' }
+                    properties: { showLegend: true, showGridlines: true, colorTheme: '#f97316', numberFormat: 'Currency' }
                 },
                 {
                     id: 'exp-pie',

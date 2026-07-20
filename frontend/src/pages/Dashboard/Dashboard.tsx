@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect } from 'react';
 import type { Voucher, Ledger, Page } from '../../types';
 import { Widget } from '../../store/dashboardStore';
@@ -98,12 +98,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
             <div className="erp-section-title flex justify-between items-center mb-6">
                 <div>
                     <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#E0E2FF] shadow-[0_8px_16px_rgba(75,60,255,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
           </div>
           <div>
 <h1 className="page-title text-2xl font-bold tracking-tight">
-                        {greeting()}, <span className="text-indigo-600 dark:text-indigo-400">Chief</span>
+                        {greeting()}, <span className="text-[#F97316] dark:text-[#FB923C]">Chief</span>
                     </h1>
                     <p className="helper-text text-sm font-medium mt-1">
                         Here's your financial overview for {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
@@ -224,7 +224,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                                     innerRadius={50} outerRadius={72}
                                                     paddingAngle={4} cornerRadius={4} stroke="none"
                                                 >
-                                                    {['#6366f1', '#f59e0b', '#3b82f6', '#ec4899', '#14b8a6', '#64748b'].map((c, i) => (
+                                                    {['#f97316', '#ea580c', '#f59e0b', '#22c55e', '#0ea5e9', '#64748b'].map((c, i) => (
                                                         <Cell key={i} fill={c} />
                                                     ))}
                                                 </Pie>
@@ -245,7 +245,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                                 <ReTooltip formatter={(v: number, name: string) => [formatCurrency(v), name === 'revenue' ? 'Revenue' : 'Target']} contentStyle={{ borderRadius: 10, fontSize: 11, border: '1px solid #f1f5f9', padding: '6px 10px' }} />
                                                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 6 }} formatter={(v) => v === 'revenue' ? 'Revenue' : 'Target'} />
                                                 <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                                                <Bar dataKey="target" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                                                <Bar dataKey="target" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={18} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -259,8 +259,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                         <AreaChart data={revenueData} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.18} />
-                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.18} />
+                                                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                                                 </linearGradient>
                                                 <linearGradient id="gradTarget" x1="0" y1="0" x2="0" y2="1">
                                                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.12} />
@@ -276,7 +276,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                                 cursor={{ stroke: '#e2e8f0', strokeWidth: 1, strokeDasharray: '4 4' }}
                                             />
                                             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 4 }} formatter={(v) => v === 'revenue' ? 'Revenue' : 'Target'} />
-                                            <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2.5} fill="url(#gradRevenue)" dot={false} activeDot={{ r: 5, strokeWidth: 0, fill: '#6366f1' }} />
+                                            <Area type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2.5} fill="url(#gradRevenue)" dot={false} activeDot={{ r: 5, strokeWidth: 0, fill: '#f97316' }} />
                                             <Area type="monotone" dataKey="target" stroke="#10b981" strokeWidth={2} strokeDasharray="5 4" fill="url(#gradTarget)" dot={false} activeDot={{ r: 4, strokeWidth: 0, fill: '#10b981' }} />
                                         </AreaChart>
                                     </ResponsiveContainer>
@@ -291,7 +291,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                 <div className="erp-container flex flex-col p-0 overflow-hidden shrink-0 w-[320px] sticky top-6 bg-white shadow-xl h-[800px] z-10">
                     <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                         <h3 className="section-title">Recent Activity</h3>
-                        <button onClick={() => onNavigate('Reports')} className="text-[10px] font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800 transition-colors">
+                        <button onClick={() => onNavigate('Reports')} className="text-[10px] font-black uppercase tracking-wider text-[#F97316] hover:text-[#EA580C] transition-colors">
                             View All
                         </button>
                     </div>
@@ -300,7 +300,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                             const display = getVoucherDisplay(v);
                             return (
                                 <div key={i} className="group flex items-center gap-3 p-3 hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-slate-100 bg-white">
-                                    <div className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${display.type === 'Sales' ? 'bg-emerald-50 text-emerald-500' : display.type === 'Purchase' ? 'bg-rose-50 text-rose-500' : 'bg-blue-50 text-blue-500'}`}>
+                                    <div className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${display.type === 'Sales' ? 'bg-emerald-50 text-emerald-500' : display.type === 'Purchase' ? 'bg-rose-50 text-rose-500' : 'bg-orange-50 text-[#EA580C]'}`}>
                                         <Icon name={display.type === 'Sales' ? 'arrow-up-right' : 'arrow-down-left'} className="w-3.5 h-3.5" />
                                     </div>
                                     <div className="flex-1 min-w-0">

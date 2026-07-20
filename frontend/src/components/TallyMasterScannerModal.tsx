@@ -169,7 +169,7 @@ const TallyMasterScannerModal: React.FC<TallyMasterScannerModalProps> = ({ onClo
     }, [initialFiles]);
 
     // ── Actions ──────────────────────────────────────────────────────────────────
-    const handleUploadToFinpixe = () => {
+    const handleUploadToKiki = () => {
         if (!onUpload) return;
         if (masterResults.length === 0) { showError('No data to upload.'); return; }
 
@@ -276,8 +276,8 @@ const TallyMasterScannerModal: React.FC<TallyMasterScannerModalProps> = ({ onClo
                     {/* Proactive Loading View (Full Central Spinner) */}
                     {isExtracting && masterResults.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
-                                <Icon name="spinner" className="w-10 h-10 text-indigo-600 animate-spin" />
+                            <div className="w-20 h-20 bg-[#FFF7ED] rounded-full flex items-center justify-center mb-6">
+                                <Icon name="spinner" className="w-10 h-10 text-[#F97316] animate-spin" />
                             </div>
                             <h3 className="text-xl font-bold text-slate-900">Extracting Master Data</h3>
                             <p className="text-slate-500 max-w-sm mt-2">
@@ -285,9 +285,9 @@ const TallyMasterScannerModal: React.FC<TallyMasterScannerModalProps> = ({ onClo
                                 This usually takes 5-10 seconds per page.
                             </p>
                             <div className="mt-8 flex gap-2 justify-center">
-                                <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></span>
-                                <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce delay-75"></span>
-                                <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce delay-150"></span>
+                                <span className="w-2 h-2 bg-[#F97316] rounded-full animate-bounce"></span>
+                                <span className="w-2 h-2 bg-[#F97316] rounded-full animate-bounce delay-75"></span>
+                                <span className="w-2 h-2 bg-[#F97316] rounded-full animate-bounce delay-150"></span>
                             </div>
                         </div>
                     ) : (
@@ -307,7 +307,7 @@ const TallyMasterScannerModal: React.FC<TallyMasterScannerModalProps> = ({ onClo
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={isExtracting}
-                                            className={`inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-[4px] text-white ${isExtracting ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                            className={`inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-[4px] text-white ${isExtracting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#F97316] hover:bg-[#EA580C]'}`}
                                         >
                                             <Icon
                                                 name={isExtracting ? 'spinner' : 'upload'}
@@ -386,7 +386,7 @@ const TallyMasterScannerModal: React.FC<TallyMasterScannerModalProps> = ({ onClo
                                     </p>
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="mt-6 inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-[4px] text-white bg-indigo-600 hover:bg-indigo-700"
+                                        className="mt-6 inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-[4px] text-white bg-[#F97316] hover:bg-[#EA580C]"
                                     >
                                         <Icon name="upload" className="w-5 h-5 mr-2" />
                                         Select Files

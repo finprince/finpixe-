@@ -618,7 +618,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
                     {/* Loading State */}
                     {isLoading && (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-[4px] h-8 w-8 border-b-2 border-indigo-600"></div>
+                            <div className="animate-spin rounded-[4px] h-8 w-8 border-b-2 border-[#F97316]"></div>
                         </div>
                     )}
 
@@ -2551,7 +2551,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
                         <div className="p-6 overflow-y-auto flex-1">
                             {docDrilldownLoading ? (
                                 <div className="flex justify-center items-center py-10">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F97316]"></div>
                                 </div>
                             ) : (
                                 <div className="erp-table-container">
@@ -2567,7 +2567,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
                                         <tbody>
                                             {docDrilldownData.length > 0 ? docDrilldownData.map((inv, idx) => (
                                                 <tr key={idx} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-2 border text-sm text-indigo-600 cursor-pointer hover:underline" onClick={() => {
+                                                    <td className="px-4 py-2 border text-sm text-[#F97316] cursor-pointer hover:underline" onClick={() => {
                                                         setShowDocDrilldown(false);
                                                         onNavigate?.('vouchers', { highlightInvoice: inv.invoice_no, salesPk: inv.id, type: 'sales' });
                                                     }}>
@@ -2609,7 +2609,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
                     <div className="bg-white p-6 rounded-lg shadow-xl w-[900px] max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <div>
-                                <h3 className="text-xl font-bold text-[#3b2ddb]">
+                                <h3 className="text-xl font-bold text-[#F97316]">
                                     Invoices for HSN: {currentHsnParams?.hsn} (Rate: {currentHsnParams?.rate}%)
                                 </h3>
                                 <p className="text-xs text-gray-500 mt-1">
@@ -2625,7 +2625,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
 
                         {hsnDrilldownLoading ? (
                             <div className="flex justify-center py-10">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3b2ddb]"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F97316]"></div>
                             </div>
                         ) : (
                             <div className="erp-table-container">

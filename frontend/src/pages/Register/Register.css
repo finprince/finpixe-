@@ -19,7 +19,7 @@
     font-size: 48px;
     font-weight: 800;
     letter-spacing: 0.05em;
-    background: linear-gradient(to right, #6366F1, #4F46E5);
+    background: linear-gradient(to right, #FB923C, #F97316);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -38,7 +38,7 @@
 .step-indicator {
     font-size: 14px;
     font-weight: 600;
-    color: #6366F1;
+    color: #F97316;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 8px;
@@ -52,11 +52,12 @@
     border-radius: 22px;
     padding: 48px;
     box-shadow:
-        0 25px 60px rgba(99, 102, 241, 0.20),
-        0 15px 35px rgba(0, 0, 0, 0.06);
+        0 25px 60px rgba(249, 115, 22, 0.12),
+        0 15px 35px rgba(15, 23, 42, 0.06);
     display: flex;
     flex-direction: column;
     transition: all 0.2s ease;
+    border: 1px solid #E5E7EB;
 }
 
 .register-card.plan-step {
@@ -98,8 +99,8 @@
 }
 
 .form-input:focus {
-    border-color: #6366F1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    border-color: #F97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
 }
 
 .form-input::placeholder {
@@ -134,7 +135,7 @@
 }
 
 .input-icon-button:hover {
-    color: #6366F1;
+    color: #F97316;
 }
 
 .input-icon-button svg {
@@ -153,8 +154,8 @@
 }
 
 .logo-upload-container:hover {
-    border-color: #6366F1;
-    background: rgba(99, 102, 241, 0.02);
+    border-color: #F97316;
+    background: #FFF7ED;
 }
 
 .upload-icon {
@@ -170,7 +171,7 @@
 }
 
 .upload-link {
-    color: #6366F1;
+    color: #EA580C;
     font-weight: 600;
 }
 
@@ -181,10 +182,10 @@
     font-weight: 600;
     font-size: 16px;
     color: white;
-    background: linear-gradient(to right, #6366F1, #4F46E5);
+    background: linear-gradient(to right, #F97316, #EA580C);
     border: none;
     cursor: pointer;
-    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
+    box-shadow: 0 10px 20px rgba(249, 115, 22, 0.25);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -194,7 +195,8 @@
 
 .register-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 12px 24px rgba(249, 115, 22, 0.35);
+    background: linear-gradient(to right, #EA580C, #C2410C);
 }
 
 .register-button:active {
@@ -240,7 +242,7 @@
 }
 
 .login-link {
-    color: #6366F1;
+    color: #EA580C;
     font-weight: 600;
     text-decoration: none;
     background: none;
@@ -251,6 +253,7 @@
 
 .login-link:hover {
     text-decoration: underline;
+    color: #C2410C;
 }
 
 /* Plan Cards */
@@ -280,15 +283,15 @@
 }
 
 .plan-card:hover {
-    border-color: #6366F1;
+    border-color: #F97316;
     transform: translateY(-4px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 30px rgba(249, 115, 22, 0.12);
 }
 
 .plan-card.selected {
-    border-color: #6366F1;
+    border-color: #F97316;
     border-width: 2px;
-    background: rgba(99, 102, 241, 0.02);
+    background: #FFF7ED;
 }
 
 .plan-badge {
@@ -296,7 +299,7 @@
     top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    background: #6366F1;
+    background: #F97316;
     color: white;
     font-size: 11px;
     font-weight: 700;
@@ -344,7 +347,7 @@
 }
 
 .feature-icon {
-    color: #10B981;
+    color: #22C55E;
     margin-right: 12px;
     flex-shrink: 0;
 }
@@ -361,7 +364,7 @@
 }
 
 .plan-card.selected .plan-button {
-    background: #6366F1;
+    background: #F97316;
     color: white;
 }
 
@@ -391,8 +394,9 @@
 }
 
 .back-button:hover {
-    background: #F9FAFB;
-    border-color: #D1D5DB;
+    background: #FFF7ED;
+    border-color: #FED7AA;
+    color: #EA580C;
     transform: translateY(-1px);
 }
 
@@ -413,9 +417,9 @@
 }
 
 .reg-input-v2:focus {
-    border-color: #6366F1;
+    border-color: #F97316;
     background: #FFFFFF;
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 8px 20px rgba(249, 115, 22, 0.12);
     transform: translateY(-1px);
 }
 
@@ -439,11 +443,11 @@
     background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #E2E8F0;
+    background: #FED7AA;
     border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #CBD5E1;
+    background: #FDBA74;
 }
 
 @keyframes headshake {
@@ -487,7 +491,6 @@
     }
 }
 
-/* Ensure progress bar transition is smooth */
 .transition-all {
     transition-property: all;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -498,17 +501,14 @@
     animation-duration: 700ms;
 }
 
-/* Scaling utility for active step */
 .scale-110 {
     transform: scale(1.1);
 }
 
-/* Shadow utilities for premium look */
 .shadow-indigo-200 {
-    box-shadow: 0 10px 15px -3px rgba(165, 180, 252, 0.4), 0 4px 6px -4px rgba(165, 180, 252, 0.4);
+    box-shadow: 0 10px 15px -3px rgba(254, 215, 170, 0.5), 0 4px 6px -4px rgba(254, 215, 170, 0.5);
 }
 
-/* Layout helpers for StepIndicator */
 .z-0 { z-index: 0; }
 .z-10 { z-index: 10; }
 .top-5 { top: 1.25rem; }

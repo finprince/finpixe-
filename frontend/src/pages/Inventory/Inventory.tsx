@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
@@ -3857,7 +3857,7 @@ const InventoryPage: React.FC = () => {
                       setIsIssueSlipTimeEdited(false);
                       setShowIssueSlipForm(true);
                     }}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-indigo-600 hover:bg-indigo-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-[#F97316] hover:bg-[#EA580C]"
                   >
                     ➕ Add New Issue Slip
                   </button>
@@ -3868,7 +3868,7 @@ const InventoryPage: React.FC = () => {
                       setIsGrnTimeEdited(false);
                       setShowGRNForm(true);
                     }}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-indigo-600 hover:bg-indigo-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-[#F97316] hover:bg-[#EA580C]"
                   >
                     ➕ Add New GRN
                   </button>
@@ -3930,7 +3930,7 @@ const InventoryPage: React.FC = () => {
                                 setShowItemDetail(true);
                                 fetchStockMovementDetails(item.itemCode);
                               }}
-                              className="text-indigo-600 hover:text-indigo-800 font-medium text-sm"
+                              className="text-[#F97316] hover:text-[#EA580C] font-medium text-sm"
                             >
                               View
                             </button>
@@ -8352,7 +8352,7 @@ const InventoryPage: React.FC = () => {
                                   className={`px-2 py-1 rounded text-xs font-bold text-white shadow-sm border border-black/10`}
                                   style={{
                                     backgroundColor: [
-                                      '#4F46E5', '#0891B2', '#059669', '#D97706', '#DC2626', '#7C3AED'
+                                      '#F97316', '#EA580C', '#059669', '#D97706', '#DC2626', '#FB923C'
                                     ][idx % 6]
                                   }}
                                 >
@@ -8546,7 +8546,7 @@ const InventoryPage: React.FC = () => {
                           {grnItems.map((item, index) => {
                             // Find color index for the source PO
                             const poIdx = item.po_number ? grnSelectedPOs.indexOf(item.po_number) : -1;
-                            const colors = ['#4F46E5', '#0891B2', '#059669', '#D97706', '#DC2626', '#7C3AED'];
+                            const colors = ['#F97316', '#EA580C', '#059669', '#D97706', '#DC2626', '#FB923C'];
                             const bgColor = poIdx > -1 ? `${colors[poIdx % 6]}15` : 'transparent'; // 15% opacity
 
                             return (
@@ -10712,8 +10712,8 @@ const InventoryPage: React.FC = () => {
       {/* Page Section Title */}
       <div className="erp-section-title">
         <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#E0E2FF] shadow-[0_8px_16px_rgba(75,60,255,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
           </div>
           <div>
 <h1 className="page-title">Inventory Management</h1>

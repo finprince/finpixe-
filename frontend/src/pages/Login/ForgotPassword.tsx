@@ -117,7 +117,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
     return (
         <div className="forgot-password-page-container">
             <header className="brand-section">
-                <h1 className="brand-heading">FINPIXE</h1>
+                <h1 className="brand-heading">KIKI</h1>
                 <p className="brand-tagline">Recover your account securely.</p>
             </header>
 

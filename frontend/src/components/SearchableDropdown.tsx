@@ -298,11 +298,11 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                                             }
                                         }}
                                         className={`w-full px-4 py-2 text-left text-sm transition-colors flex items-center justify-between
-                                            ${isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'}
+                                            ${isSelected ? 'bg-[#FFF7ED] text-[#C2410C] font-semibold' : 'text-slate-700 hover:bg-slate-50'}
                                         `}
                                     >
                                         <span className="truncate">{label}</span>
-                                        {isSelected && <span className="text-indigo-600 font-bold">✓</span>}
+                                        {isSelected && <span className="text-[#F97316] font-bold">✓</span>}
                                     </button>
                                 );
                             })

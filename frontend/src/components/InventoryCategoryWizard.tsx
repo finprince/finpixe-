@@ -575,7 +575,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
             return (
                 <div key={node.id} style={{ marginLeft: `${node.level * 20}px` }}>
                     <div
-                        className={`flex items-center py-1.5 px-2 cursor-pointer hover:bg-gray-100 rounded transition-colors ${isSelected ? 'bg-indigo-100 text-slate-700 font-medium border-l-2 border-indigo-500' : ''}`}
+                        className={`flex items-center py-1.5 px-2 cursor-pointer hover:bg-gray-100 rounded transition-colors ${isSelected ? 'bg-[#FFF7ED] text-slate-700 font-medium border-l-2 border-[#F97316]' : ''}`}
                         onClick={() => handleNodeSelect(node)}
                         onDoubleClick={() => {
                             if (hasChildren || node.level < 3) {
@@ -641,7 +641,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                 <div className="w-full md:w-1/2 bg-white rounded-[4px] border border-gray-200">
                     <div className="p-5">
                         <h3 className="section-title text-sm mb-2">Category Preview</h3>
-                        <p className="text-xs text-indigo-600 font-medium mb-4">
+                        <p className="text-xs text-[#F97316] font-medium mb-4">
                             {selectedNode
                                 ? (selectedNode.level === 0 ? (allowCreateGroup ? `Creating New Group under ${selectedNode.name}` : `Select a Group under ${selectedNode.name} to continue`) : (showSubgroup ? `Creating New Subgroup under ${selectedNode.name}` : `Viewing Group ${selectedNode.name}`))
                                 : "Please select a category to begin"}
@@ -664,7 +664,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                                                         const rootNode = treeData.find(n => n.name === selectedNode.data.category);
                                                         if (rootNode) handleNodeSelect(rootNode);
                                                     }}
-                                                    className="text-indigo-600 hover:text-indigo-800 text-xs font-medium tracking-wide uppercase"
+                                                    className="text-[#F97316] hover:text-[#EA580C] text-xs font-medium tracking-wide uppercase"
                                                 >
                                                     Change Parent
                                                 </button>
@@ -692,7 +692,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                                                 value={formData.group}
                                                 onChange={handleInputChange}
                                                 disabled={!allowCreateGroup}
-                                                className={`w-full px-3 py-2 border rounded focus:outline-none transition-all text-sm ${!allowCreateGroup ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-gray-400 bg-white text-gray-800'}`}
+                                                className={`w-full px-3 py-2 border rounded focus:outline-none transition-all text-sm ${!allowCreateGroup ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-300 focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] placeholder-gray-400 bg-white text-gray-800'}`}
                                                 placeholder={!allowCreateGroup ? "Group creation disabled directly under category" : "Enter Group Name"}
                                                 autoFocus={allowCreateGroup}
                                             />
@@ -705,7 +705,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                                                         name="group"
                                                         value={formData.group}
                                                         onChange={handleInputChange}
-                                                        className="w-full px-3 py-2 border border-blue-500 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-gray-400 bg-white text-gray-800 text-sm"
+                                                        className="w-full px-3 py-2 border border-[#F97316] rounded focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] outline-none transition-all placeholder-gray-400 bg-white text-gray-800 text-sm"
                                                         placeholder="Enter Group Name"
                                                         autoFocus
                                                     />
@@ -746,7 +746,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                                                 value={formData.subgroup}
                                                 onChange={handleInputChange}
                                                 disabled={!selectedNode || selectedNode.level > 1}
-                                                className={`w-full px-3 py-2 border border-gray-300 rounded focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder-gray-400 text-sm ${!selectedNode || selectedNode.level > 1
+                                                className={`w-full px-3 py-2 border border-gray-300 rounded focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] outline-none transition-all placeholder-gray-400 text-sm ${!selectedNode || selectedNode.level > 1
                                                     ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
                                                     : 'bg-white text-gray-800'
                                                     }`}
@@ -786,7 +786,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                                                 name="sub_subgroup"
                                                 value={formData.sub_subgroup}
                                                 onChange={handleInputChange}
-                                                className="w-full px-3 py-2 border border-blue-500 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-gray-400 bg-white text-gray-800 text-sm"
+                                                className="w-full px-3 py-2 border border-[#F97316] rounded focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] outline-none transition-all placeholder-gray-400 bg-white text-gray-800 text-sm"
                                                 placeholder="Enter Item Name"
                                                 autoFocus
                                             />
@@ -823,7 +823,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
 
                                                 setIsEditing(true);
                                             }}
-                                            className="flex-1 py-2.5 px-4 rounded font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 text-sm bg-blue-600 text-white hover:bg-blue-700 cursor-pointer focus:ring-blue-500"
+                                            className="flex-1 py-2.5 px-4 rounded font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 text-sm bg-[#F97316] text-white hover:bg-[#EA580C] cursor-pointer focus:ring-[#F97316]"
                                         >
                                             <Icon name="edit" className="w-4 h-4 inline-block mr-1" />
                                             Edit
@@ -886,7 +886,7 @@ export const InventoryCategoryWizard: React.FC<InventoryCategoryWizardProps> = (
                                             (selectedNode.level === 1 && !selectedNode.data.subgroup && formData.subgroup.trim()) ||
                                             (selectedNode.data.category === 'Stores and Spares' && allowCreateItem && (selectedNode.level === 2 || (selectedNode.level === 1 && selectedNode.data.subgroup)) && formData.sub_subgroup.trim())
                                         )
-                                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer focus:ring-indigo-500'
+                                            ? 'bg-[#F97316] text-white hover:bg-[#EA580C] cursor-pointer focus:ring-[#F97316]'
                                             : selectedNode
                                                 ? 'bg-gray-300 text-gray-700 hover:bg-gray-400 cursor-pointer focus:ring-gray-400'
                                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'

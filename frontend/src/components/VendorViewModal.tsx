@@ -78,7 +78,7 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
         return (
             <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-pulse">
-                    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin"></div>
                     <p className="text-gray-600 font-medium">Preparing Vendor Profile...</p>
                 </div>
             </div>
@@ -373,7 +373,7 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {banking.map((bank: any, idx: number) => (
-                        <div key={idx} className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-8 shadow-2xl group border border-white/5">
+                        <div key={idx} className="relative overflow-hidden bg-gradient-to-br from-[#F97316] to-[#C2410C] rounded-[2rem] p-8 shadow-2xl group border border-white/5">
                             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <CreditCard className="w-32 h-32 text-white" />
                             </div>
@@ -381,7 +381,7 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
                             <div className="relative z-10 flex flex-col h-full justify-between gap-12">
                                 <div className="flex justify-between items-start">
                                     <div className="flex flex-col gap-0.5">
-                                        <span className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">{bank.account_type || 'Current Account'}</span>
+                                        <span className="text-orange-200 text-[10px] font-black uppercase tracking-widest">{bank.account_type || 'Current Account'}</span>
                                         <h4 className="text-white text-xl font-bold tracking-tight">{bank.bank_name}</h4>
                                     </div>
                                     <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
@@ -390,7 +390,7 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
                                 </div>
 
                                 <div>
-                                    <span className="text-indigo-300 text-[10px] font-bold uppercase tracking-widest block mb-2 opacity-60">Account Number</span>
+                                    <span className="text-orange-200 text-[10px] font-bold uppercase tracking-widest block mb-2 opacity-60">Account Number</span>
                                     <div className="text-white text-2xl font-mono tracking-[0.2em]">{bank.bank_account_no}</div>
                                 </div>
 
@@ -414,23 +414,23 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
 
     const renderTermsInfo = () => (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="md:col-span-2 section-card bg-indigo-600 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 text-white shadow-xl">
+            <div className="md:col-span-2 section-card bg-[#EA580C] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 text-white shadow-xl">
                 <div className="flex items-center gap-6">
                     <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
                         <FileText className="w-8 h-8" />
                     </div>
                     <div>
                         <h4 className="text-xl font-bold mb-1 tracking-tight">Financial Agreement Summary</h4>
-                        <p className="text-indigo-100 text-sm font-medium">Core credit and penalty terms agreed with vendor.</p>
+                        <p className="text-orange-100 text-sm font-medium">Core credit and penalty terms agreed with vendor.</p>
                     </div>
                 </div>
                 <div className="flex gap-4">
                     <div className="px-6 py-4 bg-white/10 rounded-2xl backdrop-blur-md text-center border border-white/10">
-                        <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest block mb-1">Credit Days</span>
+                        <span className="text-[10px] font-black text-orange-200 uppercase tracking-widest block mb-1">Credit Days</span>
                         <span className="text-2xl font-black">{terms?.credit_period || '0'}</span>
                     </div>
                     <div className="px-6 py-4 bg-white/10 rounded-2xl backdrop-blur-md text-center border border-white/10 min-w-[140px]">
-                        <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest block mb-1">Credit Limit</span>
+                        <span className="text-[10px] font-black text-orange-200 uppercase tracking-widest block mb-1">Credit Limit</span>
                         <span className="text-2xl font-black font-mono">₹{Number(terms?.credit_limit || 0).toLocaleString()}</span>
                     </div>
                 </div>
@@ -513,11 +513,11 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
                                 onClick={() => setActiveTab(tab.id as any)}
                                 className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95
                   ${activeTab === tab.id
-                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 -translate-y-0.5'
-                                        : 'text-indigo-400 hover:text-indigo-600 hover:bg-slate-100'
+                                        ? 'bg-[#F97316] text-white shadow-lg shadow-orange-100 -translate-y-0.5'
+                                        : 'text-[#FB923C] hover:text-[#EA580C] hover:bg-slate-100'
                                     }`}
                             >
-                                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-white' : 'text-indigo-300'}`} />
+                                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-white' : 'text-[#FED7AA]'}`} />
                                 {tab.label}
                             </button>
                         ))}
@@ -553,7 +553,7 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
 
                     <div className="flex items-center gap-3">
                         <button
-                            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+                            className="flex items-center gap-2 px-6 py-3 bg-[#F97316] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#EA580C] transition-all shadow-md active:scale-95"
                             onClick={() => window.print()}
                         >
                             <FileText className="w-4 h-4 text-white" />

@@ -1317,7 +1317,7 @@ const App: React.FC = () => {
     if (!isDataLoaded) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+          <div className="w-10 h-10 border-4 border-orange-100 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">Syncing Workspace Data...</p>
         </div>
       );
@@ -1389,7 +1389,7 @@ const App: React.FC = () => {
   // --- RENDER HELPERS ---
   const PageLoader = () => (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
-      <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+      <div className="w-10 h-10 border-4 border-orange-100 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
       <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">Syncing Workspace Data...</p>
     </div>
   );
