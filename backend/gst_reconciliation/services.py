@@ -32,7 +32,9 @@ class GSTValidationService:
             # Re-sum GSTR-1 (Mock logic for comparison)
             # In real system, we'd pull direct from GSTR1ViewSet logic
             sales = VoucherSalesInvoiceDetails.objects.all()
-            total_sales_igst = sum([getattr(v.payment_details, 'payment_igst', 0) for v in sales])
+            total_sales_igst = sum([float(v.payment_details.payment_igst) for v in sales if hasattr(v, 'payment_details')])
+            total_sales_cgst = sum([float(v.payment_details.payment_cgst) for v in sales if hasattr(v, 'payment_details')])
+            total_sales_sgst = sum([float(v.payment_details.payment_sgst) for v in sales if hasattr(v, 'payment_details')])
             
             if abs(total_sales_igst - float(report_3b.output_tax_igst)) > 1:
                  results.append(ValidationResult.objects.create(

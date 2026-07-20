@@ -93,6 +93,11 @@ class GSTR3BReport(BaseModel):
     net_igst = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     net_cgst = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     net_sgst = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    
+    # Filing Tracking
+    status = models.CharField(max_length=20, default='DRAFT', choices=[('DRAFT', 'Draft'), ('FILED', 'Filed')])
+    arn_number = models.CharField(max_length=100, null=True, blank=True)
+    filed_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'gst_reconciliation_gstr3b_reports'
@@ -141,3 +146,47 @@ class GSTJobStatus(BaseModel):
 
     class Meta:
         db_table = 'gst_reconciliation_job_status'
+
+class GSTElectronicLedger(BaseModel):
+    """
+    Stores the user's Electronic Cash, Credit, and Liability ledger balances.
+    These balances are used to offset GSTR-3B tax liabilities during checkout.
+    """
+    cash_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    credit_balance_igst = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    credit_balance_cgst = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    credit_balance_sgst = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    liability_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    last_synced = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'gst_electronic_ledgers'
+
+class GSTLateFee(BaseModel):
+    """
+    Tracks late fee penalties for GST returns filed after the due date.
+    One record per return type per period.
+    """
+    RETURN_TYPE_CHOICES = [('GSTR3B', 'GSTR-3B'), ('GSTR1', 'GSTR-1')]
+    STATUS_CHOICES = [('PENDING', 'Pending'), ('PAID', 'Paid'), ('WAIVED', 'Waived')]
+
+    return_type = models.CharField(max_length=10, choices=RETURN_TYPE_CHOICES, default='GSTR3B')
+    period_month = models.CharField(max_length=20)
+    period_year = models.CharField(max_length=10)
+
+    due_date = models.DateField()
+    filed_date = models.DateField(null=True, blank=True)
+    days_late = models.IntegerField(default=0)
+
+    is_nil_return = models.BooleanField(default=False)
+
+    cgst_late_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sgst_late_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_late_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    paid_date = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'gst_late_fees'
+        unique_together = ('return_type', 'period_month', 'period_year')

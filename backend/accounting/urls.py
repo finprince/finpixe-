@@ -37,6 +37,7 @@ from .views_voucher_purchase import VoucherPurchaseViewSet # pyre-fixme
 from .views_voucher_debit_note import VoucherDebitNoteViewSet # pyre-fixme
 from .views_voucher_credit_note import VoucherCreditNoteViewSet
 from .views_gst import GSTR1ViewSet # pyre-fixme
+from .views_gstr2 import GSTR2ViewSet
 from .views_allocation import VoucherAllocationViewSet
 
 router = routers.DefaultRouter()
@@ -83,6 +84,7 @@ router.register('journal-entries', JournalEntryViewSet, basename='journal-entrie
 
 # GST Endpoints
 router.register('gst/gstr1', GSTR1ViewSet, basename='gstr1')
+router.register('gst/gstr2', GSTR2ViewSet, basename='gstr2')
 
 # Unified voucher endpoint - filter by type using query params
 # e.g., /api/accounting/vouchers/?type=sales

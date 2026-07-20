@@ -682,7 +682,7 @@ class ApiService {
                 }
                 response.type = response.type || 'Sales';
                 fetchedAsDetail = true;
-            } else if (normalizedSource === 'purchase_voucher' || normalizedSource === 'purchase') {
+            } else if (normalizedSource === 'purchase_voucher' || normalizedSource === 'purchase' || normalizedSource === 'purchase_gstr2_drilldown') {
                 try {
                     response = await httpClient.get<any>(`/api/vouchers/purchase/${id}/?show_all=true`, undefined, { ...options, skipErrorNotification: true } as any);
                 } catch (e) {
@@ -765,13 +765,17 @@ class ApiService {
                 }
                 response.type = 'Credit Note';
                 fetchedAsDetail = true;
-            } else if (normalizedSource === 'debit_note_voucher' || normalizedSource === 'debit note' || normalizedSource === 'debit_note') {
-                try {
-                    const genericVoucher = await httpClient.get<any>(`/api/vouchers/${id}/`, undefined, options);
-                    const refId = genericVoucher.data?.reference_id || genericVoucher.reference_id || id;
-                    response = await httpClient.get<any>(`/api/vouchers/debit-note/${refId}/`, undefined, options);
-                } catch (innerE) {
+            } else if (normalizedSource === 'debit_note_voucher' || normalizedSource === 'debit note' || normalizedSource === 'debit_note' || normalizedSource === 'debitnote_gstr2_drilldown') {
+                if (normalizedSource === 'debitnote_gstr2_drilldown') {
                     response = await httpClient.get<any>(`/api/vouchers/debit-note/${id}/`, undefined, options);
+                } else {
+                    try {
+                        const genericVoucher = await httpClient.get<any>(`/api/vouchers/${id}/`, undefined, options);
+                        const refId = genericVoucher.data?.reference_id || genericVoucher.reference_id || id;
+                        response = await httpClient.get<any>(`/api/vouchers/debit-note/${refId}/`, undefined, options);
+                    } catch (innerE) {
+                        response = await httpClient.get<any>(`/api/vouchers/debit-note/${id}/`, undefined, options);
+                    }
                 }
                 response.type = 'Debit Note';
                 fetchedAsDetail = true;
@@ -2164,6 +2168,10 @@ class ApiService {
         let url = `/api/gst/reconciliation/fetch_gstr2b_sandbox/?month=${month}&year=${year}`;
         if (gstin) url += `&gstin=${gstin}`;
         return httpClient.get<any>(url);
+    }
+
+    async fetchGSTR2BResults(month: string, year: string) {
+        return httpClient.get<any>(`/api/gst/reconciliation/results/?month=${month}&year=${year}`);
     }
 }
 

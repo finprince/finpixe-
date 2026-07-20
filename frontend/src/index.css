@@ -965,3 +965,40 @@ html.dark input:-webkit-autofill:active {
 .dark .bg-grid-pattern {
   background-image: radial-gradient(circle, #334155 1px, transparent 1px);
 }
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+@media print {
+  body, html, #root, .erp-main-bg {
+    background: white !important;
+  }
+  
+  /* Hide sidebar and top navigation */
+  aside, 
+  nav,
+  .erp-sidebar, 
+  .erp-header,
+  
+  /* Hide interactive buttons during print */
+  button, 
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset layout for full page print */
+  .ml-64,
+  .pl-64,
+  .mt-16,
+  .pt-16 {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .erp-card, .erp-container {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+  }
+}

@@ -1,28 +1,55 @@
 import finpixeLogo from '../../assets/finpixe with empty bg.png';
 import React, { useState, useEffect } from 'react';
 import GSTR1Page from './GSTR1';
+import GSTR2Page from './GSTR2Page';
 import GSTR2Reconciliation from './GSTR2Reconciliation';
 import GSTR3BPreview from './GSTR3BPreview';
+import LateFeeEngine from './LateFeeEngine';
 import { usePermissions } from '../../hooks/usePermissions';
 
-export default function GSTPage({ onNavigate, setViewVoucherData, vouchers }: { onNavigate?: (page: string, params?: any) => void, setViewVoucherData?: (data: any) => void, vouchers?: any[] }) {
+let savedGstTab: string | null = null;
+
+export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navParams }: { onNavigate?: (page: string, params?: any) => void, setViewVoucherData?: (data: any) => void, vouchers?: any[], navParams?: any }) {
     const { hasTabAccess, isSuperuser } = usePermissions();
 
     const allTabs = [
         { id: 'GSTR1', label: 'GSTR1 - Outward Supplies' },
         { id: 'GSTR2', label: 'GSTR2 - Inward Supplies' },
-        { id: 'GSTR3B', label: 'GSTR3B - Summary Return' }
+        { id: 'GSTR2B_RECO', label: 'GSTR-2B Reconciliation' },
+        { id: 'GSTR3B', label: 'GSTR3B - Summary Return' },
+        { id: 'LATE_FEES', label: '⚠ Late Fees & Notices' }
     ];
 
     const availableTabs = isSuperuser
         ? allTabs
         : allTabs.filter(tab => hasTabAccess('GST', tab.id));
 
-    const [activeTab, setActiveTab] = useState(availableTabs.length > 0 ? availableTabs[0].id : '');
+    const [activeTab, setActiveTabState] = useState(() => {
+        if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
+            savedGstTab = navParams.tab;
+            return navParams.tab;
+        }
+        if (savedGstTab && availableTabs.find(t => t.id === savedGstTab)) {
+            return savedGstTab;
+        }
+        return availableTabs.length > 0 ? availableTabs[0].id : '';
+    });
+
+    const setActiveTab = (tabId: string) => {
+        savedGstTab = tabId;
+        setActiveTabState(tabId);
+    };
+
+    useEffect(() => {
+        if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
+            setActiveTab(navParams.tab);
+        }
+    }, [navParams]);
 
     useEffect(() => {
         if (availableTabs.length > 0 && !availableTabs.find(t => t.id === activeTab)) {
-            setActiveTab(availableTabs[0].id);
+            const defaultTab = availableTabs[0].id;
+            setActiveTab(defaultTab);
         }
     }, [availableTabs, activeTab]);
 
@@ -62,11 +89,19 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers }: { 
                 )}
 
                 {activeTab === 'GSTR2' && (
-                    <GSTR2Reconciliation />
+                    <GSTR2Page onNavigate={onNavigate} setViewVoucherData={setViewVoucherData} />
+                )}
+
+                {activeTab === 'GSTR2B_RECO' && (
+                    <GSTR2Reconciliation onNavigate={onNavigate} setViewVoucherData={setViewVoucherData} />
                 )}
 
                 {activeTab === 'GSTR3B' && (
                     <GSTR3BPreview />
+                )}
+
+                {activeTab === 'LATE_FEES' && (
+                    <LateFeeEngine />
                 )}
             </div>
         </div>
