@@ -600,6 +600,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   }, [setIsBulkUploadOpen, setActiveOcrFileHash, setActiveOcrFileName, setActiveOcrSessionId, setLocalPrefilledData, setVoucherType]);
 
   const [returnToPage, setReturnToPage] = useState<string | null>(null);
+  const [returnToTab, setReturnToTab] = useState<string | null>(null);
 
   useEffect(() => {
     if (navParams?.editOcrFileHash) {
@@ -612,6 +613,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       handleEditOcrRow(navParams.editOcrRow);
       if (navParams?.returnTo) {
         setReturnToPage(navParams.returnTo);
+      }
+    } else if (navParams?.action === 'create') {
+      setVoucherType(navParams.type || 'Purchase');
+      if (navParams.prefilledData) {
+        setLocalPrefilledData(navParams.prefilledData);
+      }
+      if (navParams.returnTo) {
+        setReturnToPage(navParams.returnTo);
+      }
+      if (navParams.returnTab) {
+        setReturnToTab(navParams.returnTab);
       }
     }
   }, [navParams, handleEditOcrRow]);
@@ -6595,10 +6607,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       type="button"
                       onClick={() => {
                         setPurchaseInputTypes(prev =>
-                          prev.includes('Import') ? prev.filter(t => t !== 'Import') : [...prev, 'Import']
+                          prev.includes('Cess') ? prev.filter(t => t !== 'Cess') : [...prev, 'Cess']
                         );
                       }}
-                      className={`flex-1 px-4 py-2 border rounded-[4px] transition-all duration-200 ${purchaseInputTypes.includes('Import')
+                      className={`flex-1 px-4 py-2 border rounded-[4px] transition-all duration-200 ${purchaseInputTypes.includes('Cess')
                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-md font-semibold scale-105'
                         : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600'
                         }`}
@@ -12693,8 +12705,9 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       setLocalPrefilledData(null);
 
       if (returnToPage && onNavigate) {
-        onNavigate(returnToPage as Page);
+        onNavigate(returnToPage as Page, returnToTab ? { tab: returnToTab } : undefined);
         setReturnToPage(null);
+        setReturnToTab(null);
         return;
       }
 
@@ -12713,7 +12726,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     if (clearViewVoucherData) clearViewVoucherData();
     if (onNavigate) {
       if (viewVoucherData?.source && viewVoucherData.source.endsWith('_drilldown')) {
-        onNavigate('GST');
+        let targetTab = 'GSTR1';
+        if (viewVoucherData.source.includes('gstr2b_reco')) targetTab = 'GSTR2B_RECO';
+        else if (viewVoucherData.source.includes('gstr2')) targetTab = 'GSTR2';
+        onNavigate('GST', { tab: targetTab });
       } else if (viewVoucherData?.ledgerName) {
         onNavigate('Reports', { reportType: 'LedgerReport', drillDownLedger: viewVoucherData.ledgerName });
       } else {
@@ -13322,7 +13338,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   const inputType = firstRow['Input Type'] || '';
                   if (inputType) {
                     if (inputType.toLowerCase().includes('interstate')) setPurchaseInputTypes(['Interstate']);
-                    else if (inputType.toLowerCase().includes('import')) setPurchaseInputTypes(['Import']);
+                    else if (inputType.toLowerCase().includes('cess')) setPurchaseInputTypes(['Cess']);
                     else setPurchaseInputTypes(['Intrastate']);
                   }
 

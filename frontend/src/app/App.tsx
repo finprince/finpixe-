@@ -223,6 +223,11 @@ const App: React.FC = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Router state
+  const [viewVoucherData, setViewVoucherData] = useState<any>(null);
+  const [vouchersNavParams, setVouchersNavParams] = useState<any>(null);
+  const [reportsNavParams, setReportsNavParams] = useState<any>(null);
+  const [gstNavParams, setGstNavParams] = useState<any>(null);
+
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [currentPage, setCurrentPage] = useState<Page | MasterPage | 'BranchDetail'>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -309,7 +314,6 @@ const App: React.FC = () => {
   const [showDeactivationModal, setShowDeactivationModal] = useState(false);
 
   // Drill-down voucher viewing state
-  const [viewVoucherData, setViewVoucherData] = useState<any>(null);
 
   const handleClearViewVoucherData = useCallback(() => {
     setViewVoucherData(null);
@@ -323,24 +327,29 @@ const App: React.FC = () => {
    * Handle page navigation
    * Called when user clicks on sidebar menu items
    */
-  const [reportsNavParams, setReportsNavParams] = useState<any>(null);
-  const [vouchersNavParams, setVouchersNavParams] = useState<any>(null);
 
-  const handleNavigate = (page: Page, params?: any) => {
+  const handleNavigate = useCallback((page: Page, params?: any) => {
+    setCurrentPage(page);
+    window.history.pushState(null, '', `?page=${page.replace(/\s+/g, '')}`);
+    
     if (page === 'Vouchers') {
       if (params?.viewVoucher) {
         setViewVoucherData(params.viewVoucher);
       }
       setVouchersNavParams(params);
     } else {
-      setViewVoucherData(null);
-      setVouchersNavParams(null);
+      if (!params || !params.preserveVoucherState) {
+        setViewVoucherData(null);
+        setVouchersNavParams(null);
+      }
+      
+      if (page === 'Reports' && params) {
+        setReportsNavParams(params);
+      } else if (page === 'GST' && params) {
+        setGstNavParams(params);
+      }
     }
-    if (page === 'Reports') {
-      setReportsNavParams(params);
-    }
-    setCurrentPage(page);
-  };
+  }, []);
 
   // Handle logout: clear all session data and redirect to login
   const handleLogout = useCallback(async () => {
@@ -1380,7 +1389,7 @@ const App: React.FC = () => {
       case 'Customer Portal': return <CustomerPortalPage onNavigate={handleNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />;
       case 'Payroll': return <PayrollPage />;
       case 'Service': return <ServicePage />;
-      case 'GST': return <GSTPage onNavigate={handleNavigate} setViewVoucherData={setViewVoucherData} vouchers={vouchers} />;
+      case 'GST': return <GSTPage onNavigate={handleNavigate} setViewVoucherData={setViewVoucherData} vouchers={vouchers} navParams={gstNavParams} />;
       case 'Dashboard Builder': return <DashboardBuilderPage vouchers={vouchers} ledgers={ledgers} onNavigate={handleNavigate} />;
       default: return <div>Page not found</div>;
     }

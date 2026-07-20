@@ -1,25 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
+import FileGSTR3BModal from './FileGSTR3BModal';
+import { Wallet, CheckCircle } from 'lucide-react';
 
 export default function GSTR3BPreview() {
     const [isLoading, setIsLoading] = useState(false);
     const [report, setReport] = useState<any>(null);
+    const [selectedMonth, setSelectedMonth] = useState('January');
+    const [selectedYear, setSelectedYear] = useState('2024-25');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [ledgerBalances, setLedgerBalances] = useState<any>(null);
+    const [isFiled, setIsFiled] = useState(false);
 
     const fetch3B = async () => {
         setIsLoading(true);
         try {
-            const res = await httpClient.get('/api/gst/reconciliation/gstr3b_preview/?month=January&year=2024-25');
+            const res: any = await httpClient.get(`/api/gst/reconciliation/gstr3b_preview/?month=${selectedMonth}&year=${selectedYear}`);
             setReport(res);
+            setIsFiled(res.status === 'FILED');
         } finally {
             setIsLoading(false);
         }
     };
 
+    const fetchLedgers = async () => {
+        try {
+            const res = await httpClient.get('/api/gst/reconciliation/fetch_ledger_balances/');
+            setLedgerBalances(res.data);
+        } catch (err) {
+            console.error('Failed to fetch ledger balances', err);
+        }
+    };
+
     useEffect(() => {
         fetch3B();
-    }, []);
-
-    if (isLoading) return <div className="p-20 text-center">Loading GSTR-3B Preview...</div>;
+        fetchLedgers();
+        setIsFiled(false); // reset filing status on period change
+    }, [selectedMonth, selectedYear]);
 
     return (
         <div className="space-y-6">
@@ -27,7 +44,28 @@ export default function GSTR3BPreview() {
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h2 className="section-title border-none pb-0">GSTR-3B Monthly Summary</h2>
-                        <p className="helper-text">Liability and ITC computation for January 2024-25</p>
+                        <p className="helper-text mb-4">Liability and ITC computation for {selectedMonth} {selectedYear}</p>
+                        <div className="flex gap-4 items-center bg-indigo-50/50 p-2 rounded border border-indigo-100 w-fit">
+                            <span className="text-sm font-semibold text-indigo-900">Period:</span>
+                            <select 
+                                value={selectedMonth} 
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="px-3 py-1.5 border border-indigo-200 rounded text-sm bg-white focus:ring-1 focus:ring-indigo-500"
+                            >
+                                {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
+                            <select 
+                                value={selectedYear} 
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                                className="px-3 py-1.5 border border-indigo-200 rounded text-sm bg-white focus:ring-1 focus:ring-indigo-500"
+                            >
+                                {['2023-24', '2024-25', '2025-26', '2026-27'].map(y => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -88,8 +126,107 @@ export default function GSTR3BPreview() {
                             </div>
                         </div>
                     </div>
+                    
+                    {/* Electronic Ledgers */}
+                    <div className="border border-blue-200 rounded-[4px] overflow-hidden bg-blue-50/30">
+                        <div className="bg-blue-100/50 p-3 border-b border-blue-200 font-semibold flex items-center gap-2 text-blue-900">
+                            <Wallet className="w-5 h-5 text-blue-600" />
+                            Electronic Ledger Balances
+                        </div>
+                        <div className="p-4 grid grid-cols-3 gap-6">
+                            <div className="space-y-1">
+                                <label className="text-xs text-blue-500 uppercase font-bold">Cash Ledger</label>
+                                <div className="text-xl font-bold text-blue-700">₹{ledgerBalances?.cash_balance?.toFixed(2) || '0.00'}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-blue-500 uppercase font-bold">Credit Ledger (IGST)</label>
+                                <div className="text-lg font-mono text-blue-800">₹{ledgerBalances?.credit_balance_igst?.toFixed(2) || '0.00'}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-blue-500 uppercase font-bold">Liability Ledger</label>
+                                <div className="text-lg font-mono text-blue-800">₹{ledgerBalances?.liability_balance?.toFixed(2) || '0.00'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="flex justify-end pt-4 border-t mt-6">
+                        {isFiled ? (
+                            <div className="flex flex-col items-end gap-2">
+                                <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-6 py-3 rounded-lg border border-green-200">
+                                    <CheckCircle className="w-6 h-6" />
+                                    RETURN FILED SUCCESSFULLY
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                            >
+                                FILE GSTR-3B
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* Filing History Section */}
+            {isFiled && report?.arn_number && (
+                <div className="erp-container mt-6">
+                    <h3 className="section-title">Filing History & Receipts</h3>
+                    <div className="overflow-x-auto">
+                        <table className="erp-table">
+                            <thead>
+                                <tr>
+                                    <th>Return Type</th>
+                                    <th>Period</th>
+                                    <th>Status</th>
+                                    <th>ARN Number</th>
+                                    <th>Filed On</th>
+                                    <th className="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="font-semibold text-slate-800">GSTR-3B</td>
+                                    <td>{selectedMonth} {selectedYear}</td>
+                                    <td>
+                                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                                            FILED
+                                        </span>
+                                    </td>
+                                    <td className="font-mono text-sm text-slate-600">{report.arn_number}</td>
+                                    <td>{new Date(report.filed_date).toLocaleDateString()}</td>
+                                    <td className="text-right">
+                                        <button onClick={() => window.print()} className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
+                                            Download PDF
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            <FileGSTR3BModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                month={selectedMonth}
+                year={selectedYear}
+                netTaxPayable={
+                    parseFloat(report?.net_igst || '0') + 
+                    parseFloat(report?.net_cgst || '0') + 
+                    parseFloat(report?.net_sgst || '0')
+                }
+                cashBalance={ledgerBalances?.cash_balance || 0}
+                onSuccess={() => {
+                    setIsModalOpen(false);
+                    setIsFiled(true);
+                    fetch3B(); // Fetch the new ARN number and status from the server
+                    fetchLedgers(); // Refresh balances
+                }}
+            />
         </div>
     );
 }
