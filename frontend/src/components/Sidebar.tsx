@@ -23,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
     { name: 'Vouchers', icon: 'vouchers' },
     { name: 'Vendor Portal', icon: 'vendor-portal' },
     { name: 'Customer Portal', icon: 'customer-portal' },
-    { name: 'Payroll', icon: 'payroll' },
+    //{ name: 'Payroll', icon: 'payroll' }, // Temporarily hidden
     { name: 'Service', icon: 'service' },
     { name: 'GST', icon: 'gst' },
     { name: 'Reports', icon: 'reports' },

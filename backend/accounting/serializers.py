@@ -357,8 +357,18 @@ class VoucherSerializer(BranchModelSerializerMixin, serializers.ModelSerializer)
                         
             # Expose gst_registered for receipts based on AdvanceAllocation
             if v_type_lower in ['receipt', 'receipts']:
-                from accounting.models import AdvanceAllocation
-                adv = AdvanceAllocation.objects.filter(transaction=instance).first()
+                from accounting.models import AdvanceAllocation, Transaction
+                adv = None
+                if isinstance(instance, Transaction):
+                    adv = AdvanceAllocation.objects.filter(transaction=instance).first()
+                else:
+                    if getattr(instance, 'reference_id', None):
+                        adv = AdvanceAllocation.objects.filter(transaction_id=instance.reference_id).first()
+                    if not adv and getattr(instance, 'voucher_number', None) and getattr(instance, 'tenant_id', None):
+                        adv = AdvanceAllocation.objects.filter(
+                            transaction__voucher_number=instance.voucher_number,
+                            tenant_id=instance.tenant_id
+                        ).first()
                 if adv and adv.gst_registered:
                     ret['gst_registered'] = adv.gst_registered
 
