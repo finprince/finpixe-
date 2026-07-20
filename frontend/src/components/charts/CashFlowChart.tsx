@@ -56,9 +56,9 @@ const CashFlowChart: React.FC<CashFlowChartProps> = ({ data, height = 300 }) => 
                         type="monotone"
                         dataKey="netCash"
                         name="Net Cash"
-                        stroke="#3b82f6"
+                        stroke="#F97316"
                         strokeWidth={2}
-                        dot={{ r: 3, strokeWidth: 2, fill: 'white', stroke: '#3b82f6' }}
+                        dot={{ r: 3, strokeWidth: 2, fill: 'white', stroke: '#F97316' }}
                         activeDot={{ r: 5 }}
                     />
                 </ComposedChart>

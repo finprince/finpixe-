@@ -69,7 +69,7 @@ const MasterSidebar: React.FC<MasterSidebarProps> = ({
                 </div>
                 <span className="flex-1 text-left">{item.name}</span>
                 {isActive && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
                 )}
               </button>
             );

@@ -24,13 +24,13 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({ data, height = 300 }) =
 
         let start = 0;
         let barSize = 0;
-        let color = '#3b82f6'; // Default (Totals)
+        let color = '#F97316'; // Default (Totals)
 
         if (isTotal) {
             start = 0;
             barSize = value;
             cumulative = value; // Reset/Set checkpoint
-            color = '#3b82f6'; // Blue
+            color = '#F97316'; // Primary Orange
         } else {
             // Step
             if (value >= 0) {

@@ -6291,7 +6291,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         </div>
                                         <table className="w-full text-sm mb-3" style={{ borderCollapse: 'collapse' }}>
                                             <thead>
-                                                <tr style={{ background: '#4f46e5', color: 'white' }}>
+                                                <tr style={{ background: '#f97316', color: 'white' }}>
                                                     <th style={{ padding: '9px 6px', textAlign: 'left', fontWeight: 600 }}>#</th>
                                                     <th style={{ padding: '9px 6px', textAlign: 'left', fontWeight: 600 }}>Item / Description</th>
                                                     <th style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 600 }}>HSN</th>

@@ -14,7 +14,7 @@ interface ExpenseBreakdownChartProps {
     height?: number | string;
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
+const COLORS = ['#F97316', '#EA580C', '#F59E0B', '#22C55E', '#0EA5E9', '#64748B'];
 
 const ExpenseBreakdownChart: React.FC<ExpenseBreakdownChartProps> = ({ data, height = 300 }) => {
     const processedData = useMemo(() => {

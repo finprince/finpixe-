@@ -467,7 +467,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
           <button onClick={handleUpload} disabled={uploading || isLimitReached} className={`w-full py-4 rounded-xl text-lg shadow-xl flex items-center justify-center gap-3 ${
             isLimitReached
               ? 'bg-red-100 text-red-400 cursor-not-allowed shadow-none border border-red-200'
-              : 'erp-button-primary shadow-indigo-100'
+              : 'erp-button-primary shadow-orange-100'
           }`} title={isLimitReached ? 'AI usage limit reached — upgrade your plan' : undefined}>
             <Icon name={uploading ? 'spinner' : 'upload'} className={`w-6 h-6 ${uploading ? 'animate-spin' : ''}`} />
             {uploading ? (

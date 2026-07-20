@@ -249,7 +249,7 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ branch, onBack }) => {
                                     <div className="grid grid-cols-2 gap-8">
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Primary Email</label>
-                                            <p className="text-sm font-bold text-slate-800">{branch.name.toLowerCase().replace(' ', '')}@finpixe.com</p>
+                                            <p className="text-sm font-bold text-slate-800">{branch.name.toLowerCase().replace(' ', '')}@kiki.com</p>
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Contact Phone</label>
@@ -270,7 +270,7 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ branch, onBack }) => {
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {loading && !branchData ? (
                                 <div className="py-20 text-center animate-pulse flex flex-col items-center">
-                                    <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                                    <div className="w-10 h-10 border-4 border-orange-100 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
                                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">FETCHING LIVE DATA...</p>
                                 </div>
                             ) : (

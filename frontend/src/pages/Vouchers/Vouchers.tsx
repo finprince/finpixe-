@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -6022,24 +6022,24 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     return (
       <div className="space-y-6">
         {activeOcrFileHash && (
-          <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-5 flex items-center justify-between gap-4 transition-all">
+          <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-5 flex items-center justify-between gap-4 transition-all">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-lg shrink-0 mt-0.5">
+              <div className="p-2 bg-orange-500/10 text-orange-600 rounded-lg shrink-0 mt-0.5">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-indigo-900">Editing Extracted Scan Data</h4>
-                <p className="text-xs text-indigo-700 leading-relaxed">
-                  You are editing extracted data for <span className="font-mono bg-indigo-100 px-1 py-0.5 rounded text-indigo-800 break-all">{activeOcrFileName || activeOcrFileHash}</span>. Saving will create a purchase voucher and mark the scan row as finalized.
+                <h4 className="text-sm font-bold text-orange-950">Editing Extracted Scan Data</h4>
+                <p className="text-xs text-orange-800 leading-relaxed">
+                  You are editing extracted data for <span className="font-mono bg-orange-100 px-1 py-0.5 rounded text-orange-900 break-all">{activeOcrFileName || activeOcrFileHash}</span>. Saving will create a purchase voucher and mark the scan row as finalized.
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={handleCloseVoucher}
-              className="px-4 py-2 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-xs font-semibold text-orange-700 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors whitespace-nowrap"
             >
               BACK TO SCAN LIST
             </button>
@@ -6811,17 +6811,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               {/* Foreign Currency Table */}
               <div className="overflow-x-auto border border-gray-200 rounded-[4px] shadow-none">
                 <table className="w-full">
-                  <thead className="bg-indigo-600 text-white">
+                  <thead className="bg-[#F97316] text-white">
                     <tr>
-                      <th className="px-3 py-3 text-center w-12 border-r border-indigo-500"></th>
+                      <th className="px-3 py-3 text-center w-12 border-r border-[#FB923C]"></th>
                       {selectedPurchasePOs.length > 0 && (
-                        <th className="px-3 py-3 text-sm font-semibold text-center border-r border-indigo-500">Purchase Order No.</th>
+                        <th className="px-3 py-3 text-sm font-semibold text-center border-r border-[#FB923C]">Purchase Order No.</th>
                       )}
-                      <th className="px-3 py-3 text-sm font-semibold text-center border-r border-indigo-500">Description</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-indigo-500">Inv Qty</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-indigo-500">UQC</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-indigo-500">Rate ({vendorBillingCurrency || 'FC'})</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-indigo-500">Amount ({vendorBillingCurrency || 'FC'})</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center border-r border-[#FB923C]">Description</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-[#FB923C]">Inv Qty</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-[#FB923C]">UQC</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-[#FB923C]">Rate ({vendorBillingCurrency || 'FC'})</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-[#FB923C]">Amount ({vendorBillingCurrency || 'FC'})</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -12744,8 +12744,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       <div className="erp-section-title">
         <div>
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-white border border-[#E0E2FF] shadow-[0_8px_16px_rgba(75,60,255,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-              <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+            <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+              <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
             </div>
             <div>
               <h1 className="page-title">Voucher Entry</h1>
@@ -13090,7 +13090,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               __html: `
                 .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
                 .form-input { display: block; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); outline: none; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
-                .form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+                .form-input:focus { border-color: #F97316; box-shadow: 0 0 0 1px #F97316; }
                 .table-input {
                   width: 100%;
                   border: 1px solid transparent;
@@ -13103,7 +13103,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 }
                 .table-input:focus {
                   background-color: white;
-                  box-shadow: 0 0 0 1px #3b82f6;
+                  box-shadow: 0 0 0 1px #F97316;
                 }
                 .table-input[readOnly] {
                   background-color: #f9fafb;
@@ -13288,7 +13288,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 const firstRow = data[0];
 
                 if (voucherType === 'Purchase' || voucherType === 'Debit Note') {
-                  // Map flat "Finpixe schema" columns to Purchase form internal state
+                  // Map flat "Kiki schema" columns to Purchase form internal state
                   // Column names exactly match VOUCHER_COLUMN_SCHEMAS['Purchase']
 
                   // "Supplier Invoice No." (with dot) — also tolerate legacy name without dot

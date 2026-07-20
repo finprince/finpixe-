@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { CompanyDetails } from '../../types';
 import { apiService, masterApiService, AxiosRequestConfig } from '../../services';
@@ -189,8 +189,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ companyDetails, onSave, ten
       <div className="erp-section-title flex items-center justify-between">
         <div>
           <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#E0E2FF] shadow-[0_8px_16px_rgba(75,60,255,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
           </div>
           <div>
 <h1 className="page-title">{isMaster ? (tenantId && tenantId !== 'all' ? `Entity Configuration: ${details.name || ''}` : 'Master Profile Settings') : 'System Settings'}</h1>
