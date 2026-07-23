@@ -383,7 +383,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def request_sandbox_otp(self, request):
-        gstin = request.data.get('gstin', '29ABCDE1234F1Z5')
+        gstin = request.data.get('gstin', '29AAACQ3770E000')
         service = SandboxGSTService()
         result = service.request_otp(gstin)
         if not result.get('success'):
@@ -394,7 +394,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
     def verify_and_file_sandbox(self, request):
         month = request.data.get('month')
         year = request.data.get('year')
-        gstin = request.data.get('gstin', '29ABCDE1234F1Z5')
+        gstin = request.data.get('gstin', '29AAACQ3770E000')
         otp = request.data.get('otp')
         
         service = SandboxGSTService()
@@ -495,47 +495,66 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         month = request.data.get('month')
         year = request.data.get('year')
         otp = request.data.get('otp')
+        gstin = request.data.get('gstin', '29AAACQ3770E000')
         paid_via_cash = request.data.get('paid_via_cash', 0)
-        
+
         if not month or not year or not otp:
             return Response({'success': False, 'message': 'Missing required fields'})
-            
+
         from .models import GSTElectronicLedger, GSTR3BReport
+        import uuid
+        from django.utils import timezone
         
         # 1. Duplicate Prevention Check
         report, created = GSTR3BReport.objects.get_or_create(
-            period_month=month, 
+            period_month=month,
             period_year=year
         )
-        
+
         if report.status == 'FILED':
             return Response({
-                'success': False, 
+                'success': False,
                 'message': f'Return for {month} {year} is already filed with ARN {report.arn_number}'
             })
+
+        # 2. Verify OTP via Sandbox
+        service = SandboxGSTService()
+        verify_result = service.verify_otp(gstin, otp)
+        
+        if not verify_result.get('success'):
+            return Response(verify_result, status=status.HTTP_400_BAD_REQUEST)
             
+        auth_token = verify_result.get('auth_token')
+        
+        # 3. Submit Filing via Sandbox
+        file_result = service.file_gstr3b(month, year, request.data, auth_token=auth_token)
+        if not file_result.get('success'):
+            return Response(file_result, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Deduct Cash Ledger if needed
         ledger, _ = GSTElectronicLedger.objects.get_or_create(id=1)
         if ledger:
-            # Deduct the cash they used to pay this liability
             ledger.cash_balance = float(ledger.cash_balance) - float(paid_via_cash)
             if ledger.cash_balance < 0:
                 ledger.cash_balance = 0
             ledger.save()
-            
-        import uuid
-        from django.utils import timezone
-        arn = f"AA2907{str(uuid.uuid4().int)[:8]}"
-        
-        # Mark as FILED
+
+        # Mark as FILED locally
         report.status = 'FILED'
-        report.arn_number = arn
+        report.arn_number = file_result.get('arn', f"AA2907{str(uuid.uuid4().int)[:8]}")
         report.filed_date = timezone.now()
         report.save()
-            
+        
+        AuditLog.objects.create(
+            action="Sandbox GSTR-3B File with OTP",
+            details={"month": month, "year": year, "reference": file_result.get("reference_id")},
+            executed_by=str(request.user) if request.user.is_authenticated else 'system'
+        )
+
         return Response({
             'success': True,
-            'message': f'GSTR-3B for {month} {year} successfully filed! ARN: {arn}',
-            'arn': arn
+            'message': file_result.get('message', f'GSTR-3B for {month} {year} successfully filed!'),
+            'arn': report.arn_number
         })
 
     @action(detail=False, methods=['get'])
@@ -564,6 +583,15 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         start_year = int(year_str.split('-')[0])
         today = date.today()
         results = []
+
+        # Fetch penalty factors from Sandbox API
+        service = SandboxGSTService()
+        fee_data = service.fetch_late_fees(year_str)
+        factors = fee_data.get('data', {})
+        rate_nil = factors.get('daily_rate_nil_return', 10)
+        rate_std = factors.get('daily_rate_standard', 25)
+        max_nil = factors.get('max_penalty_nil', 250)
+        max_std = factors.get('max_penalty_standard', 5000)
 
         # Only process months that have a real GSTR3BReport record in the database
         real_reports = GSTR3BReport.objects.filter(period_year=year_str).order_by('created_at')
@@ -599,14 +627,16 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                     float(filed_report.net_sgst or 0) == 0
                 )
 
-            # Calculate fee per GST rules
+            # Calculate fee per GST rules using Sandbox configuration
             if days_late > 0:
-                daily_rate = 10 if is_nil else 25  # per component (CGST + SGST)
+                daily_rate = rate_nil if is_nil else rate_std
                 cgst_fee = days_late * daily_rate
                 sgst_fee = days_late * daily_rate
-                if is_nil:
-                    cgst_fee = min(cgst_fee, 250)
-                    sgst_fee = min(sgst_fee, 250)
+                
+                max_cap = max_nil if is_nil else max_std
+                cgst_fee = min(cgst_fee, max_cap)
+                sgst_fee = min(sgst_fee, max_cap)
+                
                 total_fee = cgst_fee + sgst_fee
             else:
                 cgst_fee = sgst_fee = total_fee = 0
