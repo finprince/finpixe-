@@ -123,15 +123,16 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
                     source='customer_portal'
                 )
 
-                # 3. Create VoucherReceiptSingle
-                VoucherReceiptSingle.objects.create(
+                # 3. Create VoucherReceiptSingle (alias for Transaction)
+                receipt_transaction = VoucherReceiptSingle.objects.create(
                     tenant_id=tenant_id,
                     date=receipt_date,
-                    voucher_type='receipt',
+                    transaction_type='RECEIPT',
                     voucher_number=voucher_no,
-                    total_receipt=amount,
-                    receive_in=receive_in_ledger,
-                    receive_from=receive_from_ledger,
+                    total_amount=amount,
+                    amount=amount,
+                    pay_to_ledger=receive_in_ledger,
+                    pay_from_ledger=receive_from_ledger,
                     bank_reference_number=reference_no
                 )
 
@@ -171,7 +172,7 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
                 from .models import PendingTransaction
                 PendingTransaction.objects.create(
                     tenant_id=tenant_id,
-                    transaction=voucher,
+                    transaction=receipt_transaction,
                     reference_id=str(invoice.id),
                     reference_number=invoice.sales_invoice_no,
                     reference_type='INVOICE',

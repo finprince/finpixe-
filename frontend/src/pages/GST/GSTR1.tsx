@@ -33,6 +33,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
         setPeriodState(newVal);
     };
     const [isLoading, setIsLoading] = useState(false);
+const [activeGstin, setActiveGstin] = useState<string>('');
     const [b2baData, setB2baData] = useState<any[]>([]);
     const [isFilingReturn, setIsFilingReturn] = useState(false);
     const [filingStatus, setFilingStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -97,6 +98,14 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
     const [hsnB2bData, setHsnB2bData] = useState<any[]>([]);
     const [hsnB2cData, setHsnB2cData] = useState<any[]>([]);
     const [stats, setStats] = useState<Record<string, number>>({});
+
+useEffect(() => {
+    apiService.getCompanyDetails().then(res => {
+        if (res && res.gstin) {
+            setActiveGstin(res.gstin);
+        }
+    }).catch(err => console.error('Failed to fetch active GSTIN', err));
+}, []);
 
     const subTabs = [
         // Original tabs
@@ -411,7 +420,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
         setIsSendingOtp(true);
         setFilingStatus(null);
         try {
-            const res = await apiService.requestSandboxOTP('29ABCDE1234F1Z5');
+            const res = await apiService.requestSandboxOTP(activeGstin || '29AAACQ3770E000');
             setFilingStatus({ type: 'success', message: res?.message || 'OTP Sent successfully' });
             setOtpSent(true);
         } catch (err: any) {
@@ -455,7 +464,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
             setIsFilingReturn(true);
             setFilingStatus(null);
             try {
-                const res = await apiService.verifyAndFileSandbox(period.month, period.year, { b2b: b2bData }, otpValue);
+                const res = await apiService.verifyAndFileSandbox(period.month, period.year, { b2b: b2bData }, otpValue, activeGstin);
                 setFilingStatus({
                     type: 'success',
                     message: res?.message || `GST Return filed successfully for ${period.month} ${period.year}.`
@@ -2939,7 +2948,7 @@ export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: 
                                 </div>
                             ) : (
                                 <p className="text-sm text-slate-600 mb-6">
-                                    To file this return securely, you must authorize this action using the One-Time Password (OTP) sent to the registered mobile number for GSTIN <span className="font-bold text-slate-800">29ABCDE1234F1Z5</span>.
+                                    To file this return securely, you must authorize this action using the One-Time Password (OTP) sent to the registered mobile number for GSTIN <span className="font-bold text-slate-800">{activeGstin || '29AAACQ3770E000'}</span>.
                                 </p>
                             )}
 

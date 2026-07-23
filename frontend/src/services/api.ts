@@ -2204,7 +2204,7 @@ class ApiService {
             year, 
             ...payload, 
             otp,
-            gstin: gstin || '29ABCDE1234F1Z5'
+            gstin: gstin || '29AAACQ3770E000'
         });
     }
 
