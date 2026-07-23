@@ -11,11 +11,11 @@ class SandboxGSTService:
     """
     
     def __init__(self, client_id=None, client_secret=None):
-        self.client_id = client_id or os.environ.get('WHITEBOOKS_CLIENT_ID')
-        self.client_secret = client_secret or os.environ.get('WHITEBOOKS_CLIENT_SECRET')
+        self.client_id = client_id or os.environ.get('SANDBOX_API_TEST_KEY') or os.environ.get('WHITEBOOKS_CLIENT_ID')
+        self.client_secret = client_secret or os.environ.get('SANDBOX_API_TEST_SECRET') or os.environ.get('WHITEBOOKS_CLIENT_SECRET')
         self.email = os.environ.get('WHITEBOOKS_EMAIL', 'val@gmail.com')
         self.base_url = "https://apisandbox.whitebooks.in"
-        self.mock_mode = False 
+        self.mock_mode = True 
         
     def _get_auth_headers(self, gstin):
         """WhiteBooks requires specific headers including gst_username and state_cd"""
@@ -28,7 +28,9 @@ class SandboxGSTService:
         }
         # Fallback to the first test user if the GSTIN doesn't match
         username = gst_username_map.get(gstin, 'TN_NT2.152383')
-        state_cd = gstin[:2] if gstin and len(gstin) >= 2 else '33'
+        # The WhiteBooks sandbox expects the state_cd to match the test username's state!
+        # TN_NT2... = 33 (Tamil Nadu), MH_NT2... = 27 (Maharashtra)
+        state_cd = '33' if username.startswith('TN') else '27'
         
         return {
             'Accept': 'application/json',
@@ -53,7 +55,7 @@ class SandboxGSTService:
                 data = res.json()
                 # WhiteBooks often returns 200 OK even for errors, so we must check status_cd
                 if str(data.get('status_cd', '1')) == '0':
-                    return {"success": False, "error": data.get('status_desc', 'WhiteBooks API Error')}
+                    return {"success": False, "error": data.get('status_desc') or f"WhiteBooks API Error: {data}"}
                 txn = data.get('txn', '')
                 if txn:
                     # Store txn in cache for the verify step (expires in 6 hours as per docs)
@@ -95,6 +97,15 @@ class SandboxGSTService:
 
     def file_gstr1(self, month, year, data_payload, auth_token=None):
         """Filing GSTR1 to the WhiteBooks API"""
+        if self.mock_mode:
+            import uuid
+            return {
+                "success": True,
+                "reference_id": f"REF-{uuid.uuid4().hex[:6]}",
+                "message": "Successfully saved to WhiteBooks API (Mock)",
+                "sandbox_response": {}
+            }
+            
         url = f"{self.base_url}/gstr1/retsave"
         try:
             # WhiteBooks doesn't limit sandbox filing! We actually hit the real save endpoint
