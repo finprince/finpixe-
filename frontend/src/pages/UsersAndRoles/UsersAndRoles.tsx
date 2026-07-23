@@ -14,16 +14,35 @@ import { apiService } from '../../services';
 import Icon from '../../components/Icon';
 import { showError, showSuccess, confirm } from '../../utils/toast';
 import { handleApiError } from '../../utils/errorHandler';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 
 
 interface UsersAndRolesPageProps {
     onNavigate: (page: string) => void;
+    navParams?: any;
 }
 
-const UsersAndRolesPage: React.FC<UsersAndRolesPageProps> = ({ onNavigate }) => {
+const UsersAndRolesPage: React.FC<UsersAndRolesPageProps> = ({ onNavigate, navParams }) => {
     // Tab state
     const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
+
+    useEffect(() => {
+        if (navParams?.tab) {
+            setActiveTab(navParams.tab);
+        }
+    }, [navParams]);
+
+    // Inspector Drawer State
+    const [inspectorState, setInspectorState] = useState<{
+        isOpen: boolean;
+        title?: string;
+        subtitle?: string;
+        entityType?: string;
+        data?: Record<string, any> | null;
+        activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+        aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+    }>({ isOpen: false, title: '', data: null });
 
     // Users state
     const [users, setUsers] = useState<any[]>([]);
@@ -327,19 +346,16 @@ const UsersAndRolesPage: React.FC<UsersAndRolesPageProps> = ({ onNavigate }) => 
     };
 
     return (
-        <div className="space-y-8">
-            <div className="erp-section-title">
-                <div>
-                    <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Users &amp; Roles</h1>
-                    <p className="helper-text">Access control and permission management</p>
-                          </div>
-        </div></div>
-            </div>
+        <UniversalWorkspaceLayout
+            title="Users & Roles Command Center"
+            subtitle="Access control, RBAC configuration, and permission management."
+            badgeText="IAM"
+            inspectorState={inspectorState}
+            onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+        >
+        <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+
+
 
             {/* Main Tabs */}
             <div className="erp-tab-container">
@@ -375,8 +391,10 @@ const UsersAndRolesPage: React.FC<UsersAndRolesPageProps> = ({ onNavigate }) => 
             {showUserModal && <UserModal user={editingUser} form={userForm} roles={roles} onFormChange={setUserForm} onSave={handleSaveUser} onClose={() => setShowUserModal(false)} />}
             {showRoleModal && <RoleModal role={editingRole} form={roleForm} permissionsStructure={permissionsStructure} onFormChange={setRoleForm} onTogglePage={togglePagePermission} onToggleTab={toggleTabPermission} onToggleSubmodule={toggleSubmodulePermission} onSave={handleSaveRole} onClose={() => setShowRoleModal(false)} />}
         </div>
+        </UniversalWorkspaceLayout>
     );
 };
+
 
 interface UsersTabProps {
     users: any[]; roles: any[]; loading: boolean;

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
-import "./Register.css";
+import React, { useState, useEffect } from "react";
 import { apiService } from "../../services";
-import PremiumBackground from "../../components/PremiumBackground";
 import Icon from "../../components/Icon";
 import KIKILogo from "../../assets/branding/logo";
+import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/Button";
+import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, ArrowLeft, KeyRound, Globe, Check, Eye, EyeOff } from "lucide-react";
 
 interface SignupPageProps {
   onSwitchToLogin: () => void;
@@ -146,25 +147,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
   const currentCountry = geoData.find(c => c.name === selectedCountry);
   const currentState = currentCountry?.states.find((s: any) => s.name === selectedState);
   const districtOptions = currentState?.districts || [];
-  
-
-  const StepIndicator = () => (
-    <div className="flex items-center gap-10 mb-12 relative overflow-hidden">
-      {[1, 2, 3].map((s) => (
-        <div key={s} className="flex flex-col items-center gap-2 relative z-10 transition-all duration-500">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black shadow-lg transition-all duration-500 border-2 ${step >= s ? 'bg-[#F97316] border-[#F97316] text-white scale-110 shadow-orange-200' : 'bg-[#FFF6EE] border-orange-100 text-slate-400'}`}>
-            {step > s ? <Icon name="check" size={14} /> : s}
-          </div>
-          <span className={`text-[9px] font-black uppercase tracking-widest transition-colors duration-500 ${step >= s ? 'text-[#F97316]' : 'text-slate-400'}`}>
-            {s === 1 ? 'Identity' : s === 2 ? 'Regional' : 'Access'}
-          </span>
-        </div>
-      ))}
-      <div className="absolute top-5 left-8 right-8 h-[2px] bg-slate-100 -z-0">
-        <div className="h-full bg-[#F97316] transition-all duration-700" style={{ width: `${(step - 1) * 50}%` }} />
-      </div>
-    </div>
-  );
 
   const handleEnter = (e: React.KeyboardEvent, nextId?: string, isStepFinal?: boolean) => {
     if (e.key === 'Enter') {
@@ -175,9 +157,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         if (step < 3) {
           nextStep();
         } else {
-          // Final step - handleRegister is called by form submission usually, 
-          // but we can trigger it or focus the submit button.
-          // For consistency with wizard flow:
           const submitBtn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
           submitBtn?.click();
         }
@@ -185,229 +164,486 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
     }
   };
 
+  const StepIndicator = () => (
+    <div className="flex items-center justify-between w-full relative mb-8">
+      {[1, 2, 3].map((s) => (
+        <div key={s} className="flex items-center gap-2 relative z-10">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-md border-2 ${step >= s ? 'bg-[#F97316] border-[#F97316] text-white' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+            {step > s ? <Check className="w-4.5 h-4.5 text-white" size={16} /> : s}
+          </div>
+          <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:inline ${step >= s ? 'text-slate-900' : 'text-slate-400'}`}>
+            {s === 1 ? 'Identity' : s === 2 ? 'Regional' : 'Access'}
+          </span>
+        </div>
+      ))}
+      <div className="absolute top-4 left-4 right-4 h-[2px] bg-slate-100 -z-0">
+        <div className="h-full bg-[#F97316] transition-all duration-500" style={{ width: `${(step - 1) * 50}%` }} />
+      </div>
+    </div>
+  );
+
   return (
-    <PremiumBackground>
-      <div className="z-10 w-full max-w-4xl flex flex-col items-center animate-in fade-in zoom-in-[0.98] duration-700 py-10 px-4">
+    <div className="min-h-screen w-full flex bg-[#FFF9F4] overflow-hidden text-slate-900 font-sans">
+      {/* Left Hero Graphic Section - Light Orange Theme */}
+      <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#FFF9F4] to-[#FFF3E8] border-r border-orange-100">
         
-        {/* Brand Header */}
-        <div className="text-center mb-10 w-full flex flex-col items-center">
-            <div className="flex items-center justify-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#FFF3E8] border border-orange-100 flex items-center justify-center shadow-md overflow-hidden">
-                    <img
-                        src={KIKILogo}
-                        alt="KIKI logo"
-                        className="w-12 h-12 object-contain"
-                    />
-                </div>
-                <h1 className="text-5xl font-black text-slate-900 tracking-tighter">
-                    KIKI <span className="text-[#F97316]">MASTER</span>
-                </h1>
-            </div>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.5em] leading-none">
-                Platform Administrative Architecture Registration
-            </p>
+        {/* ── LAYER 2: Abstract AI Circuit SVG ──────────────────────── */}
+        <svg
+            className="absolute inset-0 w-full h-full pointer-events-none z-[1] opacity-70"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 800 900"
+            preserveAspectRatio="xMidYMid slice"
+            aria-hidden="true"
+        >
+            <defs>
+                <radialGradient id="signalGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#FB923C" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#FB923C" stopOpacity="0" />
+                </radialGradient>
+                <filter id="nodeGlow" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+
+            {/* Circuit Paths */}
+            <g stroke="rgba(249,115,22,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M 60 80 L 200 80 L 200 160 L 340 160" />
+                <path d="M 60 160 L 120 160 L 120 240 L 340 240 L 340 300" />
+                <path d="M 200 80 L 200 40 L 400 40" />
+                <path d="M 120 240 L 120 340 L 280 340" />
+                <path d="M 40 300 L 180 300 L 180 380 L 320 380" />
+                <path d="M 340 160 L 440 160 L 440 100 L 520 100" />
+                <path d="M 340 240 L 420 240" />
+                <path d="M 280 340 L 360 340 L 360 420 L 440 420" />
+                <path d="M 520 100 L 600 100 L 600 180" />
+                <path d="M 440 420 L 520 420 L 520 500 L 600 500" />
+            </g>
+
+            {/* Glowing Junction Nodes with pulses */}
+            <g fill="rgba(249,115,22,0.55)" filter="url(#nodeGlow)">
+                <rect x="196" y="76" width="8" height="8" rx="2" className="node-pulse-1" />
+                <rect x="116" y="236" width="8" height="8" rx="2" className="node-pulse-2" />
+                <rect x="336" y="156" width="8" height="8" rx="2" className="node-pulse-3" />
+                <circle cx="340" cy="300" r="4" className="node-pulse-1" />
+                <circle cx="440" cy="160" r="4" className="node-pulse-4" />
+                <rect x="276" y="336" width="8" height="8" rx="2" className="node-pulse-2" />
+            </g>
+
+            {/* ── SIGNAL PULSES (animated dots along paths) ──────────── */}
+            <circle r="3" fill="url(#signalGrad)" filter="url(#nodeGlow)">
+                <animateMotion
+                    dur="6s"
+                    repeatCount="indefinite"
+                    path="M 60 80 L 200 80 L 200 160 L 340 160"
+                    calcMode="linear"
+                />
+            </circle>
+            <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                <animateMotion
+                    dur="8s"
+                    repeatCount="indefinite"
+                    path="M 60 160 L 120 160 L 120 240 L 340 240 L 340 300"
+                    calcMode="linear"
+                />
+            </circle>
+            <circle r="3" fill="url(#signalGrad)" filter="url(#nodeGlow)">
+                <animateMotion
+                    dur="5s"
+                    repeatCount="indefinite"
+                    path="M 200 80 L 200 40 L 400 40"
+                    calcMode="linear"
+                />
+            </circle>
+            <circle r="4" fill="url(#signalGrad)" filter="url(#nodeGlow)">
+                <animateMotion
+                    dur="7s"
+                    repeatCount="indefinite"
+                    path="M 120 240 L 120 340 L 280 340"
+                    calcMode="linear"
+                />
+            </circle>
+            <circle r="3" fill="#EA580C" opacity="0.8" filter="url(#nodeGlow)">
+                <animateMotion
+                    dur="9s"
+                    repeatCount="indefinite"
+                    path="M 40 300 L 180 300 L 180 380 L 320 380"
+                    calcMode="linear"
+                />
+            </circle>
+            <circle r="3.5" fill="url(#signalGrad)" filter="url(#nodeGlow)">
+                <animateMotion
+                    dur="10s"
+                    repeatCount="indefinite"
+                    path="M 280 340 L 360 340 L 360 420 L 440 420"
+                    calcMode="linear"
+                />
+            </circle>
+        </svg>
+
+        <style>{`
+            .node-pulse-1 { animation: nodePulse 4s ease-in-out infinite; }
+            .node-pulse-2 { animation: nodePulse 4s ease-in-out infinite 1s; }
+            .node-pulse-3 { animation: nodePulse 4s ease-in-out infinite 2s; }
+            .node-pulse-4 { animation: nodePulse 4s ease-in-out infinite 3s; }
+
+            @keyframes nodePulse {
+                0%, 100% { fill: rgba(249,115,22,0.4); filter: drop-shadow(0 0 2px rgba(249,115,22,0.4)); }
+                50% { fill: rgba(249,115,22,0.95); filter: drop-shadow(0 0 8px rgba(249,115,22,0.95)); }
+            }
+        `}</style>
+
+        {/* Top Brand Header */}
+        <div className="flex items-center gap-3.5 z-10 text-left">
+          <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center p-2 backdrop-blur-md">
+            <img src={KIKILogo} alt="Kiki AI logo" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-widest leading-none">KIKI AI</h2>
+            <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Enterprise ERP OS</span>
+          </div>
         </div>
 
-        <div className="w-full bg-[#FFF6EE]/90 backdrop-blur-xl rounded-[24px] shadow-[0_12px_32px_rgba(15,23,42,0.08)] sm:shadow-[0_24px_64px_rgba(15,23,42,0.10)] border border-gray-200/90 overflow-hidden flex flex-col items-center p-12">
-          
-          <StepIndicator />
-
-          <div className="w-full max-w-2xl">
-            <div className="flex flex-col items-center text-center mb-10">
-              <h2 className="text-3xl font-black text-slate-900 m-0 leading-tight">
-                {step === 1 ? 'Verify Your Identity' : step === 2 ? 'Define Regional Context' : 'Secure Your Access'}
-              </h2>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-3">
-                {step === 1 ? 'Basic administrative credentials to begin initialization' : 
-                 step === 2 ? 'Global location and HQ specifications for local compliance' : 
-                 'Finalize platform security and login credentials'}
-              </p>
-            </div>
-
-            <form onSubmit={handleRegister} className="space-y-8 min-h-[400px]">
-              {error && (
-                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold flex items-center gap-3 animate-headshake">
-                   <Icon name="x" size={16} /> {error}
-                </div>
-              )}
-              {successMessage && (
-                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 text-xs font-bold flex items-center gap-3">
-                   <Icon name="check" size={16} /> {successMessage}
-                </div>
-              )}
-
-              {/* STEP 1: IDENTITY */}
-              {step === 1 && (
-                <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-                  <div className="space-y-6 bg-slate-50/50 p-8 rounded-[32px] border border-slate-100">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1" htmlFor="name">Full Legal Name</label>
-                      <input id="name" type="text" autoFocus required className="reg-input-v2 h-14" placeholder="e.g. Johnathan Doe" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => handleEnter(e, 'pan')} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1" htmlFor="pan">PAN Number</label>
-                        <input id="pan" type="text" required className="reg-input-v2 h-14" placeholder="10-digit PAN" value={pan} onChange={e => setPan(e.target.value.toUpperCase())} maxLength={10} onKeyDown={e => handleEnter(e, 'phone')} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1" htmlFor="phone">Contact Phone</label>
-                        <input id="phone" type="tel" className="reg-input-v2 h-14" placeholder="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => handleEnter(e, undefined, true)} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 2: REGIONAL */}
-              {step === 2 && (
-                <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-                  <div className="space-y-6 bg-slate-50/50 p-8 rounded-[32px] border border-slate-100">
-                    <div className="space-y-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Address Line 1 <span className="text-rose-500">*</span></label>
-                        <input id="addr1" type="text" autoFocus required className="reg-input-v2 h-14" placeholder="Enter address line 1" value={addressLine1} onChange={e => setAddressLine1(e.target.value)} onKeyDown={e => handleEnter(e, 'addr2')} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Address Line 2</label>
-                        <input id="addr2" type="text" className="reg-input-v2 h-14" placeholder="Enter address line 2" value={addressLine2} onChange={e => setAddressLine2(e.target.value)} onKeyDown={e => handleEnter(e, 'addr3')} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Address Line 3</label>
-                        <input id="addr3" type="text" className="reg-input-v2 h-14" placeholder="Enter address line 3" value={addressLine3} onChange={e => setAddressLine3(e.target.value)} onKeyDown={e => handleEnter(e, 'pincode')} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Country</label>
-                        <select id="country" className="reg-input-v2 h-14" value={selectedCountry} onChange={e => { setSelectedCountry(e.target.value); setSelectedState(''); setSelectedDistrict(''); }} onKeyDown={e => handleEnter(e, 'state')}>
-                          {geoData.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">State / Province</label>
-                        <select id="state" className="reg-input-v2 h-14" value={selectedState} onChange={e => { setSelectedState(e.target.value); setSelectedDistrict(''); }} onKeyDown={e => handleEnter(e, 'district')} required>
-                          <option value="">Select State</option>
-                          {currentCountry?.states.map((s: any) => <option key={s.name} value={s.name}>{s.name}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">District</label>
-                        <select 
-                          id="district"
-                          className="reg-input-v2 h-14" 
-                          value={selectedDistrict} 
-                          onChange={e => setSelectedDistrict(e.target.value)} 
-                          onKeyDown={e => handleEnter(e, 'pincode')}
-                          disabled={!selectedState} 
-                          required
-                        >
-                          <option value="">Select District</option>
-                          {districtOptions.map((d: string) => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Pincode / ZIP</label>
-                        <input id="pincode" type="text" required className="reg-input-v2 h-14" placeholder="e.g. 400001" value={pincode} onChange={e => setPincode(e.target.value)} onKeyDown={e => handleEnter(e, undefined, true)} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: ACCESS */}
-              {step === 3 && (
-                <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-                  <div className="space-y-6 bg-slate-50/50 p-8 rounded-[32px] border border-slate-100">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">System Username</label>
-                        <input id="username" type="text" autoFocus required className="reg-input-v2 h-14" placeholder="Unique admin ID" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => handleEnter(e, 'email')} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Email</label>
-                        <input id="email" type="email" required className="reg-input-v2 h-14" placeholder="admin@KIKI.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => handleEnter(e, 'pwd')} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Global Password</label>
-                        <div className="relative">
-                          <input id="pwd" type={showPassword ? 'text' : 'password'} required className="reg-input-v2 h-14 pr-10" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => handleEnter(e, 'pwd2')} />
-                          <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#F97316] transition-colors" onClick={() => setShowPassword(!showPassword)}>
-                            <Icon name={showPassword ? 'eye-off' : 'eye'} size={16} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
-                        <div className="relative">
-                          <input id="pwd2" type={showConfirmPassword ? 'text' : 'password'} required className="reg-input-v2 h-14 pr-10" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onKeyDown={e => handleEnter(e, undefined, true)} />
-                          <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#F97316] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                            <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-6 rounded-[24px] bg-orange-50/50 border border-orange-100 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#FFF6EE] flex items-center justify-center text-lg shadow-sm">🔒</div>
-                    <p className="text-[10px] font-medium text-slate-500 leading-relaxed max-w-sm">Your master admin account holds global authority. Ensure your password is stored securely and MFA is enabled after initialization.</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="pt-6 flex items-center gap-4">
-                {step > 1 && (
-                  <button type="button" onClick={prevStep} className="flex-1 h-16 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all border border-slate-100 flex items-center justify-center gap-2">
-                    <Icon name="arrow-left" size={12} /> Previous Step
-                  </button>
-                )}
-                
-                {step < 3 ? (
-                  <button type="button" onClick={nextStep} className="flex-[2] h-16 bg-[#F97316] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EA580C] transition-all shadow-xl shadow-orange-200 flex items-center justify-center gap-2">
-                    Continue to {step === 1 ? 'Regional Settings' : 'Access Control'}
-                    <Icon name="arrow-right" size={12} />
-                  </button>
-                ) : (
-                  <button type="submit" disabled={loading} className="flex-[2] h-16 bg-[#F97316] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#EA580C] transition-all shadow-xl shadow-orange-200 flex items-center justify-center gap-3">
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Initializing Master...
-                      </>
-                    ) : (
-                      <>
-                        Finalize Platform Initialization
-                        <Icon name="check" size={14} />
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </form>
+        {/* Center Value Proposition */}
+        <div className="my-auto max-w-xl z-10 space-y-6 text-left">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200/60 text-orange-800 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+            <span>AI-Powered Continuous Accounting & Compliance</span>
           </div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
+            Next-Generation Intelligent Financial Operating System
+          </h1>
+          <p className="text-sm text-slate-600 font-medium leading-relaxed">
+            Automate GST reconciliation, OCR voucher extraction, and real-time ledger intelligence with enterprise bank-grade security.
+          </p>
 
-          <footer className="mt-12 pt-8 border-t border-slate-100 w-full flex flex-col items-center gap-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Already registered? <button onClick={() => { window.location.href = '/master/login'; }} className="text-[#F97316] ml-1 hover:underline font-black">Sign In to Dashboard</button>
-              </p>
-              
-              <button
-                  onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
-                  className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] hover:text-[#F97316] transition-all flex items-center gap-2"
-              >
-                  <Icon name="link" size={12} />
-                  Return to Main Website
-              </button>
-          </footer>
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-slate-800">ISO & GST Compliance</h4>
+                <p className="text-[10px] text-slate-500">Automated GSTR-2B matching</p>
+              </div>
+            </div>
+            <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
+              <Zap className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-slate-800">Real-Time OCR Stream</h4>
+                <p className="text-[10px] text-slate-500">Gemini AI document pipeline</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Security Badges */}
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-orange-100 pt-6">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-orange-600" />
+            <span>256-bit SSL Encrypted Session</span>
+          </div>
+          <span>v2.0 Enterprise Release</span>
         </div>
       </div>
-    </PremiumBackground>
+
+      {/* Right Form Workspace */}
+      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 bg-white text-slate-900 overflow-y-auto">
+        <div className="w-full max-w-lg space-y-6 text-left py-6">
+          {/* Header */}
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold">
+              <Globe className="w-3.5 h-3.5" />
+              <span>Platform Node Initialization</span>
+            </div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">
+              {step === 1 ? 'Verify Your Identity' : step === 2 ? 'Define Regional Context' : 'Secure Your Access'}
+            </h2>
+            <p className="text-xs font-medium text-slate-500">
+              {step === 1 ? 'Basic administrative credentials to begin initialization.' : 
+               step === 2 ? 'Global location and HQ specifications for local compliance.' : 
+               'Finalize platform security and login credentials.'}
+            </p>
+          </div>
+
+          <StepIndicator />
+
+          <form onSubmit={handleRegister} className="space-y-5">
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                <Icon name="x" size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+            {successMessage && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                <Icon name="check" size={16} />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {/* STEP 1: IDENTITY */}
+            {step === 1 && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <Input
+                  id="name"
+                  label="Full Legal Name"
+                  type="text"
+                  placeholder="e.g. Johnathan Doe"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onKeyDown={e => handleEnter(e, 'pan')}
+                  required
+                  autoFocus
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    id="pan"
+                    label="PAN Number"
+                    type="text"
+                    placeholder="10-digit PAN"
+                    value={pan}
+                    onChange={e => setPan(e.target.value.toUpperCase())}
+                    maxLength={10}
+                    onKeyDown={e => handleEnter(e, 'phone')}
+                    required
+                  />
+
+                  <Input
+                    id="phone"
+                    label="Contact Phone"
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    onKeyDown={e => handleEnter(e, undefined, true)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: REGIONAL */}
+            {step === 2 && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <Input
+                  id="addr1"
+                  label="Address Line 1"
+                  type="text"
+                  placeholder="Enter address line 1"
+                  value={addressLine1}
+                  onChange={e => setAddressLine1(e.target.value)}
+                  onKeyDown={e => handleEnter(e, 'addr2')}
+                  required
+                  autoFocus
+                />
+
+                <Input
+                  id="addr2"
+                  label="Address Line 2"
+                  type="text"
+                  placeholder="Enter address line 2"
+                  value={addressLine2}
+                  onChange={e => setAddressLine2(e.target.value)}
+                  onKeyDown={e => handleEnter(e, 'addr3')}
+                />
+
+                <Input
+                  id="addr3"
+                  label="Address Line 3"
+                  type="text"
+                  placeholder="Enter address line 3"
+                  value={addressLine3}
+                  onChange={e => setAddressLine3(e.target.value)}
+                  onKeyDown={e => handleEnter(e, 'pincode')}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <label className="erp-label">Country</label>
+                    <select
+                      id="country"
+                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#F97316] transition-all focus:outline-none"
+                      value={selectedCountry}
+                      onChange={e => { setSelectedCountry(e.target.value); setSelectedState(''); setSelectedDistrict(''); }}
+                    >
+                      {geoData.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <label className="erp-label">State / Province</label>
+                    <select
+                      id="state"
+                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#F97316] transition-all focus:outline-none"
+                      value={selectedState}
+                      onChange={e => { setSelectedState(e.target.value); setSelectedDistrict(''); }}
+                      required
+                    >
+                      <option value="">Select State</option>
+                      {currentCountry?.states.map((s: any) => <option key={s.name} value={s.name}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <label className="erp-label">District</label>
+                    <select
+                      id="district"
+                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#F97316] transition-all focus:outline-none"
+                      value={selectedDistrict}
+                      onChange={e => setSelectedDistrict(e.target.value)}
+                      disabled={!selectedState}
+                      required
+                    >
+                      <option value="">Select District</option>
+                      {districtOptions.map((d: string) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+
+                  <Input
+                    id="pincode"
+                    label="Pincode / ZIP"
+                    type="text"
+                    placeholder="e.g. 400001"
+                    value={pincode}
+                    onChange={e => setPincode(e.target.value)}
+                    onKeyDown={e => handleEnter(e, undefined, true)}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: ACCESS */}
+            {step === 3 && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    id="username"
+                    label="System Username"
+                    type="text"
+                    placeholder="Unique admin ID"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    onKeyDown={e => handleEnter(e, 'email')}
+                    required
+                    autoFocus
+                  />
+
+                  <Input
+                    id="email"
+                    label="Admin Email"
+                    type="email"
+                    placeholder="admin@KIKI.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onKeyDown={e => handleEnter(e, 'pwd')}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    id="pwd"
+                    label="Global Password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    onKeyDown={e => handleEnter(e, 'pwd2')}
+                    required
+                    rightIcon={
+                      <button type="button" className="text-slate-400 hover:text-[#F97316] transition-colors" onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    }
+                  />
+
+                  <Input
+                    id="pwd2"
+                    label="Confirm Password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    onKeyDown={e => handleEnter(e, undefined, true)}
+                    required
+                    rightIcon={
+                      <button type="button" className="text-slate-400 hover:text-[#F97316] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    }
+                  />
+                </div>
+
+                <div className="p-4 rounded-xl bg-orange-50/50 border border-orange-100 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-sm shrink-0">🔒</div>
+                  <p className="text-[10px] font-medium text-slate-500 leading-normal">
+                    Your master admin account holds global authority. Ensure your password is stored securely and MFA is enabled after initialization.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Form actions */}
+            <div className="pt-4 flex items-center gap-3">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={prevStep}
+                  className="flex-1 h-12 text-xs font-bold uppercase tracking-wider"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </Button>
+              )}
+
+              {step < 3 ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={nextStep}
+                  className="flex-[2] h-12 text-xs font-bold uppercase tracking-wider"
+                >
+                  Next Step
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={loading}
+                  className="flex-[2] h-12 text-xs font-bold uppercase tracking-wider"
+                >
+                  Finalize Setup
+                  <Check className="w-4 h-4 ml-2" />
+                </Button>
+              )}
+            </div>
+          </form>
+
+          {/* Footer Back links */}
+          <div className="pt-6 border-t border-slate-100 text-center space-y-3">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Already registered? <button onClick={() => { window.location.href = '/master/login'; }} className="text-[#F97316] ml-1 hover:underline font-black">Sign In to Dashboard</button>
+            </p>
+
+            <button
+              onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
+              className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-[#F97316] transition-all flex items-center justify-center gap-2 mx-auto"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Return to Main Website
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default SignupPage;
-

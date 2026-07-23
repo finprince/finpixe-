@@ -26,6 +26,8 @@
  * - Add new types here when adding new features
  */
 
+import type React from 'react';
+
 // ============================================================================
 // UI & NAVIGATION TYPES
 // ============================================================================
@@ -518,3 +520,60 @@ export interface PermissionsStructure {
     tabs: string[];
   };
 }
+
+// ============================================================================
+// SPRINT 1 PLATFORM TYPES
+// ============================================================================
+
+export interface CommandAction {
+  id: string;
+  /** Primary display label */
+  label?: string;
+  /** Legacy alias for label */
+  title?: string;
+  description?: string;
+  icon?: string;
+  /** Legacy alias for icon */
+  iconName?: string;
+  shortcut?: string;
+  category?: 'Navigation' | 'Actions' | 'Vouchers' | 'Reports' | string;
+  /** Action handler */
+  action?: () => void;
+  /** Legacy alias for action */
+  perform?: () => void;
+}
+
+export interface InspectorState {
+  isOpen: boolean;
+  title?: string;
+  subtitle?: string;
+  entityType?: string;
+  data?: Record<string, any> | null;
+  activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+  aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+}
+
+export interface ShortcutConfig {
+  key: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  action: () => void;
+  description?: string;
+}
+
+export interface WorkspaceProps {
+  title: string;
+  subtitle?: string;
+  badgeText?: string;
+  children: React.ReactNode;
+  onSearchChange?: (query: string) => void;
+  onFilterClick?: () => void;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
+  inspectorState?: InspectorState;
+  onCloseInspector?: () => void;
+}
+
+

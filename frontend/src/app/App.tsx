@@ -29,6 +29,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } fr
 // Import TypeScript types for type safety
 // These define the shape of our data structures (see ../types/types.ts)
 import type { Page, Ledger, Voucher, ExtractedInvoiceData, CompanyDetails, LedgerGroupMaster, AgentMessage, SalesPurchaseVoucher, StockItem } from '../types';
+import { ChevronDown } from 'lucide-react';
 
 // ============================================================================
 // COMPONENT IMPORTS
@@ -61,6 +62,7 @@ import AuthPortalPage from '../pages/AuthPortal/AuthPortal';
 // Shared UI Components
 import Sidebar from '../components/Sidebar';  // Left navigation sidebar
 import MasterSidebar, { MasterPage } from '../components/MasterSidebar';
+import MasterHeader from '../components/MasterHeader';
 import Modal from '../components/Modal';                  // Reusable modal dialog
 import AIAgent from '../components/AIAgent';              // AI Agent (Kiki)
 import FloatingCalculator from '../components/FloatingCalculator';
@@ -227,11 +229,19 @@ const App: React.FC = () => {
   const [vouchersNavParams, setVouchersNavParams] = useState<any>(null);
   const [reportsNavParams, setReportsNavParams] = useState<any>(null);
   const [gstNavParams, setGstNavParams] = useState<any>(null);
+  const [inventoryNavParams, setInventoryNavParams] = useState<any>(null);
+  const [mastersNavParams, setMastersNavParams] = useState<any>(null);
+  const [settingsNavParams, setSettingsNavParams] = useState<any>(null);
+  const [usersNavParams, setUsersNavParams] = useState<any>(null);
+  const [vendorNavParams, setVendorNavParams] = useState<any>(null);
+  const [customerNavParams, setCustomerNavParams] = useState<any>(null);
+  const [serviceNavParams, setServiceNavParams] = useState<any>(null);
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [currentPage, setCurrentPage] = useState<Page | MasterPage | 'BranchDetail'>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   const isMasterMode = useMemo(() => {
     return hasMasterSession() && currentPath.startsWith('/master');
@@ -342,13 +352,17 @@ const App: React.FC = () => {
         setViewVoucherData(null);
         setVouchersNavParams(null);
       }
-      
-      if (page === 'Reports' && params) {
-        setReportsNavParams(params);
-      } else if (page === 'GST' && params) {
-        setGstNavParams(params);
-      }
     }
+
+    setReportsNavParams(page === 'Reports' ? params : null);
+    setGstNavParams(page === 'GST' ? params : null);
+    setInventoryNavParams(page === 'Inventory' ? params : null);
+    setMastersNavParams(page === 'Masters' ? params : null);
+    setSettingsNavParams(page === 'Settings' ? params : null);
+    setUsersNavParams(page === 'Users & Roles' ? params : null);
+    setVendorNavParams(page === 'Vendor Portal' ? params : null);
+    setCustomerNavParams(page === 'Customer Portal' ? params : null);
+    setServiceNavParams(page === 'Service' ? params : null);
   }, []);
 
   // Handle logout: clear all session data and redirect to login
@@ -1346,6 +1360,7 @@ const App: React.FC = () => {
     switch (currentPage as Page) {
       case 'Dashboard': return <DashboardPage onNavigate={handleNavigate} companyName={companyDetails.name} vouchers={vouchers} ledgers={ledgers} isAdmin={(sessionStorage.getItem('tenantId') || localStorage.getItem('tenantId')) === null || (sessionStorage.getItem('tenantId') || localStorage.getItem('tenantId')) === 'null'} />;
       case 'Masters': return <MastersPage
+        navParams={mastersNavParams}
         ledgers={ledgers}
         ledgerGroups={ledgerGroups}
         onAddLedger={handleAddLedger}
@@ -1355,7 +1370,7 @@ const App: React.FC = () => {
         onUpdateLedgerGroup={handleUpdateLedgerGroup}
         onDeleteLedgerGroup={handleDeleteLedgerGroup}
       />;
-      case 'Inventory': return <InventoryPage />;
+      case 'Inventory': return <InventoryPage navParams={inventoryNavParams} />;
       case 'Vouchers': return <VouchersPage
         navParams={vouchersNavParams}
         vouchers={vouchers}
@@ -1382,13 +1397,13 @@ const App: React.FC = () => {
         setViewVoucherData={setViewVoucherData}
       /></ErrorBoundary>;
 
-      case 'Settings': return <SettingsPage companyDetails={companyDetails} onSave={handleSaveSettings} />;
-      case 'Users & Roles': return <UsersAndRolesPage onNavigate={handleNavigate} />;
+      case 'Settings': return <SettingsPage navParams={settingsNavParams} companyDetails={companyDetails} onSave={handleSaveSettings} />;
+      case 'Users & Roles': return <UsersAndRolesPage navParams={usersNavParams} onNavigate={handleNavigate} />;
       case 'Pending Purchases': return <PendingPurchasesPage onNavigate={handleNavigate} />;
-      case 'Vendor Portal': return <VendorPortalPage onLogout={handleLogout} onNavigate={handleNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />;
-      case 'Customer Portal': return <CustomerPortalPage onNavigate={handleNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />;
+      case 'Vendor Portal': return <VendorPortalPage navParams={vendorNavParams} onLogout={handleLogout} onNavigate={handleNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />;
+      case 'Customer Portal': return <CustomerPortalPage navParams={customerNavParams} onNavigate={handleNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />;
       case 'Payroll': return <PayrollPage />;
-      case 'Service': return <ServicePage />;
+      case 'Service': return <ServicePage navParams={serviceNavParams} />;
       case 'GST': return <GSTPage onNavigate={handleNavigate} setViewVoucherData={setViewVoucherData} vouchers={vouchers} navParams={gstNavParams} />;
       case 'Dashboard Builder': return <DashboardBuilderPage vouchers={vouchers} ledgers={ledgers} onNavigate={handleNavigate} />;
       default: return <div>Page not found</div>;
@@ -1552,93 +1567,39 @@ const App: React.FC = () => {
         )
       )}
 
-      <main className={`flex-1 ${(isLoggedIn || isAuthenticating) && isSidebarOpen ? 'ml-[260px]' : 'ml-0'} min-h-screen transition-all duration-300 erp-main-bg`}>
-        {/* ── Sticky Header ─────────────────────────────────── */}
-        <div className="sticky top-0 z-30 backdrop-blur-md flex items-center justify-between erp-header">
-          <div className="flex items-center gap-6">
+      <main className={`flex-1 ${(isLoggedIn || isAuthenticating) && isSidebarOpen ? 'ml-[220px]' : 'ml-0'} min-h-screen transition-all duration-300 erp-main-bg`}>
+        {/* ── Sticky Master Header ───────────────────────────── */}
+        {isHeaderCollapsed && (
+          <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top duration-200">
             <button
-              onClick={toggleSidebar}
-              className="flex items-center justify-center w-10 h-10 rounded-[10px] bg-white border border-[#E2E8F0] shadow-[0_2px_6px_rgba(0,0,0,0.05)] hover:bg-[#F8FAFC] transition-all duration-200 active:scale-95"
-              title={isSidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+              onClick={() => setIsHeaderCollapsed(false)}
+              className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-b-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+              title="Show Header"
             >
-              <Icon name="menu" className="w-[18px] h-[18px] text-[#475569]" />
+              <ChevronDown className="w-3.5 h-3.5 text-white" />
+              <span>Show Header</span>
             </button>
-
-            <div className="flex flex-col">
-              <h2 className="text-[13px] font-bold text-slate-900 uppercase tracking-widest leading-none">
-                {currentPage}
-              </h2>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] mt-1.5 leading-none">
-                {isMasterMode
-                  ? (sessionStorage.getItem('username') || localStorage.getItem('username') || 'Platform Admin')
-                  : (companyDetails.name || 'Ai Accounting')}
-              </span>
-            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {isLoggedIn && (
-              <div ref={toolsDropdownRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsToolsDropdownOpen(prev => !prev)}
-                  className="flex items-center gap-2 px-3.5 py-2 bg-white border border-[#E2E8F0] rounded-[10px] shadow-[0_2px_6px_rgba(0,0,0,0.03)] hover:bg-[#F8FAFC] transition-all duration-200 active:scale-95 text-[11px] font-bold text-slate-700 uppercase tracking-wider"
-                  title="Toggle Tools"
-                >
-                  <Icon name="settings" className="w-4 h-4 text-purple-600" />
-                  <span>Tools</span>
-                  <Icon name="chevron-down" className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isToolsDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+        )}
 
-                {isToolsDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-[10px] shadow-[0_10px_25px_rgba(15,23,42,0.08)] py-1.5 z-50 flex flex-col">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsToolsDropdownOpen(false);
-                        if ((window as any).toggleGlobalCalculator) {
-                          (window as any).toggleGlobalCalculator(true);
-                        }
-                      }}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black text-slate-600 hover:bg-purple-50 hover:text-purple-700 transition-all w-full text-left uppercase tracking-wider"
-                    >
-                      <Icon name="calculator" className="w-4 h-4" />
-                      <span>Calculator</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsToolsDropdownOpen(false);
-                        if ((window as any).toggleGlobalCalendar) {
-                          (window as any).toggleGlobalCalendar(true);
-                        }
-                      }}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black text-slate-600 hover:bg-purple-50 hover:text-purple-700 transition-all w-full text-left uppercase tracking-wider"
-                    >
-                      <Icon name="calendar" className="w-4 h-4" />
-                      <span>Reminders</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsToolsDropdownOpen(false);
-                        if ((window as any).toggleGlobalNotes) {
-                          (window as any).toggleGlobalNotes(true);
-                        }
-                      }}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black text-slate-600 hover:bg-purple-50 hover:text-purple-700 transition-all w-full text-left uppercase tracking-wider"
-                    >
-                      <Icon name="file-text" className="w-4 h-4" />
-                      <span>Notes</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        {!isHeaderCollapsed && (
+          <MasterHeader
+            title={currentPage}
+            isSidebarOpen={isSidebarOpen}
+            toggleSidebar={toggleSidebar}
+            adminName={
+              isMasterMode
+                ? (sessionStorage.getItem('username') || localStorage.getItem('username') || 'Platform Admin')
+                : (companyDetails.name || 'Ai Accounting')
+            }
+            onNavigate={(page, params) => handleNavigate(page as Page, params)}
+            onLogout={handleLogout}
+            onCollapseHeader={() => setIsHeaderCollapsed(true)}
+          />
+        )}
 
         {/* ── Page Content ──────────────────────────────────── */}
-        <div style={{ padding: '24px' }}>
+        <div className="p-6">
           <div className="max-w-[1600px] mx-auto">
             {(!isLoggedIn && isAuthenticating) || !isDataLoaded ? (
               <PageLoader />

@@ -57,4 +57,31 @@ declare module 'lucide-react' {
     export const CreditCard: LucideIcon;
     export const ShoppingBag: LucideIcon;
     export const Truck: LucideIcon;
+    // Extended icon set
+    export const Sparkles: LucideIcon;
+    export const ShieldCheck: LucideIcon;
+    export const Zap: LucideIcon;
+    export const Lock: LucideIcon;
+    export const Building2: LucideIcon;
+    export const UserCheck: LucideIcon;
+    export const KeyRound: LucideIcon;
+    export const Globe: LucideIcon;
+    export const ArrowUpRight: LucideIcon;
+    export const ArrowDownLeft: LucideIcon;
+    export const ShoppingCart: LucideIcon;
+    export const Activity: LucideIcon;
+    export const RefreshCw: LucideIcon;
+    export const Command: LucideIcon;
+    export const EyeOff: LucideIcon;
+    export const LogOut: LucideIcon;
+    export const LayoutGrid: LucideIcon;
+    export const Layers: LucideIcon;
+    export const Package: LucideIcon;
+    export const BarChart2: LucideIcon;
+    export const TrendingDown: LucideIcon;
+    export const Star: LucideIcon;
+    export const Shield: LucideIcon;
+    export const Hash: LucideIcon;
+    export const Tag: LucideIcon;
+    export const Loader2: LucideIcon;
 }

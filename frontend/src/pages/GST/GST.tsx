@@ -6,6 +6,7 @@ import GSTR2Reconciliation from './GSTR2Reconciliation';
 import GSTR3BPreview from './GSTR3BPreview';
 import LateFeeEngine from './LateFeeEngine';
 import { usePermissions } from '../../hooks/usePermissions';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 let savedGstTab: string | null = null;
 
@@ -40,6 +41,17 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
         setActiveTabState(tabId);
     };
 
+    // Inspector Drawer State
+    const [inspectorState, setInspectorState] = useState<{
+        isOpen: boolean;
+        title?: string;
+        subtitle?: string;
+        entityType?: string;
+        data?: Record<string, any> | null;
+        activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+        aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+    }>({ isOpen: false, title: '', data: null });
+
     useEffect(() => {
         if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
             setActiveTab(navParams.tab);
@@ -54,20 +66,16 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
     }, [availableTabs, activeTab]);
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div className="erp-section-title">
-                <div>
-                    <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">GST Returns</h1>
-                    <p className="helper-text mb-0">Taxation and compliance management</p>
-                          </div>
-        </div></div>
-            </div>
+        <UniversalWorkspaceLayout
+            title="GST & Financial Intelligence Center"
+            subtitle="Comprehensive GST filing, GSTR-2B automated reconciliation, and tax analytics."
+            badgeText="GST INTELLIGENCE"
+            inspectorState={inspectorState}
+            onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+        >
+            <div className="flex flex-col gap-6">
+
+
 
             {/* Main Tabs */}
             <div className="erp-tab-container">
@@ -104,6 +112,7 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
                     <LateFeeEngine />
                 )}
             </div>
-        </div>
+            </div>
+        </UniversalWorkspaceLayout>
     );
 }

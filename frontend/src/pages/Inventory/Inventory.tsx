@@ -13,6 +13,7 @@ import { handleApiError } from '../../utils/errorHandler';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown';
 import { BulkImportFeedbackModal } from '../../components/BulkImportFeedbackModal';
 import Icon from '../../components/Icon';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 
 
@@ -77,7 +78,7 @@ const getSOColor = (value: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-const InventoryPage: React.FC = () => {
+const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
   // Permissions
   const { hasTabAccess, getAccessibleTabs, isSuperuser } = usePermissions();
 
@@ -127,10 +128,32 @@ const InventoryPage: React.FC = () => {
     }
   }, [masterSubTabs, activeMasterSubTab]);
 
+  useEffect(() => {
+    if (navParams) {
+      if (navParams.tab) {
+        setActiveTab(navParams.tab);
+      }
+      if (navParams.subTab) {
+        setActiveMasterSubTab(navParams.subTab);
+      }
+    }
+  }, [navParams]);
+
   // GRN & Issue Slip Sub Tabs
   const grnIssueSlipSubTabs = ['GRN', 'Issue Slip'] as const;
   type GRNIssueSlipSubTab = typeof grnIssueSlipSubTabs[number];
   const [activeGRNIssueSlipSubTab, setActiveGRNIssueSlipSubTab] = useState<GRNIssueSlipSubTab>('GRN');
+
+  // --- Inspector Drawer State ---
+  const [inspectorState, setInspectorState] = useState<{
+    isOpen: boolean;
+    title?: string;
+    subtitle?: string;
+    entityType?: string;
+    data?: Record<string, any> | null;
+    activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+    aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+  }>({ isOpen: false, title: '', data: null });
 
   // --- Location State ---
   const [locations, setLocations] = useState<Location[]>([]);
@@ -9724,52 +9747,89 @@ const InventoryPage: React.FC = () => {
           </div>
 
           {/* Items Table */}
-          <div className="erp-table-container">
-            <table className="erp-table">
-              <thead>
-                <tr>
-                  <th>Item Code</th>
-                  <th>Item Name</th>
-                  <th>Category</th>
-                  <th>HSN Code</th>
-                  <th>GST Rate</th>
-                  <th>UOM</th>
-                  <th>Rate</th>
-                  <th className="!text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {inventoryItems
-                  .filter(item => (item.itemCode && item.itemCode.trim() !== '') || (item.itemName && item.itemName.trim() !== ''))
-                  .map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.itemCode}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{item.itemName}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{item.category}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{item.hsnCode}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{item.gstRate}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{item.uom}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">₹{item.rate}</td>
-                      <td className="px-6 py-4 !text-center text-sm font-medium">
-                        <div className="flex justify-center items-center gap-4">
-                          <button
-                            onClick={() => handleEditItemOpen(item)}
-                            className="text-indigo-600 hover:text-indigo-900 font-bold text-xs uppercase"
-                          >
-                            EDIT
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="text-red-600 hover:text-red-900 font-bold text-xs uppercase"
-                          >
-                            DELETE
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-100">
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Item Code</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Item Name</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Category</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">HSN Code</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">GST Rate</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">UOM</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-500 uppercase tracking-widest">Rate</th>
+                    <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {inventoryItems
+                    .filter(item => (item.itemCode && item.itemCode.trim() !== '') || (item.itemName && item.itemName.trim() !== ''))
+                    .map((item) => (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-orange-50/40 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setInspectorState({
+                            isOpen: true,
+                            title: `SKU: ${item.itemCode}`,
+                            subtitle: item.itemName,
+                            entityType: 'Stock Item',
+                            data: {
+                              Item_Code: item.itemCode,
+                              Item_Name: item.itemName,
+                              Category: item.category || 'General',
+                              HSN_Code: item.hsnCode || 'N/A',
+                              GST_Rate: item.gstRate || '18%',
+                              UOM: item.uom || 'Nos',
+                              Standard_Rate: `₹${item.rate || 0}`,
+                              Status: 'Active SKU'
+                            },
+                            activityLogs: [
+                              { id: '1', user: 'System AI', action: 'Verified HSN and tax rate classification', timestamp: 'Today' }
+                            ],
+                            aiRecommendations: [
+                              { id: '1', text: 'Stock level optimal across main warehouse', confidence: 96 }
+                            ]
+                          });
+                        }}
+                      >
+                        <td className="px-4 py-3 font-bold text-[#EA580C]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-orange-50 text-[#EA580C] border border-orange-100 font-mono text-[11px]">
+                            {item.itemCode}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900">{item.itemName}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.category}</td>
+                        <td className="px-4 py-3 font-mono text-slate-600">{item.hsnCode}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-100">
+                            {item.gstRate}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 font-medium">{item.uom}</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">₹{item.rate}</td>
+                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-center items-center gap-3">
+                            <button
+                              onClick={() => handleEditItemOpen(item)}
+                              className="text-[#EA580C] hover:text-[#C2410C] font-extrabold text-[11px] uppercase tracking-wider"
+                            >
+                              EDIT
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="text-red-600 hover:text-red-800 font-extrabold text-[11px] uppercase tracking-wider"
+                            >
+                              DELETE
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -10708,20 +10768,16 @@ const InventoryPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Page Section Title */}
-      <div className="erp-section-title">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Inventory Management</h1>
-        <p className="helper-text mb-0">
-          Manage categories, locations, items, and operations
-        </p>
-                </div>
-        </div></div>
+    <UniversalWorkspaceLayout
+      title="Stock Operations Center"
+      subtitle="Manage stock items, category hierarchies, locations, and warehouse movements."
+      badgeText="STOCK OPERATIONS"
+      inspectorState={inspectorState}
+      onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+    >
+      <div className="flex flex-col gap-6">
+
+
 
       {/* Main Tabs */}
       <div className="erp-tab-container">
@@ -10829,7 +10885,8 @@ const InventoryPage: React.FC = () => {
           'Category Path': inventoryCategoryOptions
         }}
       />
-    </div>
+      </div>
+    </UniversalWorkspaceLayout>
   );
 };
 

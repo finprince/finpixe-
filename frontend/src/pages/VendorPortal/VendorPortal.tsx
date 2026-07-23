@@ -18,6 +18,7 @@ import { formatDate } from '../../utils/formatting';
 import VendorViewModal from '../../components/VendorViewModal';
 import NetoffProcessModal from '../../components/NetoffProcessModal';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 
 type VendorTab = 'Master' | 'Transaction';
@@ -163,6 +164,7 @@ interface VendorPortalProps {
     onLogout?: () => void;
     onNavigate?: (page: any) => void;
     setPrefilledVoucherData?: (data: any) => void;
+    navParams?: any;
 }
 
 interface AdvanceAllocationModalProps {
@@ -334,7 +336,7 @@ const AdvanceAllocationModal: React.FC<AdvanceAllocationModalProps> = ({ isOpen,
     );
 };
 
-const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, setPrefilledVoucherData }) => {
+const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, setPrefilledVoucherData, navParams }) => {
     const { hasTabAccess, isSuperuser } = usePermissions();
     // GST Details Interfaces (Defined inside to avoid placement issues, or better moved out if stable)
     // Actually, moving them here
@@ -376,6 +378,17 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             return false;
         });
 
+    // Inspector Drawer State
+    const [inspectorState, setInspectorState] = useState<{
+        isOpen: boolean;
+        title?: string;
+        subtitle?: string;
+        entityType?: string;
+        data?: Record<string, any> | null;
+        activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+        aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+    }>({ isOpen: false, title: '', data: null });
+
     const [activeTab, setActiveTab] = useState<VendorTab>(availableTabs.length > 0 ? availableTabs[0] : 'Master');
 
     useEffect(() => {
@@ -383,6 +396,22 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             setActiveTab(availableTabs[0]);
         }
     }, [availableTabs, activeTab]);
+
+    useEffect(() => {
+        if (navParams) {
+            if (navParams.tab) {
+                const masterSubs = ['Category', 'PO Settings', 'Vendor Creation'];
+                const transSubs = ['Purchase Orders', 'Procurement', 'Payment'];
+                if (masterSubs.includes(navParams.tab)) {
+                    setActiveTab('Master');
+                    setActiveMasterSubTab(navParams.tab as MasterSubTab);
+                } else if (transSubs.includes(navParams.tab)) {
+                    setActiveTab('Transaction');
+                    setActiveTransactionSubTab(navParams.tab as TransactionSubTab);
+                }
+            }
+        }
+    }, [navParams]);
 
     const [activeMasterSubTab, setActiveMasterSubTab] = useState<MasterSubTab>('Category');
     const [activeTransactionSubTab, setActiveTransactionSubTab] = useState<TransactionSubTab>('Purchase Orders');
@@ -3584,19 +3613,16 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
     };
 
     return (
-        <div className="space-y-8">
-            <div className="erp-section-title flex items-end justify-between">
-                <div>
-                    <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Vendor Portal</h1>
-                    <p className="helper-text">Procurement management</p>
-                          </div>
-        </div></div>
-            </div>
+        <UniversalWorkspaceLayout
+            title="Vendor Portal Hub"
+            subtitle="Procurement management, vendor master directory, and purchase order tracking."
+            badgeText="VENDOR PORTAL"
+            inspectorState={inspectorState}
+            onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+        >
+            <div className="flex flex-col gap-6">
+
+
 
             {/* Main Tabs */}
             <div className="erp-tab-container">
@@ -9060,7 +9086,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                     'Item Name': inventoryItems.map(i => ({ label: i.item_name || '', value: i.item_name || '', full: i }))
                 }}
             />
-        </div>
+            </div>
+        </UniversalWorkspaceLayout>
     );
 };
 

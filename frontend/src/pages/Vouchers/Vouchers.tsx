@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/branding/logo';
+ import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -24,6 +24,7 @@ import CreateNewVendorFullModal from '../../components/CreateNewVendorFullModal'
 import { ChevronDown } from 'lucide-react';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import { OcrValidationBanners } from '../../components/OcrValidationBanners';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 
 
@@ -111,6 +112,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const defaultVoucherType = availableVoucherTypes.length > 0 ? availableVoucherTypes[0].id : ('Sales' as VoucherType);
 
   const [voucherType, setVoucherType] = useState<VoucherType>(defaultVoucherType);
+
+  // Inspector Drawer State
+  const [inspectorState, setInspectorState] = useState<{
+    isOpen: boolean;
+    title?: string;
+    subtitle?: string;
+    entityType?: string;
+    data?: Record<string, any> | null;
+    activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+    aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+  }>({ isOpen: false, title: '', data: null });
   const [isReadOnlyMode, setIsReadOnlyMode] = useState(!!viewVoucherData);
   // Tracks whether we are viewing/editing an EXISTING voucher (stays true even after clicking Edit)
   const isExistingVoucherRef = useRef(!!viewVoucherData);
@@ -12739,22 +12751,16 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="erp-section-title">
-        <div>
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-              <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-            </div>
-            <div>
-              <h1 className="page-title">Voucher Entry</h1>
-              <p className="helper-text mb-0">
-                Record transactions — sales, purchases, payments, and more
-              </p>
-            </div>
-          </div></div>
-      </div>
+    <UniversalWorkspaceLayout
+      title="Smart Voucher Focus Studio"
+      subtitle="Record transactions with automated AI classification, dual focus layout, and real-time validation."
+      badgeText="VOUCHER STUDIO"
+      inspectorState={inspectorState}
+      onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+    >
+      <div className="flex flex-col gap-6">
+
+
 
       {isBankUploadModalOpen ? (
         <div className="erp-container relative">
@@ -14098,7 +14104,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
         </>
       )}
-    </div>
+      </div>
+    </UniversalWorkspaceLayout>
   );
 };
 
