@@ -6,6 +6,7 @@ import { showError, showSuccess } from '../../utils/toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
 import { apiService } from '../../services/api';
 import { httpClient } from '../../services/httpClient';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5003';
 
@@ -141,6 +142,17 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   const defaultReport = navParams?.reportType || (availableReports.length > 0 ? availableReports[0].id : ('DayBook' as ReportType));
 
   const [reportType, setReportType] = useState<ReportType>(defaultReport);
+
+  // Inspector Drawer State
+  const [inspectorState, setInspectorState] = useState<{
+    isOpen: boolean;
+    title?: string;
+    subtitle?: string;
+    entityType?: string;
+    data?: Record<string, any> | null;
+    activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+    aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+  }>({ isOpen: false, title: '', data: null });
 
   // Ensure active report is valid
   useEffect(() => {
@@ -4402,60 +4414,20 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
 
 
   return (
-    <div className="space-y-6">
-      {/* PRINT STYLES */}
-      <style>{`
-        @media print {
-          aside, button, input, select, label, .mb-8.flex, .mb-6.flex, nav, .fixed, h2, .erp-tab-container, .erp-section-title {
-            display: none !important;
-          }
-          body, #root, .min-h-screen {
-            background-color: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .erp-container {
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-          }
-          table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            border: 1px solid #ddd !important;
-          }
-          th, td {
-            border: 1px solid #ddd !important;
-            padding: 4px 8px !important;
-          }
-          .print-header {
-            display: block !important;
-            text-align: center;
-            margin-bottom: 20px;
-          }
-        }
-        .print-header { display: none; }
-      `}</style>
+    <UniversalWorkspaceLayout
+      title="Financial Reports Command Center"
+      subtitle="Real-time trial balance, day book, ledger summaries, and stock valuation."
+      badgeText="FINANCIAL REPORTS"
+      inspectorState={inspectorState}
+      onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+    >
+      <div className="flex flex-col gap-6">
 
-      {/* Page Header */}
-      <div className="erp-section-title">
-        <div>
-          <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Reports &amp; Analysis</h1>
-          <p className="helper-text mb-0">
-            Financial statements, ledger reports, and GST data
-          </p>
-                  </div>
-        </div></div>
-      </div>
 
-      <div className="print-header">
-        <h1>{allReports.find(r => r.id === reportType)?.label}</h1>
-        <p>Generated on {new Date().toLocaleDateString()}</p>
+
+      <div className="hidden print:block border-b border-slate-350 pb-4 mb-6">
+        <h1 className="text-2xl font-bold text-slate-950 uppercase tracking-wide">{allReports.find(r => r.id === reportType)?.label}</h1>
+        <p className="text-xs text-slate-500 font-semibold mt-1">Generated on {new Date().toLocaleDateString()}</p>
       </div>
 
       {/* Main Tabs */}
@@ -5019,7 +4991,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           {reportType === 'StockSummary' && renderStockSummary()}
         </div>
       </div>
-    </div>
+      </div>
+    </UniversalWorkspaceLayout>
   );
 };
 

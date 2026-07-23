@@ -22,6 +22,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { showSuccess, showError, showWarning } from '../../utils/toast';
 import { handleApiError } from '../../utils/errorHandler';
 import { SERVICE_UOM_LIST } from '../../constants/serviceConstants';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 type ServiceTab = 'service-group' | 'service-list';
 
@@ -47,7 +48,7 @@ interface TreeNode {
 }
 
 interface ServicePageProps {
-  // Add props as needed
+  navParams?: any;
 }
 
 const DEFAULT_SYSTEM_CATEGORIES = [
@@ -69,7 +70,7 @@ const GST_RATES = [0, 5, 12, 18, 28];
 /**
  * Service Page Component with Tabs
  */
-const ServicePage: React.FC<ServicePageProps> = () => {
+const ServicePage: React.FC<ServicePageProps> = ({ navParams }) => {
   const { hasTabAccess, isSuperuser } = usePermissions();
 
   const allServiceTabs = [
@@ -83,11 +84,28 @@ const ServicePage: React.FC<ServicePageProps> = () => {
 
   const [activeTab, setActiveTab] = useState<ServiceTab>(availableTabs.length > 0 ? availableTabs[0].id : 'service-group');
 
+  // Inspector Drawer State
+  const [inspectorState, setInspectorState] = useState<{
+    isOpen: boolean;
+    title?: string;
+    subtitle?: string;
+    entityType?: string;
+    data?: Record<string, any> | null;
+    activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+    aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+  }>({ isOpen: false, title: '', data: null });
+
   useEffect(() => {
     if (availableTabs.length > 0 && !availableTabs.find(t => t.id === activeTab)) {
       setActiveTab(availableTabs[0].id);
     }
   }, [availableTabs, activeTab]);
+
+  useEffect(() => {
+    if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
+      setActiveTab(navParams.tab);
+    }
+  }, [navParams, availableTabs]);
   const [services, setServices] = useState<any[]>([
     {
       id: 1,
@@ -591,19 +609,14 @@ const ServicePage: React.FC<ServicePageProps> = () => {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="erp-section-title">
-        <div>
-          <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Services</h1>
-          <p className="helper-text">Operations and service management</p>
-                  </div>
-        </div></div>
-      </div>
+    <UniversalWorkspaceLayout
+      title="Service Management Center"
+      subtitle="Service group hierarchy, service list management, and SAC code configuration."
+      badgeText="SERVICE"
+      inspectorState={inspectorState}
+      onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+    >
+    <div className="space-y-6">
 
       {/* Main Tabs */}
       <div className="erp-tab-container">
@@ -1245,8 +1258,11 @@ const ServicePage: React.FC<ServicePageProps> = () => {
         </div>
       )}
     </div>
+    </UniversalWorkspaceLayout>
   );
 };
 
 export default ServicePage;
+
+
 

@@ -24,6 +24,7 @@ import SalesGSTViewModal from './SalesGSTViewModal';
 import { formatDate } from '../../utils/formatting';
 import { BulkImportFeedbackModal } from '../../components/BulkImportFeedbackModal';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 type MainTab = 'Master' | 'Transaction';
 type MasterSubTab = 'Category' | 'Sales Quotation & Order' | 'Customer' | 'Long-term Contracts';
@@ -142,9 +143,10 @@ const getAvailableStates = (countryCode: string) => {
 interface CustomerPortalProps {
     onNavigate?: (page: string) => void;
     setPrefilledVoucherData?: (data: any) => void;
+    navParams?: any;
 }
 
-const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPrefilledVoucherData }) => {
+const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPrefilledVoucherData, navParams }) => {
     const { hasTabAccess, isSuperuser } = usePermissions();
 
     const allTabs: MainTab[] = ['Master', 'Transaction'];
@@ -166,6 +168,22 @@ const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPref
             setActiveTab(availableTabs[0]);
         }
     }, [availableTabs, activeTab]);
+
+    useEffect(() => {
+        if (navParams) {
+            if (navParams.tab) {
+                const masterSubs = ['Category', 'Sales Quotation & Order', 'Customer', 'Long-term Contracts'];
+                const transSubs = ['Sales Quotation', 'Sales Order', 'Sales', 'Receipt'];
+                if (masterSubs.includes(navParams.tab)) {
+                    setActiveTab('Master');
+                    setActiveMasterSubTab(navParams.tab as MasterSubTab);
+                } else if (transSubs.includes(navParams.tab)) {
+                    setActiveTab('Transaction');
+                    setActiveTransactionSubTab(navParams.tab as TransactionSubTab);
+                }
+            }
+        }
+    }, [navParams]);
 
     const [activeMasterSubTab, setActiveMasterSubTab] = useState<MasterSubTab>('Category');
     const [activeTransactionSubTab, setActiveTransactionSubTab] = useState<TransactionSubTab>('Sales Quotation');
@@ -3327,9 +3345,8 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
     }
 
     return (
-        <div className="p-8">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Customer Management</h3>
+        <div className="space-y-6">
+            <div className="flex flex-col gap-6">
                 <div className="flex gap-3">
 
                     <div className="relative" ref={excelDropdownRef}>
@@ -7771,6 +7788,7 @@ function SalesContent({ onNavigate, setPrefilledVoucherData }: { onNavigate?: (p
     const [allAdvancePayments, setAllAdvancePayments] = useState<any[]>([]); // For dashboard tiles
     const [customers, setCustomers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [inspectorState, setInspectorState] = useState<{ isOpen: boolean; title?: string; subtitle?: string; entityType?: string; data?: Record<string, any> | null }>({ isOpen: false });
 
     useEffect(() => {
         const fetchSalesData = async () => {
@@ -7996,12 +8014,21 @@ function SalesContent({ onNavigate, setPrefilledVoucherData }: { onNavigate?: (p
     }
 
     return (
-        <div className="text-left">
+        <UniversalWorkspaceLayout
+            title="Customer Portal Hub"
+            subtitle="Customer management, receivables intelligence, and sales orders."
+            badgeText="CUSTOMER PORTAL"
+            inspectorState={inspectorState}
+            onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+        >
+            <div className="flex flex-col gap-6 text-left">
+
+
             {viewMode === 'dashboard' ? (
                 <div>
-                    <div className="mb-8">
-                        <h2 className="section-title">Sales</h2>
-                        <p className="helper-text mt-1">Select a sales category to manage.</p>
+                    <div className="mb-6">
+                        <h2 className="section-title">Sales Categories</h2>
+                        <p className="helper-text mt-1">Select a sales category to view receivables aging intelligence.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Export Card */}
@@ -8169,7 +8196,8 @@ function SalesContent({ onNavigate, setPrefilledVoucherData }: { onNavigate?: (p
                     </div>
                 </>
             )}
-        </div>
+            </div>
+        </UniversalWorkspaceLayout>
     );
 };
 

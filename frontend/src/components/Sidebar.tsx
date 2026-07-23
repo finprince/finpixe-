@@ -43,15 +43,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
       : `${Math.round(usagePercent)}%`;
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col h-full transition-all duration-300 erp-sidebar w-[260px] ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col h-full transition-all duration-300 erp-sidebar w-[220px] ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* ── Brand / Profile Section ──────────────────────────── */}
-      <div className="p-6 pb-4">
-        <div className="flex items-center gap-3">
+      <div className="p-4 pb-3">
+        <div className="flex items-center gap-2.5">
           {/* Company Avatar */}
           <div
-            className="flex items-center justify-center w-10 h-10 text-white rounded-xl shrink-0 bg-[#F97316] shadow-lg shadow-orange-500/20"
+            className="flex items-center justify-center w-8 h-8 text-white rounded-lg shrink-0 bg-[#F97316] shadow-md shadow-orange-500/20"
           >
-            <span className="text-base font-bold">
+            <span className="text-sm font-bold">
               {companyName?.charAt(0).toUpperCase() || 'A'}
             </span>
           </div>
@@ -61,57 +61,54 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
             <span className="text-sm font-bold truncate tracking-tight text-slate-900 dark:text-white">
               {companyName || 'Admin User'}
             </span>
-            <span className="text-[11px] font-semibold truncate mt-0.5 text-slate-500 dark:text-slate-400">
+            <span className="text-[10px] font-semibold truncate mt-0.5 text-slate-500 dark:text-slate-400">
               {subscriptionUsage?.plan || 'Enterprise Plan'}
             </span>
           </div>
         </div>
-
-        <div className="mt-4" />
       </div>
 
       {/* ── Navigation Links ────────────────────────────────── */}
-      <nav className="flex-1 overflow-y-auto px-3">
-        <div className="space-y-1">
-          {displayItems.map((item, index) => {
-            const isActive = currentPage === item.name;
-            const nextItem = displayItems[index + 1];
+      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        {displayItems.map((item, index) => {
+          const isActive = currentPage === item.name;
 
-            // Define refined section breaks
-            const isSectionBreak =
-              (item.name === 'Dashboard' && nextItem) ||
-              (item.name === 'Vouchers' && nextItem) ||
-              (item.name === 'Customer Portal' && nextItem) ||
-              (item.name === 'Service' && nextItem) ||
-              (item.name === 'Reports' && nextItem);
+          // Define section headers
+          let sectionHeader = null;
+          if (index === 0) sectionHeader = 'Core Workspace';
+          else if (item.name === 'Vendor Portal') sectionHeader = 'Portals & Operations';
+          else if (item.name === 'GST') sectionHeader = 'Compliance & Audit';
+          else if (item.name === 'Users & Roles') sectionHeader = 'Administration';
 
-            return (
-              <React.Fragment key={item.name}>
-                <button
-                  onClick={() => onNavigate(item.name)}
-                  className={`erp-nav-item ${isActive ? 'active' : ''}`}
-                >
-                  <div className="erp-nav-icon">
-                    <Icon name={item.icon as any} className="w-5 h-5" />
-                  </div>
-                  <span className="flex-1 text-left">{item.label || item.name}</span>
-                  {isActive && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
-                  )}
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </div>
+          return (
+            <React.Fragment key={item.name}>
+              {sectionHeader && (
+                <div className="erp-nav-section-label">
+                  {sectionHeader}
+                </div>
+              )}
+              <button
+                onClick={() => onNavigate(item.name)}
+                className={`erp-nav-item ${isActive ? 'active' : ''}`}
+              >
+              <div className="erp-nav-icon">
+                  <Icon name={item.icon as any} className="w-4 h-4" />
+                </div>
+                <span className="flex-1 text-left">{item.label || item.name}</span>
+                {isActive && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
+                )}
+              </button>
+            </React.Fragment>
+          );
+        })}
       </nav>
 
       {/* ── Footer: Storage + Logout ─────────────────────────── */}
-      <div className="px-4 pb-6">
-        <div className="mt-5" />
-
+      <div className="px-4 pb-6 pt-2 border-t border-slate-100">
         {/* Storage Box */}
         <div className="erp-storage-card mb-3">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2.5">
             <span className="erp-kpi-label">AI Usage</span>
             <span className="erp-badge erp-badge-primary text-[10px]">
               {usageDisplay}
@@ -119,14 +116,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full h-1.5 bg-orange-50 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-orange-50 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-[#F97316] rounded-full transition-all duration-500"
               style={{ width: `${usagePercent}%` }}
             />
           </div>
 
-          <div className="mt-2 flex justify-between text-[10px] text-slate-400 font-medium">
+          <div className="mt-2 flex justify-between text-[11px] text-slate-400 font-medium">
             <span>Used</span>
             <span>
               {subscriptionUsage?.used} / {subscriptionUsage?.limit}
@@ -140,7 +137,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
           className="erp-nav-item hover:text-rose-600 hover:bg-rose-50"
         >
           <div className="erp-nav-icon">
-            <Icon name="logout" className="w-[18px] h-[18px]" />
+            <Icon name="logout" className="w-4 h-4" />
           </div>
           <span>Log Out</span>
         </button>

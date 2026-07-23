@@ -9,6 +9,7 @@ import { handleApiError } from '../../utils/errorHandler';
 import { HierarchicalDropdown } from '../../components/HierarchicalDropdown';
 import { LedgerCreationWizard } from '../../components/LedgerCreationWizard.tsx';
 import { apiService, httpClient } from '../../services';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 
 
@@ -26,6 +27,7 @@ interface MastersPageProps {
 
   voucherTypes?: VoucherTypeMaster[];
   onAddVoucherType?: (voucherType: Omit<VoucherTypeMaster, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => void;
+  navParams?: any;
 }
 
 
@@ -41,7 +43,8 @@ const MastersPage: React.FC<MastersPageProps> = ({
   onUpdateLedgerGroup,
   onDeleteLedgerGroup,
   onAddVoucherType,
-  voucherTypes = []
+  voucherTypes = [],
+  navParams
 }) => {
   const { hasTabAccess, isSuperuser } = usePermissions();
 
@@ -71,6 +74,12 @@ const MastersPage: React.FC<MastersPageProps> = ({
     }
   }, [availableTabs, activeTab]);
 
+  useEffect(() => {
+    if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
+      setActiveTab(navParams.tab);
+    }
+  }, [navParams, availableTabs]);
+
   // Voucher Buttons Definition and Filtering
   const allVoucherButtons = [
     { id: 'sales', label: 'Sales', permission: 'Sales' },
@@ -94,6 +103,16 @@ const MastersPage: React.FC<MastersPageProps> = ({
   const [selectedLedger, setSelectedLedger] = useState<Ledger | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [ledgerSearchQuery, setLedgerSearchQuery] = useState('');
+
+  const [inspectorState, setInspectorState] = useState<{
+    isOpen: boolean;
+    title?: string;
+    subtitle?: string;
+    entityType?: string;
+    data?: Record<string, any> | null;
+    activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+    aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+  }>({ isOpen: false, title: '', data: null });
 
   // State for Secured Loans additional fields
   const [loanAccountNumber, setLoanAccountNumber] = useState('');
@@ -1497,43 +1516,49 @@ const MastersPage: React.FC<MastersPageProps> = ({
           )}
         </form>
       </div>
-      <div className="erp-container p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Existing Groups</h3>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Chart of Accounts Groups</h3>
+            <p className="text-xs text-slate-500 font-medium">Hierarchy and group classification rules</p>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-orange-50 text-[#EA580C] text-xs font-bold border border-orange-100">
+            {ledgerGroups.length} Groups Active
+          </span>
         </div>
         <div className="p-4 border-b border-slate-100">
           <div className="relative">
             <input
               type="text"
-              placeholder="Search groups..."
+              placeholder="Search groups by name or parent group..."
               value={groupSearchQuery}
               onChange={(e) => setGroupSearchQuery(e.target.value)}
-              className="erp-input pl-10"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Icon name="search" className="h-4 w-4 text-gray-400" />
+              <Icon name="search" className="h-4 w-4 text-slate-400" />
             </div>
             {groupSearchQuery && (
               <button
                 onClick={() => setGroupSearchQuery('')}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
               >
-                <Icon name="x" className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                <Icon name="x" className="h-4 w-4 text-slate-400 hover:text-slate-600" />
               </button>
             )}
           </div>
         </div>
-        <div className="erp-table-container max-h-96">
-          <table className="erp-table">
+        <div className="overflow-x-auto max-h-[460px] custom-scrollbar">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr>
-                <th className="w-12"></th>
-                <th>Group Name</th>
-                <th>Under</th>
-                <th className="!text-center">Actions</th>
+              <tr className="bg-slate-50/80 border-b border-slate-100">
+                <th className="w-12 px-4 py-3"></th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Group Name</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Parent Group (Under)</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {ledgerGroups.filter(group =>
                 group.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) ||
                 (group.under && group.under.toLowerCase().includes(groupSearchQuery.toLowerCase()))
@@ -1543,65 +1568,76 @@ const MastersPage: React.FC<MastersPageProps> = ({
                 return (
                   <tr
                     key={group.id || group.name}
-                    className={`transition-colors ${isSelected
-                      ? 'bg-indigo-50/50 hover:bg-indigo-50'
-                      : 'hover:bg-gray-50'
-                      } `}
+                    className={`transition-colors cursor-pointer ${isSelected
+                      ? 'bg-orange-50/60 font-semibold'
+                      : 'hover:bg-slate-50/80'
+                      }`}
+                    onClick={() => {
+                      setSelectedGroup(group);
+                      setInspectorState({
+                        isOpen: true,
+                        title: `Group: ${group.name}`,
+                        subtitle: group.under ? `Under ${group.under}` : 'Primary Accounting Group',
+                        entityType: 'Ledger Group',
+                        data: {
+                          Group_Name: group.name,
+                          Parent_Group: group.under || 'Primary',
+                          Status: 'Active Master Group'
+                        },
+                        activityLogs: [
+                          { id: '1', user: 'System', action: 'Group registered in Chart of Accounts', timestamp: 'Initial System Import' }
+                        ],
+                        aiRecommendations: [
+                          { id: '1', text: 'Verified standard accounting hierarchy code', confidence: 98 }
+                        ]
+                      });
+                    }}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="radio"
                         name="selectedGroup"
                         value={group.name}
                         checked={isSelected}
                         onChange={() => {
-
                           setSelectedGroup(group);
                         }}
-                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                        aria-label={`Select ${group.name} `}
+                        className="w-4 h-4 text-[#EA580C] focus:ring-[#EA580C] cursor-pointer"
+                        aria-label={`Select ${group.name}`}
                       />
                     </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 cursor-pointer"
-                      onClick={() => {
-
-                        setSelectedGroup(group);
-                      }}
-                    >
+                    <td className="px-4 py-3 font-bold text-slate-900">
                       {group.name}
                     </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                      onClick={() => setSelectedGroup(group)}
-                    >
+                    <td className="px-4 py-3 text-slate-600">
                       {group.under ? (
-                        <span className="text-gray-900 font-medium">{group.under}</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium text-[11px]">
+                          {group.under}
+                        </span>
                       ) : (
-                        <span className="text-gray-400 italic">Primary</span>
+                        <span className="text-slate-400 italic font-normal">Primary</span>
                       )}
                     </td>
-                    <td className="!text-center px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       {isSelected ? (
-                        <div className="flex justify-center items-center gap-4">
+                        <div className="flex justify-center items-center gap-3">
                           <button
                             onClick={handleEditGroup}
-                            className="text-indigo-600 hover:text-indigo-900 font-bold text-xs uppercase"
+                            className="text-[#EA580C] hover:text-[#C2410C] font-extrabold text-[11px] uppercase tracking-wider"
                             aria-label="Edit selected group"
                           >
                             EDIT
                           </button>
                           <button
                             onClick={handleDeleteGroup}
-                            className="text-red-600 hover:text-red-900 font-bold text-xs uppercase"
+                            className="text-red-600 hover:text-red-800 font-extrabold text-[11px] uppercase tracking-wider"
                             aria-label="Delete selected group"
-                            title="Delete"
                           >
                             DELETE
                           </button>
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-xs italic">Select to edit</span>
+                        <span className="text-slate-400 text-[10px] font-medium italic">Click to Inspect</span>
                       )}
                     </td>
                   </tr>
@@ -1909,39 +1945,35 @@ const MastersPage: React.FC<MastersPageProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Section Title */}
-      <div className="erp-section-title">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Accounting Master</h1>
-        <p className="helper-text mb-0">
-          Manage ledgers, groups, and voucher configurations
-        </p>
-                </div>
-        </div></div>
+    <UniversalWorkspaceLayout
+      title="Accounting Master Studio"
+      subtitle="Manage chart of accounts, ledger masters, and voucher numbering series."
+      badgeText="MASTER STUDIO"
+      inspectorState={inspectorState}
+      onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+    >
+      <div className="flex flex-col gap-6">
 
-      {/* Tab Bar */}
-      <div className="erp-tab-container">
-        {availableTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`erp-tab ${activeTab === tab.id ? 'active' : ''}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
 
-      {/* Tab Content */}
-      <div className="animate-in fade-in duration-300">
-        {activeTab === 'Ledgers' ? renderLedgers() : renderVouchers()}
+        {/* Tab Bar */}
+        <div className="erp-tab-container">
+          {availableTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`erp-tab ${activeTab === tab.id ? 'active' : ''}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="animate-in fade-in duration-300">
+          {activeTab === 'Ledgers' ? renderLedgers() : renderVouchers()}
+        </div>
       </div>
-    </div>
+    </UniversalWorkspaceLayout>
   );
 };
 

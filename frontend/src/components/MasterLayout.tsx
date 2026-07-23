@@ -35,7 +35,7 @@ const MasterLayout: React.FC<MasterLayoutProps> = ({
       />
 
       {/* Main Content Area */}
-      <main className={`flex-1 ${isSidebarOpen ? 'ml-[260px]' : 'ml-0'} min-h-screen transition-all duration-300 erp-main-bg`}>
+      <main className={`flex-1 ${isSidebarOpen ? 'ml-[220px]' : 'ml-0'} min-h-screen transition-all duration-300 erp-main-bg`}>
         {/* Sticky Master Header */}
         <MasterHeader 
           title={currentPage}
@@ -45,7 +45,7 @@ const MasterLayout: React.FC<MasterLayoutProps> = ({
         />
 
         {/* Page Content */}
-        <div style={{ padding: '24px' }}>
+        <div className="p-8">
           <div className="max-w-[1600px] mx-auto">
             {children}
           </div>

@@ -10,15 +10,17 @@ import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import Icon from '../../components/Icon';
 import { showSuccess, showError } from '../../utils/toast';
 import { handleApiError } from '../../utils/errorHandler';
+import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 
 interface SettingsPageProps {
   companyDetails: CompanyDetails;
   onSave: (details: CompanyDetails) => void;
   tenantId?: string; // Optional tenantId for Master Admin mode
+  navParams?: any;
 }
 
 
-const SettingsPage: React.FC<SettingsPageProps> = ({ companyDetails, onSave, tenantId }) => {
+const SettingsPage: React.FC<SettingsPageProps> = ({ companyDetails, onSave, tenantId, navParams }) => {
   const { theme, toggleTheme } = useTheme();
   const { hasTabAccess, isSuperuser } = usePermissions();
   const userType = getUserTypeFromToken(getAccessToken());
@@ -40,8 +42,26 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ companyDetails, onSave, ten
     }
     return availableTabs.length > 0 ? availableTabs[0] : 'Company Profile';
   });
+
+  useEffect(() => {
+    if (navParams?.tab && availableTabs.includes(navParams.tab)) {
+      setActiveTab(navParams.tab);
+    }
+  }, [navParams, availableTabs]);
+
   const { subscriptionUsage, refetch: refetchUsage } = useSubscriptionUsage();
   const [isUpgrading, setIsUpgrading] = useState(false);
+
+  // Inspector Drawer State
+  const [inspectorState, setInspectorState] = useState<{
+    isOpen: boolean;
+    title?: string;
+    subtitle?: string;
+    entityType?: string;
+    data?: Record<string, any> | null;
+    activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
+    aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
+  }>({ isOpen: false, title: '', data: null });
 
   const handleUpgrade = async (plan: string) => {
     try {
@@ -184,33 +204,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ companyDetails, onSave, ten
 
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="erp-section-title flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">{isMaster ? (tenantId && tenantId !== 'all' ? `Entity Configuration: ${details.name || ''}` : 'Master Profile Settings') : 'System Settings'}</h1>
-          <p className="helper-text mb-0">{isMaster ? (tenantId && tenantId !== 'all' ? 'Modify company-specific metadata and defaults' : 'Manage your administrator account') : 'Configure your company profile and preferences'}</p>
-                  </div>
-        </div></div>
-        <div className="flex items-center gap-3">
-          <span className="helper-text">Dark Mode</span>
-          <button
-            onClick={toggleTheme}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${theme === 'dark' ? 'bg-indigo-600' : 'bg-slate-200'
-              }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-[22px]' : 'translate-x-1'
-                }`}
-            />
-          </button>
-        </div>
-      </div>
+    <UniversalWorkspaceLayout
+      title={isMaster ? (tenantId && tenantId !== 'all' ? `Entity Configuration: ${details.name || ''}` : 'Master Profile Settings') : 'System Settings'}
+      subtitle={isMaster ? (tenantId && tenantId !== 'all' ? 'Modify company-specific metadata and defaults' : 'Manage your administrator account') : 'Configure your company profile and preferences'}
+      badgeText="SETTINGS"
+      inspectorState={inspectorState}
+      onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+    >
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+
+
 
       {/* Main Tabs */}
       <div className="erp-tab-container">
@@ -685,8 +688,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ companyDetails, onSave, ten
         </div>
       )}
     </div>
+    </UniversalWorkspaceLayout>
   );
 };
+
 
 export default SettingsPage;
 

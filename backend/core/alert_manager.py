@@ -43,7 +43,7 @@ class AlertManager:
                 self._check_redis()
                 self._check_workers()
                 self._check_pipeline()
-                time.sleep(30)
+                time.sleep(300)  # Poll every 5 min (was 30s) to reduce log noise
             except Exception as e:
                 logger.error(f"[ALERT_MONITOR_ERR] {e}")
                 time.sleep(60)
