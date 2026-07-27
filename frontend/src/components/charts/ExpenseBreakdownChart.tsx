@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend
 } from 'recharts';
@@ -14,7 +14,7 @@ interface ExpenseBreakdownChartProps {
     height?: number | string;
 }
 
-const COLORS = ['#F97316', '#EA580C', '#F59E0B', '#22C55E', '#0EA5E9', '#64748B'];
+const COLORS = ['#6366F1', '#4F46E5', '#6366F1', '#22C55E', '#0EA5E9', '#64748B'];
 
 const ExpenseBreakdownChart: React.FC<ExpenseBreakdownChartProps> = ({ data, height = 300 }) => {
     const processedData = useMemo(() => {
@@ -23,11 +23,11 @@ const ExpenseBreakdownChart: React.FC<ExpenseBreakdownChartProps> = ({ data, hei
         if (sorted.length <= 5) return sorted;
 
         const top5 = sorted.slice(0, 5);
-        const others = sorted.slice(5).reduce((acc, curr) => acc + curr.value, 0);
+        const others = sorted.slice(5).reduce((acc, curr) => Number(acc) + Number(curr.value || 0), 0);
         return [...top5, { name: 'Others', value: others }];
     }, [data]);
 
-    const total = processedData.reduce((acc, curr) => acc + curr.value, 0);
+    const total = processedData.reduce((acc, curr) => Number(acc) + Number(curr.value || 0), 0);
 
     if (processedData.length === 0) {
         return (

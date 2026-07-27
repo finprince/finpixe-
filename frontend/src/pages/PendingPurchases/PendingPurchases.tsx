@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { httpClient } from '../../services';
 import { CheckCircle, Trash2, Save, X } from 'lucide-react';
 import Package from 'lucide-react/dist/esm/icons/package';
@@ -24,7 +24,7 @@ const VendorStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   if (isExisting) {
     return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">ALREADY EXIST</span>;
   }
-  return <span className="bg-orange-500 text-white border border-orange-600 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE VENDOR</span>;
+  return <span className="bg-indigo-500 text-white border border-indigo-600 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE VENDOR</span>;
 };
 
 const ItemStatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -32,7 +32,7 @@ const ItemStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   if (isExisting) {
     return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">ALREADY EXIST</span>;
   }
-  return <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE ITEM</span>;
+  return <span className="bg-indigo-100 text-indigo-800 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE ITEM</span>;
 };
 
 const VoucherStatusBadge: React.FC<{ status: string; onClick?: () => void }> = ({ status, onClick }) => {
@@ -452,7 +452,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Skipped (unresolved vendor/item)</span>
-                      <span className="font-bold text-amber-600">{bulkPreview.skipped}</span>
+                      <span className="font-bold text-indigo-600">{bulkPreview.skipped}</span>
                     </div>
                     <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm">
                       <span className="text-slate-500">Total Pending</span>
@@ -460,9 +460,9 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                     </div>
                   </div>
                   {bulkPreview.eligible === 0 ? (
-                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-amber-700 text-sm">No eligible records found. Resolve vendor and item issues first.</p>
+                    <div className="flex items-start gap-2 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                      <AlertTriangle className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-indigo-700 text-sm">No eligible records found. Resolve vendor and item issues first.</p>
                     </div>
                   ) : (
                     <p className="text-slate-500 text-xs">This will create vouchers, journals, and GRNs for all {bulkPreview.eligible} eligible record(s). This action cannot be undone.</p>
@@ -492,7 +492,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Skipped</span>
-                      <span className="font-bold text-amber-600">{bulkResult.skipped}</span>
+                      <span className="font-bold text-indigo-600">{bulkResult.skipped}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Failed</span>
@@ -662,7 +662,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                               {(purchase.vendor_status === 'VENDOR_STATUS_CREATE' || purchase.vendor_status === 'CREATE_VENDOR') && (
                                 <button
                                   onClick={() => openCreateVendorModal(purchase)}
-                                  className="text-[9px] text-orange-600 hover:text-orange-800 font-bold underline focus:outline-none"
+                                  className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline focus:outline-none"
                                 >
                                   + Create Vendor
                                 </button>
@@ -677,7 +677,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                               {(purchase.item_status === 'ITEM_STATUS_CREATE' || purchase.item_status === 'CREATE ITEM') && (
                                 <button
                                   onClick={() => toggleExpandRow(purchase.id)}
-                                  className="text-[9px] text-amber-600 hover:text-amber-800 font-bold underline focus:outline-none"
+                                  className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline focus:outline-none"
                                 >
                                   {expandedRows.has(purchase.id) ? 'Hide Items' : 'Expand Items'}
                                 </button>
@@ -806,7 +806,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                                             <div className="flex items-center justify-center gap-1.5">
                                               <button
                                                 onClick={() => openCreateItemModal(purchase, item)}
-                                                className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white border border-amber-600 px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-sm whitespace-nowrap"
+                                                className="bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white border border-indigo-600 px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-sm whitespace-nowrap"
                                               >
                                                 Create Item
                                               </button>

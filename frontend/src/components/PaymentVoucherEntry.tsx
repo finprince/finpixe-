@@ -205,7 +205,7 @@ export const PaymentVoucherEntry: React.FC<PaymentVoucherEntryProps> = ({ onCanc
                         <Icon name="upload" size={16} />
                         Mass Upload
                     </button>
-                    <button className="px-4 py-2 text-sm bg-[#F97316] text-white rounded hover:bg-[#EA580C] flex items-center gap-2">
+                    <button className="px-4 py-2 text-sm bg-[#6366F1] text-white rounded hover:bg-[#4F46E5] flex items-center gap-2">
                         <Icon name="download" size={16} />
                         Import Vouchers
                     </button>

@@ -106,7 +106,7 @@ export default function GSTR2Page({ onNavigate, setViewVoucherData }: { onNaviga
         <div className="space-y-6">
             <div className="erp-container">
                 <div className="flex flex-wrap items-end gap-6">
-                    <div className="flex-1 min-w-[200px]">
+                    <div className="w-48">
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
                         <select
                             value={period.year}
@@ -131,7 +131,7 @@ export default function GSTR2Page({ onNavigate, setViewVoucherData }: { onNaviga
                             })()}
                         </select>
                     </div>
-                    <div className="flex-1 min-w-[200px]">
+                    <div className="w-48">
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
                         <select
                             value={period.month}

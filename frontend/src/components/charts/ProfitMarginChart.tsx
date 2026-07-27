@@ -43,9 +43,9 @@ const ProfitMarginChart: React.FC<ProfitMarginChartProps> = ({ data, height = 30
                     <Line
                         type="monotone"
                         dataKey="margin"
-                        stroke="#f97316"
+                        stroke="#6366F1"
                         strokeWidth={3}
-                        dot={{ r: 4, fill: '#f97316', strokeWidth: 2, stroke: 'white' }}
+                        dot={{ r: 4, fill: '#6366F1', strokeWidth: 2, stroke: 'white' }}
                         activeDot={{ r: 6 }}
                     />
                 </LineChart>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { apiService } from '../../services';
 import Icon from '../../components/Icon';
-import KIKILogo from '../../assets/branding/logo';
+import KIKILogo from '../../assets/finpixe with empty bg.png';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, Building2, Eye, EyeOff } from 'lucide-react';
@@ -66,9 +66,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
     };
 
     return (
-        <div className="min-h-screen w-full flex bg-[#FFF9F4] overflow-hidden text-slate-900 font-sans">
+        <div className="min-h-screen w-full flex bg-[#EEF2FF] overflow-hidden text-slate-900 font-sans">
             {/* Left Hero Graphic Section (Desktop >= 1024px) - Light Orange Theme */}
-            <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#FFF9F4] to-[#FFF3E8] border-r border-orange-100">
+            <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#EEF2FF] to-[#E0E7FF] border-r border-indigo-100">
                 {/* ── LAYER 2: Abstract AI Circuit SVG ──────────────────────── */}
                 <svg
                     className="absolute inset-0 w-full h-full pointer-events-none z-[1] opacity-70"
@@ -79,8 +79,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                 >
                     <defs>
                         <radialGradient id="signalGrad" cx="50%" cy="50%" r="50%">
-                            <stop offset="0%" stopColor="#FB923C" stopOpacity="1" />
-                            <stop offset="100%" stopColor="#FB923C" stopOpacity="0" />
+                            <stop offset="0%" stopColor="#818CF8" stopOpacity="1" />
+                            <stop offset="100%" stopColor="#818CF8" stopOpacity="0" />
                         </radialGradient>
                         <filter id="nodeGlow" x="-80%" y="-80%" width="260%" height="260%">
                             <feGaussianBlur stdDeviation="3" result="blur" />
@@ -92,7 +92,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                     </defs>
 
                     {/* Circuit Paths */}
-                    <g stroke="rgba(249,115,22,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <g stroke="rgba(99, 102, 241,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         {/* Top-Left */}
                         <path d="M 60 80 L 200 80 L 200 160 L 340 160" />
                         <path d="M 60 160 L 120 160 L 120 240 L 340 240 L 340 300" />
@@ -132,7 +132,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                     </g>
 
                     {/* Glowing Junction Nodes with pulses */}
-                    <g fill="rgba(249,115,22,0.55)" filter="url(#nodeGlow)">
+                    <g fill="rgba(99, 102, 241,0.55)" filter="url(#nodeGlow)">
                         {/* Top-Left */}
                         <rect x="196" y="76" width="8" height="8" rx="2" className="node-pulse-1" />
                         <rect x="116" y="236" width="8" height="8" rx="2" className="node-pulse-2" />
@@ -170,7 +170,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                             calcMode="linear"
                         />
                     </circle>
-                    <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                    <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                         <animateMotion
                             dur="8s"
                             repeatCount="indefinite"
@@ -188,7 +188,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                             calcMode="linear"
                         />
                     </circle>
-                    <circle r="3" fill="#EA580C" opacity="0.8" filter="url(#nodeGlow)">
+                    <circle r="3" fill="#4F46E5" opacity="0.8" filter="url(#nodeGlow)">
                         <animateMotion
                             dur="9s"
                             repeatCount="indefinite"
@@ -206,7 +206,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                             calcMode="linear"
                         />
                     </circle>
-                    <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                    <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                         <animateMotion
                             dur="10s"
                             repeatCount="indefinite"
@@ -241,26 +241,25 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                     .node-pulse-4 { animation: nodePulse 4s ease-in-out infinite 3s; }
 
                     @keyframes nodePulse {
-                        0%, 100% { fill: rgba(249,115,22,0.4); filter: drop-shadow(0 0 2px rgba(249,115,22,0.4)); }
-                        50% { fill: rgba(249,115,22,0.95); filter: drop-shadow(0 0 8px rgba(249,115,22,0.95)); }
+                        0%, 100% { fill: rgba(99, 102, 241,0.4); filter: drop-shadow(0 0 2px rgba(99, 102, 241,0.4)); }
+                        50% { fill: rgba(99, 102, 241,0.95); filter: drop-shadow(0 0 8px rgba(99, 102, 241,0.95)); }
                     }
                 `}</style>
 
                 {/* Top Brand Header */}
                 <div className="flex items-center gap-3.5 z-10">
-                    <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center p-2 backdrop-blur-md">
-                        <img src={KIKILogo} alt="Kiki AI logo" className="w-full h-full object-contain" />
+                    <div className="w-24 h-24 flex items-center justify-center">
+                        <img src={KIKILogo} alt="Finpixe logo" className="w-full h-full object-contain" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-extrabold text-slate-900 tracking-widest leading-none">KIKI AI</h2>
-                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Enterprise ERP OS</span>
+                        <h2 className="text-4xl font-extrabold text-slate-900 tracking-widest leading-none">FINPIXE</h2>
                     </div>
                 </div>
 
                 {/* Center Value Proposition */}
                 <div className="my-auto max-w-xl z-10 space-y-6">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200/60 text-orange-800 text-xs font-semibold">
-                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200/60 text-indigo-800 text-xs font-semibold">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                         <span>AI-Powered Continuous Accounting & Compliance</span>
                     </div>
                     <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
@@ -272,15 +271,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
 
                     {/* Security Feature Highlights */}
                     <div className="grid grid-cols-2 gap-4 pt-4">
-                        <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
+                        <div className="p-4 rounded-xl bg-white/80 border border-indigo-100 flex items-center gap-3 shadow-xs">
                             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                             <div>
                                 <h4 className="text-xs font-bold text-slate-800">ISO & GST Compliance</h4>
                                 <p className="text-[10px] text-slate-500">Automated GSTR-2B matching</p>
                             </div>
                         </div>
-                        <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
-                            <Zap className="w-5 h-5 text-amber-600 shrink-0" />
+                        <div className="p-4 rounded-xl bg-white/80 border border-indigo-100 flex items-center gap-3 shadow-xs">
+                            <Zap className="w-5 h-5 text-indigo-600 shrink-0" />
                             <div>
                                 <h4 className="text-xs font-bold text-slate-800">Real-Time OCR Stream</h4>
                                 <p className="text-[10px] text-slate-500">Gemini AI document pipeline</p>
@@ -290,9 +289,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                 </div>
 
                 {/* Footer Security Badges */}
-                <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-orange-100 pt-6">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-indigo-100 pt-6">
                     <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-orange-600" />
+                        <Lock className="w-4 h-4 text-indigo-600" />
                         <span>256-bit SSL Encrypted Session</span>
                     </div>
                     <span>v2.0 Enterprise Release</span>
@@ -304,7 +303,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                 <div className="w-full max-w-md space-y-8">
                     {/* Header */}
                     <div className="space-y-2">
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold">
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
                             <Building2 className="w-3.5 h-3.5" />
                             <span>Business Branch Access</span>
                         </div>
@@ -383,7 +382,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                         <button
                             type="button"
                             onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
-                            className="w-full text-center text-xs font-semibold text-slate-400 hover:text-[#EA580C] transition-colors"
+                            className="w-full text-center text-xs font-semibold text-slate-400 hover:text-[#4F46E5] transition-colors"
                         >
                             Return to Main Website
                         </button>
@@ -395,3 +394,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
 };
 
 export default LoginPage;
+
+
+

@@ -133,7 +133,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
               {title}
             </h1>
             <span className="text-[11px] font-semibold text-slate-500">
-              {adminName || 'Kiki AI Operating System'}
+              {adminName || 'Finpixe AI Operating System'}
             </span>
           </div>
         </div>
@@ -145,7 +145,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
             className="w-full flex items-center justify-between px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-500 transition-all shadow-xs group"
           >
             <div className="flex items-center gap-2.5">
-              <Icon name="search" className="w-4 h-4 text-slate-400 group-hover:text-[#EA580C] transition-colors" />
+              <Icon name="search" className="w-4 h-4 text-slate-400 group-hover:text-[#4F46E5] transition-colors" />
               <span>Search commands, vouchers, reports (Ctrl+K)...</span>
             </div>
             <kbd className="px-2 py-0.5 text-[10px] font-mono font-bold bg-white text-slate-600 rounded border border-slate-200 shadow-2xs">
@@ -162,7 +162,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
               onClick={() => setIsToolsOpen(prev => !prev)}
               className="flex items-center gap-2 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-all"
             >
-              <Icon name="settings" className="w-4 h-4 text-[#EA580C]" />
+              <Icon name="settings" className="w-4 h-4 text-[#4F46E5]" />
               <span>Tools</span>
               <Icon name="chevron-down" className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isToolsOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -174,7 +174,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
                     setIsToolsOpen(false);
                     if ((window as any).toggleGlobalCalculator) (window as any).toggleGlobalCalculator(true);
                   }}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#EA580C] transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-[#4F46E5] transition-colors"
                 >
                   <Icon name="calculator" className="w-4 h-4" />
                   <span>Calculator</span>
@@ -184,7 +184,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
                     setIsToolsOpen(false);
                     if ((window as any).toggleGlobalCalendar) (window as any).toggleGlobalCalendar(true);
                   }}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#EA580C] transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-[#4F46E5] transition-colors"
                 >
                   <Icon name="calendar" className="w-4 h-4" />
                   <span>Reminders</span>
@@ -194,7 +194,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
                     setIsToolsOpen(false);
                     if ((window as any).toggleGlobalNotes) (window as any).toggleGlobalNotes(true);
                   }}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#EA580C] transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-[#4F46E5] transition-colors"
                 >
                   <Icon name="file-text" className="w-4 h-4" />
                   <span>Notes</span>
@@ -220,7 +220,7 @@ const MasterHeader: React.FC<MasterHeaderProps> = ({
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full z-40">
             <button
               onClick={onCollapseHeader}
-              className="w-10 h-6 bg-white hover:bg-slate-50 border border-t-0 border-slate-200 rounded-b-xl shadow-xs flex items-center justify-center text-slate-400 hover:text-orange-600 transition-all active:scale-95"
+              className="w-10 h-6 bg-white hover:bg-slate-50 border border-t-0 border-slate-200 rounded-b-xl shadow-xs flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all active:scale-95"
               title="Hide Header"
             >
               <ChevronUp className="w-4 h-4" />

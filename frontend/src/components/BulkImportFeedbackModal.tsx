@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+﻿import React, { useRef, useState, useEffect } from 'react';
 import Icon from './Icon';
 import { Country, State, City } from 'country-state-city';
 
@@ -814,7 +814,7 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                                         </button>
                                                     </div>
                                                 )}
-                                        <div className="grid grid-cols-2 gap-x-12 gap-y-8">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             {activeSection.fields.map((field, fIdx) => {
                                                 const key = field.key;
                                                 const value = getFieldValue(branchData, key);
@@ -906,9 +906,9 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
 
                                                 return (
                                                     <div key={fIdx} className={`space-y-2.5 ${field.type === 'table' ? 'col-span-full' : ''}`}>
-                                                        <label className={`text-[10px] font-black uppercase tracking-[0.15em] transition-colors ${hasWarning ? 'text-rose-500' : 'text-gray-500'}`}>
+                                                        <label className="label-text">
                                                             {field.label}
-                                                            {field.required && <span className="ml-1 text-rose-500 font-black">*</span>}
+                                                            {field.required && <span className="text-red-500 ml-1">*</span>}
                                                         </label>
 
                                                         {field.type === 'table' ? (
@@ -986,7 +986,7 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                                                                                             branchData[key] = newProducts;
                                                                                                             setEditingItem({ ...editingItem });
                                                                                                         }}
-                                                                                                        className={`w-full px-3 py-2 rounded-xl text-xs font-bold focus:ring-2 outline-none transition-all border ${isColInvalid ? 'bg-rose-50 border-rose-400 text-rose-700 focus:ring-rose-300' : 'bg-gray-50/50 border-gray-200 focus:ring-indigo-500/20 focus:border-indigo-500'}`}
+                                                                                                        className={`w-full px-3 py-2 rounded-md text-xs focus:ring-1 outline-none transition-all border ${isColInvalid ? 'bg-red-50 border-red-300 text-red-700 focus:ring-red-500 focus:border-red-500' : 'bg-white border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'}`}
                                                                                                     >
                                                                                                         <option value="">{col.placeholder || 'Select'}</option>
                                                                                                         {(colOptions || []).map((opt: any) => (
@@ -1028,7 +1028,7 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                                                                                             branchData[key] = newProducts;
                                                                                                             setEditingItem({ ...editingItem });
                                                                                                         }}
-                                                                                                        className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                                                                                     />
                                                                                                 )}
                                                                                             </td>
@@ -1075,9 +1075,9 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                                                                 branchData[key] = opt === 'YES';
                                                                                 setEditingItem({ ...editingItem }); // Trigger re-render
                                                                             }}
-                                                                            className={`flex-1 py-3 px-6 rounded-xl text-xs font-black tracking-widest transition-all ${isActive
-                                                                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-4 ring-indigo-50'
-                                                                                    : 'bg-white border-2 border-gray-100 text-gray-400 hover:border-indigo-100 hover:bg-indigo-50/10'
+                                                                            className={`px-6 py-1.5 text-sm border-2 rounded focus:outline-none transition-colors ${isActive
+                                                                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
+                                                                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                                                                 }`}
                                                                         >
                                                                             {opt}
@@ -1100,11 +1100,11 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                                                         setEditingItem({ ...editingItem });
                                                                     }}
                                                                     disabled={isFieldDisabled}
-                                                                    className={`w-full px-5 py-4 rounded-2xl text-sm font-bold transition-all focus:ring-4 outline-none appearance-none bg-no-repeat bg-[right_1.25rem_center] bg-[length:1.2em_1.2em] ${isFieldDisabled
-                                                                            ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                                                                    className={`w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em] ${isFieldDisabled
+                                                                            ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                                                             : hasWarning
-                                                                                ? 'bg-rose-50 border-2 border-rose-100 focus:border-rose-500 focus:ring-rose-500/10'
-                                                                                : 'bg-gray-50/50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-indigo-500/10 group-hover:border-indigo-200'
+                                                                                ? 'bg-red-50 border-red-300'
+                                                                                : 'bg-white border-gray-300'
                                                                         }`}
                                                                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
                                                                 >
@@ -1124,11 +1124,11 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                                                     setFieldValue(branchData, key, e.target.value);
                                                                     setEditingItem({ ...editingItem });
                                                                 }}
-                                                                className={`w-full px-5 py-4 rounded-2xl text-sm font-bold transition-all focus:ring-4 outline-none ${isFieldDisabled
-                                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                                                                className={`w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 outline-none ${isFieldDisabled
+                                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                                                         : hasWarning
-                                                                            ? 'bg-rose-50 border-2 border-rose-100 focus:border-rose-500 focus:ring-rose-500/10'
-                                                                            : 'bg-gray-50/50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-indigo-500/10 group-hover:border-indigo-200'
+                                                                            ? 'bg-red-50 border-red-300'
+                                                                            : 'bg-white border-gray-300'
                                                                     }`}
                                                             />
                                                         )}
@@ -1268,13 +1268,13 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                     ) : (
                         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                             {isPreview && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
-                                    <div className="p-2 bg-amber-100 rounded-lg shrink-0">
-                                        <Icon name="alert-circle" className="w-5 h-5 text-amber-600" />
+                                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-start gap-4">
+                                    <div className="p-2 bg-indigo-100 rounded-lg shrink-0">
+                                        <Icon name="alert-circle" className="w-5 h-5 text-indigo-600" />
                                     </div>
                                     <div className="space-y-1">
-                                        <h4 className="text-sm font-bold text-amber-900 uppercase tracking-wider">Preview Mode</h4>
-                                        <p className="text-sm text-amber-700 leading-relaxed">
+                                        <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wider">Preview Mode</h4>
+                                        <p className="text-sm text-indigo-700 leading-relaxed">
                                             The records below have been validated but <strong>not yet saved</strong>. Review the counts and errors, then click "CONFIRM IMPORT" to finalize.
                                         </p>
                                     </div>
@@ -1329,7 +1329,7 @@ export const BulkImportFeedbackModal: React.FC<BulkImportFeedbackModalProps> = (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                                     <div className="flex items-center justify-between px-1">
                                         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                            <Icon name="exclamation-triangle" className="w-3 h-3 text-amber-500" />
+                                            <Icon name="exclamation-triangle" className="w-3 h-3 text-indigo-500" />
                                             Error Details
                                         </h3>
                                         <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full uppercase tracking-widest">

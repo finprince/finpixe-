@@ -54,6 +54,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     datasetSchema: {
         'Sales': ['Date', 'Customer', 'Product', 'City', 'Amount', 'Quantity'],
         'Expenses': ['Date', 'Vendor', 'Category', 'Payment Method', 'Amount'],
+        'All Transactions': ['Date', 'Party', 'Type', 'Amount'],
         'Profitability': ['Period', 'Revenue', 'Cost', 'Profit', 'Margin'],
         'Inventory': ['Product', 'Warehouse', 'Stock Level', 'Reorder Point'],
     },
@@ -76,7 +77,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
             properties: {
                 showLegend: true,
                 showGridlines: true,
-                colorTheme: '#f97316',
+                colorTheme: '#6366F1',
                 numberFormat: 'Currency',
             },
             settings: {},

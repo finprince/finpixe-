@@ -292,7 +292,7 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
   const getRowStatus = (payment: number, pending: number) => {
     if (payment === 0) return { label: 'Not Allocated', color: 'slate', status: 'NOT_ALLOCATED', bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
     if (payment > pending + 0.01) return { label: `Over by ₹${(payment - pending).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, color: 'red', status: 'OVER', bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200' };
-    if (payment < pending - 0.01) return { label: `Remaining ₹${(pending - payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, color: 'orange', status: 'PARTIAL', bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200' };
+    if (payment < pending - 0.01) return { label: `Remaining ₹${(pending - payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, color: 'indigo', status: 'PARTIAL', bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-200' };
     return { label: 'Full', color: 'green', status: 'FULL', bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200' };
   };
 
@@ -366,7 +366,7 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
             </div>
           </div>
           <div className="text-right">
-            <div className={`text-lg font-bold ${voucherType === 'payment' ? 'text-orange-300' : 'text-green-300'}`}>
+            <div className={`text-lg font-bold ${voucherType === 'payment' ? 'text-indigo-300' : 'text-green-300'}`}>
               ₹{rowAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             <div className="text-indigo-200 text-[10px] uppercase tracking-wider">
@@ -377,19 +377,19 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
       </div>
 
       {/* Allocation summary strip */}
-      <div className={`border-b px-6 py-3 flex items-center justify-between shrink-0 ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+      <div className={`border-b px-6 py-3 flex items-center justify-between shrink-0 ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-indigo-50 border-indigo-100'}`}>
         <div className="flex flex-col">
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-orange-700'}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-indigo-700'}`}>
             Balance Status
           </span>
-          <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-orange-600'}`}>
+          <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-indigo-600'}`}>
             {isExactMatch ? '₹0.00 (Balanced)' : isUnderAllocated ? `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} remaining` : `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Over allocated)`}
           </span>
         </div>
         <div className="flex items-center gap-6 text-xs">
           <div className="flex flex-col items-end">
             <span className="text-[10px] text-gray-400 uppercase font-bold">Total Allocated</span>
-            <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-orange-600' : 'text-emerald-600'}`}>
+            <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-indigo-600' : 'text-emerald-600'}`}>
               ₹{totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -463,7 +463,7 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
                                 txn.dueStatus === 'Due' || txn.dueStatus === 'Due Today'
                                   ? 'bg-red-100 text-red-600 border border-red-200'
                                   : (txn.dueStatus === 'Partially Received' || txn.dueStatus === 'Partially Paid')
-                                    ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                                    ? 'bg-indigo-100 text-indigo-600 border border-indigo-200'
                                     : 'bg-green-100 text-green-600 border border-green-200'
                               }`}>
                                 {txn.dueStatus}
@@ -493,7 +493,7 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
                                 placeholder="0"
                                 className={`w-20 px-2 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${
                                   status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' : 
-                                  status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' : 
+                                  status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 
                                   status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
                                 }`}
                               />

@@ -18,8 +18,8 @@ const ConfirmDialog: React.FC = () => {
             >
                 <div className="p-5">
                     <div className="flex items-start space-x-4">
-                        <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                            <Icon name="warning" className="w-6 h-6 text-orange-600" />
+                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                            <Icon name="warning" className="w-6 h-6 text-indigo-600" />
                         </div>
                         <div className="flex-1 pt-1">
                             <h3 className="text-base font-bold text-gray-900 uppercase tracking-wide">Confirm Action</h3>

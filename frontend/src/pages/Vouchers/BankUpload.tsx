@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { httpClient, apiService } from '../../services';
 import Icon from '../../components/Icon';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -467,7 +467,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
           <button onClick={handleUpload} disabled={uploading || isLimitReached} className={`w-full py-4 rounded-xl text-lg shadow-xl flex items-center justify-center gap-3 ${
             isLimitReached
               ? 'bg-red-100 text-red-400 cursor-not-allowed shadow-none border border-red-200'
-              : 'erp-button-primary shadow-orange-100'
+              : 'erp-button-primary shadow-indigo-100'
           }`} title={isLimitReached ? 'AI usage limit reached — upgrade your plan' : undefined}>
             <Icon name={uploading ? 'spinner' : 'upload'} className={`w-6 h-6 ${uploading ? 'animate-spin' : ''}`} />
             {uploading ? (
@@ -512,7 +512,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
                         file.status === 'processed' 
                           ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' 
-                          : 'bg-amber-50 text-amber-600 group-hover:bg-amber-100'
+                          : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
                       }`}>
                         <Icon name={processingId === file.id ? 'spinner' : 'file-text'} className={`w-7 h-7 ${processingId === file.id ? 'animate-spin' : ''}`} />
                       </div>
@@ -528,7 +528,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                             {file.transaction_count} Rows
                           </div>
                           <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                            file.status === 'processed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            file.status === 'processed' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'
                           }`}>
                             {file.status}
                           </div>
@@ -616,14 +616,14 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
 
           {/* Duplicate warning banner */}
           {duplicateRows.length > 0 && (
-            <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold mb-0">
+            <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-800 text-xs font-semibold mb-0">
               <div className="flex items-center gap-2">
-                <span className="text-amber-500 text-base">⚠️</span>
+                <span className="text-indigo-500 text-base">⚠️</span>
                 <span>{duplicateRows.length} transaction{duplicateRows.length > 1 ? 's' : ''} already recorded — these will not be posted.</span>
               </div>
               <button
                 onClick={() => setShowDuplicates(v => !v)}
-                className="ml-4 px-3 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-800 text-[10px] font-bold uppercase tracking-widest transition-all"
+                className="ml-4 px-3 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 border border-indigo-300 text-indigo-800 text-[10px] font-bold uppercase tracking-widest transition-all"
               >
                 {showDuplicates ? 'Hide Already Recorded' : 'Show Already Recorded'}
               </button>
@@ -657,7 +657,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                       return (
                         <tr key={row.id} className={`transition-all ${
                           row.status === 'duplicate'
-                            ? 'bg-amber-50/60 opacity-70'
+                            ? 'bg-indigo-50/60 opacity-70'
                             : isActive
                               ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-500'
                               : row.status === 'posted'
@@ -751,7 +751,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                                 }}
                                 disabled={row.status === 'posted' || row.status === 'duplicate'}
                                 className={`w-full pl-6 pr-2 py-1.5 rounded-lg text-xs font-black text-right border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                                  row.inferred_type === 'payment' ? 'text-orange-600 bg-orange-50/30 border-orange-200' : 'text-emerald-600 bg-emerald-50/30 border-emerald-200'
+                                  row.inferred_type === 'payment' ? 'text-indigo-600 bg-indigo-50/30 border-indigo-200' : 'text-emerald-600 bg-emerald-50/30 border-emerald-200'
                                 } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
                               />
                             </div>

@@ -17,7 +17,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({ state, onClose
       {/* Drawer Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-100 text-[#EA580C] flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-[#4F46E5] flex items-center justify-center shrink-0">
             <FileText className="w-4 h-4" />
           </div>
           <div className="truncate">
@@ -38,7 +38,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({ state, onClose
         <button
           onClick={() => setActiveTab('properties')}
           className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === 'properties' ? 'border-[#EA580C] text-[#EA580C]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'properties' ? 'border-[#4F46E5] text-[#4F46E5]' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Properties
@@ -46,7 +46,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({ state, onClose
         <button
           onClick={() => setActiveTab('activity')}
           className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === 'activity' ? 'border-[#EA580C] text-[#EA580C]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'activity' ? 'border-[#4F46E5] text-[#4F46E5]' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Activity
@@ -54,7 +54,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({ state, onClose
         <button
           onClick={() => setActiveTab('ai')}
           className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === 'ai' ? 'border-[#EA580C] text-[#EA580C]' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'ai' ? 'border-[#4F46E5] text-[#4F46E5]' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           AI Insights
@@ -105,10 +105,10 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({ state, onClose
 
         {activeTab === 'ai' && (
           <div className="space-y-3">
-            <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl flex items-start gap-2.5">
-              <Sparkles className="w-4 h-4 text-[#EA580C] shrink-0 mt-0.5" />
+            <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-xs font-bold text-[#EA580C]">AI Assistant Context</h4>
+                <h4 className="text-xs font-bold text-[#4F46E5]">AI Assistant Context</h4>
                 <p className="text-[11px] font-medium text-slate-600 mt-0.5">
                   Automated anomaly checks and predictive reorder insights are active for this entity.
                 </p>
@@ -131,7 +131,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({ state, onClose
 
       {/* Footer */}
       <div className="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-        <span>Kiki AI Operating System</span>
+        <span>Finpixe AI Operating System</span>
         <span>v2.0</span>
       </div>
     </div>

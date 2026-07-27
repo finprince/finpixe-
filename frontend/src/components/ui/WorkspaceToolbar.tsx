@@ -32,7 +32,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               type="text"
               placeholder={searchPlaceholder}
               onChange={e => onSearchChange(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/20 transition-all"
+              className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20 transition-all"
             />
           </div>
         )}

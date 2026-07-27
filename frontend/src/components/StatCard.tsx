@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import Icon from './Icon';
 
 interface StatCardProps {
@@ -10,7 +10,7 @@ interface StatCardProps {
     change?: string;
     isPositive?: boolean;
     trendLabel?: string;
-    color?: 'emerald' | 'rose' | 'amber' | 'blue' | 'orange' | 'slate' | 'cyan' | 'green' | 'purple' | 'indigo';
+    color?: 'emerald' | 'rose' | 'indigo' | 'blue' | 'indigo' | 'slate' | 'cyan' | 'green' | 'purple' | 'indigo';
     className?: string;
     onClick?: () => void;
     subValue?: string;
@@ -19,9 +19,9 @@ interface StatCardProps {
 const colorMap: Record<string, { accent: string; iconBg: string; iconColor: string }> = {
     emerald: { accent: '#10B981', iconBg: '#ECFDF5', iconColor: '#059669' },
     rose: { accent: '#F43F5E', iconBg: '#FFF1F2', iconColor: '#E11D48' },
-    amber: { accent: '#F59E0B', iconBg: '#FFFBEB', iconColor: '#D97706' },
+    amber: { accent: '#6366F1', iconBg: '#EEF2FF', iconColor: '#4F46E5' },
     blue: { accent: '#3B82F6', iconBg: '#EFF6FF', iconColor: '#2563EB' },
-    orange: { accent: '#F97316', iconBg: '#FFF7ED', iconColor: '#EA580C' },
+    orange: { accent: '#6366F1', iconBg: '#EEF2FF', iconColor: '#4F46E5' },
     indigo: { accent: '#6366F1', iconBg: '#EEF2FF', iconColor: '#4F46E5' },
     purple: { accent: '#8B5CF6', iconBg: '#F5F3FF', iconColor: '#7C3AED' },
     slate: { accent: '#64748B', iconBg: '#F1F5F9', iconColor: '#475569' },
@@ -31,7 +31,7 @@ const colorMap: Record<string, { accent: string; iconBg: string; iconColor: stri
 
 const StatCard: React.FC<StatCardProps> = ({
     title, value, icon, trend, change, isPositive, trendLabel = 'vs last period',
-    color = 'orange', className = '', onClick, subValue
+    color = 'indigo', className = '', onClick, subValue
 }) => {
     const effectiveTrend = trend ?? change;
     const theme = colorMap[color] || colorMap.orange;

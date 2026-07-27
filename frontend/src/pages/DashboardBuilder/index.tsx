@@ -75,7 +75,7 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
                     yField: 'Amount',
                     x: 40, y: 40, width: 600, height: 320,
                     aggregation: 'sum',
-                    properties: { showLegend: true, showGridlines: true, colorTheme: '#f97316', numberFormat: 'Currency' }
+                    properties: { showLegend: true, showGridlines: true, colorTheme: '#6366F1', numberFormat: 'Currency' }
                 },
                 {
                     id: 'exp-pie',
@@ -209,11 +209,12 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
 
     const getWidgetData = (widget: Widget) => {
         const { dataset, xField, yField, aggregation } = widget;
+        const actualXField = xField || 'name';
+        const actualYField = yField || 'value';
 
-        // Use vouchers for Sales/Expenses datasets
-        if (dataset === 'Sales' || dataset === 'Expenses') {
-            const typeFilter = dataset === 'Sales' ? ['Sales'] : ['Purchase', 'Expenses'];
-
+        // 1. Try real data if Sales, Expenses, or All Transactions
+        if (dataset === 'Sales' || dataset === 'Expenses' || dataset === 'All Transactions') {
+            const typeFilter = dataset === 'Sales' ? ['Sales'] : dataset === 'Expenses' ? ['Purchase', 'Expenses'] : ['Sales', 'Purchase', 'Expenses', 'Receipt', 'Payment'];
             let filtered = vouchers.filter(v => typeFilter.includes(v.type));
 
             // Apply Global Filters
@@ -224,38 +225,83 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
                 filtered = filtered.filter(v => (v as any).party === globalFilters.vendor);
             }
 
-            // Group by xField
-            const groups: Record<string, number[]> = {};
-            filtered.forEach(v => {
-                let key = 'Other';
-                if (xField === 'Date') key = v.date;
-                else if (xField === 'Customer' || xField === 'Vendor' || xField === 'Party') key = (v as any).party || 'Unknown';
-                else if (xField === 'Product') key = (v as any).items?.[0]?.name || 'N/A';
-                else if (xField === 'Category') key = (v as any).category || 'General';
+            if (filtered.length > 0) {
+                // Group by xField
+                const groups: Record<string, number[]> = {};
+                filtered.forEach(v => {
+                    let key = 'Other';
+                    if (actualXField === 'Date') key = v.date;
+                    else if (['Customer', 'Vendor', 'Party'].includes(actualXField)) {
+                        const partyId = (v as any).party;
+                        const ledger = ledgers?.find(l => String(l.id) === String(partyId));
+                        key = ledger ? ledger.name : (partyId || 'Unknown');
+                    }
+                    else if (actualXField === 'Type') {
+                        key = ['Sales', 'Receipt'].includes(v.type) ? 'Income (Customers)' : 'Expense (Vendors)';
+                    }
+                    else if (actualXField === 'Product') {
+                        key = (v as any).items?.[0]?.name || 'N/A';
+                    }
+                    else if (actualXField === 'Category') {
+                        const catId = (v as any).category || (v as any).party;
+                        const ledger = ledgers?.find(l => String(l.id) === String(catId));
+                        key = ledger ? ledger.name : (catId || 'General');
+                    }
+                    else if (actualXField === 'Payment Method') {
+                        const accId = (v as any).account;
+                        const ledger = ledgers?.find(l => String(l.id) === String(accId));
+                        key = ledger ? ledger.name : 'Bank Transfer';
+                    }
 
-                const val = (v as any).total || (v as any).amount || 0;
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(val);
-            });
+                    let val = 0;
+                    if (actualYField === 'Quantity') {
+                        val = (v as any).items?.reduce((sum: number, item: any) => sum + (Number(item.qty) || 0), 0) || 0;
+                    } else {
+                        val = Number((v as any).total || (v as any).amount || 0) || 0;
+                    }
+                    
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(val);
+                });
 
-            // Aggregate
-            return Object.entries(groups).map(([name, vals]) => {
-                let value = 0;
-                if (aggregation === 'sum') value = vals.reduce((a, b) => a + b, 0);
-                else if (aggregation === 'avg') value = vals.reduce((a, b) => a + b, 0) / vals.length;
-                else if (aggregation === 'count') value = vals.length;
+                // Aggregate
+                const result = Object.entries(groups).map(([name, vals]) => {
+                    let value = 0;
+                    if (aggregation === 'sum') value = vals.reduce((a, b) => Number(a) + Number(b), 0);
+                    else if (aggregation === 'avg') value = vals.reduce((a, b) => Number(a) + Number(b), 0) / (vals.length || 1);
+                    else if (aggregation === 'count') value = vals.length;
 
-                return {
-                    name,
-                    [xField || 'name']: name,
-                    [yField || 'value']: value,
-                    value
-                };
-            }).sort((a, b) => a.name.localeCompare(b.name));
+                    return {
+                        name,
+                        [actualXField]: name,
+                        [actualYField]: value,
+                        value
+                    };
+                }).sort((a, b) => a.name.localeCompare(b.name));
+
+                if (result.length > 0) return result;
+            }
         }
 
-        // Fallback for mock datasets
-        return [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }, { name: 'Mar', value: 600 }];
+        // 2. Fallback for mock datasets (Profitability, Inventory) or when no real data exists
+        // Use static arrays to prevent jitter on re-renders while matching the exact fields selected.
+        const mockValues = [1200, 3500, 2400, 5600, 1800];
+        const isTimeBased = actualXField.toLowerCase().includes('date') || actualXField.toLowerCase().includes('period');
+        const mockLabels = isTimeBased 
+            ? ['Jan', 'Feb', 'Mar', 'Apr', 'May'] 
+            : ['Alpha', 'Beta', 'Gamma', 'Delta', 'Sigma'];
+
+        return mockLabels.map((label, index) => {
+            const val = mockValues[index] || 1000;
+            const finalVal = aggregation === 'count' ? Math.ceil(val / 500) : val;
+            
+            return {
+                name: label,
+                [actualXField]: label,
+                [actualYField]: finalVal,
+                value: finalVal
+            };
+        });
     };
 
     return (
