@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 interface OcrValidationBannersProps {
     record: any;
@@ -32,18 +32,18 @@ export const OcrValidationBanners: React.FC<OcrValidationBannersProps> = ({
                     </div>
                 </div>
             ) : ['NEW', 'MISSING'].includes(vendorStatus) ? (
-                <div className="px-6 py-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-between shadow-xs">
+                <div className="px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-xs">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-xl">⚠️</div>
+                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-xl">⚠️</div>
                         <div className="text-left">
-                            <h4 className="font-bold text-amber-900 text-sm uppercase tracking-wider">Create Vendor</h4>
-                            <p className="text-[10px] text-amber-700 italic">This vendor was not found. Please create it to continue.</p>
+                            <h4 className="font-bold text-indigo-900 text-sm uppercase tracking-wider">Create Vendor</h4>
+                            <p className="text-[10px] text-indigo-700 italic">This vendor was not found. Please create it to continue.</p>
                         </div>
                     </div>
                     <button
                         type="button"
                         onClick={onCreateVendor}
-                        className="px-6 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition-colors shadow-md cursor-pointer"
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-md cursor-pointer"
                     >
                         Create New Vendor
                     </button>

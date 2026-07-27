@@ -28,8 +28,8 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantClasses = {
-    primary: 'bg-[#F97316] text-white hover:bg-[#EA580C] shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30',
-    secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-orange-50 hover:border-slate-400 hover:text-[#EA580C]',
+    primary: 'bg-[#6366F1] text-white hover:bg-[#4F46E5] shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/30',
+    secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-indigo-50 hover:border-slate-400 hover:text-[#4F46E5]',
     ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900',
     danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-500/20',
   };

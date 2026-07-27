@@ -2965,6 +2965,20 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
       if (voucherType === 'Purchase') {
         const partyLedger = ledgers.find(l => l.name.toLowerCase() === (localPrefilledData.sellerName || '').toLowerCase());
+        const existingVendor = richVendors.find(v => (v.vendor_name || '').toLowerCase() === (localPrefilledData.sellerName || '').toLowerCase());
+        if (existingVendor || partyLedger) {
+          setVendorValidationStatus('FOUND');
+          if (existingVendor) setVendorId(existingVendor.id);
+        } else if (localPrefilledData.sellerName) {
+          setVendorValidationStatus('NOT_FOUND');
+          setExtractedVendorData({
+            vendor_name: localPrefilledData.sellerName,
+            gstin: localPrefilledData.gstin || '',
+            state: localPrefilledData.placeOfSupply || '',
+            address: localPrefilledData.billFrom || '',
+            branch: localPrefilledData.branch || ''
+          });
+        }
         const newIsInterState = (partyLedger && partyLedger.state && companyDetails?.state)
           ? partyLedger.state.toLowerCase() !== companyDetails.state.toLowerCase()
           : (localPrefilledData.gstin && companyDetails?.gstin)
@@ -3151,7 +3165,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
       handleClearPrefilledData();
     }
-  }, [localPrefilledData, handleClearPrefilledData, stockItems, ledgers, companyDetails.state, allItems, voucherType]);
+  }, [localPrefilledData, handleClearPrefilledData, stockItems, ledgers, companyDetails.state, allItems, voucherType, richVendors]);
 
   const setAddressFields = useCallback((addressData: any) => {
     if (typeof addressData === 'string') {
@@ -3535,6 +3549,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         setVendorAddresses([]);
         setPurchaseTerms('');
         setMasterTermsData(null);
+        setVendorValidationStatus(null);
         return;
       }
 
@@ -3687,6 +3702,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         if (ledger.additional_data?.address) {
           setAddressFields(ledger.additional_data.address);
         }
+      }
+
+      if (vendor || customer || ledger) {
+        setVendorValidationStatus('FOUND');
+      } else if (value && value.trim()) {
+        setVendorValidationStatus('NOT_FOUND');
+        setExtractedVendorData((prev: any) => ({
+          ...(prev || {}),
+          vendor_name: value.trim(),
+          gstin: gstin || (prev as any)?.gstin || ''
+        }));
       }
 
       // 4. ALWAYS fetch advances if value present
@@ -6034,24 +6060,24 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     return (
       <div className="space-y-6">
         {activeOcrFileHash && (
-          <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-5 flex items-center justify-between gap-4 transition-all">
+          <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-5 flex items-center justify-between gap-4 transition-all">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-orange-500/10 text-orange-600 rounded-lg shrink-0 mt-0.5">
+              <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-lg shrink-0 mt-0.5">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-orange-950">Editing Extracted Scan Data</h4>
-                <p className="text-xs text-orange-800 leading-relaxed">
-                  You are editing extracted data for <span className="font-mono bg-orange-100 px-1 py-0.5 rounded text-orange-900 break-all">{activeOcrFileName || activeOcrFileHash}</span>. Saving will create a purchase voucher and mark the scan row as finalized.
+                <h4 className="text-sm font-bold text-indigo-950">Editing Extracted Scan Data</h4>
+                <p className="text-xs text-indigo-800 leading-relaxed">
+                  You are editing extracted data for <span className="font-mono bg-indigo-100 px-1 py-0.5 rounded text-indigo-900 break-all">{activeOcrFileName || activeOcrFileHash}</span>. Saving will create a purchase voucher and mark the scan row as finalized.
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={handleCloseVoucher}
-              className="px-4 py-2 text-xs font-semibold text-orange-700 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors whitespace-nowrap"
             >
               BACK TO SCAN LIST
             </button>
@@ -6215,32 +6241,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   </div>
 
                   {vendorValidationStatus === 'NOT_FOUND' && (
-                    <div className="mt-2 text-xs text-red-600 font-semibold flex items-center justify-between gap-2 p-2 bg-red-50 border border-red-200 rounded">
-                      <div className="flex items-center gap-1">
-                        <Icon name="x" className="w-4 h-4" />
-                        Vendor Not Found in Vendor Master
-                      </div>
-                      <button type="button" onClick={() => {
-                        // Inject current purchase items so the modal pre-fills Supplier Items
-                        const itemsFromVoucher = purchaseItems
-                          .filter(pi => pi.itemName || pi.itemCode)
-                          .map(pi => ({
-                            supplierItemCode: pi.itemCode || '',
-                            supplierItemName: pi.itemName || '',
-                            hsnSac: pi.hsnSac || '',
-                          }));
-                        setExtractedVendorData((prev: any) => ({
-                          ...(prev || {}),
-                          supplier_items: itemsFromVoucher.length > 0 ? itemsFromVoucher : undefined,
-                        }));
-                        setIsCreateVendorModalOpen(true);
-                      }} className="px-2 py-1 bg-white border border-red-200 text-red-600 rounded hover:bg-red-50 shadow-sm flex items-center gap-1">
-                        <Icon name="plus" className="w-3 h-3" /> Create Vendor
-                      </button>
+                    <div className="mt-2 text-xs text-red-600 font-semibold flex items-center gap-1.5 p-2 bg-red-50 border border-red-200 rounded">
+                      <Icon name="x" className="w-4 h-4 shrink-0" />
+                      <span>Vendor Not Found in Vendor Master</span>
                     </div>
                   )}
                   {vendorValidationStatus === 'GSTIN_CONFLICT' && (
-                    <div className="mt-2 text-xs text-amber-600 font-semibold flex items-center gap-1 bg-amber-50 px-2 py-1 rounded">
+                    <div className="mt-2 text-xs text-indigo-600 font-semibold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded">
                       <Icon name="x" className="w-4 h-4" />
                       {vendorConflictMsg}
                     </div>
@@ -6823,17 +6830,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               {/* Foreign Currency Table */}
               <div className="overflow-x-auto border border-gray-200 rounded-[4px] shadow-none">
                 <table className="w-full">
-                  <thead className="bg-[#F97316] text-white">
+                  <thead className="bg-[#6366F1] text-white">
                     <tr>
-                      <th className="px-3 py-3 text-center w-12 border-r border-[#FB923C]"></th>
+                      <th className="px-3 py-3 text-center w-12 border-r border-[#818CF8]"></th>
                       {selectedPurchasePOs.length > 0 && (
-                        <th className="px-3 py-3 text-sm font-semibold text-center border-r border-[#FB923C]">Purchase Order No.</th>
+                        <th className="px-3 py-3 text-sm font-semibold text-center border-r border-[#818CF8]">Purchase Order No.</th>
                       )}
-                      <th className="px-3 py-3 text-sm font-semibold text-center border-r border-[#FB923C]">Description</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-[#FB923C]">Inv Qty</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-[#FB923C]">UQC</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-[#FB923C]">Rate ({vendorBillingCurrency || 'FC'})</th>
-                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-[#FB923C]">Amount ({vendorBillingCurrency || 'FC'})</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center border-r border-[#818CF8]">Description</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-[#818CF8]">Inv Qty</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-32 border-r border-[#818CF8]">UQC</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-[#818CF8]">Rate ({vendorBillingCurrency || 'FC'})</th>
+                      <th className="px-3 py-3 text-sm font-semibold text-center w-40 border-r border-[#818CF8]">Amount ({vendorBillingCurrency || 'FC'})</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -6842,12 +6849,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         if (!poNo) return '';
                         const colors = [
                           'bg-emerald-50/60 hover:bg-emerald-100/60 border-l-4 border-l-emerald-400',
-                          'bg-amber-50/60 hover:bg-amber-100/60 border-l-4 border-l-amber-400',
+                          'bg-indigo-50/60 hover:bg-indigo-100/60 border-l-4 border-l-indigo-400',
                           'bg-rose-50/60 hover:bg-rose-100/60 border-l-4 border-l-rose-400',
                           'bg-sky-50/60 hover:bg-sky-100/60 border-l-4 border-l-sky-400',
                           'bg-violet-50/60 hover:bg-violet-100/60 border-l-4 border-l-violet-400',
                           'bg-indigo-50/60 hover:bg-indigo-100/60 border-l-4 border-l-indigo-400',
-                          'bg-orange-50/60 hover:bg-orange-100/60 border-l-4 border-l-orange-400',
+                          'bg-indigo-50/60 hover:bg-indigo-100/60 border-l-4 border-l-indigo-400',
                           'bg-teal-50/60 hover:bg-teal-100/60 border-l-4 border-l-teal-400',
                         ];
                         const idx = selectedPurchasePOs.indexOf(poNo);
@@ -7110,12 +7117,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           if (!poNo) return '';
                           const colors = [
                             'bg-emerald-50/60 hover:bg-emerald-100/60 border-l-4 border-l-emerald-400',
-                            'bg-amber-50/60 hover:bg-amber-100/60 border-l-4 border-l-amber-400',
+                            'bg-indigo-50/60 hover:bg-indigo-100/60 border-l-4 border-l-indigo-400',
                             'bg-rose-50/60 hover:bg-rose-100/60 border-l-4 border-l-rose-400',
                             'bg-sky-50/60 hover:bg-sky-100/60 border-l-4 border-l-sky-400',
                             'bg-violet-50/60 hover:bg-violet-100/60 border-l-4 border-l-violet-400',
                             'bg-indigo-50/60 hover:bg-indigo-100/60 border-l-4 border-l-indigo-400',
-                            'bg-orange-50/60 hover:bg-orange-100/60 border-l-4 border-l-orange-400',
+                            'bg-indigo-50/60 hover:bg-indigo-100/60 border-l-4 border-l-indigo-400',
                             'bg-teal-50/60 hover:bg-teal-100/60 border-l-4 border-l-teal-400',
                           ];
                           const idx = selectedPurchasePOs.indexOf(poNo);
@@ -7473,7 +7480,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                         Gross Amount Due
                         {purchaseTaxIsTcs && Number(purchaseTdsIt) > 0 && (
-                          <span className="ml-2 text-xs text-orange-600 font-normal">(TCS added)</span>
+                          <span className="ml-2 text-xs text-indigo-600 font-normal">(TCS added)</span>
                         )}
                       </label>
                       <input
@@ -13096,7 +13103,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               __html: `
                 .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
                 .form-input { display: block; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); outline: none; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
-                .form-input:focus { border-color: #F97316; box-shadow: 0 0 0 1px #F97316; }
+                .form-input:focus { border-color: #6366F1; box-shadow: 0 0 0 1px #6366F1; }
                 .table-input {
                   width: 100%;
                   border: 1px solid transparent;
@@ -13109,7 +13116,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 }
                 .table-input:focus {
                   background-color: white;
-                  box-shadow: 0 0 0 1px #F97316;
+                  box-shadow: 0 0 0 1px #6366F1;
                 }
                 .table-input[readOnly] {
                   background-color: #f9fafb;
@@ -13535,7 +13542,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   contact_person: supplier.contact_person || ext.contact_person || '',
                   supplier_items: supplierItems,
                 };
-              })() : undefined}
+              })() : (extractedVendorData || (party || gstin ? {
+                vendor_name: party,
+                gstin: gstin,
+                state: billFromState,
+                address: billFromAddress1,
+                branch: selectedBranch
+              } : undefined))}
               onClose={() => setIsCreateVendorModalOpen(false)}
               onVendorCreated={(vendorName, newId) => {
                 showSuccess('Vendor Created Successfully!');

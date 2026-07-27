@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { apiService } from '../services/api';
 import { httpClient } from '../services/httpClient';
 import { showWarning } from '../utils/toast';
@@ -1096,7 +1096,7 @@ const CreateGRNModal: React.FC<CreateGRNModalProps> = ({ onClose, onSave, initia
                                                     value={item.refQty}
                                                     readOnly
                                                     title={grnType === 'purchases' ? "Pending PO Quantity (auto-fetched from Purchase Order)" : "Invoice Quantity (auto-fetched from Sales Invoice)"}
-                                                    className={`w-full px-2 py-1 border border-gray-200 rounded-[4px] text-xs bg-amber-50 cursor-not-allowed text-gray-700 font-medium focus:outline-none`}
+                                                    className={`w-full px-2 py-1 border border-gray-200 rounded-[4px] text-xs bg-indigo-50 cursor-not-allowed text-gray-700 font-medium focus:outline-none`}
                                                 />
                                             </td>
                                             <td className="px-3 py-2"><input type="number" value={item.secondaryQty} onChange={(e) => handleItemChange(item.id, 'secondaryQty', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-[4px] text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" /></td>

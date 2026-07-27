@@ -322,7 +322,7 @@ export const LedgerQuestions: React.FC<LedgerQuestionsProps> = ({
         }
 
         .questions-subtitle strong {
-          color: #F97316;
+          color: #6366F1;
         }
 
         .questions-list {
@@ -381,8 +381,8 @@ export const LedgerQuestions: React.FC<LedgerQuestionsProps> = ({
         .question-select:focus,
         .question-textarea:focus {
           outline: none;
-          border-color: #F97316;
-          box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+          border-color: #6366F1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
         }
 
         .radio-group {
@@ -435,8 +435,8 @@ export const LedgerQuestions: React.FC<LedgerQuestionsProps> = ({
         }
 
         .questions-loading {
-          background: #FFF7ED;
-          color: #C2410C;
+          background: #EEF2FF;
+          color: #4338CA;
         }
 
         .questions-error {
@@ -453,8 +453,8 @@ export const LedgerQuestions: React.FC<LedgerQuestionsProps> = ({
           width: 40px;
           height: 40px;
           margin: 0 auto 1rem;
-          border: 4px solid #FED7AA;
-          border-top-color: #F97316;
+          border: 4px solid #C7D2FE;
+          border-top-color: #6366F1;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }

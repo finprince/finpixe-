@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useDashboardStore, Widget } from '../../store/dashboardStore';
 import {
     BarChart, TrendingUp, PieChart, FileText,
-    Settings, Trash2, ChevronRight, Check, LayoutDashboard
+    Settings, Trash2, ChevronRight, Check, LayoutDashboard,
+    Activity, Circle, Table, Grid
 } from 'lucide-react';
 
 const RightPanel: React.FC = () => {
@@ -48,10 +49,14 @@ const RightPanel: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-4 gap-2">
                             {[
-                                { type: 'line', icon: TrendingUp, label: 'LINE' },
-                                { type: 'bar', icon: BarChart, label: 'BAR' },
-                                { type: 'pie', icon: PieChart, label: 'PIE' },
-                                { type: 'kpi', icon: FileText, label: 'CARD' },
+                                { type: 'line', icon: TrendingUp, label: 'LINE CHART' },
+                                { type: 'area', icon: Activity, label: 'AREA CHART' },
+                                { type: 'bar', icon: BarChart, label: 'BAR CHART' },
+                                { type: 'pie', icon: PieChart, label: 'PIE CHART' },
+                                { type: 'donut', icon: Circle, label: 'DONUT CHART' },
+                                { type: 'scatter', icon: Grid, label: 'SCATTER PLOT' },
+                                { type: 'table', icon: Table, label: 'DATA TABLE' },
+                                { type: 'kpi', icon: FileText, label: 'KPI CARD' },
                             ].map(v => (
                                 <button
                                     key={v.type}
@@ -187,7 +192,7 @@ const RightPanel: React.FC = () => {
                                         <Settings size={10} /> Color Theme
                                     </label>
                                     <div className="grid grid-cols-4 gap-3 text-white">
-                                        {['#118DFF', '#12239E', '#E66C37', '#6B007B', '#E044A7', '#744EC2', '#D9B300', '#065A82'].map(c => (
+                                        {['#118DFF', '#12239E', '#6366F1', '#6B007B', '#E044A7', '#744EC2', '#D9B300', '#065A82'].map(c => (
                                             <button
                                                 key={c}
                                                 onClick={() => updateWidget(selectedWidget.id, { properties: { ...selectedWidget.properties, colorTheme: c } })}

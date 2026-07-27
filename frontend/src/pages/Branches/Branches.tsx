@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import finpixeLogo from '../../assets/branding/logo';
 import { masterApiService } from '../../services/masterApi';
 import Modal from '../../components/Modal';
@@ -231,7 +231,7 @@ const BranchesPage: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
@@ -241,7 +241,7 @@ const BranchesPage: React.FC = () => {
             {/* Header */}
             <div className="flex items-start justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_8px_16px_rgba(249,115,22,0.08)] flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-11 h-11 rounded-2xl bg-white border border-[#C7D2FE] shadow-[0_8px_16px_rgba(99, 102, 241,0.08)] flex items-center justify-center overflow-hidden shrink-0">
                         <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
                     </div>
                     <div>
@@ -309,7 +309,7 @@ const BranchesPage: React.FC = () => {
                         <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                             <div className="flex -space-x-2">
                                 <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-700 border-2 border-white">A</div>
-                                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-[10px] font-bold text-amber-700 border-2 border-white">B</div>
+                                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700 border-2 border-white">B</div>
                             </div>
                             <div className="flex gap-2">
                                 <button
@@ -670,7 +670,7 @@ const BranchesPage: React.FC = () => {
                         </div>
                     )}
                     <div className="text-center">
-                        <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">🔑</div>
+                        <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">🔑</div>
                         <h3 className="text-lg font-black text-slate-800">Security Override</h3>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 border-b border-slate-100 pb-4">
                             Branch ID: {selectedBranchId?.split('-')[0]}...

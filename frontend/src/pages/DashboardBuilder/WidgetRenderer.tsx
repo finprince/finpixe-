@@ -1,12 +1,12 @@
-import React from 'react';
+﻿import React from 'react';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-    AreaChart, Area
+    AreaChart, Area, ScatterChart, Scatter, ZAxis
 } from 'recharts';
 import { Widget, useDashboardStore } from '../../store/dashboardStore';
 import { MoreHorizontal, Maximize2, Filter, Info, Download, Share2, Trash2 } from 'lucide-react';
-import { confirm, showSuccess } from '../../utils/toast';
+import { confirm, showSuccess, showInfo } from '../../utils/toast';
 
 
 interface WidgetRendererProps {
@@ -18,7 +18,7 @@ interface WidgetRendererProps {
 const PBI_PALETTE = [
     '#118DFF', // Cyan Blue
     '#12239E', // Royal Blue
-    '#E66C37', // Orange
+    '#6366F1', // Orange
     '#6B007B', // Purple
     '#E044A7', // Pink
     '#744EC2', // Lavender
@@ -42,6 +42,28 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
         }
     };
 
+    const formatValue = (val: any) => {
+        const num = Number(val) || 0;
+        if (widget.properties.numberFormat === 'Currency' && widget.aggregation !== 'count') {
+            return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+        }
+        return num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    };
+
+    const formatAxisValue = (val: any) => {
+        const num = Number(val) || 0;
+        if (widget.properties.numberFormat === 'Currency' && widget.aggregation !== 'count') {
+            if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
+            if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+            if (num >= 1000) return `₹${(num / 1000).toFixed(0)}k`;
+            return `₹${num}`;
+        }
+        if (num >= 10000000) return `${(num / 10000000).toFixed(1)}Cr`;
+        if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
+        if (num >= 1000) return `${(num / 1000).toFixed(0)}k`;
+        return num.toString();
+    };
+
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
@@ -50,7 +72,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-xs font-bold">{payload[0].name}:</span>
                         <span className="text-xs font-black text-indigo-400">
-                            {widget.properties.numberFormat === 'Currency' ? `₹${payload[0].value.toLocaleString()}` : payload[0].value}
+                            {formatValue(payload[0].value)}
                         </span>
                     </div>
                 </div>
@@ -60,11 +82,11 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
     };
 
     const renderKPI = () => {
-        const total = data.reduce((acc, curr) => acc + (curr[widget.yField || 'Amount'] || 0), 0);
+        const total = data.reduce((acc, curr) => Number(acc) + Number(curr[widget.yField || 'Amount'] || 0), 0);
         return (
             <div className="flex flex-col items-center justify-center h-full text-center">
                 <h2 className="text-5xl font-black text-slate-800 tracking-tighter mb-1">
-                    {widget.properties.numberFormat === 'Currency' ? `₹${total.toLocaleString()}` : total}
+                    {formatValue(total)}
                 </h2>
                 <div className="flex items-center gap-3">
                     <div className="h-px w-8 bg-slate-200" />
@@ -81,7 +103,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
         const chartColor = widget.properties.colorTheme || PBI_PALETTE[0];
 
         switch (widget.type) {
-            case 'line':
+            case 'area':
                 return (
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data} onClick={handleChartClick}>
@@ -105,7 +127,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#94a3b8', fontWeight: 700 }}
-                                tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}
+                                tickFormatter={formatAxisValue}
                             />
                             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
                             <Area
@@ -121,6 +143,39 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                         </AreaChart>
                     </ResponsiveContainer>
                 );
+            case 'line':
+                return (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data} onClick={handleChartClick}>
+                            {widget.properties.showGridlines && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />}
+                            <XAxis
+                                dataKey={widget.xField}
+                                fontSize={9}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94a3b8', fontWeight: 700 }}
+                                dy={10}
+                            />
+                            <YAxis
+                                fontSize={9}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94a3b8', fontWeight: 700 }}
+                                tickFormatter={formatAxisValue}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
+                            <Line
+                                type="monotone"
+                                dataKey={widget.yField || 'Amount'}
+                                stroke={chartColor}
+                                strokeWidth={3}
+                                dot={{ r: 4, fill: chartColor, strokeWidth: 0 }}
+                                activeDot={{ r: 6, strokeWidth: 0, fill: chartColor }}
+                                animationDuration={1500}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                );
             case 'bar':
                 return (
                     <ResponsiveContainer width="100%" height="100%">
@@ -132,7 +187,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#94a3b8', fontWeight: 700 }}
-                                tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}
+                                tickFormatter={formatAxisValue}
                             />
                             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
                             <Bar
@@ -146,6 +201,34 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                     </ResponsiveContainer>
                 );
             case 'pie':
+                return (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={data}
+                                innerRadius="0%"
+                                outerRadius="85%"
+                                paddingAngle={2}
+                                dataKey={widget.yField || 'Amount'}
+                                nameKey={widget.xField || 'name'}
+                                onClick={handleChartClick}
+                                animationDuration={1500}
+                            >
+                                {data.map((entry, index) => <Cell key={index} fill={PBI_PALETTE[index % PBI_PALETTE.length]} stroke="none" />)}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                            {widget.properties.showLegend && (
+                                <Legend
+                                    verticalAlign="bottom"
+                                    height={36}
+                                    iconType="circle"
+                                    wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingTop: '20px' }}
+                                />
+                            )}
+                        </PieChart>
+                    </ResponsiveContainer>
+                );
+            case 'donut':
                 return (
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -173,6 +256,55 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                         </PieChart>
                     </ResponsiveContainer>
                 );
+            case 'scatter':
+                return (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart onClick={handleChartClick}>
+                            {widget.properties.showGridlines && <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />}
+                            <XAxis
+                                dataKey={widget.xField}
+                                fontSize={9}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94a3b8', fontWeight: 700 }}
+                            />
+                            <YAxis
+                                dataKey={widget.yField || 'Amount'}
+                                fontSize={9}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#94a3b8', fontWeight: 700 }}
+                                tickFormatter={formatAxisValue}
+                            />
+                            <ZAxis range={[60, 400]} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+                            <Scatter name={widget.title} data={data} fill={chartColor} animationDuration={1500} />
+                        </ScatterChart>
+                    </ResponsiveContainer>
+                );
+            case 'table':
+                return (
+                    <div className="w-full h-full overflow-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="sticky top-0 bg-white shadow-sm z-10">
+                                <tr>
+                                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">{widget.xField || 'Dimension'}</th>
+                                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 text-right">{widget.yField || 'Measure'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map((row, i) => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-colors group cursor-default">
+                                        <td className="px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-50">{row[widget.xField || 'name']}</td>
+                                        <td className="px-4 py-2.5 text-xs font-black text-indigo-600 border-b border-slate-50 text-right">
+                                            {formatValue(row[widget.yField || 'value'] || 0)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
             case 'kpi':
                 return renderKPI();
             default:
@@ -195,7 +327,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                 </h3>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <button
-                        onClick={async (e) => {
+                        onMouseDown={async (e) => {
                             e.stopPropagation();
                             if (await confirm('Are you sure you want to remove this visual?')) {
                                 deleteWidget(widget.id);
@@ -206,13 +338,6 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
                         title="Remove Visual"
                     >
                         <Trash2 size={13} strokeWidth={2.5} />
-                    </button>
-
-                    <button className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors">
-                        <Filter size={13} strokeWidth={2.5} />
-                    </button>
-                    <button className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400">
-                        <MoreHorizontal size={13} strokeWidth={2.5} />
                     </button>
                 </div>
             </div>

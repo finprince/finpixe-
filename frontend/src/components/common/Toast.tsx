@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import Icon from '../Icon';
 import { ToastType } from '../../context/ToastContext';
 
@@ -68,13 +68,13 @@ const Toast: React.FC<ToastProps> = ({ type, message, title, onClose, duration =
             case 'warning':
                 return {
                     icon: 'warning',
-                    background: 'bg-amber-50',
-                    textColor: 'text-amber-900',
-                    titleColor: 'text-amber-950',
-                    iconBg: 'bg-amber-500',
+                    background: 'bg-indigo-50',
+                    textColor: 'text-indigo-900',
+                    titleColor: 'text-indigo-950',
+                    iconBg: 'bg-indigo-500',
                     iconColor: 'text-white',
-                    progressBar: 'bg-amber-500',
-                    border: 'border-amber-100'
+                    progressBar: 'bg-indigo-500',
+                    border: 'border-indigo-100'
                 };
             case 'info':
             default:

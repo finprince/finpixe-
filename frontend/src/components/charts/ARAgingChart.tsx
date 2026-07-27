@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
     BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -17,8 +17,8 @@ interface ARAgingChartProps {
 // Map ranges to colors based on severity
 const getBarColor = (range: string) => {
     if (range.includes('0-30') || range.includes('<30')) return '#10b981'; // Green
-    if (range.includes('30-60') || range.includes('31-60')) return '#f59e0b'; // Amber
-    if (range.includes('60-90') || range.includes('61-90')) return '#f97316'; // Orange
+    if (range.includes('30-60') || range.includes('31-60')) return '#6366F1'; // Amber
+    if (range.includes('60-90') || range.includes('61-90')) return '#6366F1'; // Orange
     return '#ef4444'; // Red for 90+
 };
 

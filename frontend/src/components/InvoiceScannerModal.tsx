@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { httpClient } from '../services/httpClient';
 import { apiService } from '../services';
 import { showError, showSuccess, showInfo } from '../utils/toast';
@@ -70,7 +70,7 @@ const coerceNumber = (val: any): string => {
 const RiskBadge: React.FC<{ level: 'Low' | 'Medium' | 'High' }> = ({ level }) => {
     const styles = {
         Low: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
-        Medium: 'bg-amber-100 text-amber-800 border border-amber-300',
+        Medium: 'bg-indigo-100 text-indigo-800 border border-indigo-300',
         High: 'bg-red-100 text-red-800 border border-red-300',
     };
     const icons = { Low: 'âœ…', Medium: 'âš ï¸', High: 'ðŸš¨' };
@@ -111,12 +111,12 @@ const IngestionDashboard: React.FC<{
                     {/* Summary Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <SummaryCard label="Confidence" value={`${report.overallConfidence.toFixed(0)}%`}
-                            color={report.overallConfidence >= 80 ? 'green' : report.overallConfidence >= 70 ? 'amber' : 'red'} />
+                            color={report.overallConfidence >= 80 ? 'green' : report.overallConfidence >= 70 ? 'indigo' : 'red'} />
                         <SummaryCard label="Mapped Fields" value={`${report.mappedFields.length}`} color="blue" />
                         <SummaryCard label="Unmapped" value={`${report.unmappedFields.length}`}
-                            color={report.unmappedFields.length > 0 ? 'amber' : 'green'} />
+                            color={report.unmappedFields.length > 0 ? 'indigo' : 'green'} />
                         <SummaryCard label="Template" value={report.templateUsed ? `v${report.templateVersion}` : 'None'}
-                            color={report.templateUsed ? (report.templateHashMatch ? 'green' : 'amber') : 'gray'} />
+                            color={report.templateUsed ? (report.templateHashMatch ? 'green' : 'indigo') : 'gray'} />
                     </div>
 
                     {/* Block Reasons */}
@@ -140,7 +140,7 @@ const IngestionDashboard: React.FC<{
                             <div className="space-y-1.5">
                                 {[...errors, ...warnings].map((v, i) => (
                                     <div key={i} className={`flex items-start gap-2 text-xs px-3 py-2 rounded border
-                                        ${v.severity === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                                        ${v.severity === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-indigo-50 border-indigo-200 text-indigo-800'}`}>
                                         <span>{v.severity === 'error' ? 'âŒ' : 'âš ï¸'}</span>
                                         <div>
                                             <span className="font-medium">{v.rule}</span>
@@ -173,7 +173,7 @@ const IngestionDashboard: React.FC<{
                                             <td className="px-3 py-1.5 font-medium text-gray-800">{d.target}</td>
                                             <td className="px-3 py-1.5 text-gray-600 font-mono">{d.source}</td>
                                             <td className="px-3 py-1.5">
-                                                <span className={`font-mono font-bold ${d.score >= 90 ? 'text-emerald-600' : d.score >= 70 ? 'text-amber-600' : 'text-red-600'
+                                                <span className={`font-mono font-bold ${d.score >= 90 ? 'text-emerald-600' : d.score >= 70 ? 'text-indigo-600' : 'text-red-600'
                                                     }`}>{d.score}</span>
                                             </td>
                                             <td className="px-3 py-1.5">
@@ -188,13 +188,13 @@ const IngestionDashboard: React.FC<{
 
                     {/* Unmapped Fields */}
                     {report.unmappedFields.length > 0 && (
-                        <details className="border border-amber-200 rounded-lg overflow-hidden bg-amber-50/30">
-                            <summary className="px-4 py-2 bg-amber-50 font-semibold text-sm text-amber-800 cursor-pointer">
+                        <details className="border border-indigo-200 rounded-lg overflow-hidden bg-indigo-50/30">
+                            <summary className="px-4 py-2 bg-indigo-50 font-semibold text-sm text-indigo-800 cursor-pointer">
                                 âš ï¸ Unmapped Fields ({report.unmappedFields.length})
                             </summary>
                             <div className="px-4 py-3 flex flex-wrap gap-2">
                                 {report.unmappedFields.map(f => (
-                                    <span key={f} className="px-2 py-1 bg-amber-100 border border-amber-300 text-amber-800 rounded text-xs">{f}</span>
+                                    <span key={f} className="px-2 py-1 bg-indigo-100 border border-indigo-300 text-indigo-800 rounded text-xs">{f}</span>
                                 ))}
                             </div>
                         </details>
@@ -216,11 +216,11 @@ const IngestionDashboard: React.FC<{
 
                     {/* Confirmation for Medium/High */}
                     {!report.blockSubmission && confirmRequired && (
-                        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                        <div className="bg-indigo-50 border border-indigo-300 rounded-lg p-4">
                             <label className="flex items-start gap-2 cursor-pointer">
                                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
-                                    className="mt-0.5 accent-amber-600" />
-                                <span className="text-sm text-amber-800 font-medium">
+                                    className="mt-0.5 accent-indigo-600" />
+                                <span className="text-sm text-indigo-800 font-medium">
                                     I have reviewed the risk report and confirm this data is accurate enough to enter into the ERP.
                                     I accept responsibility for any data discrepancies.
                                 </span>
@@ -252,11 +252,11 @@ const IngestionDashboard: React.FC<{
     );
 };
 
-const SummaryCard: React.FC<{ label: string; value: string; color: 'green' | 'blue' | 'amber' | 'red' | 'gray' }> = ({ label, value, color }) => {
+const SummaryCard: React.FC<{ label: string; value: string; color: 'green' | 'blue' | 'indigo' | 'red' | 'gray' }> = ({ label, value, color }) => {
     const colors = {
         green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
         blue: 'border-blue-200 bg-blue-50 text-blue-700',
-        amber: 'border-amber-200 bg-amber-50 text-amber-700',
+        amber: 'border-indigo-200 bg-indigo-50 text-indigo-700',
         red: 'border-red-200 bg-red-50 text-red-700',
         gray: 'border-gray-200 bg-gray-50 text-gray-600',
     };
@@ -274,7 +274,7 @@ const MethodBadge: React.FC<{ method: MappingDecision['method'] }> = ({ method }
         exact: 'bg-emerald-100 text-emerald-700',
         sanitized: 'bg-teal-100 text-teal-700',
         keyword: 'bg-blue-100 text-blue-700',
-        fuzzy: 'bg-amber-100 text-amber-700',
+        fuzzy: 'bg-indigo-100 text-indigo-700',
         unmapped: 'bg-red-100 text-red-700',
     };
     return <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${styles[method] ?? ''}`}>{method}</span>;
@@ -1708,7 +1708,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                                         onClick={() => folderInputRef.current?.click()}
                                         className="inline-flex items-center px-6 py-3 border border-slate-200 text-sm font-medium rounded-[4px] text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
                                     >
-                                        <Icon name="document" className="w-5 h-5 mr-2 text-amber-500" />
+                                        <Icon name="document" className="w-5 h-5 mr-2 text-indigo-500" />
                                         Select Folder
                                     </button>
                                 </div>
@@ -1833,8 +1833,8 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                                             )}
                                             {voucherType === 'Purchase' && vendorValidation === 'GSTIN_CONFLICT' && (
                                                 <div className="flex items-center gap-2 ml-4 animate-fade-in-up max-w-[350px]">
-                                                    <div className="text-[11px] leading-tight text-amber-700 flex items-start gap-1.5 bg-amber-50 px-2.5 py-1.5 rounded border border-amber-200 shadow-sm overflow-hidden">
-                                                        <Icon name="warning" className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                                                    <div className="text-[11px] leading-tight text-indigo-700 flex items-start gap-1.5 bg-indigo-50 px-2.5 py-1.5 rounded border border-indigo-200 shadow-sm overflow-hidden">
+                                                        <Icon name="warning" className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" />
                                                         <span className="line-clamp-2">{vendorValidationMessage}</span>
                                                     </div>
                                                     <button
@@ -1847,7 +1847,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                                                             console.log('[DIAGNOSTIC][CREATE_VENDOR] Element under coordinates (', x, ',', y, ') is:', el);
                                                             openCreateVendorModal();
                                                         }}
-                                                        className="px-3 py-1.5 shrink-0 bg-white hover:bg-amber-50 border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] hover:border-amber-400 text-amber-700 rounded flex items-center justify-center font-medium transition-colors text-xs"
+                                                        className="px-3 py-1.5 shrink-0 bg-white hover:bg-indigo-50 border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] hover:border-indigo-400 text-indigo-700 rounded flex items-center justify-center font-medium transition-colors text-xs"
                                                     >
                                                         <Icon name="plus" className="w-3 h-3 mr-1" /> Create Vendor
                                                     </button>

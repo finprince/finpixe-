@@ -30,6 +30,28 @@ import App from './App';
 // This element is defined in /frontend/index.html as <div id="root"></div>
 const rootElement = document.getElementById('root');
 
+// Ensure document title and favicon are consistently set to Finpixe across all tabs and navigations
+document.title = 'Finpixe';
+const ensureFavicon = () => {
+  let faviconIco = document.querySelector("link[rel*='icon'][href*='favicon.ico']") as HTMLLinkElement;
+  if (!faviconIco) {
+    faviconIco = document.createElement('link');
+    faviconIco.rel = 'icon';
+    document.head.appendChild(faviconIco);
+  }
+  faviconIco.href = '/favicon.ico?v=10';
+
+  let faviconPng = document.querySelector("link[rel*='icon'][href*='favicon.png']") as HTMLLinkElement;
+  if (!faviconPng) {
+    faviconPng = document.createElement('link');
+    faviconPng.rel = 'icon';
+    faviconPng.type = 'image/png';
+    document.head.appendChild(faviconPng);
+  }
+  faviconPng.href = '/favicon.png?v=10';
+};
+ensureFavicon();
+
 // Safety check: If the root element doesn't exist, throw an error
 // This prevents the app from running in a broken state
 if (!rootElement) {

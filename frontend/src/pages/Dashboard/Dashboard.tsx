@@ -76,9 +76,72 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
     }, []);
 
     const getWidgetData = (widget: Widget) => {
-        if (widget.dataset === 'Sales') return revenueData.map(d => ({ Date: d.period, Amount: d.revenue, name: d.period, value: d.revenue }));
-        if (widget.dataset === 'Expenses') return expenseBreakdown.map(e => ({ Category: e.name, Amount: e.value, name: e.name, value: e.value }));
-        return [];
+        const { dataset, xField, yField, aggregation } = widget;
+        const actualXField = xField || 'name';
+        const actualYField = yField || 'value';
+
+        if (dataset === 'Sales' || dataset === 'Expenses' || dataset === 'All Transactions') {
+            const typeFilter = dataset === 'Sales' ? ['Sales'] : dataset === 'Expenses' ? ['Purchase', 'Expenses'] : ['Sales', 'Purchase', 'Expenses', 'Receipt', 'Payment'];
+            let filtered = vouchers.filter(v => typeFilter.includes(v.type));
+
+            if (filtered.length > 0) {
+                const groups: Record<string, number[]> = {};
+                filtered.forEach(v => {
+                    let key = 'Other';
+                    if (actualXField === 'Date') key = v.date;
+                    else if (['Customer', 'Vendor', 'Party'].includes(actualXField)) {
+                        const partyId = (v as any).party;
+                        const ledger = ledgers?.find(l => String(l.id) === String(partyId));
+                        key = ledger ? ledger.name : (partyId || 'Unknown');
+                    }
+                    else if (actualXField === 'Type') {
+                        key = ['Sales', 'Receipt'].includes(v.type) ? 'Income (Customers)' : 'Expense (Vendors)';
+                    }
+                    else if (actualXField === 'Product') {
+                        key = (v as any).items?.[0]?.name || 'N/A';
+                    }
+                    else if (actualXField === 'Category') {
+                        const catId = (v as any).category || (v as any).party;
+                        const ledger = ledgers?.find(l => String(l.id) === String(catId));
+                        key = ledger ? ledger.name : (catId || 'General');
+                    }
+                    else if (actualXField === 'Payment Method') {
+                        const accId = (v as any).account;
+                        const ledger = ledgers?.find(l => String(l.id) === String(accId));
+                        key = ledger ? ledger.name : 'Bank Transfer';
+                    }
+
+                    let val = 0;
+                    if (actualYField === 'Quantity') {
+                        val = (v as any).items?.reduce((sum: number, item: any) => sum + (Number(item.qty) || 0), 0) || 0;
+                    } else {
+                        val = Number((v as any).total || (v as any).amount || 0) || 0;
+                    }
+                    
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(val);
+                });
+
+                const result = Object.entries(groups).map(([name, vals]) => {
+                    let value = 0;
+                    if (aggregation === 'sum') value = vals.reduce((a, b) => Number(a) + Number(b), 0);
+                    else if (aggregation === 'avg') value = vals.reduce((a, b) => Number(a) + Number(b), 0) / (vals.length || 1);
+                    else if (aggregation === 'count') value = vals.length;
+
+                    return { name, [actualXField]: name, [actualYField]: value, value };
+                }).sort((a, b) => a.name.localeCompare(b.name));
+
+                if (result.length > 0) return result;
+            }
+        }
+
+        // Mock data fallback for missing/empty
+        return Array.from({ length: 5 }).map((_, i) => ({
+            name: `${actualXField} ${i + 1}`,
+            [actualXField]: `${actualXField} ${i + 1}`,
+            value: Math.floor(Math.random() * 100) + 20,
+            [actualYField]: Math.floor(Math.random() * 100) + 20,
+        }));
     };
 
     const getVoucherDisplay = (v: Voucher) => {
@@ -134,7 +197,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
         <UniversalWorkspaceLayout
             title={`${greeting()}, ${companyName}`}
             subtitle={`Executive overview and financial intelligence for ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`}
-            badgeText="KIKI ENTERPRISE OS"
+            badgeText="FINPIXE ENTERPRISE OS"
             inspectorState={inspectorState}
             onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
         >
@@ -142,7 +205,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                 {/* Executive Quick Actions Bar */}
                 <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 shadow-xs">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#EA580C]">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[#4F46E5]">
                             <Sparkles className="w-5 h-5" />
                         </div>
                         <div>
@@ -175,15 +238,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                         value={formatCurrency(totalSales)}
                         change="+12.5%"
                         isPositive={true}
-                        icon="trending-up"
-                        color="orange"
+                        icon="bar-chart-2"
+                        color="indigo"
                     />
                     <StatCard
                         title="Total Purchases"
                         value={formatCurrency(totalPurchases)}
                         change="-2.4%"
                         isPositive={true}
-                        icon="shopping-cart"
+                        icon="package"
                         color="blue"
                     />
                     <StatCard
@@ -191,7 +254,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                         value={formatCurrency(totalReceivables)}
                         change="+5.1%"
                         isPositive={true}
-                        icon="arrow-down-right"
+                        icon="arrow-down-left"
                         color="green"
                     />
                     <StatCard
@@ -212,7 +275,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                 <h3 className="section-title text-base font-bold text-slate-900">Custom Analytics Canvas</h3>
                                 <p className="helper-text text-xs">Visual BI widgets configured in Dashboard Builder</p>
                             </div>
-                            <button onClick={() => onNavigate('Dashboard Builder')} className="text-xs font-bold text-[#EA580C] hover:underline flex items-center gap-1">
+                            <button onClick={() => onNavigate('Dashboard Builder')} className="text-xs font-bold text-[#4F46E5] hover:underline flex items-center gap-1">
                                 Edit Layout <ChevronRight className="w-3.5 h-3.5" />
                             </button>
                         </div>
@@ -242,9 +305,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                 )}
 
                 {/* Revenue Analytics & Live Activity Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Revenue vs Expenses Chart */}
-                    <div className="lg:col-span-2 erp-card p-6 flex flex-col justify-between border border-slate-200">
+                    <div className="lg:col-span-3 erp-card p-6 flex flex-col justify-between border border-slate-200">
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h3 className="section-title text-lg font-bold text-slate-900">Revenue Analytics</h3>
@@ -252,7 +315,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="flex items-center text-xs font-semibold text-slate-600">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-[#F97316] inline-block mr-1.5" /> Monthly Sales
+                                    <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] inline-block mr-1.5" /> Monthly Sales
                                 </span>
                             </div>
                         </div>
@@ -262,15 +325,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                 <AreaChart data={revenueData}>
                                     <defs>
                                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#F97316" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                     <XAxis dataKey="period" tick={{ fill: '#64748B', fontSize: 12 }} axisLine={{ stroke: '#E2E8F0' }} />
                                     <YAxis tickFormatter={(val) => `₹${val / 1000}k`} tick={{ fill: '#64748B', fontSize: 12 }} axisLine={{ stroke: '#E2E8F0' }} />
                                     <ReTooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']} />
-                                    <Area type="monotone" dataKey="revenue" stroke="#F97316" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                                    <Area type="monotone" dataKey="revenue" stroke="#6366F1" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -285,7 +348,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                             </div>
                             <button
                                 onClick={() => onNavigate('Vouchers')}
-                                className="text-xs font-bold text-[#EA580C] hover:underline"
+                                className="text-xs font-bold text-[#4F46E5] hover:underline"
                             >
                                 View All
                             </button>
@@ -301,10 +364,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                     <div
                                         key={i}
                                         onClick={() => handleSelectVoucher(v)}
-                                        className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 hover:border-orange-200 hover:bg-[#FFF7ED] transition-all cursor-pointer flex items-center justify-between group"
+                                        className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 hover:border-indigo-200 hover:bg-[#EEF2FF] transition-all cursor-pointer flex items-center justify-between group"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 text-slate-600 group-hover:text-[#EA580C] group-hover:border-orange-200">
+                                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 text-slate-600 group-hover:text-[#4F46E5] group-hover:border-indigo-200">
                                                 <Icon name={display.type.toLowerCase().includes('sales') ? 'arrow-up-right' : 'arrow-down-left'} size={16} />
                                             </div>
                                             <div>
@@ -314,7 +377,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xs font-bold font-mono text-slate-900">₹{display.amount.toLocaleString('en-IN')}</p>
-                                            <span className="text-[9px] font-bold text-[#EA580C] group-hover:underline">Inspect →</span>
+                                            <span className="text-[9px] font-bold text-[#4F46E5] group-hover:underline">Inspect →</span>
                                         </div>
                                     </div>
                                 );

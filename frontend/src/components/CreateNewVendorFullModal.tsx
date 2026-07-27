@@ -880,8 +880,8 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
                             </div>
                         </div>
                     ) : customerSearchAttempted && vendorName && panNo ? (
-                        <div className="p-4 bg-orange-50 border border-orange-100 rounded-[4px]">
-                            <p className="text-xs text-orange-700 mb-1 font-medium italic">No matching customer found in Masters.</p>
+                        <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-[4px]">
+                            <p className="text-xs text-indigo-700 mb-1 font-medium italic">No matching customer found in Masters.</p>
                         </div>
                     ) : null}
 

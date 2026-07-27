@@ -31,7 +31,7 @@ export const Tabs: React.FC<TabsProps> = ({
           >
             <span>{tab.label}</span>
             {typeof tab.count === 'number' && (
-              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${isActive ? 'bg-orange-100 text-[#EA580C]' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${isActive ? 'bg-indigo-100 text-[#4F46E5]' : 'bg-slate-100 text-slate-500'}`}>
                 {tab.count}
               </span>
             )}

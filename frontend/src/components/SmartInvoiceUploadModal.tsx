@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SmartInvoiceUploadModal.tsx (OCR Staging & Workflow)
  * 
  * Implements a consolidated OCR staging & editing workflow:
@@ -295,11 +295,11 @@ const ReviewDetailsPanel: React.FC<{ row: ScanResult; onClose: () => void }> = (
                 {/* Fallback Data */}
                 {data._raw_text && (
                     <div className="mt-4 pt-4 border-t border-gray-100">
-                        <label className="text-[10px] font-black text-amber-600 uppercase tracking-wider block mb-2 flex items-center gap-1">
+                        <label className="text-[10px] font-black text-indigo-600 uppercase tracking-wider block mb-2 flex items-center gap-1">
                             <Icon name="info" className="w-3 h-3" />
                             Fallback Data (Raw AI Output)
                         </label>
-                        <div className="bg-amber-50/30 rounded-lg p-3 text-[10px] text-gray-600 font-mono overflow-x-auto border border-amber-100/50 max-h-40 overflow-y-auto">
+                        <div className="bg-indigo-50/30 rounded-lg p-3 text-[10px] text-gray-600 font-mono overflow-x-auto border border-indigo-100/50 max-h-40 overflow-y-auto">
                             <pre className="whitespace-pre-wrap">{data._raw_text}</pre>
                         </div>
                     </div>
@@ -2260,7 +2260,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     {/* ── Header ── */}
                     <div
                         className="flex items-center justify-between px-6 py-4 flex-shrink-0"
-                        style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }}
+                        style={{ background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)' }}
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -2289,7 +2289,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                             </span>
                                             <span
                                                 onClick={() => setFilterStatus('pending')}
-                                                className={`cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${filterStatus === 'pending' ? 'bg-amber-400 text-white border-white/40 shadow-sm' : `${attentionNeededCount > 0 ? 'bg-amber-400/30 text-amber-50 border-white/10' : 'bg-white/10 text-white/50 border-white/5'} hover:bg-white/20`}`}
+                                                className={`cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${filterStatus === 'pending' ? 'bg-indigo-400 text-white border-white/40 shadow-sm' : `${attentionNeededCount > 0 ? 'bg-indigo-400/30 text-indigo-50 border-white/10' : 'bg-white/10 text-white/50 border-white/5'} hover:bg-white/20`}`}
                                             >
                                                 {attentionNeededCount} Need Attention
                                             </span>
@@ -2436,7 +2436,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                 <div className="w-full max-w-sm">
                                     <div className="flex justify-between text-xs font-bold text-indigo-600 mb-2"><span>Scanning Progress</span><span>{scanProgress}%</span></div>
                                     <div className="h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${scanProgress}%`, background: 'linear-gradient(90deg, #fb923c, #f97316)' }} />
+                                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${scanProgress}%`, background: 'linear-gradient(90deg, #818CF8, #6366F1)' }} />
                                     </div>
                                     {countdownSeconds !== null && (
                                         <div className="flex items-center justify-center gap-1.5 mt-4 text-indigo-600 font-bold bg-indigo-50 py-2 rounded-lg border border-indigo-100">
@@ -2474,12 +2474,12 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('vendor_required')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'vendor_required'
-                                                ? 'bg-orange-600 text-white shadow-md shadow-orange-150 border border-orange-600'
-                                                : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-100'
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
+                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
                                             }`}
                                     >
                                         <span>👤 Vendor Required</span>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeFilter === 'vendor_required' ? 'bg-orange-700 text-orange-100' : 'bg-orange-200 text-orange-600'
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeFilter === 'vendor_required' ? 'bg-indigo-700 text-indigo-100' : 'bg-indigo-200 text-indigo-600'
                                             }`}>
                                             {countVendorRequired}
                                         </span>
@@ -2488,12 +2488,12 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('item_required')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'item_required'
-                                                ? 'bg-amber-600 text-white shadow-md shadow-amber-150 border border-amber-600'
-                                                : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-100'
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
+                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
                                             }`}
                                     >
                                         <span>📦 Item Required</span>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeFilter === 'item_required' ? 'bg-amber-700 text-amber-100' : 'bg-amber-200 text-amber-600'
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeFilter === 'item_required' ? 'bg-indigo-700 text-indigo-100' : 'bg-indigo-200 text-indigo-600'
                                             }`}>
                                             {countItemRequired}
                                         </span>
@@ -2530,7 +2530,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
 
                                 {/* Banners */}
                                 {missingCount > 0 && (
-                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 text-sm text-amber-800 font-medium">
+                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex gap-2 text-sm text-indigo-800 font-medium">
                                         <span className="flex-shrink-0 text-base">⚠️</span>
                                         <span><strong>{missingCount} invoice(s)</strong> have unknown vendors. Create the vendor before saving.</span>
                                     </div>
@@ -2667,7 +2667,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                     return (
                                                         <React.Fragment key={row.file_hash || row.id || idx}>
                                                             <tr className={`group hover:bg-indigo-50/40 transition-colors ${row._isMerged ? 'bg-blue-50/30' : ''} ${selectedHashes.has(row.file_hash) ? 'bg-indigo-50' :
-                                                                row.vendor_status === 'NEW' ? 'bg-amber-50/30' : ''
+                                                                row.vendor_status === 'NEW' ? 'bg-indigo-50/30' : ''
                                                                 }`}>
                                                                 <td className="px-3 py-3">
                                                                     <input
@@ -2728,7 +2728,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         ) : (
                                                                             <button
                                                                                 onClick={() => openCreateVendorModal(row)}
-                                                                                className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white border border-orange-600 px-2 py-1 rounded cursor-pointer transition-colors"
+                                                                                className="bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white border border-indigo-600 px-2 py-1 rounded cursor-pointer transition-colors"
                                                                             >
                                                                                 Create Vendor
                                                                             </button>
@@ -2756,7 +2756,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                             </div>
                                                                         ) : row.item_status === 'CREATE ITEM' ? (
                                                                             <div className="flex flex-col items-center gap-1">
-                                                                                <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded inline-block">CREATE ITEM</span>
+                                                                                <span className="bg-indigo-100 text-indigo-800 border border-indigo-300 px-2 py-1 rounded inline-block">CREATE ITEM</span>
                                                                                 <button
                                                                                     onClick={() => toggleExpandRow(row.id)}
                                                                                     className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline focus:outline-none"
@@ -2827,11 +2827,11 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                                 Need to Save
                                                                             </button>
                                                                         ) : (['NEED_VENDOR', 'VENDOR_MISSING', 'NOT_FOUND', 'GSTIN_CONFLICT', 'CREATE_VENDOR'].includes(row.validationStatus)) ? (
-                                                                            <span className="bg-orange-100 text-orange-700 border border-orange-200 px-2 py-1 rounded">Create Vendor First</span>
+                                                                            <span className="bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-1 rounded">Create Vendor First</span>
                                                                         ) : row.validationStatus === "EXTRACTION_FAILED" ? (
                                                                             <span className="bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded">Failed</span>
                                                                         ) : (
-                                                                            <span className="bg-amber-50 text-amber-600 border border-amber-200 px-2 py-1 rounded">Pending</span>
+                                                                            <span className="bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-1 rounded">Pending</span>
                                                                         )}
                                                                     </td>
                                                                 )}
@@ -2974,7 +2974,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
 
                                                                                                 ) : (
 
-                                                                                                    <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider text-amber-800">CREATE ITEM</span>
+                                                                                                    <span className="bg-indigo-100 text-indigo-800 border border-indigo-300 px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider text-indigo-800">CREATE ITEM</span>
 
                                                                                                 )}
 
@@ -2986,7 +2986,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                                                     <div className="flex items-center justify-center gap-1.5">
                                                                                                         <button
                                                                                                             onClick={() => openCreateItemModal(row, item)}
-                                                                                                            className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white border border-amber-600 px-3 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-sm"
+                                                                                                            className="bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white border border-indigo-600 px-3 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-sm"
                                                                                                         >
                                                                                                             Create Item
                                                                                                         </button>
@@ -3051,7 +3051,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                         {/* ────── STEP: DONE ────── */}
                         {step === 'done' && finalizeResult && (
                             <div className="p-6 space-y-5">
-                                <div className={`rounded-2xl p-6 text-center text-white ${finalizeResult.failed === 0 ? 'bg-emerald-600' : 'bg-amber-600'}`}>
+                                <div className={`rounded-2xl p-6 text-center text-white ${finalizeResult.failed === 0 ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
                                     <div className="text-4xl mb-2">{finalizeResult.failed === 0 ? '🎉' : '⚠️'}</div>
                                     <h3 className="text-2xl font-bold">{finalizeResult.failed === 0 ? 'Finalization Complete!' : 'Partial Success'}</h3>
                                     <p className="mt-2 text-sm font-medium opacity-90 leading-relaxed max-w-md mx-auto">{finalizeResult.message || `${finalizeResult.created} of ${finalizeResult.total} vouchers created`}</p>
@@ -3059,7 +3059,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                 <div className="grid grid-cols-4 gap-3">
                                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center"><div className="text-2xl font-bold">{finalizeResult.total}</div><div className="text-xs text-gray-500">Total</div></div>
                                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center"><div className="text-2xl font-bold text-emerald-700">{finalizeResult.created}</div><div className="text-xs text-gray-500">Success</div></div>
-                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center"><div className="text-2xl font-bold text-amber-700">{finalizeResult.skipped}</div><div className="text-xs text-gray-500">Left in Staging</div></div>
+                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-center"><div className="text-2xl font-bold text-indigo-700">{finalizeResult.skipped}</div><div className="text-xs text-gray-500">Left in Staging</div></div>
                                     <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center"><div className="text-2xl font-bold text-red-700">{finalizeResult.failed}</div><div className="text-xs text-gray-500">Internal Error</div></div>
                                 </div>
                             </div>

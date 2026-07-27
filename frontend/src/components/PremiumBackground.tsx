@@ -10,13 +10,13 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
     return (
         <div
             className="relative min-h-screen w-full overflow-hidden flex items-center justify-center p-4"
-            style={{ background: 'linear-gradient(150deg, #FFFFFF 0%, #FFF9F4 55%, #FFF3E8 100%)' }}
+            style={{ background: 'linear-gradient(150deg, #FFFFFF 0%, #EEF2FF 55%, #E0E7FF 100%)' }}
         >
             {/* ── LAYER 1: Soft Ambient Cream Gradient ──────────────────── */}
             <div
                 className="absolute inset-0 pointer-events-none z-[1]"
                 style={{
-                    background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(249,115,22,0.05) 0%, transparent 70%)',
+                    background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(99, 102, 241,0.05) 0%, transparent 70%)',
                 }}
             />
 
@@ -31,8 +31,8 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 <defs>
                     {/* Signal gradient — glowing dot */}
                     <radialGradient id="signalGrad" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#FB923C" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#FB923C" stopOpacity="0" />
+                        <stop offset="0%" stopColor="#818CF8" stopOpacity="1" />
+                        <stop offset="100%" stopColor="#818CF8" stopOpacity="0" />
                     </radialGradient>
 
                     {/* Node glow filter */}
@@ -55,12 +55,12 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </defs>
 
                 {/* ── CIRCUIT PATHS ────────────────────────────────────────
-                    All paths: 1px stroke, rgba(249,115,22,0.12), rounded corners
+                    All paths: 1px stroke, rgba(99, 102, 241,0.12), rounded corners
                     Distributed across all four quadrants for balance.
                 ───────────────────────────────────────────────────────── */}
 
                 {/* TOP-LEFT QUADRANT — Horizontal + vertical grid routing */}
-                <g stroke="rgba(249,115,22,0.35)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <g stroke="rgba(99, 102, 241,0.35)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M 60 80 L 200 80 L 200 160 L 340 160" />
                     <path d="M 60 160 L 120 160 L 120 240 L 340 240 L 340 300" />
                     <path d="M 200 80 L 200 40 L 400 40" />
@@ -72,7 +72,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </g>
 
                 {/* TOP-RIGHT QUADRANT */}
-                <g stroke="rgba(249,115,22,0.30)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <g stroke="rgba(99, 102, 241,0.30)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M 1380 60 L 1240 60 L 1240 140 L 1100 140" />
                     <path d="M 1380 160 L 1300 160 L 1300 240 L 1160 240 L 1160 300" />
                     <path d="M 1240 60 L 1240 20 L 1040 20" />
@@ -83,7 +83,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </g>
 
                 {/* BOTTOM-LEFT QUADRANT */}
-                <g stroke="rgba(249,115,22,0.32)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <g stroke="rgba(99, 102, 241,0.32)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M 60 820 L 200 820 L 200 740 L 340 740" />
                     <path d="M 60 720 L 160 720 L 160 640 L 300 640" />
                     <path d="M 200 740 L 200 680 L 400 680" />
@@ -94,7 +94,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </g>
 
                 {/* BOTTOM-RIGHT QUADRANT */}
-                <g stroke="rgba(249,115,22,0.30)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <g stroke="rgba(99, 102, 241,0.30)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M 1380 820 L 1240 820 L 1240 740 L 1100 740" />
                     <path d="M 1380 720 L 1280 720 L 1280 640 L 1140 640" />
                     <path d="M 1100 740 L 1020 740 L 1020 660 L 900 660" />
@@ -105,7 +105,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </g>
 
                 {/* CENTER BRIDGE paths — connecting quadrants */}
-                <g stroke="rgba(249,115,22,0.22)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <g stroke="rgba(99, 102, 241,0.22)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M 520 100 L 600 100 L 600 180" />
                     <path d="M 440 420 L 520 420 L 520 500 L 600 500" />
                     <path d="M 780 300 L 700 300 L 700 380 L 620 380" />
@@ -116,7 +116,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </g>
 
                 {/* ── CIRCUIT NODES (Junction points) ─────────────────────── */}
-                <g fill="rgba(249,115,22,0.55)" filter="url(#nodeGlow)">
+                <g fill="rgba(99, 102, 241,0.55)" filter="url(#nodeGlow)">
                     {/* Top-left nodes */}
                     <rect x="196" y="76" width="8" height="8" rx="2" className="node-pulse-1" />
                     <rect x="116" y="236" width="8" height="8" rx="2" className="node-pulse-2" />
@@ -201,7 +201,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </circle>
 
                 {/* Signal 6 — Secondary top-left */}
-                <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                     <animateMotion
                         dur="20s"
                         repeatCount="indefinite"
@@ -212,7 +212,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                 </circle>
 
                 {/* Signal 7 — Secondary bottom-right */}
-                <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                     <animateMotion
                         dur="16s"
                         repeatCount="indefinite"
@@ -233,7 +233,7 @@ const PremiumBackground: React.FC<{ children: React.ReactNode }> = ({ children }
                     width: '700px',
                     height: '500px',
                     borderRadius: '50%',
-                    background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.07) 0%, rgba(249,115,22,0.03) 45%, transparent 70%)',
+                    background: 'radial-gradient(ellipse at center, rgba(99, 102, 241,0.07) 0%, rgba(99, 102, 241,0.03) 45%, transparent 70%)',
                     filter: 'blur(50px)',
                     animation: 'glowPulse 8s ease-in-out infinite alternate',
                 }}

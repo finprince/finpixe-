@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { apiService } from "../../services";
 import Icon from "../../components/Icon";
-import KIKILogo from "../../assets/branding/logo";
+import KIKILogo from '../../assets/finpixe with empty bg.png';
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, ArrowLeft, KeyRound, Globe, Check, Eye, EyeOff } from "lucide-react";
@@ -168,7 +168,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
     <div className="flex items-center justify-between w-full relative mb-8">
       {[1, 2, 3].map((s) => (
         <div key={s} className="flex items-center gap-2 relative z-10">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-md border-2 ${step >= s ? 'bg-[#F97316] border-[#F97316] text-white' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-md border-2 ${step >= s ? 'bg-[#6366F1] border-[#6366F1] text-white' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
             {step > s ? <Check className="w-4.5 h-4.5 text-white" size={16} /> : s}
           </div>
           <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:inline ${step >= s ? 'text-slate-900' : 'text-slate-400'}`}>
@@ -177,15 +177,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         </div>
       ))}
       <div className="absolute top-4 left-4 right-4 h-[2px] bg-slate-100 -z-0">
-        <div className="h-full bg-[#F97316] transition-all duration-500" style={{ width: `${(step - 1) * 50}%` }} />
+        <div className="h-full bg-[#6366F1] transition-all duration-500" style={{ width: `${(step - 1) * 50}%` }} />
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen w-full flex bg-[#FFF9F4] overflow-hidden text-slate-900 font-sans">
+    <div className="min-h-screen w-full flex bg-[#EEF2FF] overflow-hidden text-slate-900 font-sans">
       {/* Left Hero Graphic Section - Light Orange Theme */}
-      <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#FFF9F4] to-[#FFF3E8] border-r border-orange-100">
+      <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#EEF2FF] to-[#E0E7FF] border-r border-indigo-100">
         
         {/* ── LAYER 2: Abstract AI Circuit SVG ──────────────────────── */}
         <svg
@@ -197,8 +197,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         >
             <defs>
                 <radialGradient id="signalGrad" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#FB923C" stopOpacity="1" />
-                    <stop offset="100%" stopColor="#FB923C" stopOpacity="0" />
+                    <stop offset="0%" stopColor="#818CF8" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#818CF8" stopOpacity="0" />
                 </radialGradient>
                 <filter id="nodeGlow" x="-80%" y="-80%" width="260%" height="260%">
                     <feGaussianBlur stdDeviation="3" result="blur" />
@@ -210,7 +210,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
             </defs>
 
             {/* Circuit Paths */}
-            <g stroke="rgba(249,115,22,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <g stroke="rgba(99, 102, 241,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M 60 80 L 200 80 L 200 160 L 340 160" />
                 <path d="M 60 160 L 120 160 L 120 240 L 340 240 L 340 300" />
                 <path d="M 200 80 L 200 40 L 400 40" />
@@ -224,7 +224,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
             </g>
 
             {/* Glowing Junction Nodes with pulses */}
-            <g fill="rgba(249,115,22,0.55)" filter="url(#nodeGlow)">
+            <g fill="rgba(99, 102, 241,0.55)" filter="url(#nodeGlow)">
                 <rect x="196" y="76" width="8" height="8" rx="2" className="node-pulse-1" />
                 <rect x="116" y="236" width="8" height="8" rx="2" className="node-pulse-2" />
                 <rect x="336" y="156" width="8" height="8" rx="2" className="node-pulse-3" />
@@ -242,7 +242,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     calcMode="linear"
                 />
             </circle>
-            <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+            <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                 <animateMotion
                     dur="8s"
                     repeatCount="indefinite"
@@ -266,7 +266,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     calcMode="linear"
                 />
             </circle>
-            <circle r="3" fill="#EA580C" opacity="0.8" filter="url(#nodeGlow)">
+            <circle r="3" fill="#4F46E5" opacity="0.8" filter="url(#nodeGlow)">
                 <animateMotion
                     dur="9s"
                     repeatCount="indefinite"
@@ -291,26 +291,25 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
             .node-pulse-4 { animation: nodePulse 4s ease-in-out infinite 3s; }
 
             @keyframes nodePulse {
-                0%, 100% { fill: rgba(249,115,22,0.4); filter: drop-shadow(0 0 2px rgba(249,115,22,0.4)); }
-                50% { fill: rgba(249,115,22,0.95); filter: drop-shadow(0 0 8px rgba(249,115,22,0.95)); }
+                0%, 100% { fill: rgba(99, 102, 241,0.4); filter: drop-shadow(0 0 2px rgba(99, 102, 241,0.4)); }
+                50% { fill: rgba(99, 102, 241,0.95); filter: drop-shadow(0 0 8px rgba(99, 102, 241,0.95)); }
             }
         `}</style>
 
         {/* Top Brand Header */}
         <div className="flex items-center gap-3.5 z-10 text-left">
-          <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center p-2 backdrop-blur-md">
-            <img src={KIKILogo} alt="Kiki AI logo" className="w-full h-full object-contain" />
+          <div className="w-24 h-24 flex items-center justify-center">
+            <img src={KIKILogo} alt="Finpixe logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-widest leading-none">KIKI AI</h2>
-            <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Enterprise ERP OS</span>
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-widest leading-none">FINPIXE</h2>
           </div>
         </div>
 
         {/* Center Value Proposition */}
         <div className="my-auto max-w-xl z-10 space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200/60 text-orange-800 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200/60 text-indigo-800 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
             <span>AI-Powered Continuous Accounting & Compliance</span>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
@@ -321,15 +320,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
           </p>
 
           <div className="grid grid-cols-2 gap-4 pt-4">
-            <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
+            <div className="p-4 rounded-xl bg-white/80 border border-indigo-100 flex items-center gap-3 shadow-xs">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
               <div>
                 <h4 className="text-xs font-bold text-slate-800">ISO & GST Compliance</h4>
                 <p className="text-[10px] text-slate-500">Automated GSTR-2B matching</p>
               </div>
             </div>
-            <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
-              <Zap className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="p-4 rounded-xl bg-white/80 border border-indigo-100 flex items-center gap-3 shadow-xs">
+              <Zap className="w-5 h-5 text-indigo-600 shrink-0" />
               <div>
                 <h4 className="text-xs font-bold text-slate-800">Real-Time OCR Stream</h4>
                 <p className="text-[10px] text-slate-500">Gemini AI document pipeline</p>
@@ -339,9 +338,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         </div>
 
         {/* Footer Security Badges */}
-        <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-orange-100 pt-6">
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-indigo-100 pt-6">
           <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-orange-600" />
+            <Lock className="w-4 h-4 text-indigo-600" />
             <span>256-bit SSL Encrypted Session</span>
           </div>
           <span>v2.0 Enterprise Release</span>
@@ -353,7 +352,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         <div className="w-full max-w-lg space-y-6 text-left py-6">
           {/* Header */}
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
               <Globe className="w-3.5 h-3.5" />
               <span>Platform Node Initialization</span>
             </div>
@@ -464,7 +463,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     <label className="erp-label">Country</label>
                     <select
                       id="country"
-                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#F97316] transition-all focus:outline-none"
+                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#6366F1] transition-all focus:outline-none"
                       value={selectedCountry}
                       onChange={e => { setSelectedCountry(e.target.value); setSelectedState(''); setSelectedDistrict(''); }}
                     >
@@ -476,7 +475,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     <label className="erp-label">State / Province</label>
                     <select
                       id="state"
-                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#F97316] transition-all focus:outline-none"
+                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#6366F1] transition-all focus:outline-none"
                       value={selectedState}
                       onChange={e => { setSelectedState(e.target.value); setSelectedDistrict(''); }}
                       required
@@ -492,7 +491,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     <label className="erp-label">District</label>
                     <select
                       id="district"
-                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#F97316] transition-all focus:outline-none"
+                      className="erp-input w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-3.5 h-[52px] text-sm font-semibold focus:border-[#6366F1] transition-all focus:outline-none"
                       value={selectedDistrict}
                       onChange={e => setSelectedDistrict(e.target.value)}
                       disabled={!selectedState}
@@ -556,7 +555,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     onKeyDown={e => handleEnter(e, 'pwd2')}
                     required
                     rightIcon={
-                      <button type="button" className="text-slate-400 hover:text-[#F97316] transition-colors" onClick={() => setShowPassword(!showPassword)}>
+                      <button type="button" className="text-slate-400 hover:text-[#6366F1] transition-colors" onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     }
@@ -572,15 +571,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     onKeyDown={e => handleEnter(e, undefined, true)}
                     required
                     rightIcon={
-                      <button type="button" className="text-slate-400 hover:text-[#F97316] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      <button type="button" className="text-slate-400 hover:text-[#6366F1] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                         {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     }
                   />
                 </div>
 
-                <div className="p-4 rounded-xl bg-orange-50/50 border border-orange-100 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-sm shrink-0">🔒</div>
+                <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-sm shrink-0">🔒</div>
                   <p className="text-[10px] font-medium text-slate-500 leading-normal">
                     Your master admin account holds global authority. Ensure your password is stored securely and MFA is enabled after initialization.
                   </p>
@@ -629,12 +628,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
           {/* Footer Back links */}
           <div className="pt-6 border-t border-slate-100 text-center space-y-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Already registered? <button onClick={() => { window.location.href = '/master/login'; }} className="text-[#F97316] ml-1 hover:underline font-black">Sign In to Dashboard</button>
+              Already registered? <button onClick={() => { window.location.href = '/master/login'; }} className="text-[#6366F1] ml-1 hover:underline font-black">Sign In to Dashboard</button>
             </p>
 
             <button
               onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
-              className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-[#F97316] transition-all flex items-center justify-center gap-2 mx-auto"
+              className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-[#6366F1] transition-all flex items-center justify-center gap-2 mx-auto"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Return to Main Website
@@ -647,3 +646,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
 };
 
 export default SignupPage;
+
+
+

@@ -82,7 +82,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
                 </button>
                 <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Branches</span>
                 <span style={{ fontSize: 12, color: '#cbd5e1' }}>/</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#f97316', textTransform: 'capitalize' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#6366F1', textTransform: 'capitalize' }}>
                     {company.name}
                 </span>
             </div>
@@ -91,9 +91,9 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
                 <div style={{
                     width: 52, height: 52, borderRadius: 14,
-                    background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                    background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
                     display: 'flex', items: 'center', justify: 'center',
-                    fontSize: 24, boxShadow: '0 6px 16px rgba(249,115,22,0.25)'
+                    fontSize: 24, boxShadow: '0 6px 16px rgba(99, 102, 241,0.25)'
                 }}>🏢</div>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px', margin: 0 }}>
@@ -108,7 +108,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
             {/* ── Branch List ── */}
             {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-                    <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                 </div>
             ) : error ? (
                 <div style={{
@@ -145,7 +145,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
                         borderBottom: '1px solid #e2e8f0',
                         display: 'flex', alignItems: 'center', gap: 10
                     }}>
-                        <div style={{ width: 3, height: 20, background: '#f97316', borderRadius: 4 }} />
+                        <div style={{ width: 3, height: 20, background: '#6366F1', borderRadius: 4 }} />
                         <span style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
                             GSTIN Branches
                         </span>
@@ -201,7 +201,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
                                         </span>
                                         <span style={{
                                             fontSize: 11, fontWeight: 800,
-                                            color: '#ea580c', background: '#fff7ed',
+                                            color: '#4F46E5', background: '#EEF2FF',
                                             padding: '5px 12px', borderRadius: 8,
                                             textTransform: 'uppercase', letterSpacing: '0.08em',
                                             fontFamily: 'monospace'

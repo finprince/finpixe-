@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+﻿import React, { useState, useMemo, useRef } from 'react';
 import { apiService } from '../../services/api';
 import { httpClient } from '../../services/httpClient';
 import { showError, showSuccess } from '../../utils/toast';
@@ -1377,11 +1377,11 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     const SALES_DOC_COLORS = [
         { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-400', dot: 'bg-indigo-500' },
         { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-400', dot: 'bg-emerald-500' },
-        { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-400', dot: 'bg-amber-500' },
+        { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-400', dot: 'bg-indigo-500' },
         { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-400', dot: 'bg-rose-500' },
         { bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-400', dot: 'bg-violet-500' },
         { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-400', dot: 'bg-cyan-500' },
-        { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-400', dot: 'bg-orange-500' },
+        { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-400', dot: 'bg-indigo-500' },
         { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-400', dot: 'bg-teal-500' },
     ];
     const getSalesDocColor = (num: string) => {
@@ -3257,7 +3257,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                         </span>
                     )}
                     {amendmentDate && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
                             <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
                             Amended on: {amendmentDate}
                         </span>
@@ -6278,7 +6278,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             {postedVoucherData.place_of_supply && <p className="text-xs text-gray-500 mt-1">Place of Supply: {postedVoucherData.place_of_supply}</p>}
                                             {postedVoucherData.tax_type && <p className="text-xs text-gray-500">Tax Type: {postedVoucherData.tax_type}</p>}
                                             {postedVoucherData.invoice_type && <p className="text-xs text-gray-500">Nature of Supply: {postedVoucherData.invoice_type}</p>}
-                                            {postedVoucherData.reverse_charge === 'Y' && <p className="text-xs text-amber-600 font-medium mt-1">⚠ Reverse Charge Applicable</p>}
+                                            {postedVoucherData.reverse_charge === 'Y' && <p className="text-xs text-indigo-600 font-medium mt-1">⚠ Reverse Charge Applicable</p>}
                                         </div>
                                     </div>
 
@@ -6291,7 +6291,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         </div>
                                         <table className="w-full text-sm mb-3" style={{ borderCollapse: 'collapse' }}>
                                             <thead>
-                                                <tr style={{ background: '#f97316', color: 'white' }}>
+                                                <tr style={{ background: '#6366F1', color: 'white' }}>
                                                     <th style={{ padding: '9px 6px', textAlign: 'left', fontWeight: 600 }}>#</th>
                                                     <th style={{ padding: '9px 6px', textAlign: 'left', fontWeight: 600 }}>Item / Description</th>
                                                     <th style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 600 }}>HSN</th>
@@ -6367,8 +6367,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             ))}
                                         </div>
                                         {postedVoucherData.payment_details?.posting_note && (
-                                            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 mb-2">
-                                                <p className="text-xs font-bold text-amber-700 mb-1">📝 Posting Note</p>
+                                            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-2">
+                                                <p className="text-xs font-bold text-indigo-700 mb-1">📝 Posting Note</p>
                                                 <p className="text-xs text-gray-700">{postedVoucherData.payment_details.posting_note}</p>
                                             </div>
                                         )}

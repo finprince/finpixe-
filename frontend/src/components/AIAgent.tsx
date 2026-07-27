@@ -165,15 +165,15 @@ const AIAgent: React.FC<AIAgentProps> = ({ isOpen, onClose, messages, onSendMess
         className="bg-white dark:bg-slate-900 w-full max-w-md h-[75vh] rounded-lg shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col transform transition-transform duration-300 ease-out animate-slide-in pointer-events-auto overflow-hidden"
         style={{
           border: '3px solid transparent',
-          background: 'linear-gradient(white, white) padding-box, linear-gradient(135deg, #f97316, #ea580c, #fb923c) border-box',
+          background: 'linear-gradient(white, white) padding-box, linear-gradient(135deg, #6366F1, #4F46E5, #818CF8) border-box',
         }}
       >
         <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800">
           <div className="flex items-center space-x-3">
-            <div className="w-14 h-14 flex items-center justify-center p-0.5 bg-white rounded-full border-2 border-orange-100 shadow-sm overflow-hidden">
-              <img src={kikiLogo} alt="Kiki" className="w-full h-full object-contain scale-110" />
+            <div className="w-14 h-14 flex items-center justify-center p-0.5 bg-white rounded-full border-2 border-indigo-100 shadow-sm overflow-hidden">
+              <img src={kikiLogo} alt="Finpixe AI" className="w-full h-full object-contain scale-110" />
             </div>
-            <h3 className="text-base font-black text-gray-800 dark:text-slate-100 uppercase tracking-tighter">KIKI AI AGENT</h3>
+            <h3 className="text-base font-black text-gray-800 dark:text-slate-100 uppercase tracking-tighter">FINPIXE AI AGENT</h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200">
             <Icon name="close" className="w-6 h-6" />
@@ -185,7 +185,7 @@ const AIAgent: React.FC<AIAgentProps> = ({ isOpen, onClose, messages, onSendMess
           {messages.map((msg, index) => (
             <div key={index}>
               <div className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'model' && <div className="w-10 h-10 flex items-center justify-center flex-shrink-0"><img src={kikiLogo} alt="Kiki" className="w-full h-full object-contain filter drop-shadow-none" /></div>}
+                {msg.role === 'model' && <div className="w-10 h-10 flex items-center justify-center flex-shrink-0"><img src={kikiLogo} alt="Finpixe AI" className="w-full h-full object-contain filter drop-shadow-none" /></div>}
                 <div className={`max-w-xs md:max-w-sm rounded-[4px] px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-bl-none'}`}>
                   {msg.text}
                 </div>
@@ -208,7 +208,7 @@ const AIAgent: React.FC<AIAgentProps> = ({ isOpen, onClose, messages, onSendMess
           ))}
           {isLoading && (
             <div className="flex items-end gap-2 justify-start">
-              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0"><img src={kikiLogo} alt="Kiki" className="w-full h-full object-contain filter drop-shadow-none" /></div>
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0"><img src={kikiLogo} alt="Finpixe AI" className="w-full h-full object-contain filter drop-shadow-none" /></div>
               <div className="max-w-xs rounded-[4px] px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-bl-none">
                 <div className="flex items-center justify-center space-x-1">
                   <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-slate-500 rounded-[4px] animate-bounce"></div>

@@ -7,10 +7,10 @@
     align-items: center;
     justify-content: center;
     background:
-        radial-gradient(circle at 50% 35%, rgba(249, 115, 22, 0.15), transparent 55%),
-        radial-gradient(circle at 30% 20%, rgba(249, 115, 22, 0.12), transparent 45%),
-        radial-gradient(circle at 70% 80%, rgba(234, 88, 12, 0.10), transparent 50%),
-        linear-gradient(180deg, #FFF7ED 0%, #FAFAFA 100%);
+        radial-gradient(circle at 50% 35%, rgba(99, 102, 241, 0.15), transparent 55%),
+        radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.12), transparent 45%),
+        radial-gradient(circle at 70% 80%, rgba(79, 70, 229, 0.10), transparent 50%),
+        linear-gradient(180deg, #EEF2FF 0%, #FAFAFA 100%);
     font-family: 'Outfit', sans-serif !important;
     padding: 20px;
     transition: all 0.2s ease;
@@ -25,7 +25,7 @@
     font-size: 48px;
     font-weight: 800;
     letter-spacing: 0.05em;
-    background: linear-gradient(to right, #FB923C, #F97316);
+    background: linear-gradient(to right, #818CF8, #6366F1);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -48,7 +48,7 @@
     border-radius: 22px;
     padding: 48px;
     box-shadow:
-        0 25px 60px rgba(249, 115, 22, 0.12),
+        0 25px 60px rgba(99, 102, 241, 0.12),
         0 15px 35px rgba(15, 23, 42, 0.06);
     display: flex;
     flex-direction: column;
@@ -90,8 +90,8 @@
 }
 
 .form-input:focus {
-    border-color: #F97316;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .form-input::placeholder {
@@ -126,7 +126,7 @@
 }
 
 .input-icon-button:hover {
-    color: #F97316;
+    color: #6366F1;
 }
 
 .input-icon-button svg {
@@ -137,7 +137,7 @@
 .forgot-password-link {
     align-self: flex-end;
     font-size: 13px;
-    color: #EA580C;
+    color: #4F46E5;
     text-decoration: none;
     font-weight: 600;
     background: none;
@@ -151,7 +151,7 @@
 
 .forgot-password-link:hover {
     text-decoration: underline;
-    color: #C2410C;
+    color: #4338CA;
 }
 
 .sign-in-button {
@@ -161,10 +161,10 @@
     font-weight: 600;
     font-size: 15px;
     color: white;
-    background: linear-gradient(to right, #F97316, #EA580C);
+    background: linear-gradient(to right, #6366F1, #4F46E5);
     border: none;
     cursor: pointer;
-    box-shadow: 0 10px 20px rgba(249, 115, 22, 0.25);
+    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.25);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -173,13 +173,13 @@
 
 .sign-in-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(249, 115, 22, 0.35);
-    background: linear-gradient(to right, #EA580C, #C2410C);
+    box-shadow: 0 12px 24px rgba(99, 102, 241, 0.35);
+    background: linear-gradient(to right, #4F46E5, #4338CA);
 }
 
 .sign-in-button:active {
     transform: translateY(0);
-    background: linear-gradient(to right, #C2410C, #9A3412);
+    background: linear-gradient(to right, #4338CA, #3730A3);
 }
 
 .sign-in-button:disabled {
@@ -212,7 +212,7 @@
 }
 
 .signup-link {
-    color: #EA580C;
+    color: #4F46E5;
     font-weight: 600;
     text-decoration: none;
     background: none;
@@ -223,14 +223,14 @@
 
 .signup-link:hover {
     text-decoration: underline;
-    color: #C2410C;
+    color: #4338CA;
 }
 
 /* Dark Mode Support */
 .dark .login-page-container {
     background:
-        radial-gradient(circle at 50% 35%, rgba(249, 115, 22, 0.12), transparent 55%),
-        radial-gradient(circle at 30% 20%, rgba(249, 115, 22, 0.08), transparent 45%),
+        radial-gradient(circle at 50% 35%, rgba(99, 102, 241, 0.12), transparent 55%),
+        radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.08), transparent 45%),
         linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
 }
 
@@ -239,7 +239,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
         0 25px 60px rgba(0, 0, 0, 0.4),
-        0 10px 25px rgba(249, 115, 22, 0.1);
+        0 10px 25px rgba(99, 102, 241, 0.1);
 }
 
 .dark .brand-tagline {
@@ -257,7 +257,7 @@
 }
 
 .dark .form-input:focus {
-    border-color: #F97316;
+    border-color: #6366F1;
 }
 
 .dark .form-input::placeholder {
@@ -270,9 +270,9 @@
 
 .dark .signup-link,
 .dark .forgot-password-link {
-    color: #FB923C;
+    color: #818CF8;
 }
 
 .dark .sign-in-button {
-    box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3);
+    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
 }
