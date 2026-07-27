@@ -1,6 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import Icon from '../../components/Icon';
-import KIKILogo from '../../assets/branding/logo';
+import KIKILogo from '../../assets/finpixe with empty bg.png';
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, Building2, UserCheck, KeyRound, Globe } from 'lucide-react';
 
 /**
@@ -14,9 +14,9 @@ const AuthPortal: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen w-full flex bg-[#FFF9F4] overflow-hidden text-slate-900 font-sans">
+        <div className="min-h-screen w-full flex bg-[#EEF2FF] overflow-hidden text-slate-900 font-sans">
             {/* Left Hero Graphic Section (Desktop >= 1024px) - Light Orange Theme */}
-            <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#FFF9F4] to-[#FFF3E8] border-r border-orange-100">
+            <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative bg-gradient-to-br from-white via-[#EEF2FF] to-[#E0E7FF] border-r border-indigo-100">
                 
                 {/* ── LAYER 2: Abstract AI Circuit SVG ──────────────────────── */}
                 <svg
@@ -28,8 +28,8 @@ const AuthPortal: React.FC = () => {
                 >
                     <defs>
                         <radialGradient id="signalGrad" cx="50%" cy="50%" r="50%">
-                            <stop offset="0%" stopColor="#FB923C" stopOpacity="1" />
-                            <stop offset="100%" stopColor="#FB923C" stopOpacity="0" />
+                            <stop offset="0%" stopColor="#818CF8" stopOpacity="1" />
+                            <stop offset="100%" stopColor="#818CF8" stopOpacity="0" />
                         </radialGradient>
                         <filter id="nodeGlow" x="-80%" y="-80%" width="260%" height="260%">
                             <feGaussianBlur stdDeviation="3" result="blur" />
@@ -41,7 +41,7 @@ const AuthPortal: React.FC = () => {
                     </defs>
 
                     {/* Circuit Paths */}
-                    <g stroke="rgba(249,115,22,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <g stroke="rgba(99, 102, 241,0.2)" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
                         {/* Top-Left */}
                         <path d="M 60 80 L 200 80 L 200 160 L 340 160" />
                         <path d="M 60 160 L 120 160 L 120 240 L 340 240 L 340 300" />
@@ -81,7 +81,7 @@ const AuthPortal: React.FC = () => {
                     </g>
 
                     {/* Glowing Junction Nodes with pulses */}
-                    <g fill="rgba(249,115,22,0.55)" filter="url(#nodeGlow)">
+                    <g fill="rgba(99, 102, 241,0.55)" filter="url(#nodeGlow)">
                         {/* Top-Left */}
                         <rect x="196" y="76" width="8" height="8" rx="2" className="node-pulse-1" />
                         <rect x="116" y="236" width="8" height="8" rx="2" className="node-pulse-2" />
@@ -119,7 +119,7 @@ const AuthPortal: React.FC = () => {
                             calcMode="linear"
                         />
                     </circle>
-                    <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                    <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                         <animateMotion
                             dur="8s"
                             repeatCount="indefinite"
@@ -137,7 +137,7 @@ const AuthPortal: React.FC = () => {
                             calcMode="linear"
                         />
                     </circle>
-                    <circle r="3" fill="#EA580C" opacity="0.8" filter="url(#nodeGlow)">
+                    <circle r="3" fill="#4F46E5" opacity="0.8" filter="url(#nodeGlow)">
                         <animateMotion
                             dur="9s"
                             repeatCount="indefinite"
@@ -155,7 +155,7 @@ const AuthPortal: React.FC = () => {
                             calcMode="linear"
                         />
                     </circle>
-                    <circle r="3.5" fill="#EA580C" opacity="0.9" filter="url(#nodeGlow)">
+                    <circle r="3.5" fill="#4F46E5" opacity="0.9" filter="url(#nodeGlow)">
                         <animateMotion
                             dur="10s"
                             repeatCount="indefinite"
@@ -190,26 +190,25 @@ const AuthPortal: React.FC = () => {
                     .node-pulse-4 { animation: nodePulse 4s ease-in-out infinite 3s; }
 
                     @keyframes nodePulse {
-                        0%, 100% { fill: rgba(249,115,22,0.4); filter: drop-shadow(0 0 2px rgba(249,115,22,0.4)); }
-                        50% { fill: rgba(249,115,22,0.95); filter: drop-shadow(0 0 8px rgba(249,115,22,0.95)); }
+                        0%, 100% { fill: rgba(99, 102, 241,0.4); filter: drop-shadow(0 0 2px rgba(99, 102, 241,0.4)); }
+                        50% { fill: rgba(99, 102, 241,0.95); filter: drop-shadow(0 0 8px rgba(99, 102, 241,0.95)); }
                     }
                 `}</style>
 
                 {/* Top Brand Header */}
                 <div className="flex items-center gap-3.5 z-10 text-left">
-                    <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center p-2 backdrop-blur-md">
-                        <img src={KIKILogo} alt="Kiki AI logo" className="w-full h-full object-contain" />
+                    <div className="w-24 h-24 flex items-center justify-center">
+                        <img src={KIKILogo} alt="Finpixe logo" className="w-full h-full object-contain" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-extrabold text-slate-900 tracking-widest leading-none">KIKI AI</h2>
-                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Enterprise ERP OS</span>
+                        <h2 className="text-4xl font-extrabold text-slate-900 tracking-widest leading-none">FINPIXE</h2>
                     </div>
                 </div>
 
                 {/* Center Value Proposition */}
                 <div className="my-auto max-w-xl z-10 space-y-6 text-left">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200/60 text-orange-800 text-xs font-semibold">
-                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200/60 text-indigo-800 text-xs font-semibold">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                         <span>AI-Powered Continuous Accounting & Compliance</span>
                     </div>
                     <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
@@ -221,15 +220,15 @@ const AuthPortal: React.FC = () => {
 
                     {/* Security Feature Highlights */}
                     <div className="grid grid-cols-2 gap-4 pt-4">
-                        <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
+                        <div className="p-4 rounded-xl bg-white/80 border border-indigo-100 flex items-center gap-3 shadow-xs">
                             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                             <div>
                                 <h4 className="text-xs font-bold text-slate-800">ISO & GST Compliance</h4>
                                 <p className="text-[10px] text-slate-500">Automated GSTR-2B matching</p>
                             </div>
                         </div>
-                        <div className="p-4 rounded-xl bg-white/80 border border-orange-100 flex items-center gap-3 shadow-xs">
-                            <Zap className="w-5 h-5 text-amber-600 shrink-0" />
+                        <div className="p-4 rounded-xl bg-white/80 border border-indigo-100 flex items-center gap-3 shadow-xs">
+                            <Zap className="w-5 h-5 text-indigo-600 shrink-0" />
                             <div>
                                 <h4 className="text-xs font-bold text-slate-800">Real-Time OCR Stream</h4>
                                 <p className="text-[10px] text-slate-500">Gemini AI document pipeline</p>
@@ -239,9 +238,9 @@ const AuthPortal: React.FC = () => {
                 </div>
 
                 {/* Footer Security Badges */}
-                <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-orange-100 pt-6">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-medium z-10 border-t border-indigo-100 pt-6">
                     <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-orange-600" />
+                        <Lock className="w-4 h-4 text-indigo-600" />
                         <span>256-bit SSL Encrypted Session</span>
                     </div>
                     <span>v2.0 Enterprise Release</span>
@@ -253,7 +252,7 @@ const AuthPortal: React.FC = () => {
                 <div className="w-full max-w-md space-y-8 text-left">
                     {/* Header */}
                     <div className="space-y-2">
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold">
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
                             <Globe className="w-3.5 h-3.5" />
                             <span>Enterprise Portal Gateway</span>
                         </div>
@@ -266,46 +265,46 @@ const AuthPortal: React.FC = () => {
                         {/* Business Login Portal */}
                         <button
                             onClick={() => handleNavigate('/login')}
-                            className="w-full flex items-center gap-5 p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-orange-500/50 hover:bg-orange-50/10 hover:shadow-lg hover:shadow-orange-500/5 transition-all text-left group"
+                            className="w-full flex items-center gap-5 p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-500/50 hover:bg-indigo-50/10 hover:shadow-lg hover:shadow-indigo-500/5 transition-all text-left group"
                         >
-                            <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                                 <Building2 className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-orange-600 transition-colors">Business Login</h3>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">Business Login</h3>
                                 <p className="text-xs text-slate-500 font-medium">Secure branch office access for accounting ledgers and vouchers.</p>
                             </div>
-                            <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
+                            <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                         </button>
 
                         {/* Master Admin Portal */}
                         <button
                             onClick={() => handleNavigate('/master/login')}
-                            className="w-full flex items-center gap-5 p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-orange-500/50 hover:bg-orange-50/10 hover:shadow-lg hover:shadow-orange-500/5 transition-all text-left group"
+                            className="w-full flex items-center gap-5 p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-500/50 hover:bg-indigo-50/10 hover:shadow-lg hover:shadow-indigo-500/5 transition-all text-left group"
                         >
-                            <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                                 <UserCheck className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-orange-600 transition-colors">Master Admin</h3>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">Master Admin</h3>
                                 <p className="text-xs text-slate-500 font-medium">Global administration controls and platform infrastructure.</p>
                             </div>
-                            <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
+                            <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                         </button>
 
                         {/* Register Platform Account */}
                         <button
                             onClick={() => handleNavigate('/register')}
-                            className="w-full flex items-center gap-5 p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-orange-500/50 hover:bg-orange-50/10 hover:shadow-lg hover:shadow-orange-500/5 transition-all text-left group"
+                            className="w-full flex items-center gap-5 p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-500/50 hover:bg-indigo-50/10 hover:shadow-lg hover:shadow-indigo-500/5 transition-all text-left group"
                         >
-                            <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                                 <KeyRound className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-orange-600 transition-colors">Register Account</h3>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">Register Account</h3>
                                 <p className="text-xs text-slate-500 font-medium">Create a new organization or administrative master node.</p>
                             </div>
-                            <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
+                            <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                         </button>
                     </div>
 
@@ -313,7 +312,7 @@ const AuthPortal: React.FC = () => {
                     <div className="pt-6 border-t border-slate-100 text-center">
                         <button
                             onClick={() => window.location.href = (import.meta as any).env?.VITE_LANDING_URL || 'http://localhost:3000'}
-                            className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-orange-600 transition-all flex items-center justify-center gap-2 group mx-auto"
+                            className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-all flex items-center justify-center gap-2 group mx-auto"
                         >
                             <Icon name="arrow-left" size={14} className="group-hover:-translate-x-1 transition-transform" />
                             Return to Main Website
@@ -326,3 +325,6 @@ const AuthPortal: React.FC = () => {
 };
 
 export default AuthPortal;
+
+
+

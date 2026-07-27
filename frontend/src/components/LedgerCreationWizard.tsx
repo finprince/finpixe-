@@ -979,8 +979,8 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                     iconStyle = 'text-red-500';
                 } else if (node.level === 0) {
                     // Category: Primary Orange, Bold, Uppercase, Largest
-                    textStyle = 'text-sm text-[#F97316] font-bold uppercase tracking-wider';
-                    iconStyle = 'text-[#F97316]';
+                    textStyle = 'text-sm text-[#6366F1] font-bold uppercase tracking-wider';
+                    iconStyle = 'text-[#6366F1]';
                 } else if (node.level === 1) {
                     // Group: Black, Bold, Slightly smaller
                     textStyle = 'text-[13.5px] text-black font-bold';
@@ -1002,7 +1002,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                 return (
                     <div key={nodePath} style={{ marginLeft: `${level * 20}px` }}>
                         <div
-                            className={`flex items-center py-1.5 px-2 cursor-pointer hover:bg-gray-100 rounded transition-colors ${isSelected ? 'bg-[#FFF7ED] border-l-2 border-[#F97316]' : ''}`}
+                            className={`flex items-center py-1.5 px-2 cursor-pointer hover:bg-gray-100 rounded transition-colors ${isSelected ? 'bg-[#EEF2FF] border-l-2 border-[#6366F1]' : ''}`}
                             onClick={() => {
                                 selectNodeForPreview(node);
                                 // Reset inputs when selection changes
@@ -1395,7 +1395,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                             <div className="text-gray-500 text-sm">No hierarchy data available</div>
                         )}
                     </div>
-                    <p className="text-[13.5px] text-gray-600 mt-4 leading-relaxed bg-[#FFF7ED] p-2 rounded border border-[#FED7AA]">
+                    <p className="text-[13.5px] text-gray-600 mt-4 leading-relaxed bg-[#EEF2FF] p-2 rounded border border-[#C7D2FE]">
                         <strong>Single click</strong> to select any level. <strong>Double click</strong> to expand/collapse categories.
                         <br />
                         <span className="text-red-600 font-semibold italic">★ Red Italic items</span> are your endpoints (ledgers). Click them to create nested entries if needed!
@@ -1456,7 +1456,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                         if (!isSubGroup2Fixed) setSubGroup2Input(e.target.value);
                                     }}
                                     disabled={!selectedNode || (!isEditingExistingLedger && isSubGroup2Fixed)}
-                                    className={`w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] ${!selectedNode || (!isEditingExistingLedger && isSubGroup2Fixed)
+                                    className={`w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] ${!selectedNode || (!isEditingExistingLedger && isSubGroup2Fixed)
                                         ? 'bg-gray-100 text-gray-600 border-gray-200'
                                         : 'bg-white border-gray-300'
                                         }`}
@@ -1481,7 +1481,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                         if (!isSubGroup3Fixed) setSubGroup3Input(e.target.value);
                                     }}
                                     disabled={!selectedNode || (!isEditingExistingLedger && isSubGroup3Fixed)}
-                                    className={`w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] ${!selectedNode || (!isEditingExistingLedger && isSubGroup3Fixed)
+                                    className={`w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] ${!selectedNode || (!isEditingExistingLedger && isSubGroup3Fixed)
                                         ? 'bg-gray-100 text-gray-600 border-gray-200'
                                         : 'bg-white border-gray-300'
                                         }`}
@@ -1508,7 +1508,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                         if (!isLedgerTypeFixed) setLedgerTypeInput(e.target.value);
                                     }}
                                     disabled={!selectedNode || (!isEditingExistingLedger && isLedgerTypeFixed)}
-                                    className={`w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] ${!selectedNode || (!isEditingExistingLedger && isLedgerTypeFixed)
+                                    className={`w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] ${!selectedNode || (!isEditingExistingLedger && isLedgerTypeFixed)
                                         ? 'bg-gray-100 text-gray-600 border-gray-200'
                                         : 'bg-white border-gray-300'
                                         }`}
@@ -1535,7 +1535,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                         <button
                                             type="button"
                                             onClick={beginEditSelectedLedger}
-                                            className="px-4 py-2 rounded-[4px] text-sm font-medium text-[#C2410C] bg-white border border-[#FED7AA] hover:bg-[#FFF7ED] transition-colors"
+                                            className="px-4 py-2 rounded-[4px] text-sm font-medium text-[#4338CA] bg-white border border-[#C7D2FE] hover:bg-[#EEF2FF] transition-colors"
                                         >
                                             Edit Ledger
                                         </button>
@@ -1551,7 +1551,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                             <button
                                                 type="button"
                                                 onClick={saveEditedLedger}
-                                                className="px-4 py-2 rounded-[4px] text-sm font-medium text-white bg-[#F97316] border border-transparent hover:bg-[#EA580C] transition-colors shadow-sm"
+                                                className="px-4 py-2 rounded-[4px] text-sm font-medium text-white bg-[#6366F1] border border-transparent hover:bg-[#4F46E5] transition-colors shadow-sm"
                                             >
                                                 Save Changes
                                             </button>
@@ -1563,14 +1563,14 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
 
                         {/* Create Ledger Button OR Opening Balance Step */}
                         {isEditingExistingLedger ? null : showOpeningBalanceStep ? (
-                            <div className="mt-6 bg-[#FFF7ED] border border-[#FED7AA] rounded-lg p-4 space-y-4">
+                            <div className="mt-6 bg-[#EEF2FF] border border-[#C7D2FE] rounded-lg p-4 space-y-4">
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-lg">💰</span>
-                                    <h6 className="text-sm font-semibold text-[#C2410C]">
+                                    <h6 className="text-sm font-semibold text-[#4338CA]">
                                         Opening Balance for <span className="italic">{pendingLedgerData?.customName}</span>
                                     </h6>
                                 </div>
-                                <p className="text-xs text-[#EA580C] leading-relaxed">
+                                <p className="text-xs text-[#4F46E5] leading-relaxed">
                                     Enter the opening balance for this ledger. You can skip if not applicable.
                                 </p>
 
@@ -1582,7 +1582,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                             type="number"
                                             value={openingBalance}
                                             onChange={(e) => setOpeningBalance(e.target.value)}
-                                            className="w-full p-2 border border-[#FED7AA] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-white"
+                                            className="w-full p-2 border border-[#C7D2FE] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-white"
                                             placeholder="0.00"
                                             min="0"
                                             step="0.01"
@@ -1590,13 +1590,13 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                         />
                                     </div>
                                     {/* Dr / Cr Toggle */}
-                                    <div className="flex rounded overflow-hidden border border-[#FED7AA] text-sm font-medium shrink-0">
+                                    <div className="flex rounded overflow-hidden border border-[#C7D2FE] text-sm font-medium shrink-0">
                                         <button
                                             type="button"
                                             onClick={() => setOpeningBalanceType('debit')}
                                             className={`px-4 py-2 transition-colors ${openingBalanceType === 'debit'
-                                                ? 'bg-[#F97316] text-white'
-                                                : 'bg-white text-[#C2410C] hover:bg-[#FFF7ED]'
+                                                ? 'bg-[#6366F1] text-white'
+                                                : 'bg-white text-[#4338CA] hover:bg-[#EEF2FF]'
                                                 }`}
                                         >
                                             Dr
@@ -1604,9 +1604,9 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                         <button
                                             type="button"
                                             onClick={() => setOpeningBalanceType('credit')}
-                                            className={`px-4 py-2 transition-colors border-l border-[#FED7AA] ${openingBalanceType === 'credit'
-                                                ? 'bg-[#F97316] text-white'
-                                                : 'bg-white text-[#C2410C] hover:bg-[#FFF7ED]'
+                                            className={`px-4 py-2 transition-colors border-l border-[#C7D2FE] ${openingBalanceType === 'credit'
+                                                ? 'bg-[#6366F1] text-white'
+                                                : 'bg-white text-[#4338CA] hover:bg-[#EEF2FF]'
                                                 }`}
                                         >
                                             Cr
@@ -1619,14 +1619,14 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                     <button
                                         type="button"
                                         onClick={handleConfirmOpeningBalance}
-                                        className="flex-1 bg-[#F97316] text-white px-4 py-2.5 rounded text-sm font-medium hover:bg-[#EA580C] transition-colors"
+                                        className="flex-1 bg-[#6366F1] text-white px-4 py-2.5 rounded text-sm font-medium hover:bg-[#4F46E5] transition-colors"
                                     >
                                         Save Ledger
                                     </button>
                                     <button
                                         type="button"
                                         onClick={handleSkipOpeningBalance}
-                                        className="px-4 py-2.5 rounded text-sm font-medium text-[#C2410C] bg-white border border-[#FED7AA] hover:bg-[#FFF7ED] transition-colors"
+                                        className="px-4 py-2.5 rounded text-sm font-medium text-[#4338CA] bg-white border border-[#C7D2FE] hover:bg-[#EEF2FF] transition-colors"
                                     >
                                         Skip
                                     </button>
@@ -1637,7 +1637,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                                 <button
                                     type="button"
                                     onClick={handleSubmit}
-                                    className="w-full bg-[#F97316] text-white px-6 py-3 rounded-[4px] font-medium hover:bg-[#EA580C] transition-colors"
+                                    className="w-full bg-[#6366F1] text-white px-6 py-3 rounded-[4px] font-medium hover:bg-[#4F46E5] transition-colors"
                                 >
                                     Create Ledger
                                 </button>

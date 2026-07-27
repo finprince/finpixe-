@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/branding/logo';
+﻿import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import type { Ledger, Voucher, StockItem, SalesPurchaseVoucher, LedgerGroupMaster, Page } from '../../types';
@@ -516,7 +516,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   const [reportView, setReportView] = useState<'table' | 'chart'>('table'); // Default to table view
 
   // Chart colors
-  const CHART_COLORS = ['#f97316', '#ea580c', '#22c55e', '#fb923c', '#ef4444', '#f59e0b', '#eab308', '#64748b'];
+  const CHART_COLORS = ['#6366F1', '#4F46E5', '#22c55e', '#818CF8', '#ef4444', '#6366F1', '#eab308', '#64748b'];
 
   // Generate report data based on query
   const generateReportFromQuery = useCallback((query: string) => {
@@ -807,12 +807,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       const netLiability = totalOutput - totalInput;
 
       const chartData = [
-        { name: 'Output CGST', value: outputCGST, color: '#f97316' },
-        { name: 'Output SGST', value: outputSGST, color: '#fb923c' },
-        { name: 'Output IGST', value: outputIGST, color: '#fdba74' },
-        { name: 'Input CGST', value: inputCGST, color: '#ea580c' },
-        { name: 'Input SGST', value: inputSGST, color: '#c2410c' },
-        { name: 'Input IGST', value: inputIGST, color: '#9a3412' }
+        { name: 'Output CGST', value: outputCGST, color: '#6366F1' },
+        { name: 'Output SGST', value: outputSGST, color: '#818CF8' },
+        { name: 'Output IGST', value: outputIGST, color: '#A5B4FC' },
+        { name: 'Input CGST', value: inputCGST, color: '#4F46E5' },
+        { name: 'Input SGST', value: inputSGST, color: '#4338CA' },
+        { name: 'Input IGST', value: inputIGST, color: '#3730A3' }
       ];
 
       const tableData = [
@@ -991,7 +991,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     const tableHtml = `
       <table border="1" style="border-collapse: collapse; width: 100%;">
         <thead>
-          <tr style="background: #f97316; color: white;">
+          <tr style="background: #6366F1; color: white;">
             ${Object.keys(report.tableData[0] || {}).map(h => `<th style="padding: 8px;">${h}</th>`).join('')}
           </tr>
         </thead>
@@ -1011,7 +1011,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           <title>${report.title}</title>
           <style>
             body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; }
-            h1 { color: #F97316; }
+            h1 { color: #6366F1; }
             p { color: #666; }
           </style>
         </head>
@@ -2206,9 +2206,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                 <span className="px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 border border-gray-200 shadow-sm">{row.category}</span>
               </td>
               <td className="px-6 py-3 whitespace-nowrap text-right">
-                <span className={`text-sm font-mono font-bold ${row.balanceType === 'Dr' ? 'text-orange-600' : 'text-green-700'}`}>
+                <span className={`text-sm font-mono font-bold ${row.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>
                   ₹{row.balance.toFixed(2)}
-                  <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded font-semibold ${row.balanceType === 'Dr' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{row.balanceType}</span>
+                  <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded font-semibold ${row.balanceType === 'Dr' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'}`}>{row.balanceType}</span>
                 </span>
               </td>
             </tr>
@@ -2221,7 +2221,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             <tr>
               <td className="px-6 py-3 text-sm font-bold text-gray-600">{ledgerSummary.length} Ledgers</td>
               <td className="px-6 py-3"></td>
-              <td className="px-6 py-3 text-right text-sm font-bold text-orange-600">
+              <td className="px-6 py-3 text-right text-sm font-bold text-indigo-600">
                 Dr: ₹{ledgerSummary.filter(r => r.balanceType === 'Dr').reduce((s, r) => s + r.balance, 0).toFixed(2)}
               </td>
             </tr>
@@ -2270,9 +2270,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
               {last && (
                 <div className="text-right mr-4">
                   <div className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Closing Balance</div>
-                  <div className={`text-2xl font-bold ${last.balanceType === 'Dr' ? 'text-orange-600' : 'text-green-700'}`}>
+                  <div className={`text-2xl font-bold ${last.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>
                     ₹{last.balance.toFixed(2)}
-                    <span className={`ml-2 text-sm px-2 py-0.5 rounded font-semibold ${last.balanceType === 'Dr' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{last.balanceType}</span>
+                    <span className={`ml-2 text-sm px-2 py-0.5 rounded font-semibold ${last.balanceType === 'Dr' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'}`}>{last.balanceType}</span>
                   </div>
                 </div>
               )}
@@ -2398,8 +2398,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                     st === 'Due' ? 'bg-red-100 text-red-800' :
                                       st === 'Not Due' ? 'bg-blue-100 text-blue-700' :
                                         st === 'Partially Received' ? 'bg-yellow-100 text-yellow-800' :
-                                          st === 'Partially Paid' ? 'bg-orange-100 text-orange-700' :
-                                            st === 'Partially Utilized' ? 'bg-amber-100 text-amber-700' :
+                                          st === 'Partially Paid' ? 'bg-indigo-100 text-indigo-700' :
+                                            st === 'Partially Utilized' ? 'bg-indigo-100 text-indigo-700' :
                                               st === 'Advance Applied' ? 'bg-purple-100 text-purple-700' :
                                                 st === 'Advance' ? 'bg-purple-100 text-purple-700' :
                                                   st === 'Unutilized' ? 'bg-gray-100 text-gray-600' :
@@ -2410,8 +2410,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 border-r border-gray-50">{e.debit > 0 ? `₹${e.debit.toFixed(2)}` : '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 border-r border-gray-50">{e.credit > 0 ? `₹${e.credit.toFixed(2)}` : '-'}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold border-r border-gray-50 ${e.balanceType === 'Dr' ? 'text-orange-600' : e.balanceType === 'Cr' ? 'text-green-700' : 'text-gray-400'}`}>
-                            {e.balance > 0 ? <>{`₹${e.balance.toFixed(2)} `}<span className={`text-[10px] font-normal uppercase ${e.balanceType === 'Dr' ? 'text-orange-600' : 'text-green-700'}`}>{e.balanceType}</span></> : '-'}
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold border-r border-gray-50 ${e.balanceType === 'Dr' ? 'text-indigo-600' : e.balanceType === 'Cr' ? 'text-green-700' : 'text-gray-400'}`}>
+                            {e.balance > 0 ? <>{`₹${e.balance.toFixed(2)} `}<span className={`text-[10px] font-normal uppercase ${e.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>{e.balanceType}</span></> : '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             {e.voucherType !== 'Opening' && (
@@ -2432,7 +2432,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                         <td colSpan={isTdsTcsLedger ? 6 : 5} className="px-6 py-3 text-right text-gray-900 text-sm">TOTAL</td>
                         <td className="px-6 py-3 text-right text-gray-900 text-sm">₹{totalDr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td className="px-6 py-3 text-right text-gray-900 text-sm">₹{totalCr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td className={`px-6 py-3 text-right text-sm ${last?.balanceType === 'Dr' ? 'text-orange-600' : 'text-green-700'}`}>{last ? `₹${last.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''}</td>
+                        <td className={`px-6 py-3 text-right text-sm ${last?.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>{last ? `₹${last.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''}</td>
                         <td></td>
                       </tr>
                     </tfoot>
@@ -2547,8 +2547,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                       stFinal === 'Due' ? 'bg-red-100 text-red-800' :
                                         stFinal === 'Not Due' ? 'bg-blue-100 text-blue-700' :
                                           stFinal === 'Partially Received' ? 'bg-yellow-100 text-yellow-800' :
-                                            stFinal === 'Partially Paid' ? 'bg-orange-100 text-orange-700' :
-                                              stFinal === 'Partially Utilized' ? 'bg-amber-100 text-amber-700' :
+                                            stFinal === 'Partially Paid' ? 'bg-indigo-100 text-indigo-700' :
+                                              stFinal === 'Partially Utilized' ? 'bg-indigo-100 text-indigo-700' :
                                                 stFinal === 'Advance Applied' ? 'bg-purple-100 text-purple-700' :
                                                   stFinal === 'Advance' ? 'bg-purple-100 text-purple-700' :
                                                     stFinal === 'Unutilized' ? 'bg-gray-100 text-gray-600' :
@@ -2560,7 +2560,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                             <td className="px-6 py-4 text-sm font-bold text-indigo-600 text-right border-r border-gray-100">{e.debit > 0 ? `₹${e.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
                             <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right border-r border-gray-100">{e.credit > 0 ? `₹${e.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
                             <td className="px-6 py-4 text-sm text-right font-bold text-gray-900">
-                              {e.balance > 0 ? <>{`₹${e.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })} `}<span className={`text-[10px] font-normal uppercase ${e.balanceType === 'Dr' ? 'text-orange-600' : 'text-green-700'}`}>{e.balanceType}</span></> : '-'}
+                              {e.balance > 0 ? <>{`₹${e.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })} `}<span className={`text-[10px] font-normal uppercase ${e.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>{e.balanceType}</span></> : '-'}
                             </td>
                           </tr>
                           {/* ── Breakdown sub-rows (Customer Portal / Tally style) ── */}
@@ -2671,9 +2671,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                       <tr>
                         <td colSpan={4} className="px-6 py-4 text-right text-sm text-gray-700">TOTALS:</td>
                         <td className="px-6 py-4"></td>
-                        <td className="px-6 py-4 text-sm text-right text-orange-600">₹{totalDr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 text-sm text-right text-indigo-600">₹{totalDr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td className="px-6 py-4 text-sm text-right text-green-700">-</td>
-                        <td className={`px-6 py-4 text-sm font-mono text-right ${last?.balanceType === 'Dr' ? 'text-orange-600' : 'text-green-700'}`}>{last ? `₹${last.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${last.balanceType}` : ''}</td>
+                        <td className={`px-6 py-4 text-sm font-mono text-right ${last?.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>{last ? `₹${last.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${last.balanceType}` : ''}</td>
                       </tr>
                     </tfoot>
                   )}
@@ -2784,7 +2784,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                       {row.isFirstInSource && (
                         <>
                           <td rowSpan={row.rowSpan} className="px-6 py-4 text-center align-top border-r border-slate-100">
-                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.status === 'Paid' || row.status === 'Utilized' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : row.status === 'Partially Paid' ? 'bg-amber-50 text-amber-600 border border-amber-100' : row.status === 'Due' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>{row.status}</span>
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.status === 'Paid' || row.status === 'Utilized' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : row.status === 'Partially Paid' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : row.status === 'Due' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>{row.status}</span>
                           </td>
                           <td rowSpan={row.rowSpan} className="px-6 py-4 text-center align-top">
                             {(row.status === 'Due' || row.status === 'Partially Paid') && (
@@ -3848,7 +3848,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <label className="label-text font-bold" style={{ color: '#f97316' }}>NET AMOUNT DUE</label>
+                                  <label className="label-text font-bold" style={{ color: '#6366F1' }}>NET AMOUNT DUE</label>
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="number"
@@ -4144,7 +4144,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{Number(tbData?.total_credit || 0).toFixed(2)}</td>
           </tr>
           {tbData && !tbData.is_balanced && (
-            <tr><td colSpan={3} className="text-center text-xs text-amber-600 py-1">⚠ Trial Balance difference: ₹{Math.abs(Number(tbData.total_debit) - Number(tbData.total_credit)).toFixed(2)}</td></tr>
+            <tr><td colSpan={3} className="text-center text-xs text-indigo-600 py-1">⚠ Trial Balance difference: ₹{Math.abs(Number(tbData.total_debit) - Number(tbData.total_credit)).toFixed(2)}</td></tr>
           )}
         </tfoot>
       </table>
@@ -4631,7 +4631,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
               {!bsLoading && bsData && (
                 <>
                   {bsData.is_balanced === false && (
-                    <div className="p-2 text-center text-xs bg-amber-50 text-amber-700 border-b border-amber-200">
+                    <div className="p-2 text-center text-xs bg-indigo-50 text-indigo-700 border-b border-indigo-200">
                       ⚠ Balance Sheet does not balance. Difference: ₹{Math.abs(Number(bsData.assets?.total || 0) - Number((bsData.liabilities?.total || 0) + (bsData.capital?.total || 0))).toFixed(2)}
                     </div>
                   )}
@@ -4969,11 +4969,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                       <div className="h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
                           {currentReport.chartType === 'pie' ? (
-                            <PieChart><Pie data={currentReport.chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={120} dataKey="value" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>{currentReport.chartData.map((_, index) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#f97316' : index === 1 ? '#ea580c' : index === 2 ? '#fb923c' : index === 3 ? '#fdba74' : '#fed7aa'} />))}</Pie><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /></PieChart>
+                            <PieChart><Pie data={currentReport.chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={120} dataKey="value" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>{currentReport.chartData.map((_, index) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#6366F1' : index === 1 ? '#4F46E5' : index === 2 ? '#818CF8' : index === 3 ? '#A5B4FC' : '#C7D2FE'} />))}</Pie><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /></PieChart>
                           ) : currentReport.chartType === 'area' ? (
-                            <AreaChart data={currentReport.chartData}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /><Area type="monotone" dataKey="value" stroke="#f97316" fill="#f97316" fillOpacity={0.2} strokeWidth={2} /></AreaChart>
+                            <AreaChart data={currentReport.chartData}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /><Area type="monotone" dataKey="value" stroke="#6366F1" fill="#6366F1" fillOpacity={0.2} strokeWidth={2} /></AreaChart>
                           ) : (
-                            <BarChart data={currentReport.chartData} barSize={50}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} cursor={{ fill: 'rgba(249, 115, 22, 0.05)' }} /><Bar dataKey="value" fill="#f97316" radius={[4, 4, 0, 0]} /></BarChart>
+                            <BarChart data={currentReport.chartData} barSize={50}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} /><Bar dataKey="value" fill="#6366F1" radius={[4, 4, 0, 0]} /></BarChart>
                           )}
                         </ResponsiveContainer>
                       </div>

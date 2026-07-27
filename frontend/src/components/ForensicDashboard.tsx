@@ -62,7 +62,7 @@ const ForensicDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard title="Total Throughput" value={`${metrics.throughput} p/s`} color="text-blue-400" />
         <MetricCard title="AI P95 Latency" value={`${(metrics.ai_latency.p95 / 1000).toFixed(2)}s`} color="text-purple-400" />
-        <MetricCard title="Queue Backlog" value={Object.values(metrics.queue_depth).reduce((a: any, b: any) => a + b, 0)} color="text-orange-400" />
+        <MetricCard title="Queue Backlog" value={Object.values(metrics.queue_depth).reduce((a: any, b: any) => a + b, 0)} color="text-indigo-400" />
         <MetricCard title="DB Lock Wait" value={`${metrics.db_contention.lock_wait_ms.toFixed(1)}ms`} color="text-red-400" />
       </div>
 
@@ -82,7 +82,7 @@ const ForensicDashboard: React.FC = () => {
                 <XAxis dataKey="name" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                <Bar dataKey="depth" fill="#F97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="depth" fill="#6366F1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -96,15 +96,15 @@ const ForensicDashboard: React.FC = () => {
               <AreaChart data={history}>
                 <defs>
                   <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F97316" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#F97316" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="timestamp" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                <Area type="monotone" dataKey={(d) => d.ai_latency.p95} stroke="#F97316" fillOpacity={1} fill="url(#colorLatency)" />
+                <Area type="monotone" dataKey={(d) => d.ai_latency.p95} stroke="#6366F1" fillOpacity={1} fill="url(#colorLatency)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

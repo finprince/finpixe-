@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { apiService } from '../services';
 import { showError, showSuccess, showInfo } from '../utils/toast';
 import AddNewCustomerModal from './AddNewCustomerModal';
@@ -1507,7 +1507,7 @@ const SalesEditModal: React.FC<SalesEditModalProps> = ({ invoice, index, onClose
                                     {/* RAIL UPTO PORT (Transporter Details) */}
                                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                                         <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center gap-3">
-                                            <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                                            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
                                             <h3 className="text-xs font-black text-gray-800 uppercase tracking-widest">UPTO PORT</h3>
                                         </div>
                                         <div className="p-8">
@@ -1532,7 +1532,7 @@ const SalesEditModal: React.FC<SalesEditModalProps> = ({ invoice, index, onClose
                                     {/* RAIL BEYOND PORT (Rail Details) */}
                                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                                         <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center gap-3">
-                                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
                                             <h3 className="text-xs font-black text-gray-800 uppercase tracking-widest">BEYOND PORT</h3>
                                         </div>
                                         <div className="p-8">
@@ -1607,7 +1607,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
         case 'READY':
             return <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 uppercase">Ready ✅</span>;
         case 'CUSTOMER_MISSING':
-            return <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold border border-amber-200 uppercase">No Customer ❌</span>;
+            return <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold border border-indigo-200 uppercase">No Customer ❌</span>;
         case 'GSTIN_CONFLICT':
             return <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold border border-red-200 uppercase">GSTIN Conflict ❗</span>;
         case 'DUPLICATE_INVOICE':
@@ -1761,8 +1761,8 @@ const SalesExcelUploadWorkflow: React.FC<SalesExcelUploadWorkflowProps> = ({ onC
                             </div>
                             <div className="w-px h-6 bg-gray-200"></div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider">Missing</span>
-                                <span className="text-sm font-bold text-amber-600">{counts.missing}</span>
+                                <span className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">Missing</span>
+                                <span className="text-sm font-bold text-indigo-600">{counts.missing}</span>
                             </div>
                             {counts.duplicate > 0 && (
                                 <>
@@ -1819,13 +1819,13 @@ const SalesExcelUploadWorkflow: React.FC<SalesExcelUploadWorkflowProps> = ({ onC
 
             {/* Hint Bar - Customer Missing */}
             {counts.missing > 0 && (
-                <div className="bg-orange-50 border-b border-orange-200 px-6 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-500">
-                    <div className="p-1.5 bg-orange-100 rounded-lg animate-pulse">
-                        <Icon name="exclamation-triangle" className="w-5 h-5 text-orange-600" />
+                <div className="bg-indigo-50 border-b border-indigo-200 px-6 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-500">
+                    <div className="p-1.5 bg-indigo-100 rounded-lg animate-pulse">
+                        <Icon name="exclamation-triangle" className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div className="flex-1">
-                        <p className="text-xs text-orange-900 font-bold">Customer Master Missing</p>
-                        <p className="text-[11px] text-orange-700 font-medium">
+                        <p className="text-xs text-indigo-900 font-bold">Customer Master Missing</p>
+                        <p className="text-[11px] text-indigo-700 font-medium">
                             {counts.missing} invoices have customers that don't exist in your records. You must <strong>Create Customer</strong> or edit to match existing masters before finalizing.
                         </p>
                     </div>
@@ -1938,7 +1938,7 @@ const SalesExcelUploadWorkflow: React.FC<SalesExcelUploadWorkflowProps> = ({ onC
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {invoices.map((inv, idx) => (
-                                    <tr key={idx} className={`hover:bg-slate-50/80 transition-colors ${inv.status === 'READY' ? '' : 'bg-amber-50/20'}`}>
+                                    <tr key={idx} className={`hover:bg-slate-50/80 transition-colors ${inv.status === 'READY' ? '' : 'bg-indigo-50/20'}`}>
                                         <td className="px-6 py-4 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
@@ -1974,7 +1974,7 @@ const SalesExcelUploadWorkflow: React.FC<SalesExcelUploadWorkflowProps> = ({ onC
                                                 {(inv.status === 'CUSTOMER_MISSING' || !inv.header.customer_name) && (
                                                     <button
                                                         onClick={() => setCreateCustomerFor(inv)}
-                                                        className="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 text-[10px] font-bold rounded-lg border border-orange-200 transition-all flex items-center gap-1.5"
+                                                        className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-[10px] font-bold rounded-lg border border-indigo-200 transition-all flex items-center gap-1.5"
                                                         title="Customer not found — click to create"
                                                     >
                                                         <Icon name="user-plus" className="w-3.5 h-3.5" />

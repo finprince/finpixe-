@@ -646,7 +646,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
     const getRowStatus = (receipt: number, pending: number) => {
         if (receipt === 0) return { label: 'Not Allocated', status: 'NOT_ALLOCATED', bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
         if (receipt > pending + 0.01) return { label: `Over by ₹${(receipt - pending).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'OVER', bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200' };
-        if (receipt < pending - 0.01) return { label: `Remaining ₹${(pending - receipt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'PARTIAL', bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200' };
+        if (receipt < pending - 0.01) return { label: `Remaining ₹${(pending - receipt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'PARTIAL', bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-200' };
         return { label: 'Full', status: 'FULL', bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200' };
     };
 
@@ -1647,7 +1647,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${txn.status === 'Due' || txn.status === 'Due Today'
                                                                     ? 'bg-red-100 text-red-600 border border-red-200'
                                                                     : (txn.status === 'Partially Received' || txn.status === 'Partially Paid')
-                                                                        ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                                                                        ? 'bg-indigo-100 text-indigo-600 border border-indigo-200'
                                                                         : 'bg-green-100 text-green-600 border border-green-200'
                                                                     }`}>
                                                                     {txn.status}
@@ -1676,7 +1676,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                     onChange={(e) => handleReceiptChange(index, parseFloat(e.target.value) || 0)}
                                                                     placeholder="0"
                                                                     className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
-                                                                        status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' :
+                                                                        status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
                                                                             status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
                                                                         }`}
                                                                 />
@@ -1688,19 +1688,19 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                         </table>
                                     </div>
                                     {/* Allocation Summary Strip */}
-                                    <div className={`border-2 mt-2 px-6 py-3 flex items-center justify-between rounded-[4px] ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+                                    <div className={`border-2 mt-2 px-6 py-3 flex items-center justify-between rounded-[4px] ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-indigo-50 border-indigo-100'}`}>
                                         <div className="flex flex-col">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-orange-700'}`}>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-indigo-700'}`}>
                                                 Balance Status
                                             </span>
-                                            <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-orange-600'}`}>
+                                            <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-indigo-600'}`}>
                                                 {isExactMatch ? '₹0.00 (Balanced)' : isUnderAllocated ? `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} remaining` : `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Over allocated)`}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-6 text-xs">
                                             <div className="flex flex-col items-end">
                                                 <span className="text-[10px] text-gray-400 uppercase font-bold">Total Allocated</span>
-                                                <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                                <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-indigo-600' : 'text-emerald-600'}`}>
                                                     ₹{totalReceipt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                 </span>
                                             </div>
@@ -1975,7 +1975,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${transaction.status === 'Due' || transaction.status === 'Due Today'
                                                                         ? 'bg-red-100 text-red-600 border border-red-200'
                                                                         : (transaction.status === 'Partially Received' || transaction.status === 'Partially Paid')
-                                                                            ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                                                                            ? 'bg-indigo-100 text-indigo-600 border border-indigo-200'
                                                                             : (transaction.status === 'Not Due' ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200')
                                                                         }`}>
                                                                         {transaction.status || 'Pending'}
@@ -2004,7 +2004,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                         value={transaction.receiveNow || ''}
                                                                         onChange={e => handleReceiveNowChange(transaction.id, parseFloat(e.target.value) || 0)}
                                                                         className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
-                                                                            status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' :
+                                                                            status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
                                                                                 status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
                                                                             }`}
                                                                     />

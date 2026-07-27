@@ -1,4 +1,4 @@
-// Vendor Portal - Master Configuration
+﻿// Vendor Portal - Master Configuration
 import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Eye, Pencil, Trash2, Plus, Search, Filter, ChevronLeft, X, Receipt, Check, Download } from 'lucide-react';
@@ -4316,8 +4316,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                             </div>
                                                         </div>
                                                     ) : customerSearchAttempted && vendorName && panNo ? (
-                                                        <div className="p-4 bg-orange-50 border border-orange-100 rounded-[4px]">
-                                                            <p className="text-xs text-orange-700 mb-2 font-medium italic">No matching customer found in Masters.</p>
+                                                        <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-[4px]">
+                                                            <p className="text-xs text-indigo-700 mb-2 font-medium italic">No matching customer found in Masters.</p>
                                                         </div>
                                                     ) : null}
 
@@ -6131,7 +6131,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                         <td className="px-6 py-4 text-sm text-gray-500">{po.amount ? `₹${po.amount}` : '-'}</td>
                                                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                                                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-[4px] border ${po.status === 'Draft' ? 'bg-slate-100 text-slate-700 border-slate-200' :
-                                                                                po.status === 'Pending Approval' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                                                po.status === 'Pending Approval' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                                                                     'bg-green-50 text-green-700 border-green-200'
                                                                                 }`}>
                                                                                 {po.status}
@@ -6770,9 +6770,9 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                             entry.status === 'Due' ? 'bg-red-100 text-red-800' :
                                                                             entry.status === 'Unpaid' ? 'bg-red-100 text-red-800' :
                                                                             entry.status === 'Not Due' ? 'bg-blue-100 text-blue-700' :
-                                                                            entry.status === 'Partially Paid' ? 'bg-orange-100 text-orange-700' :
-                                                                            entry.status === 'Partially Received' ? 'bg-orange-100 text-orange-700' :
-                                                                            entry.status === 'Partially Utilized' ? 'bg-amber-100 text-amber-700' :
+                                                                            entry.status === 'Partially Paid' ? 'bg-indigo-100 text-indigo-700' :
+                                                                            entry.status === 'Partially Received' ? 'bg-indigo-100 text-indigo-700' :
+                                                                            entry.status === 'Partially Utilized' ? 'bg-indigo-100 text-indigo-700' :
                                                                             entry.status === 'Unutilized' ? 'bg-purple-100 text-purple-700' :
                                                                             entry.status === 'Disputed' ? 'bg-yellow-100 text-yellow-800' :
                                                                             'bg-gray-100 text-gray-600'
@@ -6862,7 +6862,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                             <td className="px-6 py-4 whitespace-nowrap text-sm border-r border-gray-50">
                                                                                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-[4px] ${entry.status === 'Paid' ? 'bg-green-100 text-green-800' :
                                                                                     entry.status === 'Due' ? 'bg-red-100 text-red-800' :
-                                                                                        entry.status === 'Partially Paid' ? 'bg-orange-100 text-orange-700' :
+                                                                                        entry.status === 'Partially Paid' ? 'bg-indigo-100 text-indigo-700' :
                                                                                             entry.status === 'Utilized' ? 'bg-blue-100 text-blue-700' :
                                                                                                 entry.status === 'Not Utilized' ? 'bg-purple-100 text-purple-700' :
                                                                                                     'bg-gray-100 text-gray-600'
@@ -7410,7 +7410,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                                     <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.postedFrom === 'Purchase' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                                                                                         row.postedFrom === 'Sales' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                                                                                             row.postedFrom === 'Debit Note' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
-                                                                                                row.postedFrom === 'Credit Note' ? 'bg-orange-50 text-orange-600 border border-orange-100' :
+                                                                                                row.postedFrom === 'Credit Note' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
                                                                                                     'bg-slate-50 text-slate-600 border border-slate-100'
                                                                                         }`}>
                                                                                         {row.postedFrom}
@@ -7433,7 +7433,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                         {row.isFirstInSource && (
                                                                             <td rowSpan={row.rowSpan} className="px-6 py-4 text-center border-r border-slate-100 align-top">
                                                                                 <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.status?.toLowerCase() === 'paid' || row.status?.toLowerCase() === 'paid' || row.status?.toLowerCase() === 'utilized' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                                                                    row.status?.toLowerCase() === 'partially paid' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                                                    row.status?.toLowerCase() === 'partially paid' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
                                                                                         row.status?.toLowerCase() === 'due' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
                                                                                             'bg-indigo-50 text-indigo-600 border border-indigo-100'
                                                                                     }`}>
@@ -7585,7 +7585,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                             <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${selectedVoucherForView.status === 'Posted' ? 'bg-emerald-100 text-emerald-800' :
                                                                 selectedVoucherForView.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
                                                                     selectedVoucherForView.status === 'Initiated' ? 'bg-purple-100 text-purple-800' :
-                                                                        'bg-amber-100 text-amber-800'
+                                                                        'bg-indigo-100 text-indigo-800'
                                                                 }`}>
                                                                 {selectedVoucherForView.status}
                                                             </span>

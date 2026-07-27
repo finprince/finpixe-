@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { httpClient, apiService } from '../../services';
 import { showError, showSuccess } from '../../utils/toast';
 import { Ledger } from '../../types';
@@ -81,7 +81,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
     const [refNo, setRefNo] = useState('');
     const [bankTransactionId, setBankTransactionId] = useState<number | null>(null);
     const [payFrom, setPayFrom] = useState('');
-    const [payFromBalance, setPayFromBalance] = useState('₹0 Cr');
+    const [payFromBalance, setPayFromBalance] = useState('?0 Cr');
     const [payTo, setPayTo] = useState('');
 
     const [totalPayment, setTotalPayment] = useState(0);
@@ -492,10 +492,10 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
         if (ledger) {
             const bal = ledger.balance || 0;
             const sign = bal >= 0 ? 'Dr' : 'Cr';
-            setPayFromBalance(`₹${Math.abs(bal).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${sign}`);
+            setPayFromBalance(`?${Math.abs(bal).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${sign}`);
             setRunningBalance(bal);
         } else {
-            setPayFromBalance('₹0 Cr');
+            setPayFromBalance('?0 Cr');
             setRunningBalance(0);
         }
     }, [payFrom, allLedgers]);
@@ -543,7 +543,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
             if ((prefilledData as any).narration) setPostingNote((prefilledData as any).narration);
             if ((prefilledData as any).bank_transaction_id) setBankTransactionId((prefilledData as any).bank_transaction_id);
             
-            // ── Capture existing voucher ID for edit mode (drill-down) ─────
+            // -- Capture existing voucher ID for edit mode (drill-down) -----
             const refId = (prefilledData as any).voucherId || (prefilledData as any).reference_id || (prefilledData as any).referenceId || (prefilledData as any).id || null;
             if (refId) {
                 setEditingVoucherId(Number(refId));
@@ -551,7 +551,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 setEditingVoucherId(null);
             }
             
-            // ── Hydrate Allocation Items (Drill-down) ─────────────────────────────
+            // -- Hydrate Allocation Items (Drill-down) -----------------------------
             if (isReadOnlyMode && (prefilledData as any).items && Array.isArray((prefilledData as any).items)) {
                 const itemsList = (prefilledData as any).items;
                 
@@ -716,8 +716,8 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
 
     const getRowStatus = (payment: number, pending: number) => {
         if (payment === 0) return { label: 'Not Allocated', status: 'NOT_ALLOCATED', bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
-        if (payment > pending + 0.01) return { label: `Over by ₹${(payment - pending).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'OVER', bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200' };
-        if (payment < pending - 0.01) return { label: `Remaining ₹${(pending - payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'PARTIAL', bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200' };
+        if (payment > pending + 0.01) return { label: `Over by ?${(payment - pending).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'OVER', bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200' };
+        if (payment < pending - 0.01) return { label: `Remaining ?${(pending - payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, status: 'PARTIAL', bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-200' };
         return { label: 'Full', status: 'FULL', bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200' };
     };
 
@@ -1076,7 +1076,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
         setRefNo('');
         setTopAmount(0);
         setPayFrom('');
-        setPayFromBalance('₹0 Cr');
+        setPayFromBalance('?0 Cr');
         setRunningBalance(0);
         setPayTo('');
         setPendingTransactions(pendingTransactions.map(txn => ({ ...txn, payment: 0 })));
@@ -1118,11 +1118,11 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
             }
 
             if (isUnderAllocated) {
-                showError(`₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} still needs to be allocated`);
+                showError(`?${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} still needs to be allocated`);
             } else if (hasAnyOverAllocation) {
                 showError("One or more rows exceed pending amount.");
             } else if (isOverAllocated) {
-                showError(`Over allocated by ₹${Math.abs(difference).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+                showError(`Over allocated by ?${Math.abs(difference).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
             }
             return;
         }
@@ -1520,7 +1520,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                 }}
                                                 className="px-3 py-1 bg-white border border-indigo-200 rounded text-xs text-indigo-600 hover:bg-indigo-100 transition-colors"
                                             >
-                                                {adv.reference_no} (₹{adv.amount})
+                                                {adv.reference_no} (?{adv.amount})
                                             </button>
                                         ))}
                                     </div>
@@ -1600,7 +1600,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${txn.dueStatus === 'Due' || txn.dueStatus === 'Due Today'
                                                                 ? 'bg-red-100 text-red-600 border border-red-200'
                                                                 : (txn.dueStatus === 'Partially Received' || txn.dueStatus === 'Partially Paid')
-                                                                    ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                                                                    ? 'bg-indigo-100 text-indigo-600 border border-indigo-200'
                                                                     : 'bg-green-100 text-green-600 border border-green-200'
                                                                 }`}>
                                                                 {txn.dueStatus}
@@ -1612,7 +1612,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-sm text-gray-700 text-right font-medium text-red-600">
-                                                            ₹{Math.max(0, txn.amount - txn.payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                            ?{Math.max(0, txn.amount - txn.payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                         </td>
                                                         <td className="px-6 py-4 text-center">
                                                             <button
@@ -1629,7 +1629,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                                 onChange={(e) => handlePaymentChange(index, parseFloat(e.target.value) || 0)}
                                                                 placeholder="0"
                                                                 className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
-                                                                        status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' :
+                                                                        status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
                                                                             status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
                                                                     }`}
                                                             />
@@ -1641,27 +1641,27 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                     </table>
                                 </div>
                                 {/* Allocation Summary Strip */}
-                                <div className={`border-2 mt-2 px-6 py-3 flex items-center justify-between rounded-[4px] ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+                                <div className={`border-2 mt-2 px-6 py-3 flex items-center justify-between rounded-[4px] ${isExactMatch ? 'bg-emerald-50 border-emerald-100' : isOverAllocated ? 'bg-red-50 border-red-100' : 'bg-indigo-50 border-indigo-100'}`}>
                                     <div className="flex flex-col">
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-orange-700'}`}>
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isExactMatch ? 'text-emerald-700' : isOverAllocated ? 'text-red-700' : 'text-indigo-700'}`}>
                                             Balance Status
                                         </span>
-                                        <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-orange-600'}`}>
-                                            {isExactMatch ? '₹0.00 (Balanced)' : isUnderAllocated ? `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} remaining` : `₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Over allocated)`}
+                                        <span className={`text-xs font-black ${isExactMatch ? 'text-emerald-600' : isOverAllocated ? 'text-red-600' : 'text-indigo-600'}`}>
+                                            {isExactMatch ? '?0.00 (Balanced)' : isUnderAllocated ? `?${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} remaining` : `?${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Over allocated)`}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-6 text-xs">
                                         <div className="flex flex-col items-end">
                                             <span className="text-[10px] text-gray-400 uppercase font-bold">Total Allocated</span>
-                                            <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-orange-600' : 'text-emerald-600'}`}>
-                                                ₹{totalPayment.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            <span className={`font-bold text-sm ${isOverAllocated ? 'text-red-600' : isUnderAllocated ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                                                ?{totalPayment.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                         <div className="h-8 w-px bg-gray-200"></div>
                                         <div className="flex flex-col items-end">
                                             <span className="text-[10px] text-gray-400 uppercase font-bold">Entered Amount</span>
                                             <span className="font-bold text-sm text-gray-700">
-                                                ₹{topAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                ?{topAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                     </div>
@@ -1852,7 +1852,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                             {/* Total Payment */}
                             <div className="flex justify-center my-6">
                                 <button className="px-8 py-2 bg-indigo-600 text-white rounded-[4px] font-medium min-w-[200px] uppercase">
-                                    Total Payment: ₹{bulkTotalPayment.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    Total Payment: ?{bulkTotalPayment.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </button>
                             </div>
 
@@ -1943,7 +1943,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${transaction.status === 'Due' || transaction.status === 'Due Today'
                                                                             ? 'bg-red-100 text-red-600 border border-red-200'
                                                                             : (transaction.status === 'Partially Received' || transaction.status === 'Partially Paid')
-                                                                                ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                                                                                ? 'bg-indigo-100 text-indigo-600 border border-indigo-200'
                                                                                 : (transaction.status === 'Not Due' ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200')
                                                                             }`}>
                                                                             {transaction.status || 'Pending'}
@@ -1955,7 +1955,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                                         </div>
                                                                     </td>
                                                                     <td className="py-3 px-2 text-sm text-gray-700 text-right font-medium text-red-600">
-                                                                        ₹{(Math.max(0, transaction.amount - (transaction.payNow || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                                        ?{(Math.max(0, transaction.amount - (transaction.payNow || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                                     </td>
                                                                     <td className="py-3 px-2 text-center">
                                                                         <button
@@ -1972,7 +1972,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                                             onChange={e => handlePayNowChange(transaction.id, parseFloat(e.target.value) || 0)}
                                                                             placeholder="0"
                                                                             className={`w-20 px-2 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
-                                                                                    status.status === 'PARTIAL' ? 'border-orange-300 bg-orange-50 text-orange-700' :
+                                                                                    status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
                                                                                         status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
                                                                                 }`}
                                                                         />
@@ -2018,7 +2018,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                         }}
                                                         className="px-3 py-1 bg-indigo-50 border border-indigo-200 rounded text-xs text-indigo-600 hover:bg-indigo-100 transition-colors"
                                                     >
-                                                        {adv.reference_no} (₹{adv.amount})
+                                                        {adv.reference_no} (?{adv.amount})
                                                     </button>
                                                 ))}
                                             </div>

@@ -1,4 +1,4 @@
-import finpixeLogo from '../../assets/branding/logo';
+﻿import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
@@ -64,11 +64,11 @@ const getSOColor = (value: string) => {
   const colors = [
     'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm',
     'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm',
-    'bg-amber-50 text-amber-700 border-amber-100 shadow-sm',
+    'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm',
     'bg-rose-50 text-rose-700 border-rose-100 shadow-sm',
     'bg-sky-50 text-sky-700 border-sky-100 shadow-sm',
     'bg-violet-50 text-violet-700 border-violet-100 shadow-sm',
-    'bg-orange-50 text-orange-700 border-orange-100 shadow-sm',
+    'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm',
     'bg-teal-50 text-teal-700 border-teal-100 shadow-sm',
   ];
   let hash = 0;
@@ -3880,7 +3880,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       setIsIssueSlipTimeEdited(false);
                       setShowIssueSlipForm(true);
                     }}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-[#F97316] hover:bg-[#EA580C]"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-[#6366F1] hover:bg-[#4F46E5]"
                   >
                     ➕ Add New Issue Slip
                   </button>
@@ -3891,7 +3891,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       setIsGrnTimeEdited(false);
                       setShowGRNForm(true);
                     }}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-[#F97316] hover:bg-[#EA580C]"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 text-white bg-[#6366F1] hover:bg-[#4F46E5]"
                   >
                     ➕ Add New GRN
                   </button>
@@ -3953,7 +3953,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                                 setShowItemDetail(true);
                                 fetchStockMovementDetails(item.itemCode);
                               }}
-                              className="text-[#F97316] hover:text-[#EA580C] font-medium text-sm"
+                              className="text-[#6366F1] hover:text-[#4F46E5] font-medium text-sm"
                             >
                               View
                             </button>
@@ -8375,7 +8375,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                                   className={`px-2 py-1 rounded text-xs font-bold text-white shadow-sm border border-black/10`}
                                   style={{
                                     backgroundColor: [
-                                      '#F97316', '#EA580C', '#059669', '#D97706', '#DC2626', '#FB923C'
+                                      '#6366F1', '#4F46E5', '#059669', '#4F46E5', '#DC2626', '#818CF8'
                                     ][idx % 6]
                                   }}
                                 >
@@ -8569,7 +8569,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                           {grnItems.map((item, index) => {
                             // Find color index for the source PO
                             const poIdx = item.po_number ? grnSelectedPOs.indexOf(item.po_number) : -1;
-                            const colors = ['#F97316', '#EA580C', '#059669', '#D97706', '#DC2626', '#FB923C'];
+                            const colors = ['#6366F1', '#4F46E5', '#059669', '#4F46E5', '#DC2626', '#818CF8'];
                             const bgColor = poIdx > -1 ? `${colors[poIdx % 6]}15` : 'transparent'; // 15% opacity
 
                             return (
@@ -9768,7 +9768,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                     .map((item) => (
                       <tr
                         key={item.id}
-                        className="hover:bg-orange-50/40 transition-colors cursor-pointer"
+                        className="hover:bg-indigo-50/40 transition-colors cursor-pointer"
                         onClick={() => {
                           setInspectorState({
                             isOpen: true,
@@ -9794,8 +9794,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                           });
                         }}
                       >
-                        <td className="px-4 py-3 font-bold text-[#EA580C]">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-orange-50 text-[#EA580C] border border-orange-100 font-mono text-[11px]">
+                        <td className="px-4 py-3 font-bold text-[#4F46E5]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 text-[#4F46E5] border border-indigo-100 font-mono text-[11px]">
                             {item.itemCode}
                           </span>
                         </td>
@@ -9813,7 +9813,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                           <div className="flex justify-center items-center gap-3">
                             <button
                               onClick={() => handleEditItemOpen(item)}
-                              className="text-[#EA580C] hover:text-[#C2410C] font-extrabold text-[11px] uppercase tracking-wider"
+                              className="text-[#4F46E5] hover:text-[#4338CA] font-extrabold text-[11px] uppercase tracking-wider"
                             >
                               EDIT
                             </button>

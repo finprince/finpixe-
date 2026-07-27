@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
         <div className="flex items-center gap-2.5">
           {/* Company Avatar */}
           <div
-            className="flex items-center justify-center w-8 h-8 text-white rounded-lg shrink-0 bg-[#F97316] shadow-md shadow-orange-500/20"
+            className="flex items-center justify-center w-8 h-8 text-white rounded-lg shrink-0 bg-[#6366F1] shadow-md shadow-indigo-500/20"
           >
             <span className="text-sm font-bold">
               {companyName?.charAt(0).toUpperCase() || 'A'}
@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
                 </div>
                 <span className="flex-1 text-left">{item.label || item.name}</span>
                 {isActive && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#6366F1]" />
                 )}
               </button>
             </React.Fragment>
@@ -116,9 +116,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, co
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full h-2 bg-orange-50 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-indigo-50 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#F97316] rounded-full transition-all duration-500"
+              className="h-full bg-[#6366F1] rounded-full transition-all duration-500"
               style={{ width: `${usagePercent}%` }}
             />
           </div>

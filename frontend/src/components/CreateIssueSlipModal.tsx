@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { httpClient } from '../services/httpClient';
 import { showWarning } from '../utils/toast';
@@ -28,11 +28,11 @@ const getSOColor = (value: string) => {
     const colors = [
         'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm',
         'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm',
-        'bg-amber-50 text-amber-700 border-amber-100 shadow-sm',
+        'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm',
         'bg-rose-50 text-rose-700 border-rose-100 shadow-sm',
         'bg-sky-50 text-sky-700 border-sky-100 shadow-sm',
         'bg-violet-50 text-violet-700 border-violet-100 shadow-sm',
-        'bg-orange-50 text-orange-700 border-orange-100 shadow-sm',
+        'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm',
         'bg-teal-50 text-teal-700 border-teal-100 shadow-sm',
     ];
     let hash = 0;
@@ -675,7 +675,7 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                                 ))}
                             </select>
                             {outwardSeriesList.length === 0 && (
-                                <p className="text-xs text-amber-600 mt-1">No Outward series found. Go to Inventory &gt; Masters &gt; GRN &amp; Issue Slip &gt; Issue Slip to create one.</p>
+                                <p className="text-xs text-indigo-600 mt-1">No Outward series found. Go to Inventory &gt; Masters &gt; GRN &amp; Issue Slip &gt; Issue Slip to create one.</p>
                             )}
                         </div>
                         <div>

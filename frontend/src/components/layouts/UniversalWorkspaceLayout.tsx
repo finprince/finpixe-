@@ -2,6 +2,7 @@ import React from 'react';
 import { WorkspaceToolbar } from '../ui/WorkspaceToolbar';
 import { InspectorDrawer } from '../ui/InspectorDrawer';
 import type { WorkspaceProps } from '../../types';
+import finpixeLogo from '../../assets/finpixe with empty bg.png';
 
 export const UniversalWorkspaceLayout: React.FC<WorkspaceProps> = ({
   title,
@@ -22,10 +23,13 @@ export const UniversalWorkspaceLayout: React.FC<WorkspaceProps> = ({
         {/* Context Header */}
         <div className="flex justify-between items-center pb-4 border-b border-slate-200">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-sm overflow-hidden">
+                <img src={finpixeLogo} alt="Finpixe" className="w-full h-full object-contain drop-shadow-sm p-0.5" />
+              </div>
               <h1 className="text-lg font-extrabold tracking-tight text-slate-900 leading-none">{title}</h1>
               {badgeText && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-50 text-[#EA580C] border border-orange-200">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-[#4F46E5] border border-indigo-200">
                   {badgeText}
                 </span>
               )}

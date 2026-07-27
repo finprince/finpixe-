@@ -446,8 +446,8 @@ const FloatingCalendar: React.FC = () => {
               <span
                 className="flex items-center justify-center w-10 h-10 rounded-full text-white"
                 style={{
-                  background: 'linear-gradient(135deg, #fb923c 0%, #f97316 100%)',
-                  boxShadow: '0 6px 18px rgba(249,115,22,0.45)',
+                  background: 'linear-gradient(135deg, #818CF8 0%, #6366F1 100%)',
+                  boxShadow: '0 6px 18px rgba(99, 102, 241,0.45)',
                 }}
               >
                 <Icon name="calendar" className="w-4 h-4" />
@@ -763,7 +763,7 @@ const FloatingCalendar: React.FC = () => {
               key={alert.id}
               className="bg-white/95 backdrop-blur-md border border-purple-100 rounded-[14px] p-4 shadow-[0_16px_40px_rgba(15,23,42,0.12)] flex gap-3 transition-all duration-300 animate-slide-in-right select-none text-left"
               style={{
-                borderLeft: '4px solid #f97316',
+                borderLeft: '4px solid #6366F1',
               }}
             >
               <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 animate-pulse-slow">

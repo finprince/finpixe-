@@ -1522,7 +1522,7 @@ const MastersPage: React.FC<MastersPageProps> = ({
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Chart of Accounts Groups</h3>
             <p className="text-xs text-slate-500 font-medium">Hierarchy and group classification rules</p>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-orange-50 text-[#EA580C] text-xs font-bold border border-orange-100">
+          <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-[#4F46E5] text-xs font-bold border border-indigo-100">
             {ledgerGroups.length} Groups Active
           </span>
         </div>
@@ -1533,7 +1533,7 @@ const MastersPage: React.FC<MastersPageProps> = ({
               placeholder="Search groups by name or parent group..."
               value={groupSearchQuery}
               onChange={(e) => setGroupSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Icon name="search" className="h-4 w-4 text-slate-400" />
@@ -1569,7 +1569,7 @@ const MastersPage: React.FC<MastersPageProps> = ({
                   <tr
                     key={group.id || group.name}
                     className={`transition-colors cursor-pointer ${isSelected
-                      ? 'bg-orange-50/60 font-semibold'
+                      ? 'bg-indigo-50/60 font-semibold'
                       : 'hover:bg-slate-50/80'
                       }`}
                     onClick={() => {
@@ -1602,7 +1602,7 @@ const MastersPage: React.FC<MastersPageProps> = ({
                         onChange={() => {
                           setSelectedGroup(group);
                         }}
-                        className="w-4 h-4 text-[#EA580C] focus:ring-[#EA580C] cursor-pointer"
+                        className="w-4 h-4 text-[#4F46E5] focus:ring-[#4F46E5] cursor-pointer"
                         aria-label={`Select ${group.name}`}
                       />
                     </td>
@@ -1623,7 +1623,7 @@ const MastersPage: React.FC<MastersPageProps> = ({
                         <div className="flex justify-center items-center gap-3">
                           <button
                             onClick={handleEditGroup}
-                            className="text-[#EA580C] hover:text-[#C2410C] font-extrabold text-[11px] uppercase tracking-wider"
+                            className="text-[#4F46E5] hover:text-[#4338CA] font-extrabold text-[11px] uppercase tracking-wider"
                             aria-label="Edit selected group"
                           >
                             EDIT

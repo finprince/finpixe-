@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
 import { showSuccess, showError } from '../../utils/toast';
@@ -144,9 +144,9 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                         <span className="text-sm text-emerald-700 font-medium">Exact Match</span>
                         <div className="text-2xl font-bold text-emerald-900">{summary.exact_match}</div>
                     </div>
-                    <div className="p-4 bg-orange-50 rounded-[4px] border border-orange-100">
-                        <span className="text-sm text-orange-700 font-medium">Partial Match</span>
-                        <div className="text-2xl font-bold text-orange-900">{summary.partial_match}</div>
+                    <div className="p-4 bg-indigo-50 rounded-[4px] border border-indigo-100">
+                        <span className="text-sm text-indigo-700 font-medium">Partial Match</span>
+                        <div className="text-2xl font-bold text-indigo-900">{summary.partial_match}</div>
                     </div>
                     <div className="p-4 bg-rose-50 rounded-[4px] border border-rose-100">
                         <span className="text-sm text-rose-700 font-medium">Missing in Books</span>
@@ -187,7 +187,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                         <td>
                                             <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full 
                                                 ${row.status === 'EXACT' ? 'bg-emerald-100 text-emerald-800' :
-                                                  row.status === 'PARTIAL' ? 'bg-orange-100 text-orange-800' :
+                                                  row.status === 'PARTIAL' ? 'bg-indigo-100 text-indigo-800' :
                                                   row.status === 'MISSING_BOOKS' ? 'bg-rose-100 text-rose-800' :
                                                   'bg-slate-100 text-slate-800'}`}>
                                                 {row.status.replace('_', ' ')}
@@ -201,7 +201,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                             <div className="flex items-center gap-2">
                                                 <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
                                                     <div 
-                                                        className={`h-full ${row.matching_score >= 70 ? 'bg-emerald-500' : row.matching_score >= 50 ? 'bg-orange-500' : 'bg-rose-500'}`} 
+                                                        className={`h-full ${row.matching_score >= 70 ? 'bg-emerald-500' : row.matching_score >= 50 ? 'bg-indigo-500' : 'bg-rose-500'}`} 
                                                         style={{ width: `${row.matching_score}%` }}
                                                     ></div>
                                                 </div>
@@ -279,7 +279,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                         <div className="bg-teal-50/30 p-4 rounded-lg border border-teal-50 space-y-3">
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Supplier Name</div>
-                                                <div className={`font-medium ${selectedRow.books_data.vendor_name !== selectedRow.vendor_name ? 'text-orange-600 bg-orange-50 px-1 rounded' : 'text-slate-800'}`}>{selectedRow.books_data.vendor_name || 'N/A'}</div>
+                                                <div className={`font-medium ${selectedRow.books_data.vendor_name !== selectedRow.vendor_name ? 'text-indigo-600 bg-indigo-50 px-1 rounded' : 'text-slate-800'}`}>{selectedRow.books_data.vendor_name || 'N/A'}</div>
                                             </div>
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Supplier GSTIN</div>
@@ -287,15 +287,15 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                             </div>
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Invoice Number</div>
-                                                <div className={`font-medium ${selectedRow.books_data.invoice_no?.toLowerCase() !== selectedRow.invoice_no?.toLowerCase() ? 'text-orange-600 bg-orange-50 px-1 rounded' : 'text-slate-800'}`}>{selectedRow.books_data.invoice_no}</div>
+                                                <div className={`font-medium ${selectedRow.books_data.invoice_no?.toLowerCase() !== selectedRow.invoice_no?.toLowerCase() ? 'text-indigo-600 bg-indigo-50 px-1 rounded' : 'text-slate-800'}`}>{selectedRow.books_data.invoice_no}</div>
                                             </div>
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Invoice Date</div>
-                                                <div className={`font-medium ${selectedRow.books_data.invoice_date !== selectedRow.invoice_date ? 'text-orange-600 bg-orange-50 px-1 rounded' : 'text-slate-800'}`}>{selectedRow.books_data.invoice_date}</div>
+                                                <div className={`font-medium ${selectedRow.books_data.invoice_date !== selectedRow.invoice_date ? 'text-indigo-600 bg-indigo-50 px-1 rounded' : 'text-slate-800'}`}>{selectedRow.books_data.invoice_date}</div>
                                             </div>
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Invoice Value</div>
-                                                <div className={`font-bold ${Number(selectedRow.books_data.invoice_value) !== Number(selectedRow.invoice_value) ? 'text-orange-600 bg-orange-50 px-1 rounded' : 'text-teal-700'}`}>₹{Number(selectedRow.books_data.invoice_value).toFixed(2)}</div>
+                                                <div className={`font-bold ${Number(selectedRow.books_data.invoice_value) !== Number(selectedRow.invoice_value) ? 'text-indigo-600 bg-indigo-50 px-1 rounded' : 'text-teal-700'}`}>₹{Number(selectedRow.books_data.invoice_value).toFixed(2)}</div>
                                             </div>
                                         </div>
                                     ) : (
@@ -347,7 +347,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                                 onNavigate('Vouchers');
                                             }
                                         }}
-                                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded shadow text-sm font-semibold transition-all flex items-center gap-2"
+                                        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded shadow text-sm font-semibold transition-all flex items-center gap-2"
                                     >
                                         ✏️ Open Purchase Voucher to Fix
                                     </button>

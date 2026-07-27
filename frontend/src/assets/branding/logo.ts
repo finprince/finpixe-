@@ -1,4 +1,4 @@
-import kikiLogo from '../kiki-agent-orange.png';
+import finpixeLogo from '../finpixe with empty bg.png';
 
-export const APP_LOGO = kikiLogo;
+export const APP_LOGO = finpixeLogo;
 export default APP_LOGO;

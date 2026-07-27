@@ -406,7 +406,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, roles, loading, onCreateUser
     <div className="erp-card">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">Users</h2>
-            <button onClick={onCreateUser} className="px-5 py-2.5 bg-[#F97316] text-white rounded-[10px] hover:bg-[#EA580C] transition-all font-bold shadow-md shadow-orange-500/10">+ ADD USER</button>
+            <button onClick={onCreateUser} className="px-5 py-2.5 bg-[#6366F1] text-white rounded-[10px] hover:bg-[#4F46E5] transition-all font-bold shadow-md shadow-indigo-500/10">+ ADD USER</button>
         </div>
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -421,7 +421,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, roles, loading, onCreateUser
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                     {users.map(user => (
-                        <tr key={user.id} className="hover:bg-[#FFF7ED]/50 transition-colors">
+                        <tr key={user.id} className="hover:bg-[#EEF2FF]/50 transition-colors">
                             <td className="px-6 py-4">
                                 <div className="font-bold text-slate-900">{user.username}</div>
                                 {user.email && (
@@ -432,7 +432,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, roles, loading, onCreateUser
                                 <div className="flex flex-wrap gap-1">
                                     {user.roles.length > 0 ? (
                                         user.roles.map((r: any) => (
-                                            <span key={r.id} className="bg-[#FFF7ED] text-[#EA580C] px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-[#FED7AA]">
+                                            <span key={r.id} className="bg-[#EEF2FF] text-[#4F46E5] px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-[#C7D2FE]">
                                                 {r.name}
                                             </span>
                                         ))
@@ -470,7 +470,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, roles, loading, onCreateUser
                                 )}
                             </td>
                             <td className="px-6 py-4 text-right space-x-3">
-                                <button onClick={() => onEditUser(user)} className="text-[#F97316] hover:text-[#EA580C] font-bold uppercase text-xs tracking-wider transition-colors">Manage</button>
+                                <button onClick={() => onEditUser(user)} className="text-[#6366F1] hover:text-[#4F46E5] font-bold uppercase text-xs tracking-wider transition-colors">Manage</button>
                                 <button onClick={() => onDeleteUser(user.id)} className="text-red-600 hover:text-red-800 font-bold uppercase text-xs tracking-wider transition-colors">Remove</button>
                             </td>
                         </tr>
@@ -490,14 +490,14 @@ const RolesTab: React.FC<RolesTabProps> = ({ roles, loading, onCreateRole, onEdi
     <div className="erp-card p-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
         <div className="col-span-full flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Roles</h2>
-            <button onClick={onCreateRole} className="px-5 py-2.5 bg-[#F97316] text-white rounded-[10px] hover:bg-[#EA580C] transition-all font-bold shadow-md shadow-orange-500/10">+ Create Role</button>
+            <button onClick={onCreateRole} className="px-5 py-2.5 bg-[#6366F1] text-white rounded-[10px] hover:bg-[#4F46E5] transition-all font-bold shadow-md shadow-indigo-500/10">+ Create Role</button>
         </div>
         {roles.map(role => (
-            <div key={role.id} className="border border-gray-200 rounded-[12px] p-4 bg-white hover:border-[#F97316]/50 transition-all">
+            <div key={role.id} className="border border-gray-200 rounded-[12px] p-4 bg-white hover:border-[#6366F1]/50 transition-all">
                 <h3 className="font-bold text-slate-900">{role.name}</h3>
                 <p className="text-gray-500 text-xs mb-4">{role.description}</p>
                 <div className="flex justify-end space-x-3">
-                    <button onClick={() => onEditRole(role)} className="text-[#F97316] hover:text-[#EA580C] font-bold text-xs uppercase tracking-wider">Edit</button>
+                    <button onClick={() => onEditRole(role)} className="text-[#6366F1] hover:text-[#4F46E5] font-bold text-xs uppercase tracking-wider">Edit</button>
                     <button onClick={() => onDeleteRole(role.id)} className="text-red-600 hover:text-red-800 font-bold text-xs uppercase tracking-wider">Delete</button>
                 </div>
             </div>
@@ -547,7 +547,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, form, roles, onFormChange, 
                                             : form.role_ids.filter((id: number) => id !== role.id);
                                         onFormChange({ ...form, role_ids: newRoles });
                                     }}
-                                    className="w-4 h-4 rounded border-slate-300 text-[#F97316] focus:ring-[#F97316]"
+                                    className="w-4 h-4 rounded border-slate-300 text-[#6366F1] focus:ring-[#6366F1]"
                                 />
                                 <span className="text-sm font-bold text-slate-700 uppercase tracking-tight group-hover:text-slate-900">{role.name}</span>
                             </label>
@@ -558,7 +558,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, form, roles, onFormChange, 
 
             <div className="bg-slate-50 px-8 py-5 flex justify-end gap-3 border-t border-slate-100">
                 <button onClick={onClose} className="px-6 py-2.5 font-bold text-slate-600 hover:text-slate-800 transition-colors">Cancel</button>
-                <button onClick={onSave} className="erp-button-primary px-10 shadow-lg shadow-orange-500/20">
+                <button onClick={onSave} className="erp-button-primary px-10 shadow-lg shadow-indigo-500/20">
                     {user ? 'Update Access' : 'Activate Seat'}
                 </button>
             </div>
@@ -582,26 +582,26 @@ const RoleModal: React.FC<RoleModalProps> = ({ role, form, permissionsStructure,
                             return (
                                 <div key={pageName} className="bg-white border rounded-[10px] p-3">
                                     <label className="flex items-center font-black text-sm uppercase tracking-widest text-slate-800">
-                                        <input type="checkbox" className="mr-3 w-4 h-4 rounded border-slate-300 text-[#F97316] focus:ring-[#F97316]" checked={pagePerms.view} onChange={() => onTogglePage(pageName)} />
+                                        <input type="checkbox" className="mr-3 w-4 h-4 rounded border-slate-300 text-[#6366F1] focus:ring-[#6366F1]" checked={pagePerms.view} onChange={() => onTogglePage(pageName)} />
                                         {pageName}
                                     </label>
                                     <div className="ml-6 mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
                                         {tabs.map((tab: any) => (
                                             typeof tab === 'string' ? (
                                                 <label key={tab} className="flex items-center text-xs">
-                                                    <input type="checkbox" className="mr-1 accent-[#F97316]" checked={pagePerms.tabs[tab]} onChange={() => onToggleTab(pageName, tab)} />
+                                                    <input type="checkbox" className="mr-1 accent-[#6366F1]" checked={pagePerms.tabs[tab]} onChange={() => onToggleTab(pageName, tab)} />
                                                     {tab}
                                                 </label>
                                             ) : (
                                                 <div key={tab.name} className="col-span-full border-t pt-2 mt-2">
                                                     <label className="flex items-center font-bold text-[10px] uppercase text-gray-500">
-                                                        <input type="checkbox" className="mr-1 accent-[#F97316]" checked={tab.subs.every((s: string) => pagePerms.tabs[s])} onChange={() => onToggleSubmodule(pageName, tab.subs)} />
+                                                        <input type="checkbox" className="mr-1 accent-[#6366F1]" checked={tab.subs.every((s: string) => pagePerms.tabs[s])} onChange={() => onToggleSubmodule(pageName, tab.subs)} />
                                                         {tab.name}
                                                     </label>
                                                     <div className="ml-4 grid grid-cols-3 gap-2 mt-1">
                                                         {tab.subs.map((s: string) => (
                                                             <label key={s} className="flex items-center text-xs">
-                                                                <input type="checkbox" className="mr-1 accent-[#F97316]" checked={pagePerms.tabs[s]} onChange={() => onToggleTab(pageName, s)} />
+                                                                <input type="checkbox" className="mr-1 accent-[#6366F1]" checked={pagePerms.tabs[s]} onChange={() => onToggleTab(pageName, s)} />
                                                                 {s}
                                                             </label>
                                                         ))}
@@ -618,7 +618,7 @@ const RoleModal: React.FC<RoleModalProps> = ({ role, form, permissionsStructure,
             </div>
             <div className="mt-6 flex justify-end space-x-3">
                 <button onClick={onClose} className="px-5 py-2 border rounded-[10px] font-bold text-slate-600">Cancel</button>
-                <button onClick={onSave} className="px-6 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-[10px] shadow-md">Save</button>
+                <button onClick={onSave} className="px-6 py-2 bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold rounded-[10px] shadow-md">Save</button>
             </div>
         </div>
     </div>

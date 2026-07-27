@@ -270,7 +270,7 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ branch, onBack }) => {
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {loading && !branchData ? (
                                 <div className="py-20 text-center animate-pulse flex flex-col items-center">
-                                    <div className="w-10 h-10 border-4 border-orange-100 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
+                                    <div className="w-10 h-10 border-4 border-indigo-100 border-t-[#6366F1] rounded-full animate-spin mb-4"></div>
                                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">FETCHING LIVE DATA...</p>
                                 </div>
                             ) : (

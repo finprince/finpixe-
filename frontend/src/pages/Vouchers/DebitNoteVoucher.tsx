@@ -1341,7 +1341,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                     {selectedSupplierInvoices.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mt-2">
                                             {selectedSupplierInvoices.map((no, idx) => {
-                                                const colors = ['bg-blue-100 text-blue-700 border-blue-200', 'bg-green-100 text-green-700 border-green-200', 'bg-purple-100 text-purple-700 border-purple-200', 'bg-orange-100 text-orange-700 border-orange-200'];
+                                                const colors = ['bg-blue-100 text-blue-700 border-blue-200', 'bg-green-100 text-green-700 border-green-200', 'bg-purple-100 text-purple-700 border-purple-200', 'bg-indigo-100 text-indigo-700 border-indigo-200'];
                                                 const colorClass = colors[idx % colors.length];
 
                                                 return (
@@ -1506,7 +1506,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                     <label className="block text-sm font-bold text-[#2D3748] uppercase tracking-wider">
                                         SHIP FROM
                                     </label>
-                                    <label className="flex items-center text-xs font-bold text-[#F97316] cursor-pointer uppercase tracking-tight">
+                                    <label className="flex items-center text-xs font-bold text-[#6366F1] cursor-pointer uppercase tracking-tight">
                                         <input
                                             type="checkbox"
                                             checked={sameAsBillTo}
@@ -1924,7 +1924,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                     <div className="space-y-6">
                         <div className="overflow-x-auto border border-gray-200 rounded-[4px]">
                             <table className="w-full text-sm text-left text-gray-500 whitespace-nowrap min-w-[1200px]">
-                                <thead className="bg-[#F97316] text-white uppercase font-semibold">
+                                <thead className="bg-[#6366F1] text-white uppercase font-semibold">
                                     <tr>
                                         <th className="px-3 py-2 text-center border-r border-indigo-400 w-16">S. No.</th>
                                         <th className="px-3 py-2 text-center border-r border-indigo-400 w-40">Supplier Invoice No.</th>
@@ -2139,7 +2139,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                         {/* Top Tax Summary Grid */}
                         <div className="border border-gray-300 rounded-[4px] overflow-hidden">
                             <table className="w-full">
-                                <thead className="bg-[#F97316] text-white uppercase">
+                                <thead className="bg-[#6366F1] text-white uppercase">
                                     <tr>
                                         <th className="px-4 py-3 text-center border-r border-indigo-400 font-semibold text-sm">Taxable Value</th>
                                         <th className="px-4 py-3 text-center border-r border-indigo-400 font-semibold text-sm">IGST</th>

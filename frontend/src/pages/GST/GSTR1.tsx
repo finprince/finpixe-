@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
 
@@ -490,7 +490,7 @@ useEffect(() => {
             {/* Period Selector */}
             <div className="erp-container">
                 <div className="flex flex-wrap items-end gap-6">
-                    <div className="flex-1 min-w-[200px]">
+                    <div className="w-48">
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
                         <select
                             value={period.year}
@@ -516,7 +516,7 @@ useEffect(() => {
                             })()}
                         </select>
                     </div>
-                    <div className="flex-1 min-w-[200px]">
+                    <div className="w-48">
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
                         <select
                             value={period.month}
@@ -564,7 +564,7 @@ useEffect(() => {
                                 className={`erp-button-primary flex items-center gap-2 ${
                                     isCurrentOrFutureMonth
                                         ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70'
-                                        : 'bg-amber-600 hover:bg-amber-700 border-amber-600'
+                                        : 'bg-indigo-600 hover:bg-indigo-700 border-indigo-600'
                                 }`}
                             >
                                 📝 File Amendment ({activeSubTab})
@@ -589,7 +589,7 @@ useEffect(() => {
                         </button>
                         <button
                             onClick={handleDownloadJson}
-                            className="erp-button-secondary bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100"
+                            className="erp-button-secondary bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"
                             disabled={isLoading}
                         >
                             Download JSON
@@ -627,7 +627,7 @@ useEffect(() => {
                     {/* Loading State */}
                     {isLoading && (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-[4px] h-8 w-8 border-b-2 border-[#F97316]"></div>
+                            <div className="animate-spin rounded-[4px] h-8 w-8 border-b-2 border-[#6366F1]"></div>
                         </div>
                     )}
 
@@ -750,7 +750,7 @@ useEffect(() => {
                                                             ✅ Filed
                                                         </span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                                                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                                             Pending
                                                         </span>
                                                     )}
@@ -848,7 +848,7 @@ useEffect(() => {
                                         {b2claData.length > 0 ? b2claData.map((row, idx) => (
                                             <tr
                                                 key={idx}
-                                                className="hover:bg-amber-50 cursor-pointer"
+                                                className="hover:bg-indigo-50 cursor-pointer"
                                                 onClick={() => {
                                                     if (setViewVoucherData && onNavigate) {
                                                         setViewVoucherData({
@@ -941,7 +941,7 @@ useEffect(() => {
                                                         <td className="px-4 py-3 border-b text-sm text-gray-800 text-right font-medium">?{Number(v.invoice_value).toFixed(2)}</td>
                                                         <td className="px-4 py-3 border-b text-sm text-center">
                                                             {v.amendment_date ? (
-                                                                <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase">Amended</span>
+                                                                <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase">Amended</span>
                                                             ) : v.gst_registered === 'Yes' ? (
                                                                 <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold uppercase">GST Filed</span>
                                                             ) : (
@@ -1058,7 +1058,7 @@ useEffect(() => {
                                                         <td className="px-4 py-3 border-b text-sm text-gray-800 text-right font-medium">?{Number(v.invoice_value).toFixed(2)}</td>
                                                         <td className="px-4 py-3 border-b text-sm text-center">
                                                             {v.amendment_date ? (
-                                                                <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase">Amended</span>
+                                                                <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase">Amended</span>
                                                             ) : v.gst_registered === 'Yes' ? (
                                                                 <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold uppercase">GST Filed</span>
                                                             ) : (
@@ -1260,7 +1260,7 @@ useEffect(() => {
                                                             ✅ Filed
                                                         </span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                                                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                                             Pending
                                                         </span>
                                                     )}
@@ -1399,7 +1399,7 @@ useEffect(() => {
                                                             ✅ Filed
                                                         </span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                                                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                                             Pending
                                                         </span>
                                                     )}
@@ -1519,7 +1519,7 @@ useEffect(() => {
                                                             ✅ Filed
                                                         </span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                                                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                                             Pending
                                                         </span>
                                                     )}
@@ -1598,8 +1598,8 @@ useEffect(() => {
                                     <thead>
                                         <tr>
                                             <th className="px-4 py-2 border text-left text-sm font-medium">Export Type*</th>
-                                            <th className="px-4 py-2 border text-left text-sm font-medium bg-amber-50">Original Invoice No.*</th>
-                                            <th className="px-4 py-2 border text-left text-sm font-medium bg-amber-50">Original Invoice Date*</th>
+                                            <th className="px-4 py-2 border text-left text-sm font-medium bg-indigo-50">Original Invoice No.*</th>
+                                            <th className="px-4 py-2 border text-left text-sm font-medium bg-indigo-50">Original Invoice Date*</th>
                                             <th className="px-4 py-2 border text-left text-sm font-medium bg-blue-50">Revised Invoice No.*</th>
                                             <th className="px-4 py-2 border text-left text-sm font-medium bg-blue-50">Revised Invoice Date*</th>
                                             <th className="px-4 py-2 border text-right text-sm font-medium">Invoice Value*</th>
@@ -1614,7 +1614,7 @@ useEffect(() => {
                                         {expaData.length > 0 ? expaData.map((row, idx) => (
                                             <tr
                                                 key={idx}
-                                                className="hover:bg-amber-50 cursor-pointer"
+                                                className="hover:bg-indigo-50 cursor-pointer"
                                                 onClick={() => {
                                                     if (setViewVoucherData && onNavigate) {
                                                         setViewVoucherData({
@@ -1629,8 +1629,8 @@ useEffect(() => {
                                                 }}
                                             >
                                                 <td className="px-4 py-2 border text-sm">{row.export_type}</td>
-                                                <td className="px-4 py-2 border text-sm font-medium text-amber-700 bg-amber-50">{row.original_invoice_no}</td>
-                                                <td className="px-4 py-2 border text-sm text-gray-500 bg-amber-50">{row.original_invoice_date}</td>
+                                                <td className="px-4 py-2 border text-sm font-medium text-indigo-700 bg-indigo-50">{row.original_invoice_no}</td>
+                                                <td className="px-4 py-2 border text-sm text-gray-500 bg-indigo-50">{row.original_invoice_date}</td>
                                                 <td className="px-4 py-2 border text-sm font-medium text-blue-700 bg-blue-50">{row.revised_invoice_no}</td>
                                                 <td className="px-4 py-2 border text-sm text-blue-500 bg-blue-50">{row.revised_invoice_date}</td>
                                                 <td className="px-4 py-2 border text-sm text-right">{Number(row.invoice_value || 0).toFixed(2)}</td>
@@ -1642,7 +1642,7 @@ useEffect(() => {
                                                     {row.amendment_filed ? (
                                                         <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold uppercase whitespace-nowrap">Filed</span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase whitespace-nowrap">Pending</span>
+                                                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase whitespace-nowrap">Pending</span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -2560,7 +2560,7 @@ useEffect(() => {
                         <div className="p-6 overflow-y-auto flex-1">
                             {docDrilldownLoading ? (
                                 <div className="flex justify-center items-center py-10">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F97316]"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
                                 </div>
                             ) : (
                                 <div className="erp-table-container">
@@ -2576,7 +2576,7 @@ useEffect(() => {
                                         <tbody>
                                             {docDrilldownData.length > 0 ? docDrilldownData.map((inv, idx) => (
                                                 <tr key={idx} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-2 border text-sm text-[#F97316] cursor-pointer hover:underline" onClick={() => {
+                                                    <td className="px-4 py-2 border text-sm text-[#6366F1] cursor-pointer hover:underline" onClick={() => {
                                                         setShowDocDrilldown(false);
                                                         onNavigate?.('vouchers', { highlightInvoice: inv.invoice_no, salesPk: inv.id, type: 'sales' });
                                                     }}>
@@ -2618,7 +2618,7 @@ useEffect(() => {
                     <div className="bg-white p-6 rounded-lg shadow-xl w-[900px] max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <div>
-                                <h3 className="text-xl font-bold text-[#F97316]">
+                                <h3 className="text-xl font-bold text-[#6366F1]">
                                     Invoices for HSN: {currentHsnParams?.hsn} (Rate: {currentHsnParams?.rate}%)
                                 </h3>
                                 <p className="text-xs text-gray-500 mt-1">
@@ -2634,7 +2634,7 @@ useEffect(() => {
 
                         {hsnDrilldownLoading ? (
                             <div className="flex justify-center py-10">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F97316]"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366F1]"></div>
                             </div>
                         ) : (
                             <div className="erp-table-container">
@@ -2925,9 +2925,9 @@ useEffect(() => {
             {showOtpModal && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-                        <div className={`px-6 py-4 border-b border-slate-100 flex items-center justify-between ${isAmendmentMode ? 'bg-amber-50' : 'bg-slate-50'}`}>
+                        <div className={`px-6 py-4 border-b border-slate-100 flex items-center justify-between ${isAmendmentMode ? 'bg-indigo-50' : 'bg-slate-50'}`}>
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <span className={isAmendmentMode ? 'text-amber-600' : 'text-emerald-600'}>
+                                <span className={isAmendmentMode ? 'text-indigo-600' : 'text-emerald-600'}>
                                     {isAmendmentMode ? '📝' : '🛡️'}
                                 </span>
                                 {isAmendmentMode ? `File Amendment Return — ${activeSubTab}` : 'Taxpayer Authentication'}
@@ -2938,11 +2938,11 @@ useEffect(() => {
                         </div>
                         <div className="p-6">
                             {isAmendmentMode ? (
-                                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                    <p className="text-sm font-semibold text-amber-800 mb-1">
+                                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                    <p className="text-sm font-semibold text-indigo-800 mb-1">
                                         📋 You are filing an <strong>{activeSubTab}</strong> Amendment Return
                                     </p>
-                                    <p className="text-xs text-amber-700">
+                                    <p className="text-xs text-indigo-700">
                                         This will submit all pending {activeSubTab === 'EXPA' ? 'amended export invoices' : activeSubTab === 'ATADJA' ? 'amended advance adjustments' : 'B2B amended invoices'} for <strong>{period.month} {period.year}</strong> to the GST portal and clear them from this tab.
                                     </p>
                                 </div>
@@ -2957,7 +2957,7 @@ useEffect(() => {
                                     <button
                                         onClick={handleRequestOTP}
                                         disabled={isSendingOtp}
-                                        className={`w-full py-3 text-white font-semibold rounded-xl transition-all ${isAmendmentMode ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                        className={`w-full py-3 text-white font-semibold rounded-xl transition-all ${isAmendmentMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                                     >
                                         {isSendingOtp ? 'Sending Request...' : 'Send OTP via SMS'}
                                     </button>
@@ -2971,14 +2971,14 @@ useEffect(() => {
                                             value={otpValue}
                                             onChange={(e) => setOtpValue(e.target.value)}
                                             placeholder="123456"
-                                            className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 outline-none text-center tracking-widest text-lg font-mono ${isAmendmentMode ? 'border-amber-200 focus:ring-amber-400 focus:border-amber-400' : 'border-slate-200 focus:ring-emerald-500 focus:border-emerald-500'}`}
+                                            className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 outline-none text-center tracking-widest text-lg font-mono ${isAmendmentMode ? 'border-indigo-200 focus:ring-indigo-400 focus:border-indigo-400' : 'border-slate-200 focus:ring-emerald-500 focus:border-emerald-500'}`}
                                             maxLength={6}
                                         />
                                     </div>
                                     <button
                                         onClick={handleVerifyAndFile}
                                         disabled={isAmendmentMode ? isFilingAmendment : isFilingReturn}
-                                        className={`w-full py-3 text-white font-semibold rounded-xl transition-all flex justify-center items-center gap-2 ${isAmendmentMode ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                        className={`w-full py-3 text-white font-semibold rounded-xl transition-all flex justify-center items-center gap-2 ${isAmendmentMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                                     >
                                         {(isAmendmentMode ? isFilingAmendment : isFilingReturn) ? (
                                             <>
@@ -3115,7 +3115,7 @@ useEffect(() => {
                                             <td className="px-4 py-3 border-b text-sm text-gray-800 text-right font-medium">₹{Number(v.invoice_value).toFixed(2)}</td>
                                             <td className="px-4 py-3 border-b text-sm text-center">
                                                 {v.amendment_date ? (
-                                                    <span className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold uppercase">Amended</span>
+                                                    <span className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold uppercase">Amended</span>
                                                 ) : v.gst_registered === 'Yes' ? (
                                                     <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold uppercase">GST Filed</span>
                                                 ) : (

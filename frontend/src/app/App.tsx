@@ -304,7 +304,7 @@ const App: React.FC = () => {
 
   // AI Agent conversation history
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([
-    { role: 'model', text: 'Hello! I am Kiki Agent. How can I help you with your accounting data today? Use the toggle below to search the web for up-to-date information.' }
+    { role: 'model', text: 'Hello! I am Finpixe AI. How can I help you with your accounting data today? Use the toggle below to search the web for up-to-date information.' }
   ]);
 
   // AI Agent loading state (when waiting for response)
@@ -1414,7 +1414,7 @@ const App: React.FC = () => {
     if (!isDataLoaded) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <div className="w-10 h-10 border-4 border-orange-100 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
+          <div className="w-10 h-10 border-4 border-indigo-100 border-t-[#6366F1] rounded-full animate-spin mb-4"></div>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">Syncing Workspace Data...</p>
         </div>
       );
@@ -1487,7 +1487,7 @@ const App: React.FC = () => {
   // --- RENDER HELPERS ---
   const PageLoader = () => (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
-      <div className="w-10 h-10 border-4 border-orange-100 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
+      <div className="w-10 h-10 border-4 border-indigo-100 border-t-[#6366F1] rounded-full animate-spin mb-4"></div>
       <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">Syncing Workspace Data...</p>
     </div>
   );
@@ -1647,7 +1647,7 @@ const App: React.FC = () => {
           <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top duration-200">
             <button
               onClick={() => setIsHeaderCollapsed(false)}
-              className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-b-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-b-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
               title="Show Header"
             >
               <ChevronDown className="w-3.5 h-3.5 text-white" />
@@ -1702,7 +1702,7 @@ const App: React.FC = () => {
       {/* Deactivation Modal */}
       <Modal isOpen={showDeactivationModal} title="Account Deactivated" type="warning">
         <div className="text-center">
-          <Icon name="exclamation-triangle" className="mx-auto h-12 w-12 text-amber-500" />
+          <Icon name="exclamation-triangle" className="mx-auto h-12 w-12 text-indigo-500" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">Your account has been deactivated</h3>
           <p className="mt-1 text-sm text-gray-500">
             Please contact your administrator or support for assistance.

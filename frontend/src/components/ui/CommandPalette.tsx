@@ -100,11 +100,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-colors ${
-                    isSelected ? 'bg-[#FFF7ED] text-[#EA580C]' : 'hover:bg-slate-50 text-slate-700'
+                    isSelected ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-orange-100 text-[#EA580C]' : 'bg-slate-100 text-slate-500'}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-indigo-100 text-[#4F46E5]' : 'bg-slate-100 text-slate-500'}`}>
                       <Command className="w-4 h-4" />
                     </div>
                     <div>

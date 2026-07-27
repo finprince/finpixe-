@@ -30,6 +30,14 @@ class DashboardAnalyticsView(APIView):
         today = timezone.now().date()
         six_months_ago = today - datetime.timedelta(days=180)
 
+        # Pre-fill last 6 months for continuous charts
+        base_months = []
+        curr = today.replace(day=1)
+        for _ in range(6):
+            base_months.append(curr.strftime('%b %y'))
+            curr = (curr - datetime.timedelta(days=1)).replace(day=1)
+        base_months.reverse()
+
         # 1. Revenue Trend (Sales Vouchers — VoucherSalesInvoiceDetails)
         # Uses the related payment_details (VoucherSalesPaymentDetails) for invoice totals
         revenue_qs = SalesVoucher.objects.filter(
@@ -42,12 +50,10 @@ class DashboardAnalyticsView(APIView):
             total_revenue=Sum('grand_total')
         ).order_by('month')
 
-        revenue_trend = []
-        revenue_map = {}
+        revenue_map = {m: 0.0 for m in base_months}
         for entry in revenue_qs:
             month_str = entry['month'].strftime('%b %y')
             revenue_map[month_str] = float(entry['total_revenue'] or 0)
-            revenue_trend.append({"period": month_str, "revenue": revenue_map[month_str], "expense": 0}) # Expense filled later
 
         # 2. Expense/Purchase Data for Trends & Breakdown
         # Expenses (VoucherExpense)
@@ -58,7 +64,7 @@ class DashboardAnalyticsView(APIView):
             date__gte=six_months_ago
         ).prefetch_related('rel_items')
 
-        expense_trend_map = defaultdict(float)
+        expense_trend_map = defaultdict(float, {m: 0.0 for m in base_months})
         expense_category_map = defaultdict(float)
 
         for voucher in expenses_qs:
@@ -78,7 +84,7 @@ class DashboardAnalyticsView(APIView):
             date__gte=six_months_ago
         ).select_related('due_details').values('date', 'due_details__to_pay', 'due_details__advance_paid')
 
-        purchase_trend_map = defaultdict(float)
+        purchase_trend_map = defaultdict(float, {m: 0.0 for m in base_months})
         for p in purchases_qs:
              month_str = p['date'].strftime('%b %y')
              total = float(p['due_details__to_pay'] or 0) + float(p['due_details__advance_paid'] or 0)

@@ -536,8 +536,8 @@ const FloatingCalculator: React.FC = () => {
           <span
             className="flex items-center justify-center w-10 h-10 rounded-full text-white"
             style={{
-              background: 'linear-gradient(135deg, #fb923c 0%, #f97316 55%, #ea580c 100%)',
-              boxShadow: '0 6px 18px rgba(249,115,22,0.45)',
+              background: 'linear-gradient(135deg, #818CF8 0%, #6366F1 55%, #4F46E5 100%)',
+              boxShadow: '0 6px 18px rgba(99, 102, 241,0.45)',
             }}
           >
             <Icon name="calculator" className="w-4 h-4" />
