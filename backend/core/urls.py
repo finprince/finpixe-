@@ -63,5 +63,9 @@ urlpatterns = [
     # ai_metrics and ai_job_status removed — Redis-based polling decommissioned
     path('extraction-average-time/', extraction_average_time, name='extraction-average-time'),
     
+    # Kiki AI ERP Agent
+    path('kiki/', include('core.kiki.api.urls')),
+
     path('', include(router.urls)),
 ]
+
