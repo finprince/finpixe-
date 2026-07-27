@@ -61,38 +61,67 @@ from .processing_engine import safe_json_load
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AgentMessageView(views.APIView):
+    """
+    Legacy AgentMessageView endpoint (/api/agent/message/).
+    Migrated to route all requests through Kiki InvestigationEngine.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        msg = request.data.get('message', '').strip()
-        use_grounding = request.data.get('useGrounding', False)
-
+        msg = (request.data.get('message') or request.data.get('question') or '').strip()
         if not msg:
             raise BusinessException('Message is required.')
 
-        # Extract user and tenant info
+        from core.kiki.router.intent_router import IntentRouter
+        from core.kiki.navigation.navigation_engine import NavigationEngine
+        from core.kiki.help.help_handler import HelpHandler
+        from core.kiki.query.kpi_resolver import KPIResolver
+        from core.kiki.runtime.investigation_engine import InvestigationEngine
+
         user_id = str(request.user.id)
         tenant_id = getattr(request.user, 'tenant_id', None)
-        if tenant_id:
-            tenant_id = str(tenant_id)
 
-        # Prepare request data
-        request_data = {
-            'message': msg,
-            'contextData': request.data.get('contextData', ''),
-            'useGrounding': use_grounding
+        context_dict = {
+            "user_id": user_id,
+            "tenant_id": str(tenant_id) if tenant_id else "",
+            "company_name": getattr(request.user, 'company_name', None),
+            "branch_name": getattr(request.user, 'branch_name', None),
+            "context_data": request.data.get('contextData', '')
         }
 
-        # Use AI proxy
-        result = ai_service.make_request('agent', request_data, user_id, tenant_id)
+        try:
+            history = request.data.get('history') or []
+            intent = IntentRouter.classify_intent(msg, history=history)
 
-        if result.get('status') == 'queued':
-             return Response(result)
+            if intent in ["GREETING", "SMALL_TALK"]:
+                greeting_text = (
+                    "Hello! I am Kiki, your AI ERP Investigation Agent. How can I help you investigate your financial and business data today?"
+                    if intent == "GREETING" else
+                    "You're welcome! Let me know if you need any further ERP investigations or reporting assistance."
+                )
+                return Response({'reply': greeting_text, 'intent': intent})
 
-        if 'error' in result:
-            raise ExternalServiceError(result.get('error', 'AI service is temporarily unavailable.'))
+            if intent == "NAVIGATION":
+                nav_res = NavigationEngine.navigate(msg)
+                return Response({'reply': nav_res['reply'], 'intent': intent, 'navigation': nav_res})
 
-        return Response({'reply': result['reply']})
+            if intent == "HELP":
+                help_res = HelpHandler.handle_help(msg)
+                return Response({'reply': help_res['reply'], 'intent': intent})
+
+            if intent == "KPI_QUERY":
+                kpi_res = KPIResolver.resolve(msg)
+                if kpi_res is not None:
+                    return Response({'reply': kpi_res.final_response, 'intent': intent, 'investigation': kpi_res.to_dict()})
+
+            engine = InvestigationEngine()
+            result = engine.run_investigation(msg, context=context_dict)
+            return Response({'reply': result.final_response, 'intent': intent, 'investigation': result.to_dict()})
+        except Exception as e:
+            raise ExternalServiceError(f"Kiki Investigation failed: {str(e)}")
+
+
+
 
 
 @api_view(['GET'])

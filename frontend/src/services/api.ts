@@ -1577,8 +1577,9 @@ class ApiService {
     }
 
     async sendAgentMessage(message: string, useGrounding: boolean, contextData?: string) {
-        return httpClient.post('/api/agent/message/', { message, useGrounding, contextData });
+        return httpClient.post('/api/kiki/chat/', { question: message, query: message, useGrounding, contextData });
     }
+
 
     async generateNarration(voucherData: any) {
         const response = await httpClient.post<{ narration: string }>('/api/ai/generate-narration/', voucherData);

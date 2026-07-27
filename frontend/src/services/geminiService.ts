@@ -158,22 +158,30 @@ export const getAgentResponse = async (
   history: { role: string; text: string }[] = []
 ): Promise<{ reply: string; code?: string; retryAfter?: number; queuePosition?: number; estimatedWaitSeconds?: number }> => {
   try {
-    // Use httpClient for automatic token management and refresh
-    const response: any = await httpClient.post('/api/agent/message/', {
-      message: userQuery,
+    // Use httpClient to call the Kiki AI ERP Investigation Engine endpoint
+    const response: any = await httpClient.post('/api/kiki/chat/', {
+      question: userQuery,
+      query: userQuery,
       history: history,
       contextData,
       useGrounding: false
     });
 
-    // Success - return AI's response
+    // Success - return Kiki's evidence-backed response
     if (response.status === 'queued') {
-        const jobId = response.job_id;
-        // Start polling for result
-        return await pollAiTaskStatus(jobId);
+      const jobId = response.job_id;
+      return await pollAiTaskStatus(jobId);
     }
 
-    return { reply: response.reply || "I couldn't generate a response at this time." };
+    const replyText = response.final_response || response.reply || "I couldn't generate an evidence-backed response at this time.";
+    return {
+      reply: replyText,
+      intent: response.intent,
+      route: response.route,
+      module: response.module,
+      navigation: response.navigation || (response.intent === 'NAVIGATION' ? response : undefined)
+    };
+
 
   } catch (error: any) {
     // Handle error responses from httpClient
@@ -217,16 +225,18 @@ export const getGroundedAgentResponse = async (
   userQuery: string
 ): Promise<{ text: string; sources: { uri: string; title: string; }[] }> => {
   try {
-    const response: any = await httpClient.post('/api/agent/message/', {
-      message: userQuery,
+    const response: any = await httpClient.post('/api/kiki/chat/', {
+      question: userQuery,
+      query: userQuery,
       contextData: '',
       useGrounding: true
     });
 
     return {
-      text: response.reply || "I couldn't generate a response at this time.",
+      text: response.final_response || response.reply || "I couldn't generate a response at this time.",
       sources: response.sources || []
     };
+
   } catch (error: any) {
     const status = error.status;
     if (status === 401) {
@@ -246,26 +256,26 @@ export const getGroundedAgentResponse = async (
  * Poll for AI task status until completed or timed out
  */
 const pollAiTaskStatus = async (jobId: string): Promise<{ reply: string }> => {
-    const maxAttempts = 20; 
-    let attempts = 0;
-    let delay = 1000; // Start with 1s
+  const maxAttempts = 20;
+  let attempts = 0;
+  let delay = 1000; // Start with 1s
 
-    while (attempts < maxAttempts) {
-        try {
-            const response: any = await httpClient.get(`/api/ai/job-status/${jobId}/`);
-            if (response.reply) {
-                return { reply: response.reply };
-            }
-        } catch (error: any) {
-            if (error.status !== 202) {
-                throw error;
-            }
-        }
-        
-        attempts++;
-        await new Promise(r => setTimeout(r, delay));
-        delay = Math.min(delay * 1.5, 10000); // Exponential backoff up to 10s
+  while (attempts < maxAttempts) {
+    try {
+      const response: any = await httpClient.get(`/api/ai/job-status/${jobId}/`);
+      if (response.reply) {
+        return { reply: response.reply };
+      }
+    } catch (error: any) {
+      if (error.status !== 202) {
+        throw error;
+      }
     }
-    
-    throw new Error("AI request timed out. Please try again.");
+
+    attempts++;
+    await new Promise(r => setTimeout(r, delay));
+    delay = Math.min(delay * 1.5, 10000); // Exponential backoff up to 10s
+  }
+
+  throw new Error("AI request timed out. Please try again.");
 };

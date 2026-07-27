@@ -492,6 +492,44 @@ const App: React.FC = () => {
     }
   }, [loadCachedData, cacheTenantData]);
 
+  // Map URL page parameter slugs to Page enum names
+  const mapPageSlugToPageName = useCallback((rawParam: string): Page => {
+    const normalized = rawParam.trim().toLowerCase().replace(/_/g, '-');
+    switch (normalized) {
+      case 'dashboard': return 'Dashboard';
+      case 'masters':
+      case 'ledgers':
+      case 'ledger': return 'Masters';
+      case 'inventory': return 'Inventory';
+      case 'vouchers':
+      case 'voucher': return 'Vouchers';
+      case 'vendor-portal':
+      case 'vendor_portal':
+      case 'vendor': return 'Vendor Portal';
+      case 'customer-portal':
+      case 'customer_portal':
+      case 'customer': return 'Customer Portal';
+      case 'reports':
+      case 'report': return 'Reports';
+      case 'settings': return 'Settings';
+      case 'users':
+      case 'users-roles':
+      case 'users_roles':
+      case 'users & roles': return 'Users & Roles';
+      case 'pending-purchases':
+      case 'pending_purchases': return 'Pending Purchases';
+      case 'payroll': return 'Payroll';
+      case 'service': return 'Service';
+      case 'gst': return 'GST';
+      case 'dashboard-builder':
+      case 'dashboard_builder': return 'Dashboard Builder';
+      default:
+        const validPages: Page[] = ['Dashboard', 'Masters', 'Inventory', 'Vouchers', 'Vendor Portal', 'Customer Portal', 'Reports', 'Settings', 'Users & Roles', 'Pending Purchases', 'Payroll', 'Service', 'GST', 'Dashboard Builder'];
+        const titleMatch = validPages.find(p => p.toLowerCase() === rawParam.toLowerCase());
+        return titleMatch || (rawParam as Page);
+    }
+  }, []);
+
   // Handle URL query parameters and path-based routing
   useEffect(() => {
     const handleLocationChange = () => {
@@ -499,7 +537,7 @@ const App: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const pageParam = params.get('page');
       if (pageParam) {
-        setCurrentPage(pageParam as Page);
+        setCurrentPage(mapPageSlugToPageName(pageParam));
       } else if (window.location.pathname === '/dashboard') {
         setCurrentPage('Dashboard');
       }
@@ -513,11 +551,12 @@ const App: React.FC = () => {
     // Page navigation
     const pageParam = params.get('page');
     if (pageParam) {
-      setCurrentPage(pageParam as Page);
+      setCurrentPage(mapPageSlugToPageName(pageParam));
     }
 
     return () => window.removeEventListener('popstate', handleLocationChange);
-  }, []);
+  }, [mapPageSlugToPageName]);
+
 
   // Synchronize currentPage state to URL query parameter
   useEffect(() => {
@@ -1228,8 +1267,43 @@ const App: React.FC = () => {
           text: msg.text
         }));
 
-        const response = await getAgentResponse(contextData, finalMessageText, currentHistory);
+        const response: any = await getAgentResponse(contextData, finalMessageText, currentHistory);
         let replyText = response.reply;
+
+        // --- Frontend Navigation Execution & Ambiguity Handling ---
+        if (response.intent === 'NAVIGATION' && response.route) {
+          const targetRoute = response.route || '';
+          // Extract page parameter value dynamically from route
+          const match = targetRoute.match(/page=([^&]+)/i);
+          const pageParam = match ? match[1].toLowerCase() : targetRoute.toLowerCase();
+          
+          const pageMap: Record<string, Page> = {
+            'vouchers': 'Vouchers',
+            'vendor-portal': 'Vendor Portal',
+            'customer-portal': 'Customer Portal',
+            'inventory': 'Inventory',
+            'dashboard': 'Dashboard',
+            'purchase': 'Purchase Orders',
+            'pendingpurchase': 'Purchase Orders',
+            'reports': 'Reports',
+            'gst': 'Reports',
+            'ledgers': 'Ledgers',
+            'bank-upload': 'Bank Statement Upload' as Page,
+          };
+
+          for (const [key, pageName] of Object.entries(pageMap)) {
+            if (pageParam.includes(key) || targetRoute.toLowerCase().includes(key)) {
+              setCurrentPage(pageName);
+              break;
+            }
+          }
+        } else if (response.intent === 'NAVIGATION_OPTIONS' && Array.isArray(response.options)) {
+          // Format navigation options payload for user choice
+          const optionLines = response.options.map((opt: any) => `- **[${opt.title}](${opt.route})**: ${opt.description}`).join('\n');
+          replyText = `${response.final_response || response.reply}\n\nPlease select your destination:\n${optionLines}`;
+        }
+
+
 
         // --- JSON Parsing & Tool Execution ---
         try {
@@ -1641,42 +1715,48 @@ const App: React.FC = () => {
       <FloatingCalendar />
       <FloatingNotes />
 
-      <button
-        onClick={() => setIsAgentOpen(true)}
-        style={{
-          width: '56px',
-          height: '56px',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-          position: 'fixed',
-          bottom: '16px',
-          right: '16px',
-          zIndex: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2px', // Space for the border
-          background: 'linear-gradient(white, white) padding-box, linear-gradient(45deg, #f97316, #ea580c) border-box',
-          border: '2px solid transparent',
-          cursor: 'pointer',
-          outline: 'none',
-          overflow: 'hidden'
-        }}
-        className="hover:scale-110 transition-transform duration-300 group"
-        title="Chat with Kiki Agent"
-      >
-        <img
-          src={kikiLogo}
-          alt="AI Agent"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            borderRadius: '10px' // Slightly less than button for fit
-          }}
-        />
-      </button>
+      {/* ── Floating Kiki AI Launcher Button ─────────────────────── */}
+      {!isAgentOpen && (
+        <button
+          onClick={() => setIsAgentOpen(true)}
+          role="button"
+          aria-label="Open Kiki AI"
+          tabIndex={0}
+          className="fixed bottom-6 right-6 z-40 flex items-center justify-center md:justify-start gap-[10px] w-11 h-11 md:w-[180px] md:h-[52px] p-1.5 md:px-3.5 md:py-2.5 bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-full shadow-[0_8px_30px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(15,23,42,0.12)] transition-all duration-200 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A00]"
+          title="Open Kiki AI (Ctrl+K)"
+        >
+          {/* 36px Fox Icon Container with Status Dot */}
+          <div className="relative w-9 h-9 rounded-full bg-[#FFF7ED] dark:bg-orange-950/40 border border-[#FED7AA] dark:border-orange-900/50 flex items-center justify-center shrink-0 group-active:ring-2 group-active:ring-[#FF8A00] transition-all">
+            <img
+              src={kikiLogo}
+              alt="Kiki Fox"
+              className="w-[34px] h-[34px] object-contain rounded-full"
+            />
+            {/* 8px Green Status Dot with Gentle Pulse */}
+            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 duration-1000" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E] ring-2 ring-white dark:ring-slate-900" />
+            </span>
+          </div>
+
+          {/* Launcher Text */}
+          <div className="hidden md:flex flex-col text-left leading-tight shrink-0">
+            <span className="text-[14px] font-semibold text-[#111827] dark:text-white tracking-tight">
+              Kiki AI
+            </span>
+            <span className="text-[11px] font-medium text-[#6B7280] dark:text-slate-400 mt-0.5">
+              Copilot Active
+            </span>
+          </div>
+
+          {/* Keyboard Shortcut Badge */}
+          <span className="hidden md:flex items-center justify-center w-6 h-6 ml-auto rounded-md bg-[#F8FAFC] dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 text-[10px] font-mono font-medium text-slate-400 dark:text-slate-400 shrink-0 select-none">
+            ⌘K
+          </span>
+        </button>
+      )}
+
+
 
 
 
@@ -1687,7 +1767,21 @@ const App: React.FC = () => {
         onSendMessage={handleSendMessageToAgent}
         isLoading={isAgentLoading}
         queueStatus={agentQueueStatus}
+        onNavigate={(routeOrPage: string) => {
+          let pageSlug = routeOrPage;
+          if (routeOrPage.includes('?page=')) {
+            pageSlug = routeOrPage.split('?page=')[1].split('&')[0];
+          } else if (routeOrPage.startsWith('/')) {
+            pageSlug = routeOrPage.replace('/', '');
+          }
+          const targetPage = mapPageSlugToPageName(pageSlug);
+          setCurrentPage(targetPage);
+          const url = new URL(window.location.href);
+          url.searchParams.set('page', targetPage);
+          window.history.pushState({}, '', url.pathname + url.search);
+        }}
       />
+
 
       {globalVendorId !== null && (
         <VendorViewModal
