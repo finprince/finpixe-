@@ -1,8 +1,8 @@
 import React from 'react';
 import { WorkspaceToolbar } from '../ui/WorkspaceToolbar';
 import { InspectorDrawer } from '../ui/InspectorDrawer';
-import type { WorkspaceProps } from '../../types';
-import finpixeLogo from '../../assets/finpixe with empty bg.png';
+import type { WorkspaceProps } from '../../types/types';
+import finpixeLogo from '../../assets/finpixe_with_empty_bg.png';
 
 export const UniversalWorkspaceLayout: React.FC<WorkspaceProps> = ({
   title,
@@ -19,7 +19,7 @@ export const UniversalWorkspaceLayout: React.FC<WorkspaceProps> = ({
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] relative">
       {/* Main Workspace Canvas Container */}
-      <div className="flex-1 flex flex-col gap-6 transition-all duration-300">
+      <div className="flex-1 flex flex-col gap-6 transition-all duration-300 min-w-0 w-full overflow-hidden">
         {/* Context Header */}
         <div className="flex justify-between items-center pb-4 border-b border-slate-200">
           <div>
@@ -51,7 +51,7 @@ export const UniversalWorkspaceLayout: React.FC<WorkspaceProps> = ({
         )}
 
         {/* Primary Content Canvas */}
-        <div className="flex-1 animate-in fade-in duration-300">
+        <div className="flex-1 animate-in fade-in duration-300 min-w-0 w-full overflow-hidden">
           {children}
         </div>
       </div>

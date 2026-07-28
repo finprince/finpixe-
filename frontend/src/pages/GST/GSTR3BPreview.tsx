@@ -25,8 +25,8 @@ export default function GSTR3BPreview() {
 
     const fetchLedgers = async () => {
         try {
-            const res = await httpClient.get('/api/gst/reconciliation/fetch_ledger_balances/');
-            setLedgerBalances(res.data);
+            const res: any = await httpClient.get('/api/gst/reconciliation/fetch_ledger_balances/');
+            setLedgerBalances(res.data || res);
         } catch (err) {
             console.error('Failed to fetch ledger balances', err);
         }

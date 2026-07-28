@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import Icon from '../../components/Icon';
-import KIKILogo from '../../assets/finpixe with empty bg.png';
+import KIKILogo from '../../assets/finpixe_with_empty_bg.png';
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, Building2, UserCheck, KeyRound, Globe } from 'lucide-react';
 
 /**

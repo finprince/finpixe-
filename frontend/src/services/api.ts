@@ -726,7 +726,14 @@ class ApiService {
                 }
                 response.type = response.type || 'Sales';
                 fetchedAsDetail = true;
-            } else if (normalizedSource === 'purchase_voucher' || normalizedSource === 'purchase' || normalizedSource === 'purchase_gstr2_drilldown') {
+            } else if (
+                normalizedSource === 'purchase_voucher' ||
+                normalizedSource === 'purchase' ||
+                normalizedSource === 'purchase_gstr2_drilldown' ||
+                normalizedSource === 'purchase_gstr2b_reco_drilldown' ||
+                normalizedSource.includes('purchase') ||
+                normalizedSource.includes('gstr2')
+            ) {
                 try {
                     response = await httpClient.get<any>(`/api/vouchers/purchase/${id}/?show_all=true`, undefined, { ...options, skipErrorNotification: true } as any);
                 } catch (e) {

@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
 import { showSuccess, showError } from '../../utils/toast';
 
-export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: { onNavigate?: (page: string, params?: any) => void, setViewVoucherData?: (data: any) => void }) {
+export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, refreshKey }: { onNavigate?: (page: string, params?: any) => void, setViewVoucherData?: (data: any) => void, refreshKey?: number }) {
     const [isLoading, setIsLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
     const [selectedRow, setSelectedRow] = useState<any>(null);
@@ -40,6 +40,25 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
     useEffect(() => {
         fetchResults();
     }, [selectedMonth, selectedYear]);
+
+    // Auto-re-run reconciliation + fetch whenever user navigates back to this tab (refreshKey bumped)
+    useEffect(() => {
+        if (refreshKey === undefined || refreshKey === 0) return;
+        const autoRefresh = async () => {
+            setIsLoading(true);
+            try {
+                await httpClient.post('/api/gst/reconciliation/run_reconciliation/', { month: selectedMonth, year: selectedYear });
+                await new Promise(r => setTimeout(r, 1800));
+                await fetchResults();
+            } catch (e) {
+                // fallback: just refetch without re-running
+                try { await fetchResults(); } catch (_) {}
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        autoRefresh();
+    }, [refreshKey]);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -317,6 +336,15 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                                                 invoiceNumber: selectedRow.invoice_no,
                                                                 invoiceDate: selectedRow.invoice_date,
                                                                 totalAmount: selectedRow.invoice_value,
+                                                                lineItems: [{
+                                                                    itemDescription: 'GSTR-2B Reconciled Purchase',
+                                                                    quantity: 1,
+                                                                    rate: Number(selectedRow.invoice_value || 0),
+                                                                    taxableValue: Number(selectedRow.invoice_value || 0),
+                                                                    invoiceValue: Number(selectedRow.invoice_value || 0),
+                                                                    gstRate: 0,
+                                                                    igst: 0, cgst: 0, sgst: 0, cess: 0
+                                                                }]
                                                             },
                                                             returnTo: 'GST',
                                                             returnTab: 'GSTR2B_RECO'
@@ -342,6 +370,14 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData }: 
                                                     voucherNo: selectedRow.books_data.invoice_no,
                                                     type: 'Purchase',
                                                     source: 'purchase_gstr2b_reco_drilldown',
+                                                    returnTo: 'GST',
+                                                    returnTab: 'GSTR2B_RECO',
+                                                    // Pass GSTR-2B expected values so the form can highlight mismatches
+                                                    gstr2b_invoice_date: selectedRow.invoice_date,
+                                                    gstr2b_invoice_no: selectedRow.invoice_no,
+                                                    gstr2b_invoice_value: selectedRow.invoice_value,
+                                                    gstr2b_gstin: selectedRow.supplier_gstin,
+                                                    gstr2b_vendor_name: selectedRow.vendor_name,
                                                 });
                                                 setSelectedRow(null);
                                                 onNavigate('Vouchers');

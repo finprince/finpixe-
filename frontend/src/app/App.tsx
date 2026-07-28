@@ -1641,7 +1641,7 @@ const App: React.FC = () => {
         )
       )}
 
-      <main className={`flex-1 ${(isLoggedIn || isAuthenticating) && isSidebarOpen ? 'ml-[220px]' : 'ml-0'} min-h-screen transition-all duration-300 erp-main-bg`}>
+      <main className={`flex-1 ${(isLoggedIn || isAuthenticating) && isSidebarOpen ? 'ml-[220px]' : 'ml-0'} min-h-screen transition-all duration-300 erp-main-bg min-w-0 max-w-full overflow-x-hidden`}>
         {/* ── Sticky Master Header ───────────────────────────── */}
         {isHeaderCollapsed && (
           <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top duration-200">
@@ -1673,8 +1673,8 @@ const App: React.FC = () => {
         )}
 
         {/* ── Page Content ──────────────────────────────────── */}
-        <div className="p-6">
-          <div className="max-w-[1600px] mx-auto">
+        <div className="p-6 min-w-0 w-full">
+          <div className="max-w-[1600px] mx-auto min-w-0 w-full">
             {(!isLoggedIn && isAuthenticating) || !isDataLoaded ? (
               <PageLoader />
             ) : (

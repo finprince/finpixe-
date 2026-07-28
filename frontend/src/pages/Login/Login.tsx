@@ -1,7 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { apiService } from '../../services';
 import Icon from '../../components/Icon';
-import KIKILogo from '../../assets/finpixe with empty bg.png';
+import KIKILogo from '../../assets/finpixe_with_empty_bg.png';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, Building2, Eye, EyeOff } from 'lucide-react';

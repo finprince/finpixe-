@@ -1,7 +1,7 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { apiService } from "../../services";
 import Icon from "../../components/Icon";
-import KIKILogo from '../../assets/finpixe with empty bg.png';
+import KIKILogo from '../../assets/finpixe_with_empty_bg.png';
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, ArrowLeft, KeyRound, Globe, Check, Eye, EyeOff } from "lucide-react";
@@ -592,7 +592,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
               {step > 1 && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   onClick={prevStep}
                   className="flex-1 h-12 text-xs font-bold uppercase tracking-wider"
                 >

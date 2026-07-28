@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
 
@@ -7,7 +7,15 @@ let savedSubTab: string = 'B2B';
 
 export default function GSTR1Page({ onNavigate, setViewVoucherData, vouchers }: { onNavigate?: (page: string, params?: any) => void, setViewVoucherData?: (data: any) => void, vouchers?: any[] }) {
     const [activeSubTab, setActiveSubTabState] = useState(savedSubTab);
+    const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
+
     const setActiveSubTab = (tab: string) => { savedSubTab = tab; setActiveSubTabState(tab); };
+
+    useEffect(() => {
+        if (activeTabRef.current) {
+            activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }, [activeSubTab]);
     const [period, setPeriodState] = useState(() => {
         if (savedPeriod) return savedPeriod;
         
@@ -487,143 +495,156 @@ useEffect(() => {
 
     return (
         <div className="space-y-6">
-            {/* Period Selector */}
-            <div className="erp-container">
-                <div className="flex flex-wrap items-end gap-6">
-                    <div className="w-48">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
-                        <select
-                            value={period.year}
-                            onChange={(e) => setPeriod({ ...period, year: e.target.value })}
-                            className="erp-select"
-                        >
-                            {/* ... years ... */}
-                            {(() => {
-                                const years = [];
-                                const today = new Date();
-                                const currentYear = today.getFullYear();
-                                const currentMonth = today.getMonth();
-
-                                let fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
-
-                                for (let i = 0; i < 11; i++) {
-                                    const start = fyStartYear - i;
-                                    const end = (start + 1).toString().slice(-2);
-                                    const fyLabel = `${start}-${end}`;
-                                    years.push(<option key={fyLabel} value={fyLabel}>{fyLabel}</option>);
-                                }
-                                return years;
-                            })()}
-                        </select>
-                    </div>
-                    <div className="w-48">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
-                        <select
-                            value={period.month}
-                            onChange={(e) => setPeriod({ ...period, month: e.target.value })}
-                            className="erp-select"
-                        >
-                            <option>January</option>
-                            <option>February</option>
-                            <option>March</option>
-                            <option>April</option>
-                            <option>May</option>
-                            <option>June</option>
-                            <option>July</option>
-                            <option>August</option>
-                            <option>September</option>
-                            <option>October</option>
-                            <option>November</option>
-                            <option>December</option>
-                        </select>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={fetchData}
-                            className="erp-button-primary"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? 'Generating...' : 'Generate Return'}
-                        </button>
-                        {!(activeSubTab === 'EXPA' || activeSubTab === 'B2BA' || activeSubTab === 'B2CLA' || activeSubTab === 'B2CSA' || activeSubTab === 'ATADJA' || activeSubTab === 'ATA' || activeSubTab.startsWith('ECOA') || activeSubTab === 'CDNRA' || activeSubTab === 'CDNURA') && (
-                            <button
-                                onClick={initiateFiling}
-                                disabled={isFilingReturn || isLoading || isCurrentOrFutureMonth}
-                                title={isCurrentOrFutureMonth ? "Cannot file for current or future months" : "File directly to Sandbox API"}
-                                className={`erp-button-primary ${isCurrentOrFutureMonth ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70' : 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600'}`}
+            {/* Sticky Controls & Sub-tabs Header */}
+            <div className="sticky top-[49px] z-20 bg-[#FAFAFA] pt-1 pb-2 space-y-4">
+                {/* Period Selector */}
+                <div className="erp-container shadow-sm">
+                    <div className="flex flex-wrap items-end gap-6">
+                        <div className="w-48">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
+                            <select
+                                value={period.year}
+                                onChange={(e) => setPeriod({ ...period, year: e.target.value })}
+                                className="erp-select"
                             >
-                                ⚡ File GST Return (Sandbox)
-                            </button>
-                        )}
-                        {/* Amendment Filing Button — visible on ALL amendment tabs */}
-                        {(activeSubTab === 'EXPA' || activeSubTab === 'B2BA' || activeSubTab === 'B2CLA' || activeSubTab === 'B2CSA' || activeSubTab === 'ATADJA' || activeSubTab === 'ATA' || activeSubTab.startsWith('ECOA') || activeSubTab === 'CDNRA' || activeSubTab === 'CDNURA') && (
-                            <button
-                                onClick={initiateAmendmentFiling}
-                                disabled={isFilingAmendment || isLoading || isCurrentOrFutureMonth}
-                                title={isCurrentOrFutureMonth ? "Cannot file for current or future months" : `File all pending ${activeSubTab} amendments to GST portal`}
-                                className={`erp-button-primary flex items-center gap-2 ${
-                                    isCurrentOrFutureMonth
-                                        ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70'
-                                        : 'bg-indigo-600 hover:bg-indigo-700 border-indigo-600'
-                                }`}
+                                {/* ... years ... */}
+                                {(() => {
+                                    const years = [];
+                                    const today = new Date();
+                                    const currentYear = today.getFullYear();
+                                    const currentMonth = today.getMonth();
+
+                                    let fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
+
+                                    for (let i = 0; i < 11; i++) {
+                                        const start = fyStartYear - i;
+                                        const end = (start + 1).toString().slice(-2);
+                                        const fyLabel = `${start}-${end}`;
+                                        years.push(<option key={fyLabel} value={fyLabel}>{fyLabel}</option>);
+                                    }
+                                    return years;
+                                })()}
+                            </select>
+                        </div>
+                        <div className="w-48">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
+                            <select
+                                value={period.month}
+                                onChange={(e) => setPeriod({ ...period, month: e.target.value })}
+                                className="erp-select"
                             >
-                                📝 File Amendment ({activeSubTab})
+                                <option>January</option>
+                                <option>February</option>
+                                <option>March</option>
+                                <option>April</option>
+                                <option>May</option>
+                                <option>June</option>
+                                <option>July</option>
+                                <option>August</option>
+                                <option>September</option>
+                                <option>October</option>
+                                <option>November</option>
+                                <option>December</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                onClick={fetchData}
+                                className="erp-button-primary"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? 'Generating...' : 'Generate Return'}
                             </button>
-                        )}
-                        {/* Amendment Status Banner (inline) */}
-                        {amendmentFilingStatus && (
-                            <span className={`text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1 ${
-                                amendmentFilingStatus.type === 'success'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-red-50 text-red-700 border border-red-200'
+                            {!(activeSubTab === 'EXPA' || activeSubTab === 'B2BA' || activeSubTab === 'B2CLA' || activeSubTab === 'B2CSA' || activeSubTab === 'ATADJA' || activeSubTab === 'ATA' || activeSubTab.startsWith('ECOA') || activeSubTab === 'CDNRA' || activeSubTab === 'CDNURA') && (
+                                <button
+                                    onClick={initiateFiling}
+                                    disabled={isFilingReturn || isLoading || isCurrentOrFutureMonth}
+                                    title={isCurrentOrFutureMonth ? "Cannot file for current or future months" : "File directly to Sandbox API"}
+                                    className={`erp-button-primary ${isCurrentOrFutureMonth ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70' : 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600'}`}
+                                >
+                                    ⚡ File GST Return (Sandbox)
+                                </button>
+                            )}
+                            {/* Amendment Filing Button — visible on ALL amendment tabs */}
+                            {(activeSubTab === 'EXPA' || activeSubTab === 'B2BA' || activeSubTab === 'B2CLA' || activeSubTab === 'B2CSA' || activeSubTab === 'ATADJA' || activeSubTab === 'ATA' || activeSubTab.startsWith('ECOA') || activeSubTab === 'CDNRA' || activeSubTab === 'CDNURA') && (
+                                <button
+                                    onClick={initiateAmendmentFiling}
+                                    disabled={isFilingAmendment || isLoading || isCurrentOrFutureMonth}
+                                    title={isCurrentOrFutureMonth ? "Cannot file for current or future months" : `File all pending ${activeSubTab} amendments to GST portal`}
+                                    className={`erp-button-primary flex items-center gap-2 ${
+                                        isCurrentOrFutureMonth
+                                            ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 border-indigo-600'
+                                    }`}
+                                >
+                                    📝 File Amendment ({activeSubTab})
+                                </button>
+                            )}
+                            {/* Amendment Status Banner (inline) */}
+                            {amendmentFilingStatus && (
+                                <span className={`text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1 ${
+                                    amendmentFilingStatus.type === 'success'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-red-50 text-red-700 border border-red-200'
+                                }`}>
+                                    {amendmentFilingStatus.type === 'success' ? '✅' : '❌'} {amendmentFilingStatus.message}
+                                </span>
+                            )}
+                            <button
+                                onClick={handleDownloadExcel}
+                                className="erp-button-secondary"
+                                disabled={isLoading}
+                            >
+                                Download Excel
+                            </button>
+                            <button
+                                onClick={handleDownloadJson}
+                                className="erp-button-secondary bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"
+                                disabled={isLoading}
+                            >
+                                Download JSON
+                            </button>
+                        </div>
+                    </div>
+                    {/* Filing Status Banner */}
+                    {filingStatus && (
+                        <div className={`mt-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between gap-4 ${filingStatus.type === 'success'
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : 'bg-red-50 text-red-800 border border-red-200'
                             }`}>
-                                {amendmentFilingStatus.type === 'success' ? '✅' : '❌'} {amendmentFilingStatus.message}
-                            </span>
-                        )}
-                        <button
-                            onClick={handleDownloadExcel}
-                            className="erp-button-secondary"
-                            disabled={isLoading}
-                        >
-                            Download Excel
-                        </button>
-                        <button
-                            onClick={handleDownloadJson}
-                            className="erp-button-secondary bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"
-                            disabled={isLoading}
-                        >
-                            Download JSON
-                        </button>
+                            <span>{filingStatus.type === 'success' ? '✅' : '❌'} {filingStatus.message}</span>
+                            <button onClick={() => setFilingStatus(null)} className="text-xs opacity-60 hover:opacity-100">✕</button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Sub Tabs Bar */}
+                <div className="erp-container p-0 shadow-sm overflow-hidden">
+                    <div
+                        className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto select-none"
+                        onWheel={(e) => {
+                            if (e.deltaY !== 0) {
+                                e.currentTarget.scrollLeft += e.deltaY;
+                            }
+                        }}
+                    >
+                        {subTabs.map((tab) => (
+                            <button
+                                key={tab}
+                                ref={activeSubTab === tab ? activeTabRef : null}
+                                onClick={() => setActiveSubTab(tab)}
+                                className={`erp-tab whitespace-nowrap ${activeSubTab === tab ? 'active' : ''}`}
+                            >
+                                {tab} {stats[tab] !== undefined && stats[tab] > 0 ? `(${stats[tab]})` : ''}
+                            </button>
+                        ))}
                     </div>
                 </div>
-                {/* Filing Status Banner */}
-                {filingStatus && (
-                    <div className={`mt-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between gap-4 ${filingStatus.type === 'success'
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            : 'bg-red-50 text-red-800 border border-red-200'
-                        }`}>
-                        <span>{filingStatus.type === 'success' ? '✅' : '❌'} {filingStatus.message}</span>
-                        <button onClick={() => setFilingStatus(null)} className="text-xs opacity-60 hover:opacity-100">✕</button>
-                    </div>
-                )}
             </div>
 
-            {/* Sub Tabs */}
+            {/* Main Content Area / Table Container */}
             <div className="erp-container p-0">
-                <div className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto">
-                    {subTabs.map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveSubTab(tab)}
-                            className={`erp-tab ${activeSubTab === tab ? 'active' : ''}`}
-                        >
-                            {tab} {stats[tab] !== undefined && stats[tab] > 0 ? `(${stats[tab]})` : ''}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
+                <div className="p-6 overflow-x-auto w-full max-w-full block">
                     {/* Loading State */}
                     {isLoading && (
                         <div className="flex justify-center py-8">

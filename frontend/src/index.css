@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -390,12 +390,16 @@
     background: var(--color-card-bg);
     border: 1px solid var(--color-border);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
     box-shadow: var(--shadow-card);
+    display: block !important;
   }
 
   .erp-table {
     width: 100%;
+    min-width: 1100px;
     font-size: 14px;
     border-collapse: collapse;
   }
@@ -411,6 +415,9 @@
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
 
   .erp-table td {

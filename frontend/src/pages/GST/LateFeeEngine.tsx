@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { AlertTriangle, CheckCircle, Clock, TrendingUp, X } from 'lucide-react';
 
@@ -59,7 +59,7 @@ export default function LateFeeEngine() {
             setOtpError('Please enter a valid 6-digit OTP');
             return;
         }
-        
+
         setPayingId(selectedPayRecord.late_fee_id);
         setOtpError('');
         try {
@@ -269,18 +269,18 @@ export default function LateFeeEngine() {
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                         <div className="flex items-center justify-between p-4 border-b bg-slate-50">
                             <h3 className="font-bold text-slate-800">Authorize Payment</h3>
-                            <button 
+                            <button
                                 onClick={() => {
                                     setSelectedPayRecord(null);
                                     setOtpValue('');
                                     setOtpError('');
-                                }} 
+                                }}
                                 className="text-slate-400 hover:text-slate-600"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        
+
                         <div className="p-6">
                             <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm border border-red-100 flex items-start gap-3">
                                 <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />

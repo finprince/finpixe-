@@ -308,6 +308,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const [vendorConflictMsg, setVendorConflictMsg] = useState<string>('');
   const [extractedVendorData, setExtractedVendorData] = useState<any>(null);
   const [isCreateVendorModalOpen, setIsCreateVendorModalOpen] = useState(false);
+  // GSTR-2B date mismatch banner: holds the expected date from government data
+  const [gstr2bExpectedDate, setGstr2bExpectedDate] = useState<string | null>(null);
 
 
   // Subscription Usage
@@ -2992,7 +2994,9 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             })()
             : false;
 
-        setDate(formatDateForInput(localPrefilledData.invoiceDate) || getTodayDate());
+        const prefilledDate = formatDateForInput(localPrefilledData.invoiceDate) || getTodayDate();
+        setDate(prefilledDate);
+        setSupplierInvoiceDate(prefilledDate);
         setInvoiceNo(localPrefilledData.invoiceNumber || '');
         setParty(localPrefilledData.sellerName || '');
         setIsInterState(newIsInterState);
@@ -3145,6 +3149,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           }
           setPurchaseItems(newPurchaseItems);
 
+        } else if (localPrefilledData.totalAmount && Number(localPrefilledData.totalAmount) > 0) {
+          const amt = Number(localPrefilledData.totalAmount);
+          setItems([{ name: 'GSTR-2B Reconciled Purchase', qty: 1, rate: amt, taxableAmount: amt, cgstAmount: 0, sgstAmount: 0, igstAmount: 0, totalAmount: amt }]);
+          setPurchaseItems([{ id: '1', itemCode: '', itemName: 'GSTR-2B Reconciled Purchase', hsnSac: '', qty: 1, uom: '', rate: amt, discountPercent: 0, discountAmount: 0, taxableValue: amt, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: amt, description: 'GSTR-2B Reconciled Purchase', poRate: null as number | null, invoiceRate: amt, rateMismatch: false, poQty: null as number | null, invoiceQty: 1, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }]);
         } else {
           setItems([{ name: '', qty: 1, rate: 0, taxableAmount: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0, totalAmount: 0 }]);
           setPurchaseItems([{ id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 1, uom: '', rate: 0, discountPercent: 0, discountAmount: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null as number | null, invoiceRate: null as number | null, rateMismatch: false, poQty: null as number | null, invoiceQty: null as number | null, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }]);
@@ -3567,7 +3575,11 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         const vendorId = parseInt(idMatch[2], 10);
         vendor = richVendors.find(v => v.id === vendorId);
       } else {
-        vendor = richVendors.find(v => (v.vendor_name || '').toLowerCase() === lowerEntityName);
+        const cleanName = (entityName || '').toLowerCase().trim();
+        vendor = richVendors.find(v => {
+          const vName = (v.vendor_name || '').toLowerCase().trim();
+          return vName === cleanName || vName.includes(cleanName) || cleanName.includes(vName);
+        });
       }
       if (vendor) {
         setVendorId(vendor.id);
@@ -4451,21 +4463,30 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       if (voucherType === 'Purchase') {
         let currentVendorId = vendorId;
         console.log('🔴 [PURCHASE SAVE] vendorId state=', vendorId, '| party=', party, '| selectedPurchaseConfig=', selectedPurchaseConfig);
-        if (!currentVendorId && party) {
-          // Try auto-match from richVendors
-          const lowerParty = party.toLowerCase();
-          const match = richVendors.find(v => v.vendor_name.toLowerCase() === lowerParty);
+        if (!currentVendorId && (party || gstin)) {
+          // Try auto-match from richVendors by name or GSTIN
+          const lowerParty = (party || '').toLowerCase().trim();
+          const cleanGstin = (gstin || '').trim().toUpperCase();
+          const match = richVendors.find(v => {
+            const vName = (v.vendor_name || '').toLowerCase().trim();
+            const vGst = (v.gstin || '').trim().toUpperCase();
+            if (cleanGstin && vGst && cleanGstin === vGst) return true;
+            if (lowerParty && vName === lowerParty) return true;
+            if (lowerParty && (vName.includes(lowerParty) || lowerParty.includes(vName))) return true;
+            return false;
+          });
           if (match) {
             currentVendorId = match.id;
             setVendorId(match.id);
+            if (!party) setParty(match.vendor_name || '');
             console.log('🔴 [PURCHASE SAVE] Auto-matched vendorId=', match.id);
           } else {
-            console.log('🔴 [PURCHASE SAVE] No vendor match found in richVendors for party=', party, '| richVendors count=', richVendors.length);
+            console.log('🔴 [PURCHASE SAVE] No vendor match found in richVendors for party=', party, '| gstin=', gstin, '| richVendors count=', richVendors.length);
           }
         }
 
         if (!currentVendorId) {
-          showError("Please select a valid Vendor from the Master list.");
+          showError(`Vendor "${party || gstin || 'entered'}" was not found in your Vendor Master list. Please click the "+ ADD NEW VENDOR" button below the Vendor dropdown to create this vendor first.`);
           console.error('🔴 [PURCHASE SAVE] BLOCKED: no currentVendorId');
           return;
         }
@@ -5467,8 +5488,48 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     }
 
     if (!voucherId) {
-      // Fallback: use raw data directly
+      // Fallback: use raw data directly for creation/pre-fill
+      setIsReadOnlyMode(false);
+      isExistingVoucherRef.current = false;
       setDrillDownDetails({ ...rawVoucher, _mappedType: mappedType, _rawEntry: viewVoucherData });
+
+      const fallbackDate = rawVoucher.date || viewVoucherData.date;
+      if (fallbackDate) {
+        try { setDate(new Date(fallbackDate).toISOString().split('T')[0]); } catch (e) {}
+        if (mappedType === 'Purchase') {
+          try { setSupplierInvoiceDate(new Date(fallbackDate).toISOString().split('T')[0]); } catch (e) {}
+        }
+      }
+      const fallbackParty = rawVoucher.party || viewVoucherData.party || viewVoucherData.ledgerName || viewVoucherData.ledger || '';
+      if (fallbackParty) {
+        setParty(fallbackParty);
+        if (richVendors && richVendors.length > 0) {
+          const matchedVendor = richVendors.find((v: any) =>
+            (v.vendor_name || '').toLowerCase() === fallbackParty.toLowerCase() ||
+            (v.vendor_name || '').toLowerCase().includes(fallbackParty.toLowerCase())
+          );
+          if (matchedVendor) setVendorId(matchedVendor.id);
+        }
+      }
+      const fallbackGstin = rawVoucher.gstin || viewVoucherData.gstin || '';
+      if (fallbackGstin) setGstin(fallbackGstin);
+      const fallbackVoucherNo = rawVoucher.purchase_voucher_no || rawVoucher.voucherNo || rawVoucher.voucher_no || viewVoucherData.purchase_voucher_no || viewVoucherData.voucherNo || viewVoucherData.voucher_no || '';
+      if (fallbackVoucherNo) {
+        setVoucherNumber(fallbackVoucherNo);
+        if (mappedType === 'Purchase') {
+          setInvoiceNo(rawVoucher.supplier_invoice_no || viewVoucherData.supplier_invoice_no || fallbackVoucherNo);
+        }
+      }
+      const fallbackSeries = rawVoucher.purchase_voucher_series || rawVoucher.voucher_series || rawVoucher.voucher_name || viewVoucherData.purchase_voucher_series || viewVoucherData.voucher_series || viewVoucherData.voucher_name || '';
+      if (fallbackSeries) {
+        setSelectedPurchaseConfig(fallbackSeries);
+      }
+      const fallbackAmt = parseFloat(rawVoucher.amount || viewVoucherData.amount || viewVoucherData.debit || viewVoucherData.credit || 0);
+      if (fallbackAmt && mappedType === 'Purchase') {
+        setSimpleAmount(fallbackAmt);
+        setPurchaseAdvancePaid('0.00');
+        setPurchaseTdsIt('0.00');
+      }
       return;
     }
 
@@ -5535,11 +5596,25 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         if (vendorName) setParty(vendorName);
         if (mappedType === 'Purchase') {
           setInvoiceNo(details.supplier_invoice_no || details.voucher_number || details.voucher_no || '');
-          setSupplierInvoiceDate(details.supplier_invoice_date || details.date || '');
+          // Pre-fill supplier invoice date from DB. If this voucher was opened from GSTR-2B reco fix flow,
+          // also keep the GSTR-2B expected date available for comparison.
+          const dbSupplierDate = details.supplier_invoice_date || details.date || '';
+          setSupplierInvoiceDate(dbSupplierDate);
+          // Store gstr2b expected values for mismatch banner (from viewVoucherData passed by reconciliation)
+          const gstr2bDate = viewVoucherData?.gstr2b_invoice_date;
+          if (gstr2bDate && dbSupplierDate && gstr2bDate !== dbSupplierDate) {
+            // Show banner: supplier date in DB doesn't match GSTR-2B — set state for banner
+            setGstr2bExpectedDate(gstr2bDate);
+          } else {
+            setGstr2bExpectedDate(null);
+          }
           if (details.gstin) setGstin(details.gstin);
           if (details.branch) setSelectedBranch(details.branch);
-          if (details.voucher_number || details.voucher_no) setVoucherNumber(details.voucher_number || details.voucher_no);
-          if (details.purchase_voucher_series) setSelectedPurchaseConfig(details.purchase_voucher_series);
+          const resolvedVNo = details.purchase_voucher_no || details.voucher_number || details.voucher_no || rawVoucher.purchase_voucher_no || rawVoucher.voucher_number || rawVoucher.voucher_no || viewVoucherData?.purchase_voucher_no || viewVoucherData?.voucher_number || viewVoucherData?.voucherNo || '';
+          if (resolvedVNo) setVoucherNumber(resolvedVNo);
+
+          const resolvedSeries = details.purchase_voucher_series || details.voucher_series || details.voucher_name || rawVoucher.purchase_voucher_series || rawVoucher.voucher_series || rawVoucher.voucher_name || viewVoucherData?.purchase_voucher_series || viewVoucherData?.voucher_series || '';
+          if (resolvedSeries) setSelectedPurchaseConfig(resolvedSeries);
           if (details.grn_reference) setGrnRefNo(details.grn_reference);
           if (details.invoice_in_foreign_currency) setInvoiceInForeignCurrency(details.invoice_in_foreign_currency);
           if (details.bill_from) setBillFromAddress1(details.bill_from);
@@ -6181,6 +6256,9 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                   >
                     <option value="">Select Series</option>
+                    {selectedPurchaseConfig && !purchaseVoucherConfigs.some(c => c.voucher_name === selectedPurchaseConfig) && (
+                      <option value={selectedPurchaseConfig}>{selectedPurchaseConfig}</option>
+                    )}
                     {purchaseVoucherConfigs.map((config) => (
                       <option key={config.id} value={config.voucher_name}>
                         {config.voucher_name}
@@ -6293,11 +6371,29 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <input
                     type="date"
                     value={supplierInvoiceDate}
-                    onChange={(e) => setSupplierInvoiceDate(e.target.value)}
-                    max={getTodayDate()}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
+                    onChange={(e) => { setSupplierInvoiceDate(e.target.value); setGstr2bExpectedDate(null); }}
+                    className={`w-full px-4 py-2 border rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 ${gstr2bExpectedDate ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`}
                     required
                   />
+                  {gstr2bExpectedDate ? (
+                    <div className="mt-1.5 p-2 bg-amber-50 border border-amber-300 rounded text-xs">
+                      <div className="flex items-center gap-1 text-amber-800 font-semibold mb-1">
+                        ⚠️ GSTR-2B Date Mismatch
+                      </div>
+                      <div className="text-amber-700 mb-1.5">
+                        Government records: <span className="font-mono font-bold">{gstr2bExpectedDate}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setSupplierInvoiceDate(gstr2bExpectedDate); setGstr2bExpectedDate(null); }}
+                        className="px-2 py-1 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700"
+                      >
+                        Apply GSTR-2B Date
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 mt-1">This date appears in GSTR-2B reconciliation</p>
+                  )}
                 </div>
               </div>
 
@@ -12744,10 +12840,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     setDrillDownDetails(null);
     if (clearViewVoucherData) clearViewVoucherData();
     if (onNavigate) {
-      if (viewVoucherData?.source && viewVoucherData.source.endsWith('_drilldown')) {
-        let targetTab = 'GSTR1';
-        if (viewVoucherData.source.includes('gstr2b_reco')) targetTab = 'GSTR2B_RECO';
-        else if (viewVoucherData.source.includes('gstr2')) targetTab = 'GSTR2';
+      if (viewVoucherData?.returnTo === 'GST' || (viewVoucherData?.source && (viewVoucherData.source.endsWith('_drilldown') || viewVoucherData.source.includes('gstr2') || viewVoucherData.source.includes('reco')))) {
+        let targetTab = viewVoucherData?.returnTab || 'GSTR1';
+        if (viewVoucherData?.source && viewVoucherData.source.includes('gstr2b_reco')) targetTab = 'GSTR2B_RECO';
+        else if (viewVoucherData?.source && viewVoucherData.source.includes('gstr2')) targetTab = 'GSTR2';
         onNavigate('GST', { tab: targetTab });
       } else if (viewVoucherData?.ledgerName) {
         onNavigate('Reports', { reportType: 'LedgerReport', drillDownLedger: viewVoucherData.ledgerName });

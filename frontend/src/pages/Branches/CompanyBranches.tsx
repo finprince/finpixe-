@@ -92,7 +92,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
                 <div style={{
                     width: 52, height: 52, borderRadius: 14,
                     background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
-                    display: 'flex', items: 'center', justify: 'center',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 24, boxShadow: '0 6px 16px rgba(99, 102, 241,0.25)'
                 }}>🏢</div>
                 <div>
@@ -188,7 +188,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
                                 </div>
 
                                 {/* GSTIN & PAN badges & Actions */}
-                                <div style={{ display: 'flex', itemsCenter: 'center', gap: 12, flexShrink: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                                     <div style={{ display: 'flex', gap: 8 }}>
                                         <span style={{
                                             fontSize: 10, fontWeight: 800,

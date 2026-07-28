@@ -1,4 +1,4 @@
-﻿import finpixeLogo from '../../assets/branding/logo';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
@@ -230,23 +230,19 @@ const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPref
         }
     };
 
-    return (
-        <div className="space-y-8">
-            <div className="erp-section-title">
-                <div>
-                    <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-white border border-[#C7D2FE] shadow-[0_8px_16px_rgba(99, 102, 241,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
-          </div>
-          <div>
-<h1 className="page-title">Customer Portal</h1>
-                    <p className="helper-text">Sales management and customer relations</p>
-                          </div>
-        </div></div>
-            </div>
+    const [inspectorState, setInspectorState] = useState<{ isOpen: boolean; title?: string; subtitle?: string; entityType?: string; data?: Record<string, any> | null }>({ isOpen: false });
 
-            {/* Main Tabs */}
-            <div className="erp-tab-container">
+    return (
+        <UniversalWorkspaceLayout
+            title="Customer Portal Hub"
+            subtitle="Sales management, customer master directory, and quotation tracking."
+            badgeText="CUSTOMER PORTAL"
+            inspectorState={inspectorState}
+            onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
+        >
+            <div className="flex flex-col gap-6 text-left">
+                {/* Main Tabs */}
+                <div className="erp-tab-container">
                 {availableTabs.map((tab) => (
                     <button
                         key={tab}
@@ -365,7 +361,8 @@ const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPref
                 />
             </div>
         </div>
-    );
+    </UniversalWorkspaceLayout>
+);
 };
 
 // -- Mastery Sub-Components --

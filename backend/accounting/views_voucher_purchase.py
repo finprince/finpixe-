@@ -15,8 +15,8 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
     serializer_class = VoucherPurchaseSupplierDetailsSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
+        from core.tenant import get_tenant_from_request
+        tenant_id = get_tenant_from_request(self.request) or getattr(self.request.user, 'tenant_id', None) or getattr(self.request.user, 'branch_id', None)
 
         if not tenant_id:
             return VoucherPurchaseSupplierDetails.objects.none()
@@ -64,9 +64,10 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
             if generic_voucher and generic_voucher.reference_id:
                 self.kwargs['pk'] = generic_voucher.reference_id
                 return super().get_object()
-            # Also try to find directly by voucher_id on the supplier details
+            from core.tenant import get_tenant_from_request
+            tenant_id = get_tenant_from_request(self.request) or getattr(self.request.user, 'tenant_id', None) or getattr(self.request.user, 'branch_id', None)
             instance = VoucherPurchaseSupplierDetails.objects.filter(
-                tenant_id=getattr(self.request.user, 'tenant_id', None),
+                tenant_id=tenant_id,
                 voucher_id=pk
             ).first()
             if instance:
@@ -96,7 +97,8 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
             )
 
     def perform_create(self, serializer):
-        tenant_id = self.request.user.branch_id
+        from core.tenant import get_tenant_from_request
+        tenant_id = get_tenant_from_request(self.request) or getattr(self.request.user, 'tenant_id', None) or getattr(self.request.user, 'branch_id', None)
         serializer.save(tenant_id=tenant_id)
 
     @action(detail=False, methods=['post'], url_path='validate-voucher')
@@ -104,8 +106,8 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
         """
         Strict check for duplicate vouchers.
         """
-        user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None) or getattr(user, 'branch_id', None)
+        from core.tenant import get_tenant_from_request
+        tenant_id = get_tenant_from_request(request) or getattr(request.user, 'tenant_id', None) or getattr(request.user, 'branch_id', None)
 
         supplier_invoice_no = request.data.get('supplier_invoice_no', '').strip()
         gstin = request.data.get('gstin', '').strip()
