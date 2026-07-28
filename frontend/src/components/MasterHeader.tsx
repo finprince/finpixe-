@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Icon from './Icon';
 import { CommandPalette } from './ui/CommandPalette';
 import { useCommandPalette } from '../hooks/useCommandPalette';
-import type { CommandAction } from '../types';
+import type { CommandAction } from '../types/types';
 import { ChevronUp } from 'lucide-react';
 
 interface MasterHeaderProps {

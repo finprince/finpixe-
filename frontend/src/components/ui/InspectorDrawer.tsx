@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Activity, Sparkles, Clock, FileText, ChevronRight } from 'lucide-react';
-import type { InspectorState } from '../../types';
+import type { InspectorState } from '../../types/types';
 
 interface InspectorDrawerProps {
   state: InspectorState;

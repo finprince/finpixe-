@@ -1,5 +1,5 @@
 import finpixeLogo from '../../assets/branding/logo';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import GSTR1Page from './GSTR1';
 import GSTR2Page from './GSTR2Page';
 import GSTR2Reconciliation from './GSTR2Reconciliation';
@@ -36,9 +36,16 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
         return availableTabs.length > 0 ? availableTabs[0].id : '';
     });
 
+    const [recoRefreshKey, setRecoRefreshKey] = useState(0);
+    const prevTabRef = useRef(activeTab);
+
     const setActiveTab = (tabId: string) => {
         savedGstTab = tabId;
         setActiveTabState(tabId);
+        // When switching TO the GSTR2B_RECO tab, increment refresh key so reconciliation re-fetches
+        if (tabId === 'GSTR2B_RECO') {
+            setRecoRefreshKey(k => k + 1);
+        }
     };
 
     // Inspector Drawer State
@@ -55,6 +62,10 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
     useEffect(() => {
         if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
             setActiveTab(navParams.tab);
+            // When navigating back to GSTR2B_RECO (e.g. after fixing a voucher), force refresh
+            if (navParams.tab === 'GSTR2B_RECO') {
+                setRecoRefreshKey(k => k + 1);
+            }
         }
     }, [navParams]);
 
@@ -73,17 +84,24 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
             inspectorState={inspectorState}
             onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}
         >
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 min-w-0 w-full overflow-hidden">
 
 
 
             {/* Main Tabs */}
-            <div className="erp-tab-container">
+            <div 
+                className="erp-tab-container sticky top-0 z-30 bg-[#FAFAFA] pt-2 pb-1 border-b border-slate-200 overflow-x-auto select-none"
+                onWheel={(e) => {
+                    if (e.deltaY !== 0) {
+                        e.currentTarget.scrollLeft += e.deltaY;
+                    }
+                }}
+            >
                 {availableTabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`erp-tab ${activeTab === tab.id ? 'active' : ''}`}
+                        className={`erp-tab whitespace-nowrap ${activeTab === tab.id ? 'active' : ''}`}
                     >
                         {tab.label}
                     </button>
@@ -101,7 +119,7 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
                 )}
 
                 {activeTab === 'GSTR2B_RECO' && (
-                    <GSTR2Reconciliation onNavigate={onNavigate} setViewVoucherData={setViewVoucherData} />
+                    <GSTR2Reconciliation onNavigate={onNavigate} setViewVoucherData={setViewVoucherData} refreshKey={recoRefreshKey} />
                 )}
 
                 {activeTab === 'GSTR3B' && (

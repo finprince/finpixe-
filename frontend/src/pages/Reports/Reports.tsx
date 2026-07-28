@@ -1,4 +1,4 @@
-﻿import finpixeLogo from '../../assets/branding/logo';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import type { Ledger, Voucher, StockItem, SalesPurchaseVoucher, LedgerGroupMaster, Page } from '../../types';
@@ -1754,7 +1754,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           e.transaction_date || e.date || '',
           e.particulars || 'N/A',
           normalizeVoucherType(e.voucher_type || e.type || ''),
-          e.voucher_number || e.voucherNo || '',
+          e.voucher_number || e.voucherNo || e.purchase_voucher_no || e.voucher_no || '',
           Number(e.debit) || 0,
           Number(e.credit) || 0,
           refNo,
@@ -1771,7 +1771,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           e.transaction_date || e.date || '',
           e.particulars || e.ledger || 'N/A',
           normalizeVoucherType(e.voucher_type || e.type || ''),
-          e.voucher_number || e.voucherNo || '',
+          e.voucher_number || e.voucherNo || e.purchase_voucher_no || e.voucher_no || '',
           Number(e.debit) || 0,
           Number(e.credit) || 0,
           e.reference_number || e.referenceNo || '-',

@@ -6,7 +6,15 @@ let savedSubTab: string = 'B2B';
 
 export default function GSTR2Page({ onNavigate, setViewVoucherData }: { onNavigate?: (page: string, params?: any) => void, setViewVoucherData?: (data: any) => void }) {
     const [activeSubTab, setActiveSubTabState] = useState(savedSubTab);
+    const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
+
     const setActiveSubTab = (tab: string) => { savedSubTab = tab; setActiveSubTabState(tab); };
+
+    useEffect(() => {
+        if (activeTabRef.current) {
+            activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }, [activeSubTab]);
     
     const [period, setPeriodState] = useState(() => {
         if (savedPeriod) return savedPeriod;
@@ -104,80 +112,93 @@ export default function GSTR2Page({ onNavigate, setViewVoucherData }: { onNaviga
 
     return (
         <div className="space-y-6">
-            <div className="erp-container">
-                <div className="flex flex-wrap items-end gap-6">
-                    <div className="w-48">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
-                        <select
-                            value={period.year}
-                            onChange={(e) => setPeriod({ ...period, year: e.target.value })}
-                            className="erp-select"
-                        >
-                            {(() => {
-                                const years = [];
-                                const today = new Date();
-                                const currentYear = today.getFullYear();
-                                const currentMonth = today.getMonth();
+            {/* Sticky Controls & Sub-tabs Header */}
+            <div className="sticky top-[49px] z-20 bg-[#FAFAFA] pt-1 pb-2 space-y-4">
+                <div className="erp-container shadow-sm">
+                    <div className="flex flex-wrap items-end gap-6">
+                        <div className="w-48">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
+                            <select
+                                value={period.year}
+                                onChange={(e) => setPeriod({ ...period, year: e.target.value })}
+                                className="erp-select"
+                            >
+                                {(() => {
+                                    const years = [];
+                                    const today = new Date();
+                                    const currentYear = today.getFullYear();
+                                    const currentMonth = today.getMonth();
 
-                                let fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
+                                    let fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
 
-                                for (let i = 0; i < 11; i++) {
-                                    const start = fyStartYear - i;
-                                    const end = (start + 1).toString().slice(-2);
-                                    const fyLabel = `${start}-${end}`;
-                                    years.push(<option key={fyLabel} value={fyLabel}>{fyLabel}</option>);
-                                }
-                                return years;
-                            })()}
-                        </select>
+                                    for (let i = 0; i < 11; i++) {
+                                        const start = fyStartYear - i;
+                                        const end = (start + 1).toString().slice(-2);
+                                        const fyLabel = `${start}-${end}`;
+                                        years.push(<option key={fyLabel} value={fyLabel}>{fyLabel}</option>);
+                                    }
+                                    return years;
+                                })()}
+                            </select>
+                        </div>
+                        <div className="w-48">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
+                            <select
+                                value={period.month}
+                                onChange={(e) => setPeriod({ ...period, month: e.target.value })}
+                                className="erp-select"
+                            >
+                                <option>January</option>
+                                <option>February</option>
+                                <option>March</option>
+                                <option>April</option>
+                                <option>May</option>
+                                <option>June</option>
+                                <option>July</option>
+                                <option>August</option>
+                                <option>September</option>
+                                <option>October</option>
+                                <option>November</option>
+                                <option>December</option>
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={fetchData}
+                                className="erp-button-primary"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? 'Generating...' : 'Generate Return'}
+                            </button>
+                        </div>
                     </div>
-                    <div className="w-48">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
-                        <select
-                            value={period.month}
-                            onChange={(e) => setPeriod({ ...period, month: e.target.value })}
-                            className="erp-select"
-                        >
-                            <option>January</option>
-                            <option>February</option>
-                            <option>March</option>
-                            <option>April</option>
-                            <option>May</option>
-                            <option>June</option>
-                            <option>July</option>
-                            <option>August</option>
-                            <option>September</option>
-                            <option>October</option>
-                            <option>November</option>
-                            <option>December</option>
-                        </select>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={fetchData}
-                            className="erp-button-primary"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? 'Generating...' : 'Generate Return'}
-                        </button>
+                </div>
+
+                <div className="erp-container p-0 shadow-sm overflow-hidden">
+                    <div
+                        className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto select-none"
+                        onWheel={(e) => {
+                            if (e.deltaY !== 0) {
+                                e.currentTarget.scrollLeft += e.deltaY;
+                            }
+                        }}
+                    >
+                        {subTabs.map((tab) => (
+                            <button
+                                key={tab}
+                                ref={activeSubTab === tab ? activeTabRef : null}
+                                onClick={() => setActiveSubTab(tab)}
+                                className={`erp-tab whitespace-nowrap ${activeSubTab === tab ? 'active' : ''}`}
+                            >
+                                {tab} {stats[tab] !== undefined && stats[tab] > 0 ? `(${stats[tab]})` : ''}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
             <div className="erp-container p-0">
-                <div className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto">
-                    {subTabs.map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveSubTab(tab)}
-                            className={`erp-tab ${activeSubTab === tab ? 'active' : ''}`}
-                        >
-                            {tab} {stats[tab] !== undefined && stats[tab] > 0 ? `(${stats[tab]})` : ''}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="p-6">
+                <div className="p-6 overflow-x-auto w-full max-w-full block">
                     {isLoading && (
                         <div className="flex justify-center py-8">
                             <div className="animate-spin rounded-[4px] h-8 w-8 border-b-2 border-indigo-600"></div>

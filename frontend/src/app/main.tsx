@@ -39,16 +39,16 @@ const ensureFavicon = () => {
     faviconIco.rel = 'icon';
     document.head.appendChild(faviconIco);
   }
-  faviconIco.href = '/favicon.ico?v=10';
+  faviconIco.href = '/favicon.ico?v=finpixe_v3';
 
-  let faviconPng = document.querySelector("link[rel*='icon'][href*='favicon.png']") as HTMLLinkElement;
+  let faviconPng = document.querySelector("link[rel*='icon'][href*='finpixe_with_empty_bg.png'], link[rel*='icon'][href*='finpixe.png'], link[rel*='icon'][href*='favicon.png']") as HTMLLinkElement;
   if (!faviconPng) {
     faviconPng = document.createElement('link');
     faviconPng.rel = 'icon';
     faviconPng.type = 'image/png';
     document.head.appendChild(faviconPng);
   }
-  faviconPng.href = '/favicon.png?v=10';
+  faviconPng.href = '/finpixe_with_empty_bg.png?v=finpixe_v3';
 };
 ensureFavicon();
 

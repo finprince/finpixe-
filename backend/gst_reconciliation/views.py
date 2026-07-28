@@ -78,6 +78,74 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
 
         return Response({"message": "Upload complete", "created": created_count, "duplicates": duplicate_count})
 
+    def _run_matching_engine(self, tenant_id, month, year, job=None):
+        from accounting.models_voucher_purchase import VoucherPurchaseSupplierDetails
+        invoices_2b = GSTR2BInvoice.objects.all()
+        if tenant_id:
+            vouchers_books = VoucherPurchaseSupplierDetails.objects.filter(tenant_id=tenant_id)
+        else:
+            vouchers_books = VoucherPurchaseSupplierDetails.objects.all()
+        total = invoices_2b.count()
+        
+        for index, inv_2b in enumerate(invoices_2b):
+            inv_gstin = (inv_2b.gstin or '').strip()
+            if inv_gstin:
+                matches = vouchers_books.filter(gstin__iexact=inv_gstin)
+            else:
+                matches = vouchers_books.none()
+                
+            if not matches.exists() and inv_2b.vendor_name:
+                matches = vouchers_books.filter(vendor_name__iexact=inv_2b.vendor_name.strip())
+            if not matches.exists() and inv_2b.invoice_no:
+                matches = vouchers_books.filter(supplier_invoice_no__iexact=inv_2b.invoice_no.strip())
+            if not matches.exists() and inv_2b.invoice_no:
+                matches = vouchers_books.filter(purchase_voucher_no__iexact=inv_2b.invoice_no.strip())
+            
+            best_match = None
+            max_score = 0
+            
+            for v in matches:
+                score = 0
+                if (v.supplier_invoice_no or '').strip().lower() == (inv_2b.invoice_no or '').strip().lower() or (v.purchase_voucher_no or '').strip().lower() == (inv_2b.invoice_no or '').strip().lower():
+                    score += 50
+                
+                # Fuzzy date check (±3 days)
+                v_date = getattr(v, 'supplier_invoice_date', None) or getattr(v, 'date', None)
+                if v_date and inv_2b.invoice_date and abs((v_date - inv_2b.invoice_date).days) <= 3:
+                    score += 20
+                    
+                # Fuzzy value check (±2%)
+                v_val = sum((item.invoice_value or item.taxable_value or (item.rate * item.quantity)) for item in v.line_items.all())
+                if not v_val or v_val == 0:
+                    v_val = getattr(getattr(v, 'due_details', None), 'to_pay', 0)
+                if v_val and inv_2b.invoice_value:
+                    diff_pct = abs(float(v_val) - float(inv_2b.invoice_value)) / float(inv_2b.invoice_value)
+                    if diff_pct <= 0.02:
+                        score += 30
+                elif v_val == 0 and inv_2b.invoice_value == 0:
+                    score += 30
+
+                if score > max_score:
+                    max_score = score
+                    best_match = v
+
+            status_label = 'MISMATCH'
+            if max_score >= 70: status_label = 'EXACT'
+            elif max_score >= 50: status_label = 'PARTIAL'
+            
+            ReconciliationResult.objects.update_or_create(
+                invoice_2b=inv_2b,
+                defaults={
+                    'purchase_voucher_id': best_match.id if best_match else None,
+                    'matching_score': max_score,
+                    'status': status_label if best_match else 'MISSING_BOOKS'
+                }
+            )
+            
+            if job and total > 0 and index % 10 == 0:
+                job.progress = int((index / total) * 100)
+                job.save()
+
     def _threaded_reconciliation(self, job_id, month, year, tenant_id=None):
         """Background worker for reconciliation."""
         job = GSTJobStatus.objects.get(id=job_id)
@@ -85,57 +153,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         job.save()
 
         try:
-            invoices_2b = GSTR2BInvoice.objects.all() # In production: filter by date
-            if tenant_id:
-                vouchers_books = VoucherPurchaseSupplierDetails.objects.filter(tenant_id=tenant_id)
-            else:
-                vouchers_books = VoucherPurchaseSupplierDetails.objects.all()
-            total = invoices_2b.count()
-            
-            for index, inv_2b in enumerate(invoices_2b):
-                matches = vouchers_books.filter(gstin=inv_2b.gstin)
-                best_match = None
-                max_score = 0
-                
-                for v in matches:
-                    score = 0
-                    if v.supplier_invoice_no.strip().lower() == inv_2b.invoice_no.strip().lower():
-                        score += 50
-                    
-                    # Fuzzy date check (±3 days)
-                    if abs((v.date - inv_2b.invoice_date).days) <= 3:
-                        score += 20
-                        
-                    # Fuzzy value check (±2%)
-                    v_val = sum(item.invoice_value for item in v.line_items.all())
-                    if v_val and inv_2b.invoice_value:
-                        diff_pct = abs(float(v_val) - float(inv_2b.invoice_value)) / float(inv_2b.invoice_value)
-                        if diff_pct <= 0.02:
-                            score += 30
-                    elif v_val == 0 and inv_2b.invoice_value == 0:
-                        score += 30
-
-                    if score > max_score:
-                        max_score = score
-                        best_match = v
-
-                status_label = 'MISMATCH'
-                if max_score >= 70: status_label = 'EXACT'
-                elif max_score >= 50: status_label = 'PARTIAL'
-                
-                ReconciliationResult.objects.update_or_create(
-                    invoice_2b=inv_2b,
-                    defaults={
-                        'purchase_voucher_id': best_match.id if best_match else None,
-                        'matching_score': max_score,
-                        'status': status_label if best_match else 'MISSING_BOOKS'
-                    }
-                )
-                
-                if index % 10 == 0:
-                    job.progress = int((index / total) * 100)
-                    job.save()
-
+            self._run_matching_engine(tenant_id, month, year, job=job)
             job.status = 'COMPLETED'
             job.progress = 100
             job.save()
@@ -153,7 +171,8 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         """Module 3: Matching Engine execution."""
         month = request.data.get('month')
         year = request.data.get('year')
-        tenant_id = getattr(request.user, 'tenant_id', None)
+        from core.tenant import get_tenant_from_request
+        tenant_id = get_tenant_from_request(request) or getattr(request.user, 'tenant_id', None) or getattr(request.user, 'branch_id', None)
         
         job = GSTJobStatus.objects.create(job_type='RECO', status='PENDING')
         
@@ -187,6 +206,13 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         """Fetch reconciliation results for GSTR-2B."""
         month = request.query_params.get('month')
         year = request.query_params.get('year')
+        from core.tenant import get_tenant_from_request
+        tenant_id = get_tenant_from_request(request) or getattr(request.user, 'tenant_id', None) or getattr(request.user, 'branch_id', None)
+        
+        try:
+            self._run_matching_engine(tenant_id, month, year, job=None)
+        except Exception:
+            pass
         
         results_qs = ReconciliationResult.objects.select_related('invoice_2b')
         if month and year:
@@ -207,12 +233,13 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             books_data = None
             if r.purchase_voucher_id and r.purchase_voucher_id in voucher_map:
                 v = voucher_map[r.purchase_voucher_id]
-                items_val = sum(item.invoice_value for item in v.line_items.all())
+                items_val = sum((item.invoice_value or item.taxable_value or (item.rate * item.quantity)) for item in v.line_items.all())
+                raw_date = getattr(v, 'supplier_invoice_date', None) or getattr(v, 'date', None)
                 books_data = {
                     "purchase_voucher_id": v.id,
-                    "invoice_no": getattr(v, 'supplier_invoice_no', ''),
-                    "invoice_date": getattr(v, 'date', None),
-                    "invoice_value": float(items_val),
+                    "invoice_no": getattr(v, 'supplier_invoice_no', '') or getattr(v, 'purchase_voucher_no', ''),
+                    "invoice_date": str(raw_date) if raw_date else '',
+                    "invoice_value": float(items_val) if items_val else float(getattr(getattr(v, 'due_details', None), 'to_pay', 0) or 0),
                     "vendor_name": getattr(v, 'vendor_name', ''),
                 }
 

@@ -81,6 +81,11 @@ declare module 'lucide-react' {
     export const TrendingDown: LucideIcon;
     export const Star: LucideIcon;
     export const Shield: LucideIcon;
+    export const ShieldAlert: LucideIcon;
+    export const AlertTriangle: LucideIcon;
+    export const Circle: LucideIcon;
+    export const Table: LucideIcon;
+    export const Grid: LucideIcon;
     export const Hash: LucideIcon;
     export const Tag: LucideIcon;
     export const Loader2: LucideIcon;
