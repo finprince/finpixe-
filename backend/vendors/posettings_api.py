@@ -2,30 +2,17 @@
 API endpoints for Vendor Master PO Settings.
 This module handles all API operations for PO settings.
 """
-
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db import IntegrityError
 import logging
-
 from .models import VendorMasterPOSettings, VendorMasterCategory
-from .posettings_serializers import (
-    VendorMasterPOSettingsSerializer,
-    VendorMasterPOSettingsCreateSerializer,
-    VendorMasterPOSettingsUpdateSerializer
-)
+from .posettings_serializers import VendorMasterPOSettingsSerializer, VendorMasterPOSettingsCreateSerializer, VendorMasterPOSettingsUpdateSerializer
 from .posettings_database import POSettingsDatabase
-
 logger = logging.getLogger(__name__)
-
-VENDOR_SYSTEM_CATEGORIES = [
-    'Raw Material', 'Work in Progress', 'Finished Goods',
-    'Stores and Spares', 'Packing Material', 'Stock in Trade',
-    'By-product', 'Scrap'
-]
-
+VENDOR_SYSTEM_CATEGORIES = ['Raw Material', 'Work in Progress', 'Finished Goods', 'Stores and Spares', 'Packing Material', 'Stock in Trade', 'By-product', 'Scrap']
 
 class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
     """
@@ -37,12 +24,11 @@ class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
     serializer_class = VendorMasterPOSettingsSerializer
     permission_classes = [IsAuthenticated]
 
-    
     def get_tenant_id(self):
         """Extract tenant_id from authenticated user"""
         user = self.request.user
         return getattr(user, 'tenant_id', None) or getattr(user, 'branch_id', None) or getattr(user, 'id', 'default_tenant')
-    
+
     def get_queryset(self):
         """Filter queryset by tenant only. is_active filtering is handled in list()"""
         tenant_id = self.get_tenant_id()
@@ -53,15 +39,15 @@ class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
         queryset = self.get_queryset().filter(is_active=True)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
         if self.action == 'create':
             return VendorMasterPOSettingsCreateSerializer
-        elif self.action in ['update', 'partial_update']:
+        elif self.action in {'update', 'partial_update'}:
             return VendorMasterPOSettingsUpdateSerializer
         return VendorMasterPOSettingsSerializer
-    
+
     def create(self, request, *args, **kwargs):
         """
         Create a new PO setting.
@@ -76,184 +62,99 @@ class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
             "auto_year": false
         }
         """
-        logger.info(f"=== PO Settings CREATE Request ===")
-        logger.info(f"Request data: {request.data}")
-        logger.info(f"Request user: {request.user}")
-        
+        logger.info(f'=== PO Settings CREATE Request ===')
+        logger.info(f'Request data: {request.data}')
+        logger.info(f'Request user: {request.user}')
         tenant_id = self.get_tenant_id()
-        logger.info(f"Branch ID: {tenant_id}")
-        
-        # Handle resolving 'system_N' virtual IDs to real category objects or PKs
+        logger.info(f'Branch ID: {tenant_id}')
         data = request.data.copy()
         category_val = data.get('category')
-        
         if isinstance(category_val, str) and category_val.startswith('system_'):
-            logger.info(f"Resolving virtual category ID: {category_val}")
+            logger.info(f'Resolving virtual category ID: {category_val}')
             try:
                 idx = int(category_val.split('_')[1])
                 if 0 <= idx < len(VENDOR_SYSTEM_CATEGORIES):
                     cat_name = VENDOR_SYSTEM_CATEGORIES[idx]
-                    # Find or create a matching real category record for this tenant
-                    cat_obj, _ = VendorMasterCategory.objects.get_or_create(
-                        tenant_id=tenant_id,
-                        category=cat_name,
-                        group='',
-                        subgroup='',
-                        defaults={'is_active': True}
-                    )
+                    cat_obj, _ = VendorMasterCategory.objects.get_or_create(tenant_id=tenant_id, category=cat_name, group='', subgroup='', defaults={'is_active': True})
                     data['category'] = cat_obj.id
-                    logger.info(f"Resolved to Category: {cat_name} (ID: {cat_obj.id})")
+                    logger.info(f'Resolved to Category: {cat_name} (ID: {cat_obj.id})')
             except (ValueError, IndexError) as e:
-                logger.error(f"Failed to resolve virtual category: {e}")
-
+                logger.error(f'Failed to resolve virtual category: {e}')
         serializer = self.get_serializer(data=data)
-        
         if not serializer.is_valid():
-            logger.error(f"Serializer validation failed: {serializer.errors}")
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        logger.info(f"Serializer validated data: {serializer.validated_data}")
-        
-        # Check for duplicate name
+            logger.error(f'Serializer validation failed: {serializer.errors}')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        logger.info(f'Serializer validated data: {serializer.validated_data}')
         name = serializer.validated_data.get('name')
         if POSettingsDatabase.check_duplicate_name(tenant_id, name):
-            logger.warning(f"Duplicate name detected: {name}")
-            return Response(
-                {'error': f'PO setting with name "{name}" already exists'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            logger.warning(f'Duplicate name detected: {name}')
+            return Response({'error': f'PO setting with name "{name}" already exists'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             category_id = serializer.validated_data.get('category')
             if category_id:
                 category_id = category_id.id
-            
-            logger.info(f"Creating PO setting with tenant_id={tenant_id}, name={name}")
-            
-            po_setting = POSettingsDatabase.create_po_setting(
-                tenant_id=tenant_id,
-                name=serializer.validated_data.get('name'),
-                category_id=category_id,
-                prefix=serializer.validated_data.get('prefix'),
-                suffix=serializer.validated_data.get('suffix'),
-                digits=serializer.validated_data.get('digits', 4),
-                auto_year=serializer.validated_data.get('auto_year', False)
-            )
-            
-            logger.info(f"✅ PO setting created successfully! ID: {po_setting.id}")
-            
+            logger.info(f'Creating PO setting with tenant_id={tenant_id}, name={name}')
+            po_setting = POSettingsDatabase.create_po_setting(tenant_id=tenant_id, name=serializer.validated_data.get('name'), category_id=category_id, prefix=serializer.validated_data.get('prefix'), suffix=serializer.validated_data.get('suffix'), digits=serializer.validated_data.get('digits', 4), auto_year=serializer.validated_data.get('auto_year', False))
+            logger.info(f'✅ PO setting created successfully! ID: {po_setting.id}')
             response_serializer = VendorMasterPOSettingsSerializer(po_setting)
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except ValueError as e:
-            logger.error(f"ValueError during creation: {e}")
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            logger.error(f'ValueError during creation: {e}')
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except IntegrityError as e:
-            logger.error(f"IntegrityError during creation: {e}")
-            return Response(
-                {'error': 'Database integrity error', 'details': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            logger.error(f'IntegrityError during creation: {e}')
+            return Response({'error': 'Database integrity error', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected error during creation: {e}", exc_info=True)
-            return Response(
-                {'error': 'Unexpected error', 'details': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
+            logger.error(f'Unexpected error during creation: {e}', exc_info=True)
+            return Response({'error': 'Unexpected error', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def update(self, request, *args, **kwargs):
         """Update an existing PO setting"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         tenant_id = self.get_tenant_id()
-
-        # Handle resolving 'system_N' virtual IDs to real category objects or PKs
         data = request.data.copy()
         category_val = data.get('category')
-        
         if isinstance(category_val, str) and category_val.startswith('system_'):
-            logger.info(f"Resolving virtual category ID: {category_val}")
+            logger.info(f'Resolving virtual category ID: {category_val}')
             try:
                 idx = int(category_val.split('_')[1])
                 if 0 <= idx < len(VENDOR_SYSTEM_CATEGORIES):
                     cat_name = VENDOR_SYSTEM_CATEGORIES[idx]
-                    # Find or create matching real category
-                    cat_obj, _ = VendorMasterCategory.objects.get_or_create(
-                        tenant_id=tenant_id,
-                        category=cat_name,
-                        group='',
-                        subgroup='',
-                        defaults={'is_active': True}
-                    )
+                    cat_obj, _ = VendorMasterCategory.objects.get_or_create(tenant_id=tenant_id, category=cat_name, group='', subgroup='', defaults={'is_active': True})
                     data['category'] = cat_obj.id
-                    logger.info(f"Resolved to Category: {cat_name} (ID: {cat_obj.id})")
+                    logger.info(f'Resolved to Category: {cat_name} (ID: {cat_obj.id})')
             except (ValueError, IndexError) as e:
-                logger.error(f"Failed to resolve virtual category: {e}")
-
+                logger.error(f'Failed to resolve virtual category: {e}')
         serializer = self.get_serializer(instance, data=data, partial=partial)
-        
         if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Check for duplicate name (excluding current instance)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         name = serializer.validated_data.get('name', instance.name)
         if POSettingsDatabase.check_duplicate_name(tenant_id, name, exclude_id=instance.id):
-            return Response(
-                {'error': f'PO setting with name "{name}" already exists'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': f'PO setting with name "{name}" already exists'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             update_data = serializer.validated_data.copy()
-            
-            # Handle category
             if 'category' in update_data:
                 category = update_data.pop('category')
                 update_data['category_id'] = category.id if category else None
-            
-            updated_instance = POSettingsDatabase.update_po_setting(
-                instance.id,
-                **update_data
-            )
-            
+            updated_instance = POSettingsDatabase.update_po_setting(instance.id, **update_data)
             if updated_instance:
                 response_serializer = VendorMasterPOSettingsSerializer(updated_instance)
                 return Response(response_serializer.data)
             else:
-                return Response(
-                    {'error': 'PO setting not found'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({'error': 'PO setting not found'}, status=status.HTTP_404_NOT_FOUND)
         except ValueError as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     def destroy(self, request, *args, **kwargs):
         """Soft delete a PO setting"""
         instance = self.get_object()
         success = POSettingsDatabase.delete_po_setting(instance.id, soft_delete=True)
-        
         if success:
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
-            return Response(
-                {'error': 'PO setting not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-    
+            return Response({'error': 'PO setting not found'}, status=status.HTTP_404_NOT_FOUND)
+
     @action(detail=True, methods=['post'])
     def generate_po_number(self, request, pk=None):
         """
@@ -263,16 +164,10 @@ class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
         """
         try:
             po_number = POSettingsDatabase.increment_po_number(pk)
-            return Response({
-                'po_number': po_number,
-                'message': 'PO number generated successfully'
-            })
+            return Response({'po_number': po_number, 'message': 'PO number generated successfully'})
         except VendorMasterPOSettings.DoesNotExist:
-            return Response(
-                {'error': 'PO setting not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-    
+            return Response({'error': 'PO setting not found'}, status=status.HTTP_404_NOT_FOUND)
+
     @action(detail=True, methods=['get'])
     def preview_po_number(self, request, pk=None):
         """
@@ -280,11 +175,8 @@ class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
         """
         instance = self.get_object()
         po_number = instance.generate_po_number()
-        return Response({
-            'preview': po_number,
-            'current_number': instance.current_number
-        })
-    
+        return Response({'preview': po_number, 'current_number': instance.current_number})
+
     @action(detail=False, methods=['get'])
     def by_category(self, request):
         """
@@ -295,16 +187,8 @@ class VendorMasterPOSettingsViewSet(viewsets.ModelViewSet):
         """
         category_id = request.query_params.get('category_id')
         if not category_id:
-            return Response(
-                {'error': 'category_id parameter is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'category_id parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
         tenant_id = self.get_tenant_id()
-        po_settings = POSettingsDatabase.get_po_settings_by_category(
-            tenant_id,
-            category_id
-        )
-        
+        po_settings = POSettingsDatabase.get_po_settings_by_category(tenant_id, category_id)
         serializer = VendorMasterPOSettingsSerializer(po_settings, many=True)
         return Response(serializer.data)

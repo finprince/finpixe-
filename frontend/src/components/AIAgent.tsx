@@ -14,6 +14,7 @@ interface AIAgentProps {
     code?: string;
     retryAfter?: number;
   };
+  onNavigate?: (routeOrPage: string) => void;
 }
 
 const AIAgent: React.FC<AIAgentProps> = (props) => {

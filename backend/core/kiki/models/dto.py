@@ -154,6 +154,155 @@ class InvestigationContext:
 
 
 @dataclass
+class ContextState:
+    question: str
+    tenant_id: str = ""
+    company_name: Optional[str] = None
+    branch_name: Optional[str] = None
+    financial_year: str = "2025-2026"
+    current_page: str = "Dashboard"
+    active_module: str = "Accounting ERP"
+    dashboard_filters: Dict[str, Any] = field(default_factory=dict)
+    active_period: str = "current_month"
+    persona: str = "Accountant"
+    user_role: Optional[str] = None
+    selected_entity: Optional[Dict[str, Any]] = None
+    previous_investigations: List[Dict[str, Any]] = field(default_factory=list)
+    workflow_state: Dict[str, Any] = field(default_factory=dict)
+    cumulative_constraints: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ExecutionPlan:
+    goal: str
+    business_objective: str
+    required_skills: List[str] = field(default_factory=list)
+    required_knowledge: List[str] = field(default_factory=list)
+    execution_steps: List[Dict[str, Any]] = field(default_factory=list)
+    needs_clarification: bool = False
+    clarification_prompt: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class RetrievedKnowledgeItem:
+    source_type: str  # route, metadata, schema, workflow, rule, doc
+    title: str
+    content: str
+    relevance_score: float = 1.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ReflectionSummary:
+    answered_user_question: bool = True
+    has_sufficient_evidence: bool = True
+    detected_conflicts: bool = False
+    requires_clarification: bool = False
+    confidence_justified: bool = True
+    reflection_notes: str = "Evidence validates final business response."
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class QuickActionItem:
+    title: str
+    action_type: str = "navigate"  # navigate, export, trigger_workflow
+    route: Optional[str] = None
+    payload: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CognitiveThinking:
+    user_objective: str
+    business_task: str
+    needs_data: bool = True
+    needs_navigation: bool = False
+    needs_clarification: bool = False
+    reasoning_summary: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class RecommendationItem:
+    title: str
+    action_type: str = "navigate"  # navigate, query, filter, export
+    route: Optional[str] = None
+    description: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class DeveloperDetails:
+    sql_queries: List[str] = field(default_factory=list)
+    execution_steps: List[Dict[str, Any]] = field(default_factory=list)
+    evidences: List[Dict[str, Any]] = field(default_factory=list)
+    planner_output: Dict[str, Any] = field(default_factory=dict)
+    retrieved_knowledge: List[Dict[str, Any]] = field(default_factory=list)
+    reflection_summary: Dict[str, Any] = field(default_factory=dict)
+    confidence_score: float = 1.0
+    selected_engine: str = "KikiCognitiveOrchestrator"
+    skills_executed: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class BusinessResponse:
+    title: str
+    summary: str
+    reply: str
+    result: Optional[str] = None
+    insights: List[str] = field(default_factory=list)
+    recommendations: List[RecommendationItem] = field(default_factory=list)
+    quick_actions: List[QuickActionItem] = field(default_factory=list)
+    persona: str = "Accountant"
+    confidence: str = "HIGH"  # HIGH, MEDIUM, LOW
+    thinking: Optional[CognitiveThinking] = None
+    execution_plan: Optional[ExecutionPlan] = None
+    reflection: Optional[ReflectionSummary] = None
+    developer_details: Optional[DeveloperDetails] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        res = {
+            "title": self.title,
+            "result": self.result,
+            "summary": self.summary,
+            "reply": self.reply,
+            "final_response": self.reply,
+            "insights": self.insights,
+            "recommendations": [r.to_dict() for r in self.recommendations],
+            "quick_actions": [q.to_dict() for q in self.quick_actions],
+            "navigation_suggestions": [r.to_dict() for r in self.recommendations if r.route],
+            "persona": self.persona,
+            "confidence": self.confidence,
+            "thinking": self.thinking.to_dict() if self.thinking else None,
+            "execution_plan": self.execution_plan.to_dict() if self.execution_plan else None,
+            "reflection": self.reflection.to_dict() if self.reflection else None,
+            "developer_details": self.developer_details.to_dict() if self.developer_details else None,
+        }
+        return res
+
+
+@dataclass
 class InvestigationResult:
     """
     Final Output DTO returned by KikiChatView API endpoint.
@@ -164,6 +313,8 @@ class InvestigationResult:
     investigation_steps: List[Dict[str, Any]]
     evidences: List[Dict[str, Any]]
     final_response: str
+    business_response: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Compass } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface NavigationOption {
   title: string;
@@ -23,7 +23,7 @@ export const KikiNavigationCard: React.FC<KikiNavigationCardProps> = ({
   return (
     <div className="space-y-2 my-3">
       <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
-        <Compass className="w-4 h-4 text-[#FF8A00]" />
+        <ArrowRight className="w-4 h-4 text-[#FF8A00]" />
         <span>Choose where you want to go</span>
       </div>
 

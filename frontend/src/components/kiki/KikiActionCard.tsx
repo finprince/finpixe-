@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Layers, FileText, PieChart, FileSpreadsheet } from 'lucide-react';
+import { ArrowRight, Layers, FileText, PieChart } from 'lucide-react';
 
 interface KikiActionCardProps {
   title: string;

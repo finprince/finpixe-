@@ -5,20 +5,13 @@ Handles business logic and workflows for customer portal operations
 from django.db import transaction
 from django.utils import timezone
 from decimal import Decimal
-from .database import (
-    CustomerMaster,
-    CustomerCategory,
-    CustomerTransaction,
-    CustomerSalesQuotation,
-    CustomerSalesOrder
-)
-
+from .database import CustomerMaster, CustomerCategory, CustomerTransaction, CustomerSalesQuotation, CustomerSalesOrder
 
 class CustomerFlow:
     """
     Handles customer-related business flows
     """
-    
+
     @staticmethod
     def create_customer(tenant_id, customer_data):
         """
@@ -32,25 +25,16 @@ class CustomerFlow:
             CustomerMaster instance
         """
         with transaction.atomic():
-            # Generate customer code if not provided
             if 'customer_code' not in customer_data:
                 customer_data['customer_code'] = CustomerFlow._generate_customer_code(tenant_id)
-            
-            # Set tenant_id
             customer_data['tenant_id'] = tenant_id
-            
-            # Create customer
             customer = CustomerMaster.objects.create(**customer_data)
-            
             return customer
-    
+
     @staticmethod
     def _generate_customer_code(tenant_id):
         """Generate unique customer code"""
-        last_customer = CustomerMaster.objects.filter(
-            tenant_id=tenant_id
-        ).order_by('-id').first()
-        
+        last_customer = CustomerMaster.objects.filter(tenant_id=tenant_id).order_by('-id').first()
         if last_customer and last_customer.customer_code:
             try:
                 last_number = int(last_customer.customer_code.split('-')[-1])
@@ -59,9 +43,8 @@ class CustomerFlow:
                 new_number = 1
         else:
             new_number = 1
-        
-        return f"CUST-{new_number:05d}"
-    
+        return f'CUST-{new_number:05d}'
+
     @staticmethod
     def update_customer_balance(customer_id, amount, transaction_type):
         """
@@ -73,14 +56,11 @@ class CustomerFlow:
             transaction_type: Type of transaction (invoice, payment, etc.)
         """
         customer = CustomerMaster.objects.get(id=customer_id)
-        
-        if transaction_type in ['invoice', 'debit_note']:
+        if transaction_type in {'invoice', 'debit_note'}:
             customer.current_balance += Decimal(amount)
-        elif transaction_type in ['payment', 'credit_note']:
+        elif transaction_type in {'payment', 'credit_note'}:
             customer.current_balance -= Decimal(amount)
-        
         customer.save()
-        
         return customer
 
     @staticmethod
@@ -94,81 +74,49 @@ class CustomerFlow:
         try:
             tenant_id = instance.tenant_id
             customer_id = instance.id
-            
-            # 1. Check for associated transactions in Customer Portal
             from .database import CustomerTransaction, CustomerTransactionSalesOrderBasicDetails
-            
             if CustomerTransaction.objects.filter(tenant_id=tenant_id, customer_id=customer_id).exists():
-                return False, "Unable to delete customer as this customer has transactions"
-                
+                return (False, 'Unable to delete customer as this customer has transactions')
             if CustomerTransactionSalesOrderBasicDetails.objects.filter(tenant_id=tenant_id, customer_name=instance.customer_name).exists():
-                return False, "Unable to delete customer as this customer has sales orders"
-
-            # 2. Check for balance in TransactionFile (Accounting records)
+                return (False, 'Unable to delete customer as this customer has sales orders')
             try:
                 from accounting.models_transaction import TransactionFile
-                
                 customer_code = instance.customer_code
-                
                 if customer_code:
-                    ledger = TransactionFile.objects.filter(
-                        tenant_id=tenant_id,
-                        ledger_code=customer_code
-                    ).first()
-                    
+                    ledger = TransactionFile.objects.filter(tenant_id=tenant_id, ledger_code=customer_code).first()
                     if ledger:
-                        if (ledger.opening_balance and float(ledger.opening_balance) != 0) or \
-                           (ledger.current_balance and float(ledger.current_balance) != 0):
-                            return False, "Unable to delete customer as this customer is currently live"
-                
-                # Check by name for safety
-                ledger_by_name = TransactionFile.objects.filter(
-                    tenant_id=tenant_id,
-                    ledger_name=instance.customer_name
-                ).first()
-                
+                        if ledger.opening_balance and float(ledger.opening_balance) != 0 or (ledger.current_balance and float(ledger.current_balance) != 0):
+                            return (False, 'Unable to delete customer as this customer is currently live')
+                ledger_by_name = TransactionFile.objects.filter(tenant_id=tenant_id, ledger_name=instance.customer_name).first()
                 if ledger_by_name:
-                    if (ledger_by_name.opening_balance and float(ledger_by_name.opening_balance) != 0) or \
-                       (ledger_by_name.current_balance and float(ledger_by_name.current_balance) != 0):
-                        return False, "Unable to delete customer as this customer is currently live"
-            except (ImportError, Exception):
-                pass # Accounting module might be separate or have different structure
-
-            # 3. Check for Accounting Ledgers and Journal Entries
-            try:
-                from accounting.models import MasterLedger, JournalEntry, AmountTransaction
-                
-                ledger = getattr(instance, 'ledger', None)
-                if not ledger:
-                    ledger = MasterLedger.objects.filter(
-                        tenant_id=tenant_id,
-                        name=instance.customer_name
-                    ).first()
-                
-                if ledger:
-                    if JournalEntry.objects.filter(tenant_id=tenant_id, ledger=ledger).exists() or \
-                       JournalEntry.objects.filter(tenant_id=tenant_id, ledger_name=ledger.name).exists():
-                        return False, "Unable to delete customer as this customer has journal entries"
-                        
-                    if AmountTransaction.objects.filter(tenant_id=tenant_id, ledger=ledger).exists():
-                        return False, "Unable to delete customer as this customer has bank/cash transactions"
+                    if ledger_by_name.opening_balance and float(ledger_by_name.opening_balance) != 0 or (ledger_by_name.current_balance and float(ledger_by_name.current_balance) != 0):
+                        return (False, 'Unable to delete customer as this customer is currently live')
             except (ImportError, Exception):
                 pass
-
-            return True, ""
-            
+            try:
+                from accounting.models import MasterLedger, JournalEntry, AmountTransaction
+                ledger = getattr(instance, 'ledger', None)
+                if not ledger:
+                    ledger = MasterLedger.objects.filter(tenant_id=tenant_id, name=instance.customer_name).first()
+                if ledger:
+                    if JournalEntry.objects.filter(tenant_id=tenant_id, ledger=ledger).exists() or JournalEntry.objects.filter(tenant_id=tenant_id, ledger_name=ledger.name).exists():
+                        return (False, 'Unable to delete customer as this customer has journal entries')
+                    if AmountTransaction.objects.filter(tenant_id=tenant_id, ledger=ledger).exists():
+                        return (False, 'Unable to delete customer as this customer has bank/cash transactions')
+            except (ImportError, Exception):
+                pass
+            return (True, '')
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error checking customer deletion eligibility: {e}")
-            return False, "Unable to delete customer as this customer is currently live"
-
+            logger.error(f'Error checking customer deletion eligibility: {e}')
+            return (False, 'Unable to delete customer as this customer is currently live')
 
 class QuotationFlow:
     """
     Handles quotation-related business flows
     """
-    
+
     @staticmethod
     def create_quotation(tenant_id, customer_id, quotation_data):
         """
@@ -183,27 +131,18 @@ class QuotationFlow:
             CustomerSalesQuotation instance
         """
         with transaction.atomic():
-            # Generate quotation number if not provided
             if 'quotation_number' not in quotation_data:
                 quotation_data['quotation_number'] = QuotationFlow._generate_quotation_number(tenant_id)
-            
             quotation_data['tenant_id'] = tenant_id
             quotation_data['customer_id'] = customer_id
-            
-            # Calculate totals
             quotation_data = QuotationFlow._calculate_quotation_totals(quotation_data)
-            
             quotation = CustomerSalesQuotation.objects.create(**quotation_data)
-            
             return quotation
-    
+
     @staticmethod
     def _generate_quotation_number(tenant_id):
         """Generate unique quotation number"""
-        last_quotation = CustomerSalesQuotation.objects.filter(
-            tenant_id=tenant_id
-        ).order_by('-id').first()
-        
+        last_quotation = CustomerSalesQuotation.objects.filter(tenant_id=tenant_id).order_by('-id').first()
         if last_quotation and last_quotation.quotation_number:
             try:
                 last_number = int(last_quotation.quotation_number.split('-')[-1])
@@ -212,21 +151,18 @@ class QuotationFlow:
                 new_number = 1
         else:
             new_number = 1
-        
-        return f"SQ-{timezone.now().year}-{new_number:05d}"
-    
+        return f'SQ-{timezone.now().year}-{new_number:05d}'
+
     @staticmethod
     def _calculate_quotation_totals(quotation_data):
         """Calculate quotation totals"""
         subtotal = Decimal(quotation_data.get('subtotal', 0))
         tax_amount = Decimal(quotation_data.get('tax_amount', 0))
         discount_amount = Decimal(quotation_data.get('discount_amount', 0))
-        
         total_amount = subtotal + tax_amount - discount_amount
         quotation_data['total_amount'] = total_amount
-        
         return quotation_data
-    
+
     @staticmethod
     def convert_to_order(quotation_id):
         """
@@ -240,36 +176,17 @@ class QuotationFlow:
         """
         with transaction.atomic():
             quotation = CustomerSalesQuotation.objects.get(id=quotation_id)
-            
-            # Generate order number
             order_number = OrderFlow._generate_order_number(quotation.tenant_id)
-            
-            # Create sales order
-            order = CustomerSalesOrder.objects.create(
-                tenant_id=quotation.tenant_id,
-                customer_id=quotation.customer_id,
-                order_number=order_number,
-                order_date=timezone.now().date(),
-                quotation_reference=quotation.quotation_number,
-                subtotal=quotation.subtotal,
-                tax_amount=quotation.tax_amount,
-                discount_amount=quotation.discount_amount,
-                total_amount=quotation.total_amount,
-                status='confirmed'
-            )
-            
-            # Update quotation status
+            order = CustomerSalesOrder.objects.create(tenant_id=quotation.tenant_id, customer_id=quotation.customer_id, order_number=order_number, order_date=timezone.now().date(), quotation_reference=quotation.quotation_number, subtotal=quotation.subtotal, tax_amount=quotation.tax_amount, discount_amount=quotation.discount_amount, total_amount=quotation.total_amount, status='confirmed')
             quotation.status = 'converted'
             quotation.save()
-            
             return order
-
 
 class OrderFlow:
     """
     Handles sales order-related business flows
     """
-    
+
     @staticmethod
     def create_order(tenant_id, customer_id, order_data):
         """
@@ -284,27 +201,18 @@ class OrderFlow:
             CustomerSalesOrder instance
         """
         with transaction.atomic():
-            # Generate order number if not provided
             if 'order_number' not in order_data:
                 order_data['order_number'] = OrderFlow._generate_order_number(tenant_id)
-            
             order_data['tenant_id'] = tenant_id
             order_data['customer_id'] = customer_id
-            
-            # Calculate totals
             order_data = OrderFlow._calculate_order_totals(order_data)
-            
             order = CustomerSalesOrder.objects.create(**order_data)
-            
             return order
-    
+
     @staticmethod
     def _generate_order_number(tenant_id):
         """Generate unique order number"""
-        last_order = CustomerSalesOrder.objects.filter(
-            tenant_id=tenant_id
-        ).order_by('-id').first()
-        
+        last_order = CustomerSalesOrder.objects.filter(tenant_id=tenant_id).order_by('-id').first()
         if last_order and last_order.order_number:
             try:
                 last_number = int(last_order.order_number.split('-')[-1])
@@ -313,9 +221,8 @@ class OrderFlow:
                 new_number = 1
         else:
             new_number = 1
-        
-        return f"SO-{timezone.now().year}-{new_number:05d}"
-    
+        return f'SO-{timezone.now().year}-{new_number:05d}'
+
     @staticmethod
     def _calculate_order_totals(order_data):
         """Calculate order totals"""
@@ -323,12 +230,10 @@ class OrderFlow:
         tax_amount = Decimal(order_data.get('tax_amount', 0))
         discount_amount = Decimal(order_data.get('discount_amount', 0))
         shipping_charges = Decimal(order_data.get('shipping_charges', 0))
-        
         total_amount = subtotal + tax_amount - discount_amount + shipping_charges
         order_data['total_amount'] = total_amount
-        
         return order_data
-    
+
     @staticmethod
     def update_order_status(order_id, new_status):
         """
@@ -344,15 +249,13 @@ class OrderFlow:
         order = CustomerSalesOrder.objects.get(id=order_id)
         order.status = new_status
         order.save()
-        
         return order
-
 
 class TransactionFlow:
     """
     Handles customer transaction flows
     """
-    
+
     @staticmethod
     def create_transaction(tenant_id, customer_id, transaction_data):
         """
@@ -367,45 +270,20 @@ class TransactionFlow:
             CustomerTransaction instance
         """
         with transaction.atomic():
-            # Generate transaction number if not provided
             if 'transaction_number' not in transaction_data:
-                transaction_data['transaction_number'] = TransactionFlow._generate_transaction_number(
-                    tenant_id,
-                    transaction_data.get('transaction_type', 'invoice')
-                )
-            
+                transaction_data['transaction_number'] = TransactionFlow._generate_transaction_number(tenant_id, transaction_data.get('transaction_type', 'invoice'))
             transaction_data['tenant_id'] = tenant_id
             transaction_data['customer_id'] = customer_id
-            
-            # Create transaction
             customer_transaction = CustomerTransaction.objects.create(**transaction_data)
-            
-            # Update customer balance
-            CustomerFlow.update_customer_balance(
-                customer_id,
-                transaction_data['total_amount'],
-                transaction_data['transaction_type']
-            )
-            
+            CustomerFlow.update_customer_balance(customer_id, transaction_data['total_amount'], transaction_data['transaction_type'])
             return customer_transaction
-    
+
     @staticmethod
     def _generate_transaction_number(tenant_id, transaction_type):
         """Generate unique transaction number"""
-        prefix_map = {
-            'invoice': 'INV',
-            'payment': 'PAY',
-            'credit_note': 'CN',
-            'debit_note': 'DN'
-        }
-        
+        prefix_map = {'invoice': 'INV', 'payment': 'PAY', 'credit_note': 'CN', 'debit_note': 'DN'}
         prefix = prefix_map.get(transaction_type, 'TXN')
-        
-        last_transaction = CustomerTransaction.objects.filter(
-            tenant_id=tenant_id,
-            transaction_type=transaction_type
-        ).order_by('-id').first()
-        
+        last_transaction = CustomerTransaction.objects.filter(tenant_id=tenant_id, transaction_type=transaction_type).order_by('-id').first()
         if last_transaction and last_transaction.transaction_number:
             try:
                 last_number = int(last_transaction.transaction_number.split('-')[-1])
@@ -414,5 +292,4 @@ class TransactionFlow:
                 new_number = 1
         else:
             new_number = 1
-        
-        return f"{prefix}-{timezone.now().year}-{new_number:05d}"
+        return f'{prefix}-{timezone.now().year}-{new_number:05d}'

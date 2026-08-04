@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Sparkles, PieChart, Layers, FileText, TrendingUp, ShieldCheck, FileSpreadsheet, ChevronRight, LayoutDashboard, Search } from 'lucide-react';
+import { Sparkles, PieChart, Layers, FileText, TrendingUp, ShieldCheck, ChevronRight, LayoutDashboard, Search } from 'lucide-react';
 import type { AgentMessage } from '../../types';
 import { KikiMessage } from './KikiMessage';
 import { KikiTypingIndicator } from './KikiTypingIndicator';
@@ -54,7 +54,7 @@ const CAPABILITY_CARDS = [
     prompt: "Give me a GST compliance and filing summary"
   },
   {
-    icon: FileSpreadsheet,
+    icon: FileText,
     title: "Create Vouchers",
     description: "Sales, Purchase, Payment & Receipt entries",
     prompt: "How do I create a sales voucher entry?"
