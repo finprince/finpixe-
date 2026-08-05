@@ -310,11 +310,49 @@ export interface ExtractedInvoiceData {
   lrGrConsignment?: string;
 }
 
+export interface RecommendationItem {
+  title: string;
+  action_type?: string;
+  route?: string;
+  description?: string;
+}
+
+export interface QuickActionItem {
+  title: string;
+  action_type?: string;
+  route?: string;
+  payload?: any;
+}
+
+export interface DeveloperDetails {
+  sql_queries?: string[];
+  execution_steps?: any[];
+  evidences?: any[];
+  planner_output?: any;
+  retrieved_knowledge?: any[];
+  reflection_summary?: any;
+  confidence_score?: number;
+  selected_engine?: string;
+  skills_executed?: string[];
+}
+
 // For AI Agent
 export interface AgentMessage {
   role: 'user' | 'model';
   text: string;
   sources?: { uri: string; title: string; }[];
+  title?: string;
+  result?: string;
+  summary?: string;
+  insights?: string[];
+  recommendations?: RecommendationItem[];
+  quickActions?: QuickActionItem[];
+  persona?: string;
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  developerDetails?: DeveloperDetails;
+  executionPlan?: any;
+  reflection?: any;
+  evidences?: any[];
 }
 
 // For Mass Upload feature

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, ArrowUpRight, Download, Copy, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpRight, Download, FileText, Check } from 'lucide-react';
 
 interface KikiMetricCardProps {
   title: string;
@@ -46,7 +46,7 @@ export const KikiMetricCard: React.FC<KikiMetricCardProps> = ({
               title="Copy Metric"
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <FileText className="w-3 h-3" />}
             </button>
           </div>
         </div>

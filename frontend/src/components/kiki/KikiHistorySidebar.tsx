@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Pin, MessageSquare, Trash2, X, Plus } from 'lucide-react';
+import { Search, Layers, FileText, Trash2, X, Plus } from 'lucide-react';
 
 interface HistorySession {
   id: string;
@@ -102,9 +102,9 @@ export const KikiHistorySidebar: React.FC<KikiHistorySidebarProps> = ({
                 >
                   <div className="flex items-center gap-2 truncate">
                     {groupName === 'Pinned' ? (
-                      <Pin className="w-3 h-3 text-[#5B5CEB] shrink-0" />
+                      <Layers className="w-3 h-3 text-[#FF8A00] shrink-0" />
                     ) : (
-                      <MessageSquare className="w-3 h-3 text-slate-500 shrink-0" />
+                      <FileText className="w-3 h-3 text-slate-500 shrink-0" />
                     )}
                     <span className="truncate text-slate-300 group-hover:text-white">
                       {item.title}

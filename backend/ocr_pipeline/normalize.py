@@ -421,8 +421,8 @@ def _clean_bill_to_ocr_extract(raw: str) -> str:
             r'^(?:Name\s*:\s*|Address\s*:\s*|Addr\s*:\s*)',
             re.IGNORECASE
         )
-        # Skip cells that look like GSTIN values (state-code + alpha)
-        _GSTIN_CELL_RE = re.compile(r'^\d{2}[A-Z0-9]{3,}', re.IGNORECASE)
+        # Skip cells that look like exact GSTIN values (15 alphanumeric chars starting with 2 digits)
+        _GSTIN_CELL_RE = re.compile(r'^\d{2}[A-Z0-9]{13}$', re.IGNORECASE)
         # Skip cells that are purely State / Code metadata rows
         _STATE_CODE_RE = re.compile(
             r'^State\s*(?:Code|:)|^State\s*:\s*State\s*Code',
@@ -479,6 +479,58 @@ def _clean_bill_to_ocr_extract(raw: str) -> str:
     parts = re.split(_BILL_TO_NOISE_STOP, v, maxsplit=1, flags=re.IGNORECASE)
     v = parts[0].strip().rstrip(' |,-')
     return v
+
+def extract_buyer_name_from_bill_to(bill_to: str) -> str:
+    """
+    Extracts clean buyer/customer company name from a bill_to address block.
+    Handles numeric customer/vendor code prefixes (e.g. '7006298 ACCUTURN MACHINERS PVT. LTD.'),
+    header prefixes ('Details of Receiver:'), trailing tags ('(Billed To)', 'Kind Attn:...'),
+    prevents false positive matches on 'State Name :', and filters out pure address/location lines.
+    """
+    if not bill_to:
+        return ""
+    
+    # Priority 1: Search for explicit buyer label (excluding State Name, Bank Name, Vendor Name)
+    _name_m = re.search(
+        r'(?<!State\s)(?<!Bank\s)(?<!Vendor\s)(?<!Item\s)(?<!File\s)(?<!Branch\s)(?<!Supplier\s)'
+        r'\b(?:Customer\s*Name|Buyer\s*Name|Billed\s*To\s*Name|Party\s*Name|Name|Customer|Buyer)\s*:\s*([A-Z0-9][^,;\n|]{2,80})',
+        str(bill_to), re.IGNORECASE
+    )
+    if _name_m:
+        cand = _name_m.group(1).strip()
+        cand = re.sub(r'^(?:Details\s*of\s*(?:Receiver|Buyer|Customer)(?:\s*\([^)]*\))?\s*:\s*|Billed\s*To\s*:\s*|Buyer\s*:\s*|\d{3,10}\s+|Customer\s*Code\s*:\s*\d+\s*|Vendor\s*Code\s*:\s*\d+\s*)', '', cand, flags=re.IGNORECASE).strip()
+        cand = re.sub(r'\s*\((?:Billed|Ship(?:ped)?)\s*To\).*', '', cand, flags=re.IGNORECASE).strip()
+        cand = re.sub(r'\s*(?:Kind\s*Attn|PLANT|ADDRESS).*', '', cand, flags=re.IGNORECASE).strip()
+        cand = re.sub(r'((?:Pvt\.?\s*Ltd\.?|Limited|Inc\.?|Corp\.?|LLP|Co\.?|Corporation))\s+.*$', r'\1', cand, flags=re.IGNORECASE).strip()
+        
+        is_state_or_city = re.search(r'^(?:Tamil Nadu|Maharashtra|Karnataka|Gujarat|Delhi|Kerala|Andhra Pradesh|Telangana|West Bengal|Rajasthan|Punjab|Haryana|Uttar Pradesh|Madhya Pradesh|Bihar|Odisha|Assam|Jharkhand|Chhattisgarh|Uttarakhand|Goa|India)$', cand, re.IGNORECASE)
+        if cand and '|' not in cand and len(cand) >= 3 and not is_state_or_city:
+            return cand
+
+    # Priority 2: Split by delimiter (comma, semicolon, newline) and analyze candidates
+    parts = re.split(r'[,;\n]', str(bill_to))
+    for p in parts:
+        p_clean = p.strip()
+        if not p_clean or '|' in p_clean:
+            continue
+        cleaned = re.sub(r'^(?:Details\s*of\s*(?:Receiver|Buyer|Customer)(?:\s*\([^)]*\))?\s*:\s*|Billed\s*To\s*:\s*|Buyer\s*:\s*)', '', p_clean, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(r'^\d{3,10}\s+', '', cleaned).strip()
+        cleaned = re.sub(r'\s*\((?:Billed|Ship(?:ped)?)\s*To\).*', '', cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(r'\s*Kind\s*Attn\s*:.*', '', cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(r'((?:Pvt\.?\s*Ltd\.?|Limited|Inc\.?|Corp\.?|LLP|Co\.?|Corporation))\s+.*$', r'\1', cleaned, flags=re.IGNORECASE).strip()
+        
+        if not cleaned or re.match(r'^\d+$', cleaned):
+            continue
+        # Skip lines that start with typical postal/address tokens
+        if re.match(r'^(?:PLANT|PLOT|DOOR|NO\.|STREET|ROAD|LAYOUT|INCO|PAYMENT|BUILDING|SECTOR|PHASE|BLOCK|\d+/\d+)', cleaned, re.IGNORECASE):
+            continue
+        # Skip pure address lines (e.g. state names, pincodes, city) unless they contain business entity words
+        if (re.search(r'\b\d{6}\b|LAYOUT|SARAVANAMPATTI|COIMBATORE|Tamil Nadu|Maharashtra|Karnataka|Gujarat|Delhi|India', cleaned, re.IGNORECASE) and 
+            not re.search(r'PVT|LTD|LIMITED|INC|CORP|COMPANY|ENTERPRISES|TRADERS|INDUSTRIES|WORKS|MACHINERS|PRODUCTS|SERVICES|ENGINEERING|SYSTEMS|MOTORS|TECH', cleaned, re.IGNORECASE)):
+            continue
+        return cleaned
+
+    return ""
 
 def sanitize_address(addr: str, field_name: str = "address") -> str:
     """
@@ -783,27 +835,16 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
     buyer_name_val = fix_encoding_corruption(str(buyer_name_val)) if buyer_name_val else ""
     if not buyer_name_val:
         # Priority 1: Use candidate saved from Qwen's pipe-table billing_address
-        # (extracted before raw_to was reset for the window slicer).
         if _qwen_buyer_name_candidate:
             buyer_name_val = fix_encoding_corruption(_qwen_buyer_name_candidate)
             logger.info(f"[BUYER_NAME_PIPE_TABLE] value='{buyer_name_val}'")
 
-        # Priority 2: Extract 'Name :' label from the cleaned bill_to string.
-        # Covers cases where the window slicer recovered a pipe-table row
-        # that still contains an inline 'Name : VALUE' label.
+        # Priority 2: Extract clean buyer name from bill_to address block using parser
         if not buyer_name_val and bill_to:
-            _name_m = re.search(r'Name\s*:\s*([A-Z][^,;\n|]{2,80})', str(bill_to), re.IGNORECASE)
-            if _name_m:
-                buyer_name_val = fix_encoding_corruption(_name_m.group(1).strip())
-                logger.info(f"[BUYER_NAME_LABEL] value='{buyer_name_val}'")
-
-        # Priority 3: Original comma/semicolon/newline split (guarded against pipe noise).
-        if not buyer_name_val and bill_to:
-            parts = re.split(r'[,;\n]', str(bill_to))
-            if parts:
-                cand = parts[0].strip()
-                if cand and not re.match(r'^\d', cand) and '|' not in cand:
-                    buyer_name_val = cand
+            extracted_buyer = extract_buyer_name_from_bill_to(str(bill_to))
+            if extracted_buyer:
+                buyer_name_val = fix_encoding_corruption(extracted_buyer)
+                logger.info(f"[BUYER_NAME_RECOVERED] value='{buyer_name_val}'")
 
     from vendors.vendor_validation_logic import canonicalize_gstin_ocr
     record = {
@@ -1839,7 +1880,12 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str
         
     # Propagate validation warnings to root level warnings for backward compatibility
     existing_warnings = schema_data.get("warnings") or []
-    schema_data["warnings"] = list(set(list(existing_warnings) + validation_warnings))
+    merged_warns = []
+    for w in list(existing_warnings) + list(validation_warnings):
+        w_str = str(w) if not isinstance(w, (str, int, float)) else w
+        if w_str not in merged_warns:
+            merged_warns.append(w_str)
+    schema_data["warnings"] = merged_warns
     
     try:
         canonical_obj = CanonicalInvoiceSchema(**schema_data)

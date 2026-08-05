@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface KikiCommandInputProps {
   input: string;
@@ -58,7 +58,7 @@ export const KikiCommandInput: React.FC<KikiCommandInputProps> = ({
             disabled={isLoading || !input.trim()}
             className="p-2 bg-[#FF8A00] text-white rounded-xl disabled:opacity-40 hover:bg-[#e07a00] transition-all shadow-xs shrink-0 cursor-pointer"
           >
-            <Send className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>

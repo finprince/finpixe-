@@ -179,8 +179,20 @@ export const getAgentResponse = async (
       intent: response.intent,
       route: response.route,
       module: response.module,
+      title: response.title,
+      result: response.result,
+      summary: response.summary,
+      insights: response.insights,
+      recommendations: response.recommendations || response.navigation_suggestions,
+      quickActions: response.quick_actions,
+      persona: response.persona,
+      confidence: response.confidence,
+      executionPlan: response.execution_plan,
+      reflection: response.reflection,
+      developerDetails: response.developer_details,
+      evidences: response.evidences || response.developer_details?.evidences,
       navigation: response.navigation || (response.intent === 'NAVIGATION' ? response : undefined)
-    };
+    } as any;
 
 
   } catch (error: any) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, CheckCircle2 } from 'lucide-react';
+import { Sparkles, CheckCircle } from 'lucide-react';
 
 const THINKING_STEPS = [
   "Thinking...",
@@ -46,7 +46,7 @@ export const KikiTypingIndicator: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
         <span>Connected to FINPIXE Live Database</span>
       </div>
     </motion.div>

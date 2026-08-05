@@ -58,6 +58,8 @@ class KikiChatView(APIView):
                 "dashboard_filters": request.data.get('dashboardFilters') or request.data.get('dashboard_filters') or {},
                 "active_period": request.data.get('activePeriod') or request.data.get('active_period') or "current_month",
                 "financial_year": request.data.get('financialYear') or request.data.get('financial_year') or "2025-2026",
+                "persona": request.data.get('persona') or request.data.get('userRole') or request.data.get('role'),
+                "user_role": getattr(user, 'role', None) if user else None,
             }
             user_permissions = getattr(request, 'permissions', None)
 

@@ -2,12 +2,12 @@ import React from 'react';
 import {
   Search,
   Plus,
-  History,
+  Clock,
   Settings,
   Maximize2,
-  Minimize2,
+  Minimize,
   X,
-  Cpu,
+  Zap,
   Building2
 } from 'lucide-react';
 import kikiLogo from '../../assets/kiki-agent-orange.png';
@@ -76,14 +76,14 @@ export const KikiHeader: React.FC<KikiHeaderProps> = ({
             title="Conversation History"
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            <History className="w-4 h-4" />
+            <Clock className="w-4 h-4" />
           </button>
           <button
             onClick={onToggleExpand}
             title={isExpanded ? "Collapse" : "Expand Command Center"}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors hidden md:block cursor-pointer"
           >
-            {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isExpanded ? <Minimize className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
@@ -108,7 +108,7 @@ export const KikiHeader: React.FC<KikiHeaderProps> = ({
           <span className="hidden sm:inline">FY 2026-27</span>
         </div>
         <div className="flex items-center gap-1 font-mono text-[10px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded shrink-0">
-          <Cpu className="w-3 h-3 text-[#FF8A00]" />
+          <Zap className="w-3 h-3 text-[#FF8A00]" />
           <span>Local AI / Qwen2.5</span>
         </div>
       </div>
