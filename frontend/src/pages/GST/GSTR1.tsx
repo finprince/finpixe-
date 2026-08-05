@@ -320,26 +320,35 @@ useEffect(() => {
     const handleDownloadExcel = async () => {
         try {
             const queryParams = new URLSearchParams(period as any).toString();
-            const response: any = await httpClient.get(`/api/gst/gstr1/download_excel/?${queryParams}`);
+            const blobData: any = await httpClient.get(
+                `/api/gst/gstr1/download_excel/?${queryParams}`,
+                {},
+                { responseType: 'blob' }
+            );
 
-            const url = window.URL.createObjectURL(response);
+            const blob = new Blob([blobData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `GSTR1_${period.year}_${period.month}.xlsx`);
             document.body.appendChild(link);
             link.click();
             link.remove();
+            window.URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('Download failed');
+            console.error('Download failed', error);
         }
     };
 
     const handleDownloadJson = async () => {
         try {
             const queryParams = new URLSearchParams(period as any).toString();
-            const response: any = await httpClient.get(`/api/gst/gstr1/download_json/?${queryParams}`);
+            const response: any = await httpClient.get(
+                `/api/gst/gstr1/download_json/?${queryParams}`
+            );
 
-            const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
+            const jsonStr = typeof response === 'string' ? response : JSON.stringify(response, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -347,10 +356,12 @@ useEffect(() => {
             document.body.appendChild(link);
             link.click();
             link.remove();
+            window.URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('Download JSON failed');
+            console.error('Download JSON failed', error);
         }
     };
+
 
     const handleHsnRowClick = async (row: any, isB2b: boolean) => {
         setCurrentHsnParams({ hsn: row.hsn, rate: row.rate, isB2b });
@@ -498,59 +509,61 @@ useEffect(() => {
             {/* Sticky Controls & Sub-tabs Header */}
             <div className="sticky top-[49px] z-20 bg-[#FAFAFA] pt-1 pb-2 space-y-4">
                 {/* Period Selector */}
-                <div className="erp-container shadow-sm">
-                    <div className="flex flex-wrap items-end gap-6">
-                        <div className="w-48">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Financial Year</label>
-                            <select
-                                value={period.year}
-                                onChange={(e) => setPeriod({ ...period, year: e.target.value })}
-                                className="erp-select"
-                            >
-                                {/* ... years ... */}
-                                {(() => {
-                                    const years = [];
-                                    const today = new Date();
-                                    const currentYear = today.getFullYear();
-                                    const currentMonth = today.getMonth();
+                <div className="erp-container shadow-sm py-4 px-6">
+                    <div className="flex flex-wrap items-end justify-between gap-4 w-full">
+                        <div className="flex items-end gap-4">
+                            <div className="w-40">
+                                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Financial Year</label>
+                                <select
+                                    value={period.year}
+                                    onChange={(e) => setPeriod({ ...period, year: e.target.value })}
+                                    className="erp-select text-xs h-10"
+                                >
+                                    {(() => {
+                                        const years = [];
+                                        const today = new Date();
+                                        const currentYear = today.getFullYear();
+                                        const currentMonth = today.getMonth();
 
-                                    let fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
+                                        let fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
 
-                                    for (let i = 0; i < 11; i++) {
-                                        const start = fyStartYear - i;
-                                        const end = (start + 1).toString().slice(-2);
-                                        const fyLabel = `${start}-${end}`;
-                                        years.push(<option key={fyLabel} value={fyLabel}>{fyLabel}</option>);
-                                    }
-                                    return years;
-                                })()}
-                            </select>
+                                        for (let i = 0; i < 11; i++) {
+                                            const start = fyStartYear - i;
+                                            const end = (start + 1).toString().slice(-2);
+                                            const fyLabel = `${start}-${end}`;
+                                            years.push(<option key={fyLabel} value={fyLabel}>{fyLabel}</option>);
+                                        }
+                                        return years;
+                                    })()}
+                                </select>
+                            </div>
+                            <div className="w-40">
+                                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Month</label>
+                                <select
+                                    value={period.month}
+                                    onChange={(e) => setPeriod({ ...period, month: e.target.value })}
+                                    className="erp-select text-xs h-10"
+                                >
+                                    <option>January</option>
+                                    <option>February</option>
+                                    <option>March</option>
+                                    <option>April</option>
+                                    <option>May</option>
+                                    <option>June</option>
+                                    <option>July</option>
+                                    <option>August</option>
+                                    <option>September</option>
+                                    <option>October</option>
+                                    <option>November</option>
+                                    <option>December</option>
+                                </select>
+                            </div>
                         </div>
-                        <div className="w-48">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Month</label>
-                            <select
-                                value={period.month}
-                                onChange={(e) => setPeriod({ ...period, month: e.target.value })}
-                                className="erp-select"
-                            >
-                                <option>January</option>
-                                <option>February</option>
-                                <option>March</option>
-                                <option>April</option>
-                                <option>May</option>
-                                <option>June</option>
-                                <option>July</option>
-                                <option>August</option>
-                                <option>September</option>
-                                <option>October</option>
-                                <option>November</option>
-                                <option>December</option>
-                            </select>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3">
+
+                        <div className="flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={fetchData}
-                                className="erp-button-primary"
+                                className="erp-button-primary text-xs h-10 px-4"
                                 disabled={isLoading}
                             >
                                 {isLoading ? 'Generating...' : 'Generate Return'}
@@ -560,7 +573,7 @@ useEffect(() => {
                                     onClick={initiateFiling}
                                     disabled={isFilingReturn || isLoading || isCurrentOrFutureMonth}
                                     title={isCurrentOrFutureMonth ? "Cannot file for current or future months" : "File directly to Sandbox API"}
-                                    className={`erp-button-primary ${isCurrentOrFutureMonth ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70' : 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600'}`}
+                                    className={`erp-button-primary text-xs h-10 px-4 ${isCurrentOrFutureMonth ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70' : 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600'}`}
                                 >
                                     ⚡ File GST Return (Sandbox)
                                 </button>
@@ -571,7 +584,7 @@ useEffect(() => {
                                     onClick={initiateAmendmentFiling}
                                     disabled={isFilingAmendment || isLoading || isCurrentOrFutureMonth}
                                     title={isCurrentOrFutureMonth ? "Cannot file for current or future months" : `File all pending ${activeSubTab} amendments to GST portal`}
-                                    className={`erp-button-primary flex items-center gap-2 ${
+                                    className={`erp-button-primary text-xs h-10 px-4 flex items-center gap-2 ${
                                         isCurrentOrFutureMonth
                                             ? 'bg-gray-400 border-gray-400 hover:bg-gray-400 cursor-not-allowed opacity-70'
                                             : 'bg-indigo-600 hover:bg-indigo-700 border-indigo-600'
@@ -592,20 +605,21 @@ useEffect(() => {
                             )}
                             <button
                                 onClick={handleDownloadExcel}
-                                className="erp-button-secondary"
+                                className="erp-button-secondary text-xs h-10 px-4"
                                 disabled={isLoading}
                             >
                                 Download Excel
                             </button>
                             <button
                                 onClick={handleDownloadJson}
-                                className="erp-button-secondary bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"
+                                className="erp-button-secondary text-xs h-10 px-4 bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"
                                 disabled={isLoading}
                             >
                                 Download JSON
                             </button>
                         </div>
                     </div>
+
                     {/* Filing Status Banner */}
                     {filingStatus && (
                         <div className={`mt-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between gap-4 ${filingStatus.type === 'success'
@@ -621,7 +635,7 @@ useEffect(() => {
                 {/* Sub Tabs Bar */}
                 <div className="erp-container p-0 shadow-sm overflow-hidden">
                     <div
-                        className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto select-none"
+                        className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto overflow-y-hidden select-none"
                         onWheel={(e) => {
                             if (e.deltaY !== 0) {
                                 e.currentTarget.scrollLeft += e.deltaY;

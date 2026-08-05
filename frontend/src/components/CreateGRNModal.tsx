@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiService } from '../services/api';
 import { httpClient } from '../services/httpClient';
 import { showWarning } from '../utils/toast';
@@ -28,7 +28,7 @@ interface Location {
 
 interface CreateGRNModalProps {
     onClose: () => void;
-    onSave: (data: any) => void;
+    onSave: (data: any) => Promise<void> | void;
     initialSupplierInvoiceNo?: string;
     initialExtractedData?: any;
     mainVendorName?: string;
@@ -651,7 +651,9 @@ const CreateGRNModal: React.FC<CreateGRNModalProps> = ({ onClose, onSave, initia
         }));
     };
 
-    const handleSave = () => {
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
         // Validate required fields
         if (!grnNo) { alert('Please enter GRN No'); return; }
         if (grnType === 'purchases' && !vendorName) { alert('Please select a Vendor'); return; }
@@ -708,21 +710,27 @@ const CreateGRNModal: React.FC<CreateGRNModalProps> = ({ onClose, onSave, initia
                 no_of_boxes: item.boxes || '0'
             })),
 
-            // Transit Details
-            dispatch_from: transitReceivedIn,
-            mode_of_transport: transitMode,
-            dispatch_date: transitReceiptDate,
-            dispatch_time: transitReceiptTime,
-            delivery_type: transitDeliveryType,
-            transporter_id: transitTransporterId,
-            transporter_name: transitTransporterName,
-            vehicle_no: transitVehicleNo,
-            lr_gr_consignment: transitLrGrConsignment
+            // Transit Details — send null for empty time/date fields (Django rejects empty strings)
+            dispatch_from: transitReceivedIn || null,
+            mode_of_transport: transitMode || null,
+            dispatch_date: transitReceiptDate || null,
+            dispatch_time: transitReceiptTime || null,
+            delivery_type: transitDeliveryType || null,
+            transporter_id: transitTransporterId || null,
+            transporter_name: transitTransporterName || null,
+            vehicle_no: transitVehicleNo || null,
+            lr_gr_consignment: transitLrGrConsignment || null
         };
 
-
-        onSave(payload);
-        onClose();
+        setIsSaving(true);
+        try {
+            await onSave(payload);
+            // onSave is responsible for closing the modal on success
+        } catch (err) {
+            console.error('[CreateGRNModal] Save failed:', err);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -1260,13 +1268,15 @@ const CreateGRNModal: React.FC<CreateGRNModalProps> = ({ onClose, onSave, initia
                 <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 shrink-0">
                     <button
                         onClick={handleSave}
-                        className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-[4px] transition-colors uppercase text-sm"
+                        disabled={isSaving}
+                        className={`px-6 py-2 bg-indigo-600 text-white font-medium rounded-[4px] transition-colors uppercase text-sm ${isSaving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
                     >
-                        Save GRN
+                        {isSaving ? 'Saving...' : 'Save GRN'}
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-[4px] hover:bg-gray-50 transition-colors uppercase text-sm"
+                        disabled={isSaving}
+                        className="px-6 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-[4px] hover:bg-gray-50 transition-colors uppercase text-sm disabled:opacity-50"
                     >
                         Cancel
                     </button>

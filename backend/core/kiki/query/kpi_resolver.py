@@ -1,6 +1,7 @@
 import re
+from datetime import date
 from typing import Optional, Dict, Any
-from django.db import connection
+from django.db.models import Sum, Count, Q
 from ..models.dto import InvestigationContext, InvestigationResult
 from ..utils.logger import kiki_logger
 
@@ -9,7 +10,7 @@ class KPIResolver:
     """
     Component Fast-Path — KPI Resolver
     Detects standard financial & ERP KPI queries (total sales, total purchase, receivables, payables)
-    and executes direct optimized database queries against MySQL.
+    and executes direct optimized database queries using Django ORM.
     Provides instant, 100% accurate, evidence-backed answers without full LLM loop overhead.
     """
 
@@ -22,11 +23,11 @@ class KPIResolver:
         clean_q = question.strip().lower()
 
         # 1. Total Sales Pattern
-        if re.search(r"\b(total\s+sales|sales\s+total|total\s+revenue|show\s+sales|sales)\b", clean_q) and not any(k in clean_q for k in ["compare", "why", "item", "product"]):
+        if re.search(r"\b(total\s+sales|sales\s+total|today'?s\s+sales|sales\s+today|total\s+revenue|show\s+sales|sales)\b", clean_q) and not any(k in clean_q for k in ["compare", "why", "item", "product"]):
             return cls._resolve_sales(question, context)
 
         # 2. Total Purchase Pattern
-        if re.search(r"\b(total\s+purchase|purchases\s+total|total\s+expenses|purchases)\b", clean_q) and not any(k in clean_q for k in ["compare", "why", "item", "vendor"]):
+        if re.search(r"\b(total\s+purchase|purchases\s+total|today'?s\s+purchase|purchases\s+today|total\s+expenses|purchases)\b", clean_q) and not any(k in clean_q for k in ["compare", "why", "item", "vendor"]):
             return cls._resolve_purchases(question, context)
 
         # 3. Receivables / Receipts Pattern
@@ -41,79 +42,105 @@ class KPIResolver:
 
     @classmethod
     def _resolve_sales(cls, question: str, context: Optional[InvestigationContext]) -> Optional[InvestigationResult]:
-        period_str = context.active_period if context and context.active_period else "current dashboard"
-        try:
-            with connection.cursor() as cursor:
-                # Query vouchers table
-                cursor.execute("SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'sales'")
-                row = cursor.fetchone()
-                count = row[0] if row else 0
-                total_val = float(row[1]) if row and row[1] is not None else 0.0
+        clean_q = question.strip().lower()
+        is_today = any(w in clean_q for w in ["today", "todays", "today's"])
+        tenant_id = getattr(context, 'tenant_id', None) if context else None
 
-                if count == 0:
-                    cursor.execute("SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers")
-                    row = cursor.fetchone()
-                    count = row[0] if row else 0
-                    total_val = float(row[1]) if row and row[1] is not None else 0.0
+        from accounting.models_voucher_sales import VoucherSalesInvoiceDetails
 
+        qs = VoucherSalesInvoiceDetails.objects.all()
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
 
-            formatted_amount = f"₹{total_val:,.2f}"
-            answer = f"The total sales for the {period_str} period are {formatted_amount} across {count} invoice(s)."
+        if is_today:
+            qs = qs.filter(date=date.today())
+            period_str = "today"
+        else:
+            period_str = context.active_period if context and context.active_period else "current dashboard"
 
-            kiki_logger.info(f"[KPI FAST-PATH] Sales query resolved: {answer}")
-            return cls._build_result(question, answer, "Sales Summary", "SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'sales'")
-        except Exception as e:
-            kiki_logger.warning(f"KPIResolver sales query failed: {e}")
-            return None
+        res = qs.aggregate(
+            count=Count('id'),
+            total=Sum('payment_details__payment_invoice_value')
+        )
+        count = res.get('count') or 0
+        total_val = float(res.get('total') or 0.0)
+
+        formatted_amount = f"₹{total_val:,.2f}"
+        answer = f"The total sales for {period_str} are {formatted_amount} across {count} invoice(s)."
+
+        kiki_logger.info(f"[KPI FAST-PATH] Sales query resolved: {answer}")
+        return cls._build_result(question, answer, "Sales Summary", f"VoucherSalesInvoiceDetails.objects.filter({'date=today' if is_today else 'all'})")
 
     @classmethod
     def _resolve_purchases(cls, question: str, context: Optional[InvestigationContext]) -> Optional[InvestigationResult]:
-        period_str = context.active_period if context and context.active_period else "current dashboard"
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'purchase'")
-                row = cursor.fetchone()
-                count = row[0] if row else 0
-                total_val = float(row[1]) if row and row[1] is not None else 0.0
+        clean_q = question.strip().lower()
+        is_today = any(w in clean_q for w in ["today", "todays", "today's"])
+        tenant_id = getattr(context, 'tenant_id', None) if context else None
 
-            formatted_amount = f"₹{total_val:,.2f}"
-            answer = f"The total purchases for the {period_str} period are {formatted_amount} across {count} purchase order(s)/bill(s)."
+        from accounting.models_voucher_purchase import VoucherPurchaseSupplierDetails
 
-            kiki_logger.info(f"[KPI FAST-PATH] Purchases query resolved: {answer}")
-            return cls._build_result(question, answer, "Purchase Summary", "SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'purchase'")
-        except Exception as e:
-            kiki_logger.warning(f"KPIResolver purchases query failed: {e}")
-            return None
+        qs = VoucherPurchaseSupplierDetails.objects.all()
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        if is_today:
+            qs = qs.filter(date=date.today())
+            period_str = "today"
+        else:
+            period_str = context.active_period if context and context.active_period else "current dashboard"
+
+        res = qs.aggregate(
+            count=Count('id'),
+            total=Sum('line_items__invoice_value')
+        )
+        count = res.get('count') or 0
+        total_val = float(res.get('total') or 0.0)
+
+        formatted_amount = f"₹{total_val:,.2f}"
+        answer = f"The total purchases for {period_str} are {formatted_amount} across {count} purchase bill(s)."
+
+        kiki_logger.info(f"[KPI FAST-PATH] Purchases query resolved: {answer}")
+        return cls._build_result(question, answer, "Purchase Summary", f"VoucherPurchaseSupplierDetails.objects.filter({'date=today' if is_today else 'all'})")
 
     @classmethod
     def _resolve_receipts(cls, question: str, context: Optional[InvestigationContext]) -> Optional[InvestigationResult]:
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'receipt'")
-                row = cursor.fetchone()
-                count = row[0] if row else 0
-                total_val = float(row[1]) if row and row[1] is not None else 0.0
+        tenant_id = getattr(context, 'tenant_id', None) if context else None
+        from accounting.models_voucher_sales import VoucherSalesPaymentDetails
 
-            formatted_amount = f"₹{total_val:,.2f}"
-            answer = f"Total receipts and receivables recorded for the current period are {formatted_amount} ({count} receipt transactions)."
-            return cls._build_result(question, answer, "Receivables Summary", "SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'receipt'")
-        except Exception:
-            return None
+        qs = VoucherSalesPaymentDetails.objects.all()
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        res = qs.aggregate(
+            count=Count('id'),
+            total=Sum('payment_received'),
+            balance=Sum('payment_balance')
+        )
+        count = res.get('count') or 0
+        total_val = float(res.get('total') or 0.0)
+        balance_val = float(res.get('balance') or 0.0)
+
+        answer = f"Total collections received are ₹{total_val:,.2f} with outstanding receivables of ₹{balance_val:,.2f} across {count} customer invoice(s)."
+        return cls._build_result(question, answer, "Receivables Summary", "VoucherSalesPaymentDetails.objects.aggregate()")
 
     @classmethod
     def _resolve_payments(cls, question: str, context: Optional[InvestigationContext]) -> Optional[InvestigationResult]:
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'payment'")
-                row = cursor.fetchone()
-                count = row[0] if row else 0
-                total_val = float(row[1]) if row and row[1] is not None else 0.0
+        tenant_id = getattr(context, 'tenant_id', None) if context else None
+        from accounting.models_voucher_purchase import VoucherPurchaseDueDetails
 
-            formatted_amount = f"₹{total_val:,.2f}"
-            answer = f"Total payments and payables recorded for the current period are {formatted_amount} ({count} payment transactions)."
-            return cls._build_result(question, answer, "Payables Summary", "SELECT COUNT(*), SUM(COALESCE(total, amount, 0)) FROM vouchers WHERE type = 'payment'")
-        except Exception:
-            return None
+        qs = VoucherPurchaseDueDetails.objects.all()
+        if tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        res = qs.aggregate(
+            count=Count('id'),
+            total=Sum('to_pay')
+        )
+        count = res.get('count') or 0
+        total_val = float(res.get('total') or 0.0)
+
+        answer = f"Total outstanding payables recorded are ₹{total_val:,.2f} across {count} vendor bill(s)."
+        return cls._build_result(question, answer, "Payables Summary", "VoucherPurchaseDueDetails.objects.aggregate()")
 
     @classmethod
     def _build_result(cls, question: str, answer: str, intent_name: str, sql: str) -> InvestigationResult:
@@ -140,3 +167,4 @@ class KPIResolver:
             evidences=[],
             final_response=answer
         )
+

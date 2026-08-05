@@ -204,8 +204,23 @@ class CustomerMastersSalesOrderViewSet(viewsets.ModelViewSet):
         """Preview the next order number without incrementing"""
         series = self.get_object()
         next_number = series.current_number + 1
-        number_str = str(next_number).zfill(series.required_digits)
-        preview_number = f"{series.prefix}{number_str}{series.suffix}"
+        
+        # Check against existing sales orders to handle stuck counters
+        from .database import CustomerTransactionSalesOrderBasicDetails
+        tenant_id = getattr(request.user, 'tenant_id', None)
+        while tenant_id:
+            number_str = str(next_number).zfill(series.required_digits)
+            preview_number = f"{series.prefix}{number_str}{series.suffix}"
+            if not CustomerTransactionSalesOrderBasicDetails.objects.filter(
+                tenant_id=tenant_id, so_number=preview_number
+            ).exists():
+                break
+            next_number += 1
+            
+        if not tenant_id:
+            number_str = str(next_number).zfill(series.required_digits)
+            preview_number = f"{series.prefix}{number_str}{series.suffix}"
+            
         return Response({
             'preview': preview_number,
             'current_number': series.current_number,
@@ -793,7 +808,7 @@ class CustomerTransactionSalesOrderViewSet(viewsets.ModelViewSet):
         so_series_name = self.request.data.get('so_series_name')
         if so_series_name:
             try:
-                from .database import CustomerMastersSalesOrder
+                from .database import CustomerMastersSalesOrder, CustomerTransactionSalesOrderBasicDetails
                 series = CustomerMastersSalesOrder.objects.get(
                     tenant_id=tenant_id, 
                     series_name=so_series_name,
@@ -802,8 +817,17 @@ class CustomerTransactionSalesOrderViewSet(viewsets.ModelViewSet):
                 
                 # Fetching again to be safe and format correctly
                 next_number = series.current_number + 1
-                number_str = str(next_number).zfill(series.required_digits)
-                generated_so_number = f"{series.prefix}{number_str}{series.suffix}"
+                
+                # Make sure this number is truly unique
+                while True:
+                    number_str = str(next_number).zfill(series.required_digits)
+                    generated_so_number = f"{series.prefix}{number_str}{series.suffix}"
+                    
+                    if not CustomerTransactionSalesOrderBasicDetails.objects.filter(
+                        tenant_id=tenant_id, so_number=generated_so_number
+                    ).exists():
+                        break
+                    next_number += 1
                 
                 # Use the generated number instead of what might be in serializer initial data
                 serializer.save(
@@ -812,7 +836,7 @@ class CustomerTransactionSalesOrderViewSet(viewsets.ModelViewSet):
                     so_number=generated_so_number
                 )
                 
-                # Increment the series count
+                # Increment the series count to match what we actually used
                 series.current_number = next_number
                 series.save()
                 return

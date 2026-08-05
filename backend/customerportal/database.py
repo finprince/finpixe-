@@ -679,6 +679,7 @@ class CustomerMasterLongTermContractBasicDetail(models.Model):
     
     # Status and Metadata
     is_active = models.BooleanField(default=True)
+    is_paused = models.BooleanField(default=False, help_text='Is the contract paused')
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

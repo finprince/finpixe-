@@ -22,6 +22,10 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
         if tenant_id:
             queryset = queryset.filter(tenant_id=tenant_id)
 
+        # For detail (retrieve/update/partial_update/destroy) actions, always return all records.
+        if self.action in ('retrieve', 'update', 'partial_update', 'destroy'):
+            return queryset
+
         # Support for showing all OR filtering for Pending/Due ones
         show_all = self.request.query_params.get('show_all') == 'true'
         status_param = self.request.query_params.get('status')
@@ -56,6 +60,30 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(sales_invoice_no=sales_invoice_no)
         
         return queryset
+
+    def get_object(self):
+        """
+        Override to resolve a generic Voucher ID to VoucherSalesInvoiceDetails.
+        Handles cases where frontend or reports pass generic voucher ID instead of sales details ID.
+        """
+        from django.http import Http404
+        try:
+            return super().get_object()
+        except Http404:
+            pk = self.kwargs.get('pk')
+            generic_voucher = Voucher.objects.filter(id=pk, type='sales').first()
+            if generic_voucher and generic_voucher.reference_id:
+                self.kwargs['pk'] = generic_voucher.reference_id
+                return super().get_object()
+            user = self.request.user
+            tenant_id = getattr(user, 'tenant_id', None)
+            instance = VoucherSalesInvoiceDetails.objects.filter(
+                tenant_id=tenant_id,
+                id=pk
+            ).first()
+            if instance:
+                return instance
+            raise
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

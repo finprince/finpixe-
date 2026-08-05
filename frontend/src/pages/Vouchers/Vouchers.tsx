@@ -1,4 +1,4 @@
- import finpixeLogo from '../../assets/branding/logo';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -246,13 +246,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       console.warn('Failed to fetch Stock Items', err);
     }
 
-    // 5. Pending GRNs (Default load for Purchases)
-    try {
-      const grns = await apiService.getPendingGRNs({ grn_type: 'purchases' });
-      setPendingGRNs(Array.isArray(grns) ? grns : ((grns as any).results || []));
-    } catch (err) {
-      console.warn('Failed to fetch Pending GRNs', err);
-    }
+    // 5. Pending GRNs are fetched dynamically when a vendor is selected (see fetchPendingGRNsForEntity)
   }, []);
 
   useEffect(() => {
@@ -1019,6 +1013,66 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     { id: '1', itemCode: '', itemName: '', hsnSac: '', qty: 0, uom: '', rate: 0, discountPercent: 0, discountAmount: 0, taxableValue: 0, foreignRate: 0, foreignAmount: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoiceValue: 0, description: '', poRate: null as number | null, invoiceRate: null as number | null, rateMismatch: false, poQty: null as number | null, invoiceQty: null as number | null, qtyMismatch: false, grnQty: null as number | null, sourcePoNo: null as string | null }
   ]);
 
+  const [grnMismatchError, setGrnMismatchError] = useState('');
+
+  const validateGrnMatch = () => {
+    if (!grnRefNo) {
+      setGrnMismatchError('');
+      return true;
+    }
+    const selectedGRN = pendingGRNs.find(g => g.grn_no === grnRefNo);
+    if (!selectedGRN) {
+      setGrnMismatchError('');
+      return true;
+    }
+
+    const grnItems = Array.isArray(selectedGRN.items) ? selectedGRN.items : [];
+    const activeItemRows = purchaseItems.filter(row => row.itemCode || row.itemName);
+
+    const grnMap: Record<string, { qty: number }> = {};
+    grnItems.forEach((s: any) => {
+        const code = (s.item_code || s.item_name || '').trim();
+        const qty = parseFloat((s.secondary_qty || s.quantity || '0').toString());
+        if (code) {
+            if (!grnMap[code]) {
+                grnMap[code] = { qty: 0 };
+            }
+            grnMap[code].qty += qty;
+        }
+    });
+
+    const gridMap: Record<string, { qty: number }> = {};
+    activeItemRows.forEach((r: any) => {
+        const code = (r.itemCode || r.itemName || '').trim();
+        const qty = parseFloat((r.qty || '0').toString());
+        if (code) {
+            if (!gridMap[code]) {
+                gridMap[code] = { qty: 0 };
+            }
+            gridMap[code].qty += qty;
+        }
+    });
+
+    const grnKeys = Object.keys(grnMap);
+    
+    for (const key of grnKeys) {
+        if (!gridMap[key]) {
+            setGrnMismatchError(`Item '${key}' from GRN is missing or not selected in Grid.`);
+            return false;
+        }
+        if (Math.abs(grnMap[key].qty - gridMap[key].qty) > 0.0001) {
+            setGrnMismatchError(`Quantity for item '${key}' (${gridMap[key].qty}) does not match GRN (${grnMap[key].qty}).`);
+            return false;
+        }
+    }
+    setGrnMismatchError('');
+    return true;
+  };
+
+  useEffect(() => {
+    validateGrnMatch();
+  }, [purchaseItems, grnRefNo, pendingGRNs]);
+
   const calculatePurchaseTotals = () => {
     return purchaseItems.reduce((acc, item) => ({
       taxableValue: acc.taxableValue + (item.taxableValue || 0),
@@ -1496,11 +1550,14 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           const totalTax = taxable * (gstRate / 100);
           const cessAmount = taxable * (cessRate / 100);
 
+          // Find the item in allItems to get missing master data (like HSN)
+          const masterItem = allItems.find(i => (i.item_code || i.code) === item.item_code);
+
           return {
             id: (Date.now() + idx + Math.random()).toString(),
             itemCode: item.item_code || '',
             itemName: item.item_name || item.name || '',
-            hsnSac: item.hsn_sac_code || item.hsn_code || item.hsn_sac || '',
+            hsnSac: item.hsn_sac_code || item.hsn_code || item.hsn_sac || (masterItem?.hsn_code || masterItem?.hsn_sac_code || masterItem?.hsn_sac || ''),
             qty: qty,
             uom: item.uom || item.unit || '',
             rate: rate,
@@ -5071,8 +5128,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     if (field === 'qty') {
       const enteredQty = typeof value === 'string' ? parseFloat(value) || 0 : (value as number);
 
-      // Case 1: PO is selected → cross-check against PO quantity
-      if (selectedPurchasePOs.length > 0 && (item as any).poQty !== null && (item as any).poQty !== undefined) {
+      // Case 1: GRN is linked → cross-check against GRN quantity
+      if (grnRefNo && (item as any).grnQty !== null && (item as any).grnQty !== undefined) {
+        const grnQty = Number((item as any).grnQty);
+        if (grnQty > 0 && Math.abs(enteredQty - grnQty) > 0.001) {
+          (item as any).qtyMismatch = true;
+        } else {
+          (item as any).qtyMismatch = false;
+        }
+      }
+      // Case 2: PO is selected → cross-check against PO quantity
+      else if (selectedPurchasePOs.length > 0 && (item as any).poQty !== null && (item as any).poQty !== undefined) {
         const poQty = Number((item as any).poQty);
         if (poQty > 0 && Math.abs(enteredQty - poQty) > 0.001) {
           (item as any).qtyMismatch = true;
@@ -5080,8 +5146,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           (item as any).qtyMismatch = false;
         }
       }
-      // Case 2: No PO but invoice was scanned → compare against invoice quantity
-      else if (selectedPurchasePOs.length === 0 && (item as any).invoiceQty !== null && (item as any).invoiceQty !== undefined) {
+      // Case 3: No PO/GRN but invoice was scanned → compare against invoice quantity
+      else if (selectedPurchasePOs.length === 0 && !grnRefNo && (item as any).invoiceQty !== null && (item as any).invoiceQty !== undefined) {
         const invQty = Number((item as any).invoiceQty);
         if (invQty > 0 && Math.abs(enteredQty - invQty) > 0.001) {
           (item as any).qtyMismatch = true;
@@ -5495,9 +5561,9 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
       const fallbackDate = rawVoucher.date || viewVoucherData.date;
       if (fallbackDate) {
-        try { setDate(new Date(fallbackDate).toISOString().split('T')[0]); } catch (e) {}
+        try { setDate(new Date(fallbackDate).toISOString().split('T')[0]); } catch (e) { }
         if (mappedType === 'Purchase') {
-          try { setSupplierInvoiceDate(new Date(fallbackDate).toISOString().split('T')[0]); } catch (e) {}
+          try { setSupplierInvoiceDate(new Date(fallbackDate).toISOString().split('T')[0]); } catch (e) { }
         }
       }
       const fallbackParty = rawVoucher.party || viewVoucherData.party || viewVoucherData.ledgerName || viewVoucherData.ledger || '';
@@ -6375,7 +6441,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     className={`w-full px-4 py-2 border rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 ${gstr2bExpectedDate ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`}
                     required
                   />
-                  {gstr2bExpectedDate ? (
+                  {gstr2bExpectedDate && (
                     <div className="mt-1.5 p-2 bg-amber-50 border border-amber-300 rounded text-xs">
                       <div className="flex items-center gap-1 text-amber-800 font-semibold mb-1">
                         ⚠️ GSTR-2B Date Mismatch
@@ -6391,8 +6457,6 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         Apply GSTR-2B Date
                       </button>
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 mt-1">This date appears in GSTR-2B reconciliation</p>
                   )}
                 </div>
               </div>
@@ -6994,12 +7058,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               />
                               {showPurchaseMismatches && row.qtyMismatch && (
                                 <span className="text-[10px] text-red-600 font-bold whitespace-nowrap">
-                                  ⚠ Mismatch: {row.poQty || row.invoiceQty}
+                                  ⚠ Mismatch: {grnRefNo && row.grnQty != null ? row.grnQty : (row.poQty || row.invoiceQty)}
                                 </span>
                               )}
-                              {(!row.qtyMismatch || !showPurchaseMismatches) && (row.poQty || row.invoiceQty) != null && (
+                              {(!row.qtyMismatch || !showPurchaseMismatches) && (row.grnQty != null || row.poQty != null || row.invoiceQty != null) && (
                                 <span className="text-[10px] text-green-600 font-medium whitespace-nowrap">
-                                  Ref: {row.poQty || row.invoiceQty}
+                                  Ref: {grnRefNo && row.grnQty != null ? row.grnQty : (row.poQty || row.invoiceQty)}
                                 </span>
                               )}
                             </div>
@@ -7182,29 +7246,29 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <table className="w-full">
                     <thead className="bg-indigo-600 text-white">
                       <tr>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">S. No.</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">S. No.</th>
                         {selectedPurchasePOs.length > 0 && (
-                          <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Purchase Order No.</th>
+                          <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">PO No.</th>
                         )}
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Item Code</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Item Name</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">HSN/SAC</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Inv Qty</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">UQC</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Item Rate</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500 w-24">Discount (%)</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Taxable Value</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Item Code</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Item Name</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">HSN/SAC</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Inv Qty</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">UQC</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Item Rate</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Disc (%)</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Tax Value</th>
                         {purchaseInputTypes.includes('Intrastate') ? (
                           <>
-                            <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">CGST</th>
-                            <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">SGST/UTGST</th>
+                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">CGST</th>
+                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">SGST/UTGST</th>
                           </>
                         ) : (
-                          <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">IGST</th>
+                          <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">IGST</th>
                         )}
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">CESS</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center border-r border-indigo-500">Invoice Value</th>
-                        <th className="px-3 py-3 text-xs font-semibold text-center">Delete</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">CESS</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-indigo-500 whitespace-nowrap">Inv Value</th>
+                        <th className="px-2 py-2 text-[11px] font-semibold text-center sticky right-0 z-10 bg-indigo-600 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">Del</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -7227,71 +7291,71 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         const rowColor = getPoColor(row.sourcePoNo);
 
                         return (
-                          <tr key={row.id} className={`${rowColor || 'border-b border-gray-200 hover:bg-gray-50'} transition-colors`}>
-                            <td className="px-2 py-2 text-center text-sm border-r border-gray-200">
-                              <div className="flex items-center justify-center gap-2">
-                                <input type="checkbox" className="w-4 h-4 rounded text-indigo-600" />
+                          <tr key={row.id} className={`${rowColor || 'border-b border-gray-200 hover:bg-gray-50'} transition-colors group`}>
+                            <td className="px-1 py-1 text-center text-[11px] border-r border-gray-200">
+                              <div className="flex items-center justify-center gap-1">
+                                <input type="checkbox" className="w-3 h-3 rounded text-indigo-600" />
                                 {index + 1}
                               </div>
                             </td>
                             {selectedPurchasePOs.length > 0 && (
-                              <td className="px-2 py-2 border-r border-gray-200 text-sm text-center text-gray-600">
+                              <td className="px-1 py-1 border-r border-gray-200 text-[11px] text-center text-gray-600">
                                 {row.sourcePoNo || '-'}
                               </td>
                             )}
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200 min-w-[80px]">
                               <SearchableDropdown
                                 value={row.itemCode}
                                 onChange={(val) => handlePurchaseItemChange(index, 'itemCode', val)}
                                 options={itemCodeOptions}
                                 placeholder="Code"
-                                className="w-full"
+                                className="w-full text-[11px]"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200 min-w-[100px]">
                               <SearchableDropdown
                                 value={row.itemName}
                                 onChange={(val) => handlePurchaseItemChange(index, 'itemName', val)}
                                 options={itemNameOptions}
                                 placeholder="Item Name"
-                                className="w-full"
+                                className="w-full text-[11px]"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200 min-w-[60px]">
                               <input
                                 type="text"
                                 value={row.hsnSac}
                                 onChange={(e) => handlePurchaseItemChange(index, 'hsnSac', e.target.value)}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                className="w-full px-1 py-1 border border-gray-300 rounded text-[11px]"
                                 placeholder="HSN/SAC"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200">
                               <div className="flex flex-col items-center gap-0.5">
                                 <input
                                   type="number" onWheel={(e) => e.currentTarget.blur()}
                                   min="0"
                                   value={row.qty}
                                   onChange={(e) => handlePurchaseItemChange(index, 'qty', e.target.value)}
-                                  className={`w-16 px-2 py-1 border rounded text-center text-sm ${showPurchaseMismatches && row.qtyMismatch ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-300'}`}
+                                  className={`w-16 px-1 py-1 border rounded text-center text-[11px] ${showPurchaseMismatches && row.qtyMismatch ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-300'}`}
                                 />
                                 {showPurchaseMismatches && row.qtyMismatch && (
                                   <span className="text-[10px] text-red-600 font-bold whitespace-nowrap">
-                                    ⚠ {row.poQty || row.invoiceQty}
+                                    ⚠ {grnRefNo && row.grnQty != null ? row.grnQty : (row.poQty || row.invoiceQty)}
                                   </span>
                                 )}
-                                {(!row.qtyMismatch || !showPurchaseMismatches) && (row.poQty || row.invoiceQty) != null && (
+                                {(!row.qtyMismatch || !showPurchaseMismatches) && (row.grnQty != null || row.poQty != null || row.invoiceQty != null) && (
                                   <span className="text-[10px] text-green-600 font-medium whitespace-nowrap">
-                                    Ref: {row.poQty || row.invoiceQty}
+                                    Ref: {grnRefNo && row.grnQty != null ? row.grnQty : (row.poQty || row.invoiceQty)}
                                   </span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200 min-w-[60px]">
                               <select
                                 value={row.uom}
                                 onChange={(e) => handlePurchaseItemChange(index, 'uom', e.target.value)}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                className="w-full px-1 py-1 border border-gray-300 rounded text-[11px] bg-white"
                               >
                                 <option value="">Select UQC</option>
                                 {(() => {
@@ -7304,14 +7368,14 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                                 })()}
                               </select>
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200">
                               <div className="flex flex-col items-end gap-0.5">
                                 <input
                                   type="number" onWheel={(e) => e.currentTarget.blur()}
                                   min="0"
                                   value={row.rate}
                                   onChange={(e) => handlePurchaseItemChange(index, 'rate', e.target.value)}
-                                  className={`w-20 px-2 py-1 border rounded text-right text-sm ${(row as any).rateMismatch
+                                  className={`w-20 px-1 py-1 border rounded text-right text-[11px] ${(row as any).rateMismatch
                                     ? 'border-red-500 bg-red-50 text-red-700 focus:ring-red-400'
                                     : 'border-gray-300 focus:ring-indigo-500'
                                     }`}
@@ -7328,7 +7392,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                                 )}
                               </div>
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200">
                               <div className="flex justify-center">
                                 <input
                                   type="number"
@@ -7338,69 +7402,69 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                                   step="any"
                                   value={row.discountPercent !== undefined ? row.discountPercent : 0}
                                   onChange={(e) => handlePurchaseItemChange(index, 'discountPercent', e.target.value)}
-                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-right text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                  className="w-14 px-1 py-1 border border-gray-300 rounded text-right text-[11px] focus:ring-indigo-500 focus:border-indigo-500"
                                   placeholder="0"
                                 />
                               </div>
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200">
                               <input
                                 type="number"
                                 onWheel={(e) => e.currentTarget.blur()}
                                 value={row.taxableValue}
                                 onChange={(e) => handlePurchaseItemChange(index, 'taxableValue', e.target.value)}
-                                className="w-24 px-2 py-1 border border-indigo-200 bg-indigo-50 rounded text-right text-sm font-semibold text-indigo-700 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 focus:bg-white transition-colors"
+                                className="w-20 px-1 py-1 border border-indigo-200 bg-indigo-50 rounded text-right text-[11px] font-semibold text-indigo-700 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 focus:bg-white transition-colors"
                               />
                             </td>
                             {purchaseInputTypes.includes('Intrastate') ? (
                               <>
                                 {/* CGST — Editable */}
-                                <td className="px-2 py-2 border-r border-gray-200">
+                                <td className="px-1 py-1 border-r border-gray-200">
                                   <input
                                     type="number"
                                     onWheel={(e) => e.currentTarget.blur()}
                                     value={row.cgst}
                                     onChange={(e) => handlePurchaseItemChange(index, 'cgst', e.target.value)}
-                                    className="w-24 px-2 py-1 border border-blue-200 bg-blue-50 rounded text-right text-sm font-semibold text-blue-700 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 focus:bg-white transition-colors"
+                                    className="w-16 px-1 py-1 border border-blue-200 bg-blue-50 rounded text-right text-[11px] font-semibold text-blue-700 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 focus:bg-white transition-colors"
                                   />
                                 </td>
                                 {/* SGST — Editable */}
-                                <td className="px-2 py-2 border-r border-gray-200">
+                                <td className="px-1 py-1 border-r border-gray-200">
                                   <input
                                     type="number"
                                     onWheel={(e) => e.currentTarget.blur()}
                                     value={row.sgst}
                                     onChange={(e) => handlePurchaseItemChange(index, 'sgst', e.target.value)}
-                                    className="w-24 px-2 py-1 border border-green-200 bg-green-50 rounded text-right text-sm font-semibold text-green-700 focus:ring-1 focus:ring-green-400 focus:border-green-400 focus:bg-white transition-colors"
+                                    className="w-16 px-1 py-1 border border-green-200 bg-green-50 rounded text-right text-[11px] font-semibold text-green-700 focus:ring-1 focus:ring-green-400 focus:border-green-400 focus:bg-white transition-colors"
                                   />
                                 </td>
                               </>
                             ) : (
                               /* IGST — Editable */
-                              <td className="px-2 py-2 border-r border-gray-200">
+                              <td className="px-1 py-1 border-r border-gray-200">
                                 <input
                                   type="number"
                                   onWheel={(e) => e.currentTarget.blur()}
                                   value={row.igst}
                                   onChange={(e) => handlePurchaseItemChange(index, 'igst', e.target.value)}
-                                  className="w-24 px-2 py-1 border border-purple-200 bg-purple-50 rounded text-right text-sm font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
+                                  className="w-16 px-1 py-1 border border-purple-200 bg-purple-50 rounded text-right text-[11px] font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
                                 />
                               </td>
                             )}
 
-                            <td className="px-2 py-2 border-r border-gray-200">
+                            <td className="px-1 py-1 border-r border-gray-200">
                               <input
                                 type="number"
                                 onWheel={(e) => e.currentTarget.blur()}
                                 value={row.cess}
                                 onChange={(e) => handlePurchaseItemChange(index, 'cess', e.target.value)}
-                                className="w-20 px-2 py-1 border border-purple-200 bg-purple-50 rounded text-right text-sm font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
+                                className="w-16 px-1 py-1 border border-purple-200 bg-purple-50 rounded text-right text-[11px] font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-gray-200">
-                              <div className="text-right text-sm font-bold">{row.invoiceValue.toFixed(2)}</div>
+                            <td className="px-1 py-1 border-r border-gray-200">
+                              <div className="text-right text-[11px] font-bold px-1">{row.invoiceValue.toFixed(2)}</div>
                             </td>
-                            <td className="px-2 py-2 flex justify-center items-center">
+                            <td className="px-1 py-1 flex justify-center items-center sticky right-0 z-10 bg-white group-hover:bg-gray-50 border-l border-gray-200 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
                               <button
                                 type="button"
                                 onClick={() => handleRemovePurchaseItem(index)}
@@ -7418,11 +7482,11 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     {/* Purchase Ledger and Description Row */}
                     <tfoot>
                       <tr className="border-t border-gray-200 bg-gray-50">
-                        <td colSpan={purchaseInputTypes.includes('Intrastate') ? 13 : 12} className="px-3 py-2">
+                        <td colSpan={purchaseInputTypes.includes('Intrastate') ? 13 : 12} className="px-1 py-1">
                           <div className="flex items-center gap-4 flex-wrap">
                             {/* Purchase Ledger Dropdown */}
                             <div className="flex items-center gap-2 min-w-[260px]">
-                              <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Purchase Ledger:</label>
+                              <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-1">Purchase Ledger:</label>
                               <div className="flex-1">
                                 <SearchableDropdown
                                   options={purchaseLedgerOptions}
@@ -7433,13 +7497,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               </div>
                             </div>
                             {/* Description */}
-                            <div className="flex items-center gap-2 flex-1">
-                              <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Ledger Narration:</label>
+                            <div className="flex items-center gap-2 flex-1 pr-8">
+                              <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap uppercase">Ledger Narration:</label>
                               <input
                                 type="text"
                                 value={purchaseDescription}
                                 onChange={(e) => setPurchaseDescription(e.target.value)}
-                                className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-indigo-500"
+                                className="flex-1 px-2 py-1 border border-gray-300 rounded text-[11px] focus:ring-1 focus:ring-indigo-500"
                                 placeholder="Enter ledger narration"
                               />
                             </div>
@@ -7449,6 +7513,16 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     </tfoot>
                   </table>
                 </div>
+
+                {/* GRN Mismatch Error Banner */}
+                {grnMismatchError && (
+                    <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-300 rounded-[4px] text-red-700 text-sm font-medium">
+                        <svg className="w-5 h-5 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                        {grnMismatchError}
+                    </div>
+                )}
 
                 {/* Add Item Button Outside (Like Sales Voucher) */}
                 <div className="mt-2 text-left">
@@ -12865,338 +12939,338 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
 
 
-      {isBankUploadModalOpen ? (
-        <div className="erp-container relative">
-          <div className="mb-6 pb-4 border-b">
-            <h3 className="erp-section-title border-none mb-0 pb-0">Bank Statement Upload</h3>
-            <p className="helper-text mb-0">Upload a bank statement to extract and post transactions</p>
+        {isBankUploadModalOpen ? (
+          <div className="erp-container relative">
+            <div className="mb-6 pb-4 border-b">
+              <h3 className="erp-section-title border-none mb-0 pb-0">Bank Statement Upload</h3>
+              <p className="helper-text mb-0">Upload a bank statement to extract and post transactions</p>
+            </div>
+            <BankUpload
+              ledgers={freshLedgers.length > 0 ? freshLedgers : ledgers}
+              defaultType={(voucherType.toLowerCase() === 'receipt' ? 'receipt' : 'payment') as 'payment' | 'receipt'}
+              onClose={() => setIsBankUploadModalOpen(false)}
+            />
           </div>
-          <BankUpload
-            ledgers={freshLedgers.length > 0 ? freshLedgers : ledgers}
-            defaultType={(voucherType.toLowerCase() === 'receipt' ? 'receipt' : 'payment') as 'payment' | 'receipt'}
-            onClose={() => setIsBankUploadModalOpen(false)}
-          />
-        </div>
-      ) : isSalesExcelWorkflowOpen ? (
-        <div className="erp-container relative">
-          <SalesExcelUploadWorkflow onClose={() => setIsSalesExcelWorkflowOpen(false)} />
-        </div>
-      ) : (
-        <>
-          {isReadOnlyMode && (() => {
-            const isCancelledInvoice = drillDownDetails?.status === 'cancelled';
-            const isSalesVoucher = (drillDownDetails?._mappedType || voucherType) === 'Sales';
+        ) : isSalesExcelWorkflowOpen ? (
+          <div className="erp-container relative">
+            <SalesExcelUploadWorkflow onClose={() => setIsSalesExcelWorkflowOpen(false)} />
+          </div>
+        ) : (
+          <>
+            {isReadOnlyMode && (() => {
+              const isCancelledInvoice = drillDownDetails?.status === 'cancelled';
+              const isSalesVoucher = (drillDownDetails?._mappedType || voucherType) === 'Sales';
 
-            return isCancelledInvoice ? (
-              // Red CANCELLED banner
-              <div className="bg-red-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(220,38,38,0.5)] animate-in fade-in slide-in-from-top-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
-                    <Icon name="x-circle" className="w-6 h-6 text-white" />
+              return isCancelledInvoice ? (
+                // Red CANCELLED banner
+                <div className="bg-red-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(220,38,38,0.5)] animate-in fade-in slide-in-from-top-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
+                      <Icon name="x-circle" className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-black text-lg uppercase tracking-wide leading-tight">⚠ INVOICE CANCELLED</p>
+                      <p className="text-red-100 text-sm font-medium opacity-90">
+                        This invoice has been permanently cancelled. It cannot be edited or reactivated.
+                        It is preserved in your records for GST DOC compliance.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-black text-lg uppercase tracking-wide leading-tight">⚠ INVOICE CANCELLED</p>
-                    <p className="text-red-100 text-sm font-medium opacity-90">
-                      This invoice has been permanently cancelled. It cannot be edited or reactivated.
-                      It is preserved in your records for GST DOC compliance.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleCloseVoucher}
-                    className="flex items-center gap-2 bg-red-800/60 text-red-50 px-5 py-3 rounded-xl font-bold text-sm border border-red-400/40 hover:bg-red-800/90 transition-all active:scale-95"
-                  >
-                    <Icon name="x" className="w-4 h-4" />
-                    CLOSE
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Normal read-only banner
-              <div className="bg-indigo-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(79,70,229,0.4)] animate-in fade-in slide-in-from-top-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
-                    <Icon name="eye" className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-black text-lg uppercase tracking-wide leading-tight">READ-ONLY VIEW</p>
-                    <p className="text-indigo-100 text-sm font-medium opacity-90">You are currently viewing {drillDownDetails?._mappedType || voucherType} Voucher {drillDownDetails?.voucher_number || drillDownDetails?._rawEntry?.voucherNo || ""}.</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setIsReadOnlyMode(false)} className="flex items-center gap-2 bg-white text-indigo-700 px-7 py-3 rounded-xl font-black text-sm shadow-md hover:bg-indigo-50 transition-all active:scale-95">
-                    <Icon name="edit" className="w-4 h-4" />
-                    EDIT VOUCHER
-                  </button>
-                  {isSalesVoucher && (
+                  <div className="flex items-center gap-3">
                     <button
-                      id="cancel-invoice-btn"
-                      onClick={handleCancelInvoice}
-                      className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+                      onClick={handleCloseVoucher}
+                      className="flex items-center gap-2 bg-red-800/60 text-red-50 px-5 py-3 rounded-xl font-bold text-sm border border-red-400/40 hover:bg-red-800/90 transition-all active:scale-95"
                     >
-                      <Icon name="x-circle" className="w-4 h-4" />
-                      CANCEL INVOICE
+                      <Icon name="x" className="w-4 h-4" />
+                      CLOSE
                     </button>
+                  </div>
+                </div>
+              ) : (
+                // Normal read-only banner
+                <div className="bg-indigo-600 text-white p-5 rounded-xl flex justify-between items-center mb-6 shadow-[0_10px_30px_-10px_rgba(79,70,229,0.4)] animate-in fade-in slide-in-from-top-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-inner">
+                      <Icon name="eye" className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-black text-lg uppercase tracking-wide leading-tight">READ-ONLY VIEW</p>
+                      <p className="text-indigo-100 text-sm font-medium opacity-90">You are currently viewing {drillDownDetails?._mappedType || voucherType} Voucher {drillDownDetails?.voucher_number || drillDownDetails?._rawEntry?.voucherNo || ""}.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setIsReadOnlyMode(false)} className="flex items-center gap-2 bg-white text-indigo-700 px-7 py-3 rounded-xl font-black text-sm shadow-md hover:bg-indigo-50 transition-all active:scale-95">
+                      <Icon name="edit" className="w-4 h-4" />
+                      EDIT VOUCHER
+                    </button>
+                    {isSalesVoucher && (
+                      <button
+                        id="cancel-invoice-btn"
+                        onClick={handleCancelInvoice}
+                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+                      >
+                        <Icon name="x-circle" className="w-4 h-4" />
+                        CANCEL INVOICE
+                      </button>
+                    )}
+                    <button
+                      onClick={handleCloseVoucher}
+                      className="flex items-center gap-2 bg-indigo-800/60 text-indigo-50 px-5 py-3 rounded-xl font-bold text-sm border border-indigo-400/40 hover:bg-indigo-800/90 transition-all active:scale-95"
+                    >
+                      <Icon name="x" className="w-4 h-4" />
+                      CLOSE
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+
+            {/* Main Tabs */}
+            <div className={`erp-tab-container ${isReadOnlyMode ? 'opacity-50 pointer-events-none cursor-not-allowed select-none' : ''}`}>
+              {availableVoucherTypes.map(type => (
+                <button
+                  key={type.id}
+                  onClick={() => { setVoucherType(type.id); resetForm(); }}
+                  className={`erp-tab ${voucherType === type.id ? 'active' : ''}`}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="erp-container">
+              <div className="flex justify-between items-center border-b pb-4 mb-6">
+                <div className="flex items-center space-x-4">
+                  <h3 className="erp-section-title border-none mb-0 pb-0">{voucherType} Voucher</h3>
+                  {subscriptionUsage && (
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${isLimitReached ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                      Usage: {subscriptionUsage.used} / {subscriptionUsage.limit}
+                    </div>
                   )}
-                  <button
-                    onClick={handleCloseVoucher}
-                    className="flex items-center gap-2 bg-indigo-800/60 text-indigo-50 px-5 py-3 rounded-xl font-bold text-sm border border-indigo-400/40 hover:bg-indigo-800/90 transition-all active:scale-95"
-                  >
-                    <Icon name="x" className="w-4 h-4" />
-                    CLOSE
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-
-
-          {/* Main Tabs */}
-          <div className={`erp-tab-container ${isReadOnlyMode ? 'opacity-50 pointer-events-none cursor-not-allowed select-none' : ''}`}>
-            {availableVoucherTypes.map(type => (
-              <button
-                key={type.id}
-                onClick={() => { setVoucherType(type.id); resetForm(); }}
-                className={`erp-tab ${voucherType === type.id ? 'active' : ''}`}
-              >
-                {type.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="erp-container">
-            <div className="flex justify-between items-center border-b pb-4 mb-6">
-              <div className="flex items-center space-x-4">
-                <h3 className="erp-section-title border-none mb-0 pb-0">{voucherType} Voucher</h3>
-                {subscriptionUsage && (
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${isLimitReached ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                    Usage: {subscriptionUsage.used} / {subscriptionUsage.limit}
-                  </div>
-                )}
-                {/* GST Status Badges */}
-                {isReadOnlyMode && !amendedVoucherDetails && !drillDownDetails?.amendment_date && (drillDownDetails?.gst_registered === 'Yes') && (
-                  <div className="flex items-center space-x-2">
-                    <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
-                      <Icon name="check-circle" className="w-3.5 h-3.5 mr-1.5" />
-                      GST Filed
-                    </div>
-                  </div>
-                )}
-                {isReadOnlyMode && !isViewingAmended && amendedVoucherDetails && (
-                  <div className="flex items-center space-x-2">
-                    <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
-                      <Icon name="check-circle" className="w-3.5 h-3.5 mr-1.5" />
-                      GST Filed
-                    </div>
-                    <button
-                      onClick={() => setIsViewingAmended(true)}
-                      className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm cursor-pointer hover:bg-red-100 transition-colors"
-                    >
-                      <Icon name="eye" className="w-3.5 h-3.5 mr-1.5" />
-                      View Amended Version
-                    </button>
-                  </div>
-                )}
-                {isReadOnlyMode && isViewingAmended && amendedVoucherDetails && (
-                  <div className="flex items-center space-x-2">
-                    <div className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
-                      <Icon name="edit-3" className="w-3.5 h-3.5 mr-1.5" />
-                      Amended Version
-                    </div>
-                    <button
-                      onClick={() => setIsViewingAmended(false)}
-                      className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm cursor-pointer hover:bg-emerald-100 transition-colors"
-                    >
-                      <Icon name="eye" className="w-3.5 h-3.5 mr-1.5" />
-                      View Original Snapshot
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="relative" ref={scannerMenuRef}>
-                  <button
-                    onClick={() => setIsScannerMenuOpen(prev => !prev)}
-                    className="erp-button-primary"
-                    title="Upload Invoices"
-                  >
-                    <Icon name="upload" className="w-4 h-4 mr-2" />
-                    Upload Invoices
-                    <Icon name="chevron-down" className="w-3 h-3 ml-2" />
-                  </button>
-
-                  {isScannerMenuOpen && (
-                    <div className="origin-top-right absolute right-0 mt-2 w-56 rounded shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[60]">
-                      <div className="py-1" role="menu">
-                        {(() => {
-                          const currentVoucherType = voucherType.toLowerCase();
-                          const allowedOptions = UPLOAD_OPTIONS_CONFIG[currentVoucherType] || ["upload_for_excel"];
-
-                          const UPLOAD_OPTION_META: Record<string, any> = {
-                            purchase_scan: {
-                              id: 'purchase_scan',
-                              label: "Purchase Scan",
-                              icon: <Icon name="scanner" className={`w-4 h-4 mr-3 ${isLimitReached ? 'text-red-500' : 'text-emerald-500'}`} />,
-                              onClick: () => { if (isLimitReached) { handleLimitReached(); } else { setIsBulkUploadOpen(true); } setIsScannerMenuOpen(false); },
-                              className: `flex items-center w-full text-left px-4 py-2 text-sm ${isLimitReached ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-gray-700 hover:bg-gray-100'} border-t border-gray-50`,
-                              extraLabel: isLimitReached && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-red-100 px-1.5 py-0.5 rounded">Limit Reached</span>
-                            },
-                            pending_purchase: {
-                              id: 'pending_purchase',
-                              label: "Pending Purchase",
-                              icon: <Icon name="package" className="w-4 h-4 mr-3 text-purple-500" />,
-                              onClick: () => { onNavigate('Pending Purchases' as any); setIsScannerMenuOpen(false); },
-                              className: "flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            },
-                            bank_upload: {
-                              id: 'bank_upload',
-                              label: "Bank Statement Upload",
-                              icon: <Icon name="bank" className={`w-4 h-4 mr-3 ${isLimitReached ? 'text-red-500' : 'text-indigo-500'}`} />,
-                              onClick: () => { if (isLimitReached) { handleLimitReached(); } else { setIsBankUploadModalOpen(true); } setIsScannerMenuOpen(false); },
-                              className: `flex items-center w-full text-left px-4 py-2 text-sm ${isLimitReached ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-gray-700 hover:bg-gray-100'} border-t border-gray-50`,
-                              extraLabel: isLimitReached && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-red-100 px-1.5 py-0.5 rounded">Limit Reached</span>
-                            },
-                            sales_excel_upload: {
-                              id: 'sales_excel_upload',
-                              label: "Sales Excel Upload",
-                              icon: <Icon name="file-spreadsheet" className="w-4 h-4 mr-3 text-blue-500" />,
-                              onClick: () => { setIsSalesExcelWorkflowOpen(true); setIsScannerMenuOpen(false); },
-                              className: "flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            },
-                            upload_for_excel: {
-                              id: 'upload_for_excel',
-                              label: "UPLOAD FOR EXCEL",
-                              icon: <Icon name="document" className={`w-4 h-4 mr-3 ${isLimitReached ? 'text-red-500' : 'text-gray-500'}`} />,
-                              onClick: () => {
-                                if (isLimitReached) {
-                                  handleLimitReached();
-                                } else {
-                                  setExtractionMode('zoho');
-                                  setScanType('bulk');
-                                  setScannerFiles(null);
-                                  setIsInvoiceScannerOpen(true);
-                                }
-                                setIsScannerMenuOpen(false);
-                              },
-                              className: `flex items-center w-full text-left px-4 py-2 text-sm ${isLimitReached ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-gray-700 hover:bg-gray-100'} border-t border-gray-50`,
-                              extraLabel: isLimitReached && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-red-100 px-1.5 py-0.5 rounded">Limit Reached</span>
-                            }
-                          };
-
-                          return allowedOptions.map((key) => {
-                            const option = UPLOAD_OPTION_META[key];
-                            if (!option) return null;
-
-                            return (
-                              <React.Fragment key={key}>
-                                <button
-                                  onClick={option.onClick}
-                                  className={option.className}
-                                  role="menuitem"
-                                >
-                                  <div className="flex items-center">
-                                    {option.icon}
-                                    {option.label}
-                                    {option.extraLabel}
-                                  </div>
-                                </button>
-                              </React.Fragment>
-                            );
-                          });
-                        })()}
+                  {/* GST Status Badges */}
+                  {isReadOnlyMode && !amendedVoucherDetails && !drillDownDetails?.amendment_date && (drillDownDetails?.gst_registered === 'Yes') && (
+                    <div className="flex items-center space-x-2">
+                      <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
+                        <Icon name="check-circle" className="w-3.5 h-3.5 mr-1.5" />
+                        GST Filed
                       </div>
                     </div>
                   )}
+                  {isReadOnlyMode && !isViewingAmended && amendedVoucherDetails && (
+                    <div className="flex items-center space-x-2">
+                      <div className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
+                        <Icon name="check-circle" className="w-3.5 h-3.5 mr-1.5" />
+                        GST Filed
+                      </div>
+                      <button
+                        onClick={() => setIsViewingAmended(true)}
+                        className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm cursor-pointer hover:bg-red-100 transition-colors"
+                      >
+                        <Icon name="eye" className="w-3.5 h-3.5 mr-1.5" />
+                        View Amended Version
+                      </button>
+                    </div>
+                  )}
+                  {isReadOnlyMode && isViewingAmended && amendedVoucherDetails && (
+                    <div className="flex items-center space-x-2">
+                      <div className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm">
+                        <Icon name="edit-3" className="w-3.5 h-3.5 mr-1.5" />
+                        Amended Version
+                      </div>
+                      <button
+                        onClick={() => setIsViewingAmended(false)}
+                        className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center shadow-sm cursor-pointer hover:bg-emerald-100 transition-colors"
+                      >
+                        <Icon name="eye" className="w-3.5 h-3.5 mr-1.5" />
+                        View Original Snapshot
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="relative" ref={scannerMenuRef}>
+                    <button
+                      onClick={() => setIsScannerMenuOpen(prev => !prev)}
+                      className="erp-button-primary"
+                      title="Upload Invoices"
+                    >
+                      <Icon name="upload" className="w-4 h-4 mr-2" />
+                      Upload Invoices
+                      <Icon name="chevron-down" className="w-3 h-3 ml-2" />
+                    </button>
+
+                    {isScannerMenuOpen && (
+                      <div className="origin-top-right absolute right-0 mt-2 w-56 rounded shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[60]">
+                        <div className="py-1" role="menu">
+                          {(() => {
+                            const currentVoucherType = voucherType.toLowerCase();
+                            const allowedOptions = UPLOAD_OPTIONS_CONFIG[currentVoucherType] || ["upload_for_excel"];
+
+                            const UPLOAD_OPTION_META: Record<string, any> = {
+                              purchase_scan: {
+                                id: 'purchase_scan',
+                                label: "Purchase Scan",
+                                icon: <Icon name="scanner" className={`w-4 h-4 mr-3 ${isLimitReached ? 'text-red-500' : 'text-emerald-500'}`} />,
+                                onClick: () => { if (isLimitReached) { handleLimitReached(); } else { setIsBulkUploadOpen(true); } setIsScannerMenuOpen(false); },
+                                className: `flex items-center w-full text-left px-4 py-2 text-sm ${isLimitReached ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-gray-700 hover:bg-gray-100'} border-t border-gray-50`,
+                                extraLabel: isLimitReached && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-red-100 px-1.5 py-0.5 rounded">Limit Reached</span>
+                              },
+                              pending_purchase: {
+                                id: 'pending_purchase',
+                                label: "Pending Purchase",
+                                icon: <Icon name="package" className="w-4 h-4 mr-3 text-purple-500" />,
+                                onClick: () => { onNavigate('Pending Purchases' as any); setIsScannerMenuOpen(false); },
+                                className: "flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              },
+                              bank_upload: {
+                                id: 'bank_upload',
+                                label: "Bank Statement Upload",
+                                icon: <Icon name="bank" className={`w-4 h-4 mr-3 ${isLimitReached ? 'text-red-500' : 'text-indigo-500'}`} />,
+                                onClick: () => { if (isLimitReached) { handleLimitReached(); } else { setIsBankUploadModalOpen(true); } setIsScannerMenuOpen(false); },
+                                className: `flex items-center w-full text-left px-4 py-2 text-sm ${isLimitReached ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-gray-700 hover:bg-gray-100'} border-t border-gray-50`,
+                                extraLabel: isLimitReached && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-red-100 px-1.5 py-0.5 rounded">Limit Reached</span>
+                              },
+                              sales_excel_upload: {
+                                id: 'sales_excel_upload',
+                                label: "Sales Excel Upload",
+                                icon: <Icon name="file-spreadsheet" className="w-4 h-4 mr-3 text-blue-500" />,
+                                onClick: () => { setIsSalesExcelWorkflowOpen(true); setIsScannerMenuOpen(false); },
+                                className: "flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              },
+                              upload_for_excel: {
+                                id: 'upload_for_excel',
+                                label: "UPLOAD FOR EXCEL",
+                                icon: <Icon name="document" className={`w-4 h-4 mr-3 ${isLimitReached ? 'text-red-500' : 'text-gray-500'}`} />,
+                                onClick: () => {
+                                  if (isLimitReached) {
+                                    handleLimitReached();
+                                  } else {
+                                    setExtractionMode('zoho');
+                                    setScanType('bulk');
+                                    setScannerFiles(null);
+                                    setIsInvoiceScannerOpen(true);
+                                  }
+                                  setIsScannerMenuOpen(false);
+                                },
+                                className: `flex items-center w-full text-left px-4 py-2 text-sm ${isLimitReached ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-gray-700 hover:bg-gray-100'} border-t border-gray-50`,
+                                extraLabel: isLimitReached && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-red-100 px-1.5 py-0.5 rounded">Limit Reached</span>
+                              }
+                            };
+
+                            return allowedOptions.map((key) => {
+                              const option = UPLOAD_OPTION_META[key];
+                              if (!option) return null;
+
+                              return (
+                                <React.Fragment key={key}>
+                                  <button
+                                    onClick={option.onClick}
+                                    className={option.className}
+                                    role="menuitem"
+                                  >
+                                    <div className="flex items-center">
+                                      {option.icon}
+                                      {option.label}
+                                      {option.extraLabel}
+                                    </div>
+                                  </button>
+                                </React.Fragment>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Single scan input */}
-            <input
-              type="file"
-              ref={singleScanInputRef}
-              onClick={(e) => { if (e.target) (e.target as any).value = null; }}
-              onChange={handleSingleScanFileChange}
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-            />
+              {/* Single scan input */}
+              <input
+                type="file"
+                ref={singleScanInputRef}
+                onClick={(e) => { if (e.target) (e.target as any).value = null; }}
+                onChange={handleSingleScanFileChange}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+              />
 
-            {/* Multi-file scanner input for tally/other modes */}
-            <input
-              type="file"
-              ref={scannerInputRef}
-              onClick={(e) => { if (e.target) (e.target as any).value = null; }}
-              onChange={handleScannerFileChange}
-              accept="image/*,.pdf"
-              multiple
-              className="hidden"
-            />
+              {/* Multi-file scanner input for tally/other modes */}
+              <input
+                type="file"
+                ref={scannerInputRef}
+                onClick={(e) => { if (e.target) (e.target as any).value = null; }}
+                onChange={handleScannerFileChange}
+                accept="image/*,.pdf"
+                multiple
+                className="hidden"
+              />
 
-            <input
-              type="file"
-              ref={masterScannerInputRef}
-              onClick={(e) => { if (e.target) (e.target as any).value = null; }}
-              onChange={handleMasterScannerFileChange}
-              accept="image/*,.pdf"
-              multiple
-              className="hidden"
-            />
+              <input
+                type="file"
+                ref={masterScannerInputRef}
+                onClick={(e) => { if (e.target) (e.target as any).value = null; }}
+                onChange={handleMasterScannerFileChange}
+                accept="image/*,.pdf"
+                multiple
+                className="hidden"
+              />
 
-            {/* Zoho multi-file scanner input */}
-            <input
-              type="file"
-              ref={zohoScannerInputRef}
-              onChange={handleZohoScannerFileChange}
-              accept="image/*,.pdf,.xlsx,.xls,.csv"
-              multiple
-              className="hidden"
-            />
+              {/* Zoho multi-file scanner input */}
+              <input
+                type="file"
+                ref={zohoScannerInputRef}
+                onChange={handleZohoScannerFileChange}
+                accept="image/*,.pdf,.xlsx,.xls,.csv"
+                multiple
+                className="hidden"
+              />
 
-            {/* SAP multi-file scanner input */}
-            <input
-              type="file"
-              ref={sapScannerInputRef}
-              onChange={handleSapScannerFileChange}
-              accept="image/*,.pdf,.xlsx,.xls,.csv"
-              multiple
-              className="hidden"
-            />
+              {/* SAP multi-file scanner input */}
+              <input
+                type="file"
+                ref={sapScannerInputRef}
+                onChange={handleSapScannerFileChange}
+                accept="image/*,.pdf,.xlsx,.xls,.csv"
+                multiple
+                className="hidden"
+              />
 
-            <input
-              type="file"
-              ref={excelInputRef}
-              onChange={handleExcelFileChange}
-              accept=".xlsx, .xls"
-              className="hidden"
-            />
-
+              <input
+                type="file"
+                ref={excelInputRef}
+                onChange={handleExcelFileChange}
+                accept=".xlsx, .xls"
+                className="hidden"
+              />
 
 
-            <input
-              type="file"
-              ref={jsonInputRef}
-              onChange={handleJsonFileChange}
-              accept=".json"
-              className="hidden"
-            />
 
-            <input
-              type="file"
-              ref={imageInputRef}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  if (voucherType === 'Purchase') setPurchaseSupportingDocument(file);
-                  showInfo(`File "${file.name}" attached for manual entry.`);
-                }
-              }}
-              accept="image/*,.pdf"
-              className="hidden"
-            />
+              <input
+                type="file"
+                ref={jsonInputRef}
+                onChange={handleJsonFileChange}
+                accept=".json"
+                className="hidden"
+              />
 
-            <style dangerouslySetInnerHTML={{
-              __html: `
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (voucherType === 'Purchase') setPurchaseSupportingDocument(file);
+                    showInfo(`File "${file.name}" attached for manual entry.`);
+                  }
+                }}
+                accept="image/*,.pdf"
+                className="hidden"
+              />
+
+              <style dangerouslySetInnerHTML={{
+                __html: `
                 .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
                 .form-input { display: block; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); outline: none; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
                 .form-input:focus { border-color: #6366F1; box-shadow: 0 0 0 1px #6366F1; }
@@ -13221,998 +13295,1002 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 }
                 .table-header { padding: 0.75rem 1rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; background-color: #f9fafb; }
               `
-            }} />
+              }} />
 
 
-            <div className={`border-0 p-0 m-0 contents ${isReadOnlyMode ? 'opacity-90 select-none' : ''}`}>
-              {voucherType === 'Sales' && <SalesVoucher prefilledData={localPrefilledData} clearPrefilledData={handleClearPrefilledData} isLimitReached={isLimitReached} onLimitReached={handleLimitReached} customers={richCustomers} onRefreshCustomers={fetchRichData} companyDetails={companyDetails} isReadOnlyMode={isReadOnlyMode} onAddVouchers={onAddVouchers} />}
-              {voucherType === 'Payment' && (
-                <PaymentVoucherSingle
-                  prefilledData={localPrefilledData}
-                  clearPrefilledData={handleClearPrefilledData}
-                  isLimitReached={isLimitReached}
-                  onLimitReached={handleLimitReached}
-                  isReadOnlyMode={isReadOnlyMode}
-                  onAddVouchers={onAddVouchers}
-                />
-              )}
-              {voucherType === 'Receipt' && (
-                <ReceiptVoucher
-                  prefilledData={localPrefilledData}
-                  clearPrefilledData={handleClearPrefilledData}
-                  isLimitReached={isLimitReached}
-                  onLimitReached={handleLimitReached}
-                  isReadOnlyMode={isReadOnlyMode}
-                  onAddVouchers={onAddVouchers}
-                />
-              )}
-              {voucherType === 'Purchase' && renderPurchaseForm()}
-              {voucherType === 'Contra' && (
-                <fieldset disabled={isReadOnlyMode} className={isReadOnlyMode ? 'pointer-events-none opacity-90' : ''}>
-                  {renderSimpleForm(voucherType)}
-                </fieldset>
-              )}
-              {voucherType === 'Journal' && (
-                <fieldset disabled={isReadOnlyMode} className={isReadOnlyMode ? 'pointer-events-none opacity-90' : ''}>
-                  {renderJournalForm()}
-                </fieldset>
-              )}
-              {voucherType === 'Expenses' && (
-                <fieldset disabled={isReadOnlyMode} className={isReadOnlyMode ? 'pointer-events-none opacity-90' : ''}>
-                  {renderExpensesForm()}
-                </fieldset>
-              )}
-              {voucherType === 'Credit Note' && renderCreditNoteForm()}
-              {voucherType === 'Debit Note' && (
-                <DebitNoteVoucher
-                  prefilledData={localPrefilledData}
-                  clearPrefilledData={handleClearPrefilledData}
-                  companyDetails={companyDetails}
-                  onAddVouchers={onAddVouchers}
-                  isReadOnlyMode={isReadOnlyMode}
-                />
-              )}
-            </div>
+              <div className={`border-0 p-0 m-0 contents ${isReadOnlyMode ? 'opacity-90 select-none' : ''}`}>
+                {voucherType === 'Sales' && <SalesVoucher prefilledData={localPrefilledData} clearPrefilledData={handleClearPrefilledData} isLimitReached={isLimitReached} onLimitReached={handleLimitReached} customers={richCustomers} onRefreshCustomers={fetchRichData} companyDetails={companyDetails} isReadOnlyMode={isReadOnlyMode} onAddVouchers={onAddVouchers} />}
+                {voucherType === 'Payment' && (
+                  <PaymentVoucherSingle
+                    prefilledData={localPrefilledData}
+                    clearPrefilledData={handleClearPrefilledData}
+                    isLimitReached={isLimitReached}
+                    onLimitReached={handleLimitReached}
+                    isReadOnlyMode={isReadOnlyMode}
+                    onAddVouchers={onAddVouchers}
+                  />
+                )}
+                {voucherType === 'Receipt' && (
+                  <ReceiptVoucher
+                    prefilledData={localPrefilledData}
+                    clearPrefilledData={handleClearPrefilledData}
+                    isLimitReached={isLimitReached}
+                    onLimitReached={handleLimitReached}
+                    isReadOnlyMode={isReadOnlyMode}
+                    onAddVouchers={onAddVouchers}
+                  />
+                )}
+                {voucherType === 'Purchase' && renderPurchaseForm()}
+                {voucherType === 'Contra' && (
+                  <fieldset disabled={isReadOnlyMode} className={isReadOnlyMode ? 'pointer-events-none opacity-90' : ''}>
+                    {renderSimpleForm(voucherType)}
+                  </fieldset>
+                )}
+                {voucherType === 'Journal' && (
+                  <fieldset disabled={isReadOnlyMode} className={isReadOnlyMode ? 'pointer-events-none opacity-90' : ''}>
+                    {renderJournalForm()}
+                  </fieldset>
+                )}
+                {voucherType === 'Expenses' && (
+                  <fieldset disabled={isReadOnlyMode} className={isReadOnlyMode ? 'pointer-events-none opacity-90' : ''}>
+                    {renderExpensesForm()}
+                  </fieldset>
+                )}
+                {voucherType === 'Credit Note' && renderCreditNoteForm()}
+                {voucherType === 'Debit Note' && (
+                  <DebitNoteVoucher
+                    prefilledData={localPrefilledData}
+                    clearPrefilledData={handleClearPrefilledData}
+                    companyDetails={companyDetails}
+                    onAddVouchers={onAddVouchers}
+                    isReadOnlyMode={isReadOnlyMode}
+                  />
+                )}
+              </div>
 
-            {!isReadOnlyMode && (
-              <>
-                {voucherType === 'Purchase' && (
-                  purchaseActiveTab !== 'transit' ? (
-                    <button
-                      onClick={() => {
-                        setShowPurchaseMismatches(true);
-                        const hasMismatch = purchaseItems.some(item => item.rateMismatch || item.qtyMismatch);
-                        if (hasMismatch) {
-                          showError("Please resolve Quantity or Rate mismatches before proceeding.");
-                          return;
-                        }
+              {!isReadOnlyMode && (
+                <>
+                  {voucherType === 'Purchase' && (
+                    purchaseActiveTab !== 'transit' ? (
+                      <button
+                        onClick={() => {
+                          setShowPurchaseMismatches(true);
+                          const hasMismatch = purchaseItems.some(item => item.rateMismatch || item.qtyMismatch);
+                          if (hasMismatch) {
+                            showError("Please resolve Quantity or Rate mismatches before proceeding.");
+                            return;
+                          }
 
-                        if (purchaseActiveTab === 'supplier') {
-                          if (invoiceInForeignCurrency === 'Yes') setPurchaseActiveTab('supply_foreign');
-                          else setPurchaseActiveTab('supply');
-                        }
-                        else if (purchaseActiveTab === 'supply_foreign') setPurchaseActiveTab('supply_inr');
-                        else if (purchaseActiveTab === 'supply_inr') setPurchaseActiveTab('due');
-                        else if (purchaseActiveTab === 'supply') setPurchaseActiveTab('due');
-                        else if (purchaseActiveTab === 'due') setPurchaseActiveTab('transit');
-                      }}
-                      className="erp-button-primary"
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    activeOcrFileHash ? (
-                      <div className="flex space-x-3 mt-4">
-                        <button onClick={handleSaveChanges} className="erp-button-primary bg-indigo-600 hover:bg-indigo-700">Save Changes</button>
-                        <button onClick={resetForm} className="erp-button-secondary">Cancel</button>
-                      </div>
+                          if (purchaseActiveTab === 'supplier') {
+                            if (invoiceInForeignCurrency === 'Yes') setPurchaseActiveTab('supply_foreign');
+                            else setPurchaseActiveTab('supply');
+                          }
+                          else if (purchaseActiveTab === 'supply_foreign') setPurchaseActiveTab('supply_inr');
+                          else if (purchaseActiveTab === 'supply_inr') setPurchaseActiveTab('due');
+                          else if (purchaseActiveTab === 'supply') setPurchaseActiveTab('due');
+                          else if (purchaseActiveTab === 'due') setPurchaseActiveTab('transit');
+                        }}
+                        className="erp-button-primary"
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      activeOcrFileHash ? (
+                        <div className="flex space-x-3 mt-4">
+                          <button onClick={handleSaveChanges} className="erp-button-primary bg-indigo-600 hover:bg-indigo-700">Save Changes</button>
+                          <button onClick={resetForm} className="erp-button-secondary">Cancel</button>
+                        </div>
+                      ) : (
+                        <div className="flex space-x-3 mt-4">
+                          <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
+                          <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>
+                          <button onClick={resetForm} className="erp-button-secondary">Cancel</button>
+                        </div>
+                      )
+                    )
+                  )}
+
+                  {voucherType === 'Credit Note' && (
+                    creditNoteActiveTab !== 'transit' ? (
+                      <button
+                        onClick={() => {
+                          const creditTabs = cnInForeignCurrency === 'Yes'
+                            ? ['invoice', 'items_foreign', 'items_inr', 'due', 'transit']
+                            : ['invoice', 'items', 'due', 'transit'];
+
+                          const idx = creditTabs.indexOf(creditNoteActiveTab);
+                          if (idx >= 0 && idx < creditTabs.length - 1) {
+                            setCreditNoteActiveTab(creditTabs[idx + 1] as any);
+                          }
+                        }}
+                        className="erp-button-primary"
+                      >
+                        Next
+                      </button>
                     ) : (
                       <div className="flex space-x-3 mt-4">
                         <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
                         <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>
-                        <button onClick={resetForm} className="erp-button-secondary">Cancel</button>
                       </div>
                     )
-                  )
-                )}
+                  )}
 
-                {voucherType === 'Credit Note' && (
-                  creditNoteActiveTab !== 'transit' ? (
-                    <button
-                      onClick={() => {
-                        const creditTabs = cnInForeignCurrency === 'Yes'
-                          ? ['invoice', 'items_foreign', 'items_inr', 'due', 'transit']
-                          : ['invoice', 'items', 'due', 'transit'];
-
-                        const idx = creditTabs.indexOf(creditNoteActiveTab);
-                        if (idx >= 0 && idx < creditTabs.length - 1) {
-                          setCreditNoteActiveTab(creditTabs[idx + 1] as any);
-                        }
-                      }}
-                      className="erp-button-primary"
-                    >
-                      Next
-                    </button>
-                  ) : (
+                  {!['Sales', 'Payment', 'Receipt', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) && (
                     <div className="flex space-x-3 mt-4">
                       <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
                       <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>
                     </div>
-                  )
-                )}
+                  )}
+                </>
+              )}
+            </div>
 
-                {!['Sales', 'Payment', 'Receipt', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) && (
-                  <div className="flex space-x-3 mt-4">
-                    <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
-                    <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>
-                  </div>
-                )}
-              </>
+
+            {isTallyMasterScannerOpen && (
+              <TallyMasterScannerModal
+                initialFiles={masterScannerFiles}
+                onClose={() => {
+                  setIsTallyMasterScannerOpen(false);
+                  setMasterScannerFiles(null);
+                  if (masterScannerInputRef.current) masterScannerInputRef.current.value = '';
+                }}
+                onUpload={(data) => {
+                  console.log('[VouchersPage] Tally Master records received:', data.length);
+                }}
+              />
             )}
-          </div>
 
+            {/* Invoice Scanner Modal */}
+            {isInvoiceScannerOpen && (
+              <InvoiceScannerModal
+                extractionMode={extractionMode as any}
+                scanType={scanType}
+                initialFiles={scannerFiles}
+                voucherType={voucherType}
+                onClose={() => {
+                  setIsInvoiceScannerOpen(false);
+                  setScannerFiles(null);
+                  if (singleScanInputRef.current) singleScanInputRef.current.value = '';
+                  if (scannerInputRef.current) scannerInputRef.current.value = '';
+                  refetch(); // Refresh usage after scan
+                }}
+                onExtractionSuccess={(extractedData) => {
+                  if (voucherType !== 'Purchase' || extractionMode !== 'ai_native') return;
 
-          {isTallyMasterScannerOpen && (
-            <TallyMasterScannerModal
-              initialFiles={masterScannerFiles}
-              onClose={() => {
-                setIsTallyMasterScannerOpen(false);
-                setMasterScannerFiles(null);
-                if (masterScannerInputRef.current) masterScannerInputRef.current.value = '';
-              }}
-              onUpload={(data) => {
-                console.log('[VouchersPage] Tally Master records received:', data.length);
-              }}
-            />
-          )}
+                  validateVendorFromInvoice(
+                    extractedData.vendor_name,
+                    extractedData.gstin,
+                    extractedData.state,
+                    extractedData.bill_from,
+                    extractedData.branch
+                  );
+                }}
 
-          {/* Invoice Scanner Modal */}
-          {isInvoiceScannerOpen && (
-            <InvoiceScannerModal
-              extractionMode={extractionMode as any}
-              scanType={scanType}
-              initialFiles={scannerFiles}
-              voucherType={voucherType}
-              onClose={() => {
-                setIsInvoiceScannerOpen(false);
-                setScannerFiles(null);
-                if (singleScanInputRef.current) singleScanInputRef.current.value = '';
-                if (scannerInputRef.current) scannerInputRef.current.value = '';
-                refetch(); // Refresh usage after scan
-              }}
-              onExtractionSuccess={(extractedData) => {
-                if (voucherType !== 'Purchase' || extractionMode !== 'ai_native') return;
+                onUpload={(data) => {
+                  console.log('[VouchersPage] Data received from InvoiceScannerModal:', data);
+                  const firstRow = data[0];
 
-                validateVendorFromInvoice(
-                  extractedData.vendor_name,
-                  extractedData.gstin,
-                  extractedData.state,
-                  extractedData.bill_from,
-                  extractedData.branch
-                );
-              }}
+                  if (voucherType === 'Purchase' || voucherType === 'Debit Note') {
+                    // Map flat "Kiki schema" columns to Purchase form internal state
+                    // Column names exactly match VOUCHER_COLUMN_SCHEMAS['Purchase']
 
-              onUpload={(data) => {
-                console.log('[VouchersPage] Data received from InvoiceScannerModal:', data);
-                const firstRow = data[0];
+                    // "Supplier Invoice No." (with dot) — also tolerate legacy name without dot
+                    const supplierInvNo = firstRow['Supplier Invoice No.'] || firstRow['Supplier Invoice No'] || '';
+                    if (supplierInvNo) setInvoiceNo(supplierInvNo);
 
-                if (voucherType === 'Purchase' || voucherType === 'Debit Note') {
-                  // Map flat "Kiki schema" columns to Purchase form internal state
-                  // Column names exactly match VOUCHER_COLUMN_SCHEMAS['Purchase']
+                    // Flexible mapping for Party/Vendor
+                    const partyVal = firstRow['Vendor Name'] || firstRow['Buyer/Supplier - Mailing Name'] || '';
+                    if (partyVal) handlePartyChange(partyVal);
 
-                  // "Supplier Invoice No." (with dot) — also tolerate legacy name without dot
-                  const supplierInvNo = firstRow['Supplier Invoice No.'] || firstRow['Supplier Invoice No'] || '';
-                  if (supplierInvNo) setInvoiceNo(supplierInvNo);
+                    if (firstRow['GSTIN']) setGstin(firstRow['GSTIN']);
 
-                  // Flexible mapping for Party/Vendor
-                  const partyVal = firstRow['Vendor Name'] || firstRow['Buyer/Supplier - Mailing Name'] || '';
-                  if (partyVal) handlePartyChange(partyVal);
+                    // Branch
+                    const branchVal = firstRow['Branch'] || '';
+                    if (branchVal) setSelectedBranch(branchVal);
 
-                  if (firstRow['GSTIN']) setGstin(firstRow['GSTIN']);
+                    // Date — new schema: "Date"; legacy Tally: "Voucher Date"
+                    if (firstRow['Date'] || firstRow['Voucher Date']) {
+                      const formattedDate = formatDateForInput(firstRow['Date'] || firstRow['Voucher Date']) || getTodayDate();
+                      setDate(formattedDate);
+                      setSupplierInvoiceDate(formattedDate);
+                    }
 
-                  // Branch
-                  const branchVal = firstRow['Branch'] || '';
-                  if (branchVal) setSelectedBranch(branchVal);
+                    // Bill From address — new schema uses granular sub-fields
+                    if (firstRow['Bill From - Address Line 1']) setBillFromAddress1(firstRow['Bill From - Address Line 1']);
+                    if (firstRow['Bill From - Address Line 2']) setBillFromAddress2(firstRow['Bill From - Address Line 2']);
+                    if (firstRow['Bill From - City']) setBillFromCity(firstRow['Bill From - City']);
+                    if (firstRow['Bill From - State']) setBillFromState(firstRow['Bill From - State']);
+                    if (firstRow['Bill From - Pincode']) setBillFromPincode(firstRow['Bill From - Pincode']);
+                    if (firstRow['Bill From - Country']) setBillFromCountry(firstRow['Bill From - Country']);
 
-                  // Date — new schema: "Date"; legacy Tally: "Voucher Date"
-                  if (firstRow['Date'] || firstRow['Voucher Date']) {
-                    const formattedDate = formatDateForInput(firstRow['Date'] || firstRow['Voucher Date']) || getTodayDate();
-                    setDate(formattedDate);
-                    setSupplierInvoiceDate(formattedDate);
-                  }
+                    // Ship From address
+                    if (firstRow['Ship From - Address Line 1']) setShipFromAddress1(firstRow['Ship From - Address Line 1']);
+                    if (firstRow['Ship From - Address Line 2']) setShipFromAddress2(firstRow['Ship From - Address Line 2']);
+                    if (firstRow['Ship From - City']) setShipFromCity(firstRow['Ship From - City']);
+                    if (firstRow['Ship From - State']) setShipFromState(firstRow['Ship From - State']);
+                    if (firstRow['Ship From - Pincode']) setShipFromPincode(firstRow['Ship From - Pincode']);
+                    if (firstRow['Ship From - Country']) setShipFromCountry(firstRow['Ship From - Country']);
 
-                  // Bill From address — new schema uses granular sub-fields
-                  if (firstRow['Bill From - Address Line 1']) setBillFromAddress1(firstRow['Bill From - Address Line 1']);
-                  if (firstRow['Bill From - Address Line 2']) setBillFromAddress2(firstRow['Bill From - Address Line 2']);
-                  if (firstRow['Bill From - City']) setBillFromCity(firstRow['Bill From - City']);
-                  if (firstRow['Bill From - State']) setBillFromState(firstRow['Bill From - State']);
-                  if (firstRow['Bill From - Pincode']) setBillFromPincode(firstRow['Bill From - Pincode']);
-                  if (firstRow['Bill From - Country']) setBillFromCountry(firstRow['Bill From - Country']);
+                    // Additional Purchase Header Fields
+                    const purchaseOrderNoVal = firstRow['Purchase Order No.'] || '';
+                    if (purchaseOrderNoVal) setPurchaseOrderNo(purchaseOrderNoVal);
 
-                  // Ship From address
-                  if (firstRow['Ship From - Address Line 1']) setShipFromAddress1(firstRow['Ship From - Address Line 1']);
-                  if (firstRow['Ship From - Address Line 2']) setShipFromAddress2(firstRow['Ship From - Address Line 2']);
-                  if (firstRow['Ship From - City']) setShipFromCity(firstRow['Ship From - City']);
-                  if (firstRow['Ship From - State']) setShipFromState(firstRow['Ship From - State']);
-                  if (firstRow['Ship From - Pincode']) setShipFromPincode(firstRow['Ship From - Pincode']);
-                  if (firstRow['Ship From - Country']) setShipFromCountry(firstRow['Ship From - Country']);
+                    const voucherSeriesVal = firstRow['Purchase Voucher Series'] || '';
+                    if (voucherSeriesVal) setSelectedPurchaseConfig(voucherSeriesVal);
 
-                  // Additional Purchase Header Fields
-                  const purchaseOrderNoVal = firstRow['Purchase Order No.'] || '';
-                  if (purchaseOrderNoVal) setPurchaseOrderNo(purchaseOrderNoVal);
+                    const inputType = firstRow['Input Type'] || '';
+                    if (inputType) {
+                      if (inputType.toLowerCase().includes('interstate')) setPurchaseInputTypes(['Interstate']);
+                      else if (inputType.toLowerCase().includes('cess')) setPurchaseInputTypes(['Cess']);
+                      else setPurchaseInputTypes(['Intrastate']);
+                    }
 
-                  const voucherSeriesVal = firstRow['Purchase Voucher Series'] || '';
-                  if (voucherSeriesVal) setSelectedPurchaseConfig(voucherSeriesVal);
+                    const foreignCurrVal = firstRow['Foreign Currency'] || '';
+                    if (foreignCurrVal) {
+                      setInvoiceInForeignCurrency(foreignCurrVal.toLowerCase() === 'yes' ? 'Yes' : 'No');
+                    }
 
-                  const inputType = firstRow['Input Type'] || '';
-                  if (inputType) {
-                    if (inputType.toLowerCase().includes('interstate')) setPurchaseInputTypes(['Interstate']);
-                    else if (inputType.toLowerCase().includes('cess')) setPurchaseInputTypes(['Cess']);
-                    else setPurchaseInputTypes(['Intrastate']);
-                  }
+                    const conversionRateVal = firstRow['Conversion Rate'] || '';
+                    if (conversionRateVal) setExchangeRate(conversionRateVal);
 
-                  const foreignCurrVal = firstRow['Foreign Currency'] || '';
-                  if (foreignCurrVal) {
-                    setInvoiceInForeignCurrency(foreignCurrVal.toLowerCase() === 'yes' ? 'Yes' : 'No');
-                  }
+                    const currencyVal = firstRow['Currency'] || '';
+                    if (currencyVal) setVendorBillingCurrency(currencyVal);
 
-                  const conversionRateVal = firstRow['Conversion Rate'] || '';
-                  if (conversionRateVal) setExchangeRate(conversionRateVal);
+                    const posVal = firstRow['Place of Supply'] || '';
+                    if (posVal) setBillFromState(posVal);
 
-                  const currencyVal = firstRow['Currency'] || '';
-                  if (currencyVal) setVendorBillingCurrency(currencyVal);
+                    // Summary / Due Details
+                    if (firstRow['TDS/TCS under Income Tax']) setPurchaseTdsIt(firstRow['TDS/TCS under Income Tax']);
+                    if (firstRow['Advance Paid']) setPurchaseAdvancePaid(firstRow['Advance Paid']);
+                    if (firstRow['Amount Due']) setPurchaseToPay(firstRow['Amount Due']);
+                    if (firstRow['Posting Note']) setPurchasePostingNote(firstRow['Posting Note']);
 
-                  const posVal = firstRow['Place of Supply'] || '';
-                  if (posVal) setBillFromState(posVal);
+                    // Transit Details
+                    if (firstRow['Received In']) setPurchaseTransitReceivedIn(firstRow['Received In']);
+                    if (firstRow['Mode of Transport']) setPurchaseTransitMode(firstRow['Mode of Transport']);
+                    if (firstRow['Received Date']) setPurchaseTransitReceiptDate(formatDateForInput(firstRow['Received Date']) || getTodayDate());
+                    if (firstRow['Received Time']) setPurchaseTransitReceiptTime(firstRow['Received Time']);
+                    if (firstRow['Received Quantity']) setPurchaseTransitReceivedQty(firstRow['Received Quantity']);
+                    if (firstRow['Delivery Type']) setPurchaseTransitDeliveryType(firstRow['Delivery Type']);
+                    if (firstRow['Transporter ID/GSTIN']) setPurchaseTransitTransporterId(firstRow['Transporter ID/GSTIN']);
+                    if (firstRow['Transporter Name']) setPurchaseTransitTransporterName(firstRow['Transporter Name']);
+                    if (firstRow['Vehicle No.']) setPurchaseTransitVehicleNo(firstRow['Vehicle No.']);
+                    if (firstRow['LR/GR/Consignment No']) setPurchaseTransitLrGrConsignment(firstRow['LR/GR/Consignment No']);
 
-                  // Summary / Due Details
-                  if (firstRow['TDS/TCS under Income Tax']) setPurchaseTdsIt(firstRow['TDS/TCS under Income Tax']);
-                  if (firstRow['Advance Paid']) setPurchaseAdvancePaid(firstRow['Advance Paid']);
-                  if (firstRow['Amount Due']) setPurchaseToPay(firstRow['Amount Due']);
-                  if (firstRow['Posting Note']) setPurchasePostingNote(firstRow['Posting Note']);
-
-                  // Transit Details
-                  if (firstRow['Received In']) setPurchaseTransitReceivedIn(firstRow['Received In']);
-                  if (firstRow['Mode of Transport']) setPurchaseTransitMode(firstRow['Mode of Transport']);
-                  if (firstRow['Received Date']) setPurchaseTransitReceiptDate(formatDateForInput(firstRow['Received Date']) || getTodayDate());
-                  if (firstRow['Received Time']) setPurchaseTransitReceiptTime(firstRow['Received Time']);
-                  if (firstRow['Received Quantity']) setPurchaseTransitReceivedQty(firstRow['Received Quantity']);
-                  if (firstRow['Delivery Type']) setPurchaseTransitDeliveryType(firstRow['Delivery Type']);
-                  if (firstRow['Transporter ID/GSTIN']) setPurchaseTransitTransporterId(firstRow['Transporter ID/GSTIN']);
-                  if (firstRow['Transporter Name']) setPurchaseTransitTransporterName(firstRow['Transporter Name']);
-                  if (firstRow['Vehicle No.']) setPurchaseTransitVehicleNo(firstRow['Vehicle No.']);
-                  if (firstRow['LR/GR/Consignment No']) setPurchaseTransitLrGrConsignment(firstRow['LR/GR/Consignment No']);
-
-                  const mappedItems = data.map((row: any, idx: number) => {
-                    const igst = parseFloat(row['IGST'] || row['Integrated Tax (IGST)'] || '0') || 0;
-                    const cgst = parseFloat(row['CGST'] || row['Central Tax (CGST)'] || '0') || 0;
-                    const sgst = parseFloat(row['SGST/UTGST'] || row['SGST'] || row['State Tax (SGST)'] || '0') || 0;
-                    const cess = parseFloat(row['Cess'] || '0') || 0;
-                    const taxable = parseFloat(row['Taxable Value'] || '0') || 0;
-                    // If Invoice Value not extracted directly, derive it
-                    const rawInv = parseFloat(row['Invoice Value'] || row['Item Amount'] || '0') || 0;
-                    const invoiceValue = rawInv > 0 ? rawInv : (taxable + igst + cgst + sgst + cess) || taxable;
-
-                    return {
-                      id: (Date.now() + idx).toString(),
-                      itemCode: row['Item Code'] || '',
-                      itemName: row['Item Name'] || '',
-                      hsnSac: row['HSN/SAC'] || '',
-                      qty: parseFloat(row['Qty'] || row['Quantity'] || '0') || 0,
-                      uom: row['UOM'] || '',
-                      rate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || 0,
-                      discountPercent: parseFloat(row['Discount (%)'] || row['Discount Percent'] || row['discount_percent'] || '0') || 0,
-                      discountAmount: parseFloat(row['Discount Amount'] || row['discount_amount'] || '0') || 0,
-                      taxableValue: taxable,
-                      foreignRate: parseFloat(row['Rate (FC)'] || '0') || 0,
-                      foreignAmount: parseFloat(row['Amount (FC)'] || '0') || 0,
-                      igst,
-                      cgst,
-                      sgst,
-                      cess,
-                      invoiceValue,
-                      description: row['Description'] || '',
-                      poRate: null,
-                      invoiceRate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || null,
-                      rateMismatch: false,
-                      poQty: null,
-                      invoiceQty: parseFloat(row['Qty'] || row['Quantity'] || '0') || null,
-                      qtyMismatch: false,
-                      grnQty: null,
-                      sourcePoNo: null
-                    };
-                  });
-                  console.log('[VouchersPage] Mapped Purchase Items:', mappedItems);
-                  setPurchaseItems(mappedItems);
-                } else {
-                  // For Sales, Payment, Receipt: use reconstructed ExtractedInvoiceData for sub-components
-                  const lineItems = data.map((row: any) => ({
-                    itemDescription: row['Item Name'] || '',
-                    hsnCode: row['HSN/SAC'] || '',
-                    // New schema: "Qty" — also tolerate legacy "Quantity"
-                    quantity: parseFloat(row['Qty'] || row['Quantity'] || '0') || 0,
-                    // New schema: "Item Rate" — also tolerate legacy "Rate"
-                    rate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || 0,
-                    // New schema: "Invoice Value" per row — also tolerate legacy "Item Amount"
-                    amount: parseFloat(row['Invoice Value'] || row['Item Amount'] || '0') || 0,
-                    cgst: parseFloat(row['CGST'] || '0') || 0,
-                    sgst: parseFloat(row['SGST/UTGST'] || row['SGST'] || '0') || 0,
-                    igst: parseFloat(row['IGST'] || '0') || 0,
-                    cess: parseFloat(row['Cess'] || '0') || 0,
-                    taxableValue: parseFloat(row['Taxable Value'] || '0') || 0
-                  }));
-
-                  // Compute totals by summing per-row values
-                  const computedTaxableValue = data.reduce((s: number, r: any) => s + (parseFloat(r['Taxable Value'] || '0') || 0), 0);
-                  const computedCgst = data.reduce((s: number, r: any) => s + (parseFloat(r['CGST'] || '0') || 0), 0);
-                  // Schema uses "SGST/UTGST" as the unified key
-                  const computedSgst = data.reduce((s: number, r: any) => s + (parseFloat(r['SGST/UTGST'] || r['SGST'] || '0') || 0), 0);
-                  const computedIgst = data.reduce((s: number, r: any) => s + (parseFloat(r['IGST'] || '0') || 0), 0);
-                  const computedCess = data.reduce((s: number, r: any) => s + (parseFloat(r['Cess'] || '0') || 0), 0);
-                  const computedInvoiceValue = data.reduce((s: number, r: any) => s + (parseFloat(r['Invoice Value'] || r['Item Amount'] || '0') || 0), 0);
-
-                  const reconstructed: any = {
-                    sellerName: firstRow['Customer Name'] || firstRow['Vendor Name'] || firstRow['Buyer/Supplier - Mailing Name'] || '',
-                    // New schema: "Sales Invoice No." (with dot)
-                    invoiceNumber: firstRow['Sales Invoice No.'] || firstRow['Sales Invoice No'] || firstRow['Supplier Invoice No.'] || firstRow['Supplier Invoice No'] || '',
-                    // New schema: "Date" (was "Voucher Date")
-                    invoiceDate: formatDateForInput(firstRow['Date'] || firstRow['Voucher Date'] || '') || getTodayDate(),
-                    subtotal: computedTaxableValue,
-                    cgstAmount: computedCgst,
-                    sgstAmount: computedSgst,
-                    igstAmount: computedIgst,
-                    cessAmount: computedCess,
-                    totalAmount: computedInvoiceValue,
-                    lineItems,
-                    // Additional Sales Fields for direct sync
-                    gstin: firstRow['GSTIN'] || '',
-                    placeOfSupply: firstRow['Place of Supply'] || '',
-                    stateType: (firstRow['State Type'] || 'within').toLowerCase(),
-                    invoiceType: firstRow['Invoice Type'] || 'Regular',
-                    currency: firstRow['Currency'] || '',
-                    exchangeRate: parseFloat(firstRow['Conversion Rate'] || '0') || 0,
-                    billToAddress1: firstRow['Bill To - Address Line 1'] || '',
-                    billToAddress2: firstRow['Bill To - Address Line 2'] || '',
-                    billToCity: firstRow['Bill To - City'] || '',
-                    billToState: firstRow['Bill To - State'] || '',
-                    billToPincode: firstRow['Bill To - Pincode'] || '',
-                    billToCountry: firstRow['Bill To - Country'] || '',
-                    // Summary Fields
-                    stateCess: firstRow['State Cess'] || '',
-                    tdsIncomeTax: firstRow['TDS/TCS under Income Tax'] || '',
-                    tdsGst: firstRow['TDS/TCS under GST'] || '',
-                    advanceAmount: firstRow['Advance'] || '',
-                    payable: firstRow['Payable'] || '',
-                    postingNote: firstRow['Posting Note:'] || '',
-                    // Dispatch Fields
-                    dispatchFrom: firstRow['Dispatch From'] || '',
-                    modeOfTransport: firstRow['Mode of Transport'] || '',
-                    dispatchDate: firstRow['Dispatch Date'] || '',
-                    dispatchTime: firstRow['Dispatch Time'] || '',
-                    transporterId: firstRow['Transporter ID/GSTIN'] || '',
-                    transporterName: firstRow['Transporter Name'] || '',
-                    vehicleNo: firstRow['Vehicle No.'] || '',
-                    lrGrConsignment: firstRow['LR/GR/Consignment No'] || ''
-                  };
-                  console.log('[VouchersPage] Reconstructed PrefilledData:', reconstructed);
-                  setLocalPrefilledData(reconstructed);
-                }
-              }}
-            />
-          )}
-
-          {/* Create Vendor Modal */}
-          {isCreateVendorModalOpen && (
-            <CreateNewVendorFullModal
-              prefilledData={activeOcrRecord ? (() => {
-                const ext = activeOcrRecord.extracted_data || {};
-                const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
-                const header = ext.header || {};
-
-                const vendorName = activeOcrRecord.vendor_name || ext.vendor_name || header.vendor_name || supplier.vendor_name || '';
-                const gstin = activeOcrRecord.vendor_gstin || ext.canonical_vendor_gstin || ext.vendor_gstin || ext.gstin || '';
-                const branch = activeOcrRecord.branch_id || ext.branch || 'Main Branch';
-                const address = ext.bill_from || ext.billing_address || supplier.address || supplier.billing_address || ext.address || '';
-                const email = supplier.email || ext.email || ext.vendor_email || '';
-                const phone = supplier.phone || supplier.contact || ext.phone || ext.contact_no || ext.contact || '';
-                const state = supplier.state || ext.state || ext.vendor_state || '';
-
-                const rawItems = (ext.sections?.items || ext.items || ext.line_items || ext.assembled_exports?.[0]?.items || []) || [];
-                const supplierItems = rawItems.map((itm: any) => ({
-                  hsnSacCode: itm.hsn_code || itm.hsn || itm.hsn_sac || itm.hsnSacCode || '',
-                  itemName: itm.item_name || itm.name || itm.description || '',
-                  supplierItemName: itm.supplierItemName || itm.item_name || itm.name || itm.description || '',
-                  supplierItemCode: itm.supplierItemCode || itm.item_code || itm.code || itm.itemCode || '',
-                  itemCode: itm.item_code || itm.code || itm.itemCode || '',
-                }));
-
-                return {
-                  vendor_name: vendorName,
-                  pan_no: ext.pan_no || ext.pan || '',
-                  email: email,
-                  contact_no: phone,
-                  gstin: gstin,
-                  address: address,
-                  branch: branch,
-                  state: state,
-                  contact_person: supplier.contact_person || ext.contact_person || '',
-                  supplier_items: supplierItems,
-                };
-              })() : (extractedVendorData || (party || gstin ? {
-                vendor_name: party,
-                gstin: gstin,
-                state: billFromState,
-                address: billFromAddress1,
-                branch: selectedBranch
-              } : undefined))}
-              onClose={() => setIsCreateVendorModalOpen(false)}
-              onVendorCreated={(vendorName, newId) => {
-                showSuccess('Vendor Created Successfully!');
-                setIsCreateVendorModalOpen(false);
-                setVendorValidationStatus('FOUND');
-                setVendorMatchedBy('Newly Created');
-                setIsVendorDisabled(true);
-                setParty(vendorName);
-                if (newId) setVendorId(newId);
-                handlePartyChange(vendorName, newId);
-                fetchRichData();
-              }}
-            />
-          )}
-
-          {/* Create GRN Modal */}
-          {isCreateGRNModalOpen && (
-            <CreateGRNModal
-              mainVendorName={voucherType === 'Purchase' ? party : cnCustomer}
-              mainBranch={voucherType === 'Purchase' ? selectedBranch : cnBranch}
-              mainGstin={voucherType === 'Purchase' ? gstin : cnGstin}
-              context={voucherType === 'Purchase' ? 'Purchase' : 'Credit Note'}
-              onClose={() => setIsCreateGRNModalOpen(false)}
-              onSave={async (data) => {
-                try {
-                  const response = await apiService.createInventoryOperationGRN(data);
-                  if (voucherType === 'Purchase') {
-                    setGrnRefNo(response.grn_no);
-                  } else {
-                    setCnGrnRefNo(response.grn_no);
-                  }
-                  showSuccess('GRN Created Successfully!');
-
-                  if (data.items && data.items.length > 0) {
-                    const mappedItems = data.items.map((item: any, index: number) => {
-                      const stockItem = stockItems.find((s: any) =>
-                        (s.item_code || s.code) === item.item_code || (s.item_name || s.name) === item.item_name
-                      );
-
-                      const qty = item.accepted_qty || item.received_qty || 0;
-                      const rate = stockItem?.standard_rate || stockItem?.rate || 0;
-                      const taxableValue = qty * rate;
+                    const mappedItems = data.map((row: any, idx: number) => {
+                      const igst = parseFloat(row['IGST'] || row['Integrated Tax (IGST)'] || '0') || 0;
+                      const cgst = parseFloat(row['CGST'] || row['Central Tax (CGST)'] || '0') || 0;
+                      const sgst = parseFloat(row['SGST/UTGST'] || row['SGST'] || row['State Tax (SGST)'] || '0') || 0;
+                      const cess = parseFloat(row['Cess'] || '0') || 0;
+                      const taxable = parseFloat(row['Taxable Value'] || '0') || 0;
+                      // If Invoice Value not extracted directly, derive it
+                      const rawInv = parseFloat(row['Invoice Value'] || row['Item Amount'] || '0') || 0;
+                      const invoiceValue = rawInv > 0 ? rawInv : (taxable + igst + cgst + sgst + cess) || taxable;
 
                       return {
-                        id: (index + 1).toString(),
-                        itemCode: item.item_code || stockItem?.item_code || stockItem?.code || '',
-                        itemName: item.item_name || stockItem?.item_name || stockItem?.name || '',
-                        hsnSac: item.hsn_sac_code || item.hsn_code || item.hsn_sac || stockItem?.hsn_sac || stockItem?.hsn_code || '',
-                        qty: qty,
-                        uom: item.uom || stockItem?.uom || '',
-                        rate: rate,
-                        discountPercent: 0,
-                        discountAmount: 0,
-                        taxableValue: taxableValue,
-                        foreignRate: 0,
-                        foreignAmount: 0,
-                        igst: 0,
-                        cgst: 0,
-                        sgst: 0,
-                        cess: 0,
-                        invoiceValue: taxableValue,
-                        description: item.remarks || ''
+                        id: (Date.now() + idx).toString(),
+                        itemCode: row['Item Code'] || '',
+                        itemName: row['Item Name'] || '',
+                        hsnSac: row['HSN/SAC'] || '',
+                        qty: parseFloat(row['Qty'] || row['Quantity'] || '0') || 0,
+                        uom: row['UOM'] || '',
+                        rate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || 0,
+                        discountPercent: parseFloat(row['Discount (%)'] || row['Discount Percent'] || row['discount_percent'] || '0') || 0,
+                        discountAmount: parseFloat(row['Discount Amount'] || row['discount_amount'] || '0') || 0,
+                        taxableValue: taxable,
+                        foreignRate: parseFloat(row['Rate (FC)'] || '0') || 0,
+                        foreignAmount: parseFloat(row['Amount (FC)'] || '0') || 0,
+                        igst,
+                        cgst,
+                        sgst,
+                        cess,
+                        invoiceValue,
+                        description: row['Description'] || '',
+                        poRate: null,
+                        invoiceRate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || null,
+                        rateMismatch: false,
+                        poQty: null,
+                        invoiceQty: parseFloat(row['Qty'] || row['Quantity'] || '0') || null,
+                        qtyMismatch: false,
+                        grnQty: null,
+                        sourcePoNo: null
                       };
                     });
+                    console.log('[VouchersPage] Mapped Purchase Items:', mappedItems);
                     setPurchaseItems(mappedItems);
-                  }
+                  } else {
+                    // For Sales, Payment, Receipt: use reconstructed ExtractedInvoiceData for sub-components
+                    const lineItems = data.map((row: any) => ({
+                      itemDescription: row['Item Name'] || '',
+                      hsnCode: row['HSN/SAC'] || '',
+                      // New schema: "Qty" — also tolerate legacy "Quantity"
+                      quantity: parseFloat(row['Qty'] || row['Quantity'] || '0') || 0,
+                      // New schema: "Item Rate" — also tolerate legacy "Rate"
+                      rate: parseFloat(row['Item Rate'] || row['Rate'] || '0') || 0,
+                      // New schema: "Invoice Value" per row — also tolerate legacy "Item Amount"
+                      amount: parseFloat(row['Invoice Value'] || row['Item Amount'] || '0') || 0,
+                      cgst: parseFloat(row['CGST'] || '0') || 0,
+                      sgst: parseFloat(row['SGST/UTGST'] || row['SGST'] || '0') || 0,
+                      igst: parseFloat(row['IGST'] || '0') || 0,
+                      cess: parseFloat(row['Cess'] || '0') || 0,
+                      taxableValue: parseFloat(row['Taxable Value'] || '0') || 0
+                    }));
 
-                  // Add to pending list and select it
-                  if (response.grn_no) {
-                    setPendingGRNs(prev => [...prev, response]);
+                    // Compute totals by summing per-row values
+                    const computedTaxableValue = data.reduce((s: number, r: any) => s + (parseFloat(r['Taxable Value'] || '0') || 0), 0);
+                    const computedCgst = data.reduce((s: number, r: any) => s + (parseFloat(r['CGST'] || '0') || 0), 0);
+                    // Schema uses "SGST/UTGST" as the unified key
+                    const computedSgst = data.reduce((s: number, r: any) => s + (parseFloat(r['SGST/UTGST'] || r['SGST'] || '0') || 0), 0);
+                    const computedIgst = data.reduce((s: number, r: any) => s + (parseFloat(r['IGST'] || '0') || 0), 0);
+                    const computedCess = data.reduce((s: number, r: any) => s + (parseFloat(r['Cess'] || '0') || 0), 0);
+                    const computedInvoiceValue = data.reduce((s: number, r: any) => s + (parseFloat(r['Invoice Value'] || r['Item Amount'] || '0') || 0), 0);
+
+                    const reconstructed: any = {
+                      sellerName: firstRow['Customer Name'] || firstRow['Vendor Name'] || firstRow['Buyer/Supplier - Mailing Name'] || '',
+                      // New schema: "Sales Invoice No." (with dot)
+                      invoiceNumber: firstRow['Sales Invoice No.'] || firstRow['Sales Invoice No'] || firstRow['Supplier Invoice No.'] || firstRow['Supplier Invoice No'] || '',
+                      // New schema: "Date" (was "Voucher Date")
+                      invoiceDate: formatDateForInput(firstRow['Date'] || firstRow['Voucher Date'] || '') || getTodayDate(),
+                      subtotal: computedTaxableValue,
+                      cgstAmount: computedCgst,
+                      sgstAmount: computedSgst,
+                      igstAmount: computedIgst,
+                      cessAmount: computedCess,
+                      totalAmount: computedInvoiceValue,
+                      lineItems,
+                      // Additional Sales Fields for direct sync
+                      gstin: firstRow['GSTIN'] || '',
+                      placeOfSupply: firstRow['Place of Supply'] || '',
+                      stateType: (firstRow['State Type'] || 'within').toLowerCase(),
+                      invoiceType: firstRow['Invoice Type'] || 'Regular',
+                      currency: firstRow['Currency'] || '',
+                      exchangeRate: parseFloat(firstRow['Conversion Rate'] || '0') || 0,
+                      billToAddress1: firstRow['Bill To - Address Line 1'] || '',
+                      billToAddress2: firstRow['Bill To - Address Line 2'] || '',
+                      billToCity: firstRow['Bill To - City'] || '',
+                      billToState: firstRow['Bill To - State'] || '',
+                      billToPincode: firstRow['Bill To - Pincode'] || '',
+                      billToCountry: firstRow['Bill To - Country'] || '',
+                      // Summary Fields
+                      stateCess: firstRow['State Cess'] || '',
+                      tdsIncomeTax: firstRow['TDS/TCS under Income Tax'] || '',
+                      tdsGst: firstRow['TDS/TCS under GST'] || '',
+                      advanceAmount: firstRow['Advance'] || '',
+                      payable: firstRow['Payable'] || '',
+                      postingNote: firstRow['Posting Note:'] || '',
+                      // Dispatch Fields
+                      dispatchFrom: firstRow['Dispatch From'] || '',
+                      modeOfTransport: firstRow['Mode of Transport'] || '',
+                      dispatchDate: firstRow['Dispatch Date'] || '',
+                      dispatchTime: firstRow['Dispatch Time'] || '',
+                      transporterId: firstRow['Transporter ID/GSTIN'] || '',
+                      transporterName: firstRow['Transporter Name'] || '',
+                      vehicleNo: firstRow['Vehicle No.'] || '',
+                      lrGrConsignment: firstRow['LR/GR/Consignment No'] || ''
+                    };
+                    console.log('[VouchersPage] Reconstructed PrefilledData:', reconstructed);
+                    setLocalPrefilledData(reconstructed);
+                  }
+                }}
+              />
+            )}
+
+            {/* Create Vendor Modal */}
+            {isCreateVendorModalOpen && (
+              <CreateNewVendorFullModal
+                prefilledData={activeOcrRecord ? (() => {
+                  const ext = activeOcrRecord.extracted_data || {};
+                  const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
+                  const header = ext.header || {};
+
+                  const vendorName = activeOcrRecord.vendor_name || ext.vendor_name || header.vendor_name || supplier.vendor_name || '';
+                  const gstin = activeOcrRecord.vendor_gstin || ext.canonical_vendor_gstin || ext.vendor_gstin || ext.gstin || '';
+                  const branch = activeOcrRecord.branch_id || ext.branch || 'Main Branch';
+                  const address = ext.bill_from || ext.billing_address || supplier.address || supplier.billing_address || ext.address || '';
+                  const email = supplier.email || ext.email || ext.vendor_email || '';
+                  const phone = supplier.phone || supplier.contact || ext.phone || ext.contact_no || ext.contact || '';
+                  const state = supplier.state || ext.state || ext.vendor_state || '';
+
+                  const rawItems = (ext.sections?.items || ext.items || ext.line_items || ext.assembled_exports?.[0]?.items || []) || [];
+                  const supplierItems = rawItems.map((itm: any) => ({
+                    hsnSacCode: itm.hsn_code || itm.hsn || itm.hsn_sac || itm.hsnSacCode || '',
+                    itemName: itm.item_name || itm.name || itm.description || '',
+                    supplierItemName: itm.supplierItemName || itm.item_name || itm.name || itm.description || '',
+                    supplierItemCode: itm.supplierItemCode || itm.item_code || itm.code || itm.itemCode || '',
+                    itemCode: itm.item_code || itm.code || itm.itemCode || '',
+                  }));
+
+                  return {
+                    vendor_name: vendorName,
+                    pan_no: ext.pan_no || ext.pan || '',
+                    email: email,
+                    contact_no: phone,
+                    gstin: gstin,
+                    address: address,
+                    branch: branch,
+                    state: state,
+                    contact_person: supplier.contact_person || ext.contact_person || '',
+                    supplier_items: supplierItems,
+                  };
+                })() : (extractedVendorData || (party || gstin ? {
+                  vendor_name: party,
+                  gstin: gstin,
+                  state: billFromState,
+                  address: billFromAddress1,
+                  branch: selectedBranch
+                } : undefined))}
+                onClose={() => setIsCreateVendorModalOpen(false)}
+                onVendorCreated={(vendorName, newId) => {
+                  showSuccess('Vendor Created Successfully!');
+                  setIsCreateVendorModalOpen(false);
+                  setVendorValidationStatus('FOUND');
+                  setVendorMatchedBy('Newly Created');
+                  setIsVendorDisabled(true);
+                  setParty(vendorName);
+                  if (newId) setVendorId(newId);
+                  handlePartyChange(vendorName, newId);
+                  fetchRichData();
+                }}
+              />
+            )}
+
+            {/* Create GRN Modal */}
+            {isCreateGRNModalOpen && (
+              <CreateGRNModal
+                mainVendorName={voucherType === 'Purchase' ? party : cnCustomer}
+                mainBranch={voucherType === 'Purchase' ? selectedBranch : cnBranch}
+                mainGstin={voucherType === 'Purchase' ? gstin : cnGstin}
+                context={voucherType === 'Purchase' ? 'Purchase' : 'Credit Note'}
+                onClose={() => setIsCreateGRNModalOpen(false)}
+                onSave={async (data) => {
+                  try {
+                    const response = await apiService.createInventoryOperationGRN(data);
                     if (voucherType === 'Purchase') {
                       setGrnRefNo(response.grn_no);
                     } else {
                       setCnGrnRefNo(response.grn_no);
                     }
+                    showSuccess('GRN Created Successfully!');
+
+                    if (data.items && data.items.length > 0) {
+                      const mappedItems = data.items.map((item: any, index: number) => {
+                        const stockItem = stockItems.find((s: any) =>
+                          (s.item_code || s.code) === item.item_code || (s.item_name || s.name) === item.item_name
+                        );
+
+                        const qty = item.accepted_qty || item.received_qty || 0;
+                        const rate = stockItem?.standard_rate || stockItem?.rate || 0;
+                        const taxableValue = qty * rate;
+
+                        return {
+                          id: (index + 1).toString(),
+                          itemCode: item.item_code || stockItem?.item_code || stockItem?.code || '',
+                          itemName: item.item_name || stockItem?.item_name || stockItem?.name || '',
+                          hsnSac: item.hsn_sac_code || item.hsn_code || item.hsn_sac || stockItem?.hsn_sac || stockItem?.hsn_code || '',
+                          qty: qty,
+                          uom: item.uom || stockItem?.uom || '',
+                          rate: rate,
+                          discountPercent: 0,
+                          discountAmount: 0,
+                          taxableValue: taxableValue,
+                          foreignRate: 0,
+                          foreignAmount: 0,
+                          igst: 0,
+                          cgst: 0,
+                          sgst: 0,
+                          cess: 0,
+                          invoiceValue: taxableValue,
+                          description: item.remarks || ''
+                        };
+                      });
+                      setPurchaseItems(mappedItems);
+                    }
+
+                    // Add to pending list and select it
+                    if (response.grn_no) {
+                      setPendingGRNs(prev => [...prev, response]);
+                      if (voucherType === 'Purchase') {
+                        setGrnRefNo(response.grn_no);
+                      } else {
+                        setCnGrnRefNo(response.grn_no);
+                      }
+                    }
+
+                    setIsCreateGRNModalOpen(false);
+                  } catch (error: any) {
+                    console.error('[GRN Save] Failed to create GRN:', error?.response?.data || error?.message || error);
+                    const errMsg = error?.response?.data
+                      ? JSON.stringify(error.response.data)
+                      : 'Please check inputs and try again.';
+                    showError(`Failed to create GRN. ${errMsg}`);
+                    throw error; // re-throw so the modal's isSaving resets
                   }
-
-                  setIsCreateGRNModalOpen(false);
-                } catch (error) {
-                  console.error("Failed to create GRN");
-                  showError("Failed to create GRN. Please check inputs.");
-                }
-              }}
-            />
-          )}
-          {/* Upgrade Modal */}
-          {
-            isUpgradeModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-gray-900">Upgrade Plan</h3>
-                    <button onClick={() => setIsUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                      <Icon name="x" className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="text-center mb-6">
-                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
-                      <Icon name="upload" className="h-6 w-6 text-indigo-600" />
+                }}
+              />
+            )}
+            {/* Upgrade Modal */}
+            {
+              isUpgradeModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                  <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900">Upgrade Plan</h3>
+                      <button onClick={() => setIsUpgradeModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                        <Icon name="x" className="w-5 h-5" />
+                      </button>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900">Upload Limit Reached</h4>
-                    <p className="text-sm text-gray-500 mt-2">
-                      You have reached the invoice upload limit ({subscriptionUsage?.limit}) for your current plan ({subscriptionUsage?.plan}).
-                    </p>
-                    <div className="mt-4 bg-gray-50 p-4 rounded text-left">
-                      <p className="text-sm text-gray-700"><strong>Current Usage:</strong> {subscriptionUsage?.used}</p>
-                      <p className="text-sm text-gray-700"><strong>Reset Date:</strong> {new Date(subscriptionUsage?.cycle_start).toLocaleDateString()}</p>
-                    </div>
-                  </div>
 
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      onClick={() => setIsUpgradeModalOpen(false)}
-                      className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={() => window.location.href = '/?page=Settings&tab=Subscription'}
-                      className="px-4 py-2 bg-indigo-600 border border-transparent rounded text-sm font-medium text-white hover:bg-indigo-700"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-          {/* Terms & Conditions Master Modal */}
-          {isTermsModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-[4px] shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-                {/* Modal Header */}
-                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">Edit Terms &amp; Conditions</h2>
-                    {masterTermsData && (
-                      <p className="text-sm text-gray-500 mt-0.5">{masterTermsData.vendor_name || masterTermsData.customer_name}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setIsTermsModalOpen(false)}
-                    className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-[4px] text-gray-400 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Modal Body */}
-                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-                  {/* Credit Period */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Credit Period</label>
-                    <input
-                      type="text"
-                      value={draftCreditPeriod}
-                      onChange={(e) => setDraftCreditPeriod(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400"
-                      placeholder="e.g., 30 Days"
-                    />
-                  </div>
-
-                  {/* Credit Terms */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Credit Terms</label>
-                    <textarea
-                      value={draftCreditTerms}
-                      onChange={(e) => setDraftCreditTerms(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
-                      rows={2}
-                      placeholder="Payment terms..."
-                    />
-                  </div>
-
-                  {/* Delivery Terms */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Delivery Terms</label>
-                    <textarea
-                      value={draftDeliveryTerms}
-                      onChange={(e) => setDraftDeliveryTerms(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
-                      rows={2}
-                      placeholder="FOB, CIF, etc..."
-                    />
-                  </div>
-
-                  {/* Penalty Terms */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Penalty Terms</label>
-                    <textarea
-                      value={draftPenaltyTerms}
-                      onChange={(e) => setDraftPenaltyTerms(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
-                      rows={2}
-                      placeholder="Late delivery penalties..."
-                    />
-                  </div>
-
-                  {/* Warranty Details */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Warranty / Guarantee Details</label>
-                    <textarea
-                      value={draftWarrantyDetails}
-                      onChange={(e) => setDraftWarrantyDetails(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
-                      rows={2}
-                      placeholder="Warranty period and scope..."
-                    />
-                  </div>
-
-                  {/* Force Majeure */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Force Majeure</label>
-                    <textarea
-                      value={draftForceMajeure}
-                      onChange={(e) => setDraftForceMajeure(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
-                      rows={2}
-                      placeholder="Standard force majeure clause..."
-                    />
-                  </div>
-
-                  {/* Dispute Terms */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Dispute &amp; Redressal</label>
-                    <textarea
-                      value={draftDisputeTerms}
-                      onChange={(e) => setDraftDisputeTerms(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
-                      rows={2}
-                      placeholder="Jurisdiction and arbitration..."
-                    />
-                  </div>
-                </div>
-
-                {/* Modal Footer */}
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                  <button
-                    onClick={() => setIsTermsModalOpen(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-[4px] hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveTermsModal}
-                    className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-[4px] hover:bg-indigo-700 transition-colors shadow-sm"
-                  >
-                    Save to Voucher
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Document Preview Modal */}
-          {isPurchasePreviewModalOpen && (
-            <div className="fixed inset-0 bg-black/75 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-              <div className="w-full h-full max-w-6xl bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden animate-zoom-in">
-                {/* Modal Header */}
-                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 leading-none">
-                        Document Preview
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {purchaseSupportingDocument?.name}
+                    <div className="text-center mb-6">
+                      <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
+                        <Icon name="upload" className="h-6 w-6 text-indigo-600" />
+                      </div>
+                      <h4 className="text-lg font-medium text-gray-900">Upload Limit Reached</h4>
+                      <p className="text-sm text-gray-500 mt-2">
+                        You have reached the invoice upload limit ({subscriptionUsage?.limit}) for your current plan ({subscriptionUsage?.plan}).
                       </p>
+                      <div className="mt-4 bg-gray-50 p-4 rounded text-left">
+                        <p className="text-sm text-gray-700"><strong>Current Usage:</strong> {subscriptionUsage?.used}</p>
+                        <p className="text-sm text-gray-700"><strong>Reset Date:</strong> {new Date(subscriptionUsage?.cycle_start).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={() => setIsUpgradeModalOpen(false)}
+                        className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={() => window.location.href = '/?page=Settings&tab=Subscription'}
+                        className="px-4 py-2 bg-indigo-600 border border-transparent rounded text-sm font-medium text-white hover:bg-indigo-700"
+                      >
+                        Upgrade to Pro
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    {purchasePreviewUrl && (
-                      <a
-                        href={purchasePreviewUrl}
-                        download={purchaseSupportingDocument?.name}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download
-                      </a>
-                    )}
+                </div>
+              )
+            }
+            {/* Terms & Conditions Master Modal */}
+            {isTermsModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-[4px] shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                  {/* Modal Header */}
+                  <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Edit Terms &amp; Conditions</h2>
+                      {masterTermsData && (
+                        <p className="text-sm text-gray-500 mt-0.5">{masterTermsData.vendor_name || masterTermsData.customer_name}</p>
+                      )}
+                    </div>
                     <button
-                      onClick={() => setIsPurchasePreviewModalOpen(false)}
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                      onClick={() => setIsTermsModalOpen(false)}
+                      className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-[4px] text-gray-400 transition-colors"
                     >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
-                </div>
 
-                {/* Modal Body */}
-                <div className="flex-1 bg-gray-100/50 relative overflow-auto flex items-center justify-center">
-                  {purchaseSupportingDocument?.type.startsWith('image/') ? (
-                    <img
-                      src={purchasePreviewUrl || ''}
-                      alt="Full Preview"
-                      className="max-w-full max-h-full object-contain p-4"
-                    />
-                  ) : (
-                    <iframe
-                      src={purchasePreviewUrl || ''}
-                      className="w-full h-full border-none bg-white"
-                      title="PDF Preview"
-                    />
-                  )}
-                </div>
-
-                {/* Modal Footer */}
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-center">
-                  <button
-                    onClick={() => setIsPurchasePreviewModalOpen(false)}
-                    className="px-10 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
-                  >
-                    Close Preview
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ===================== PURCHASE PRINT PREVIEW MODAL ===================== */}
-          {showPurchasePrintPreview && postedPurchaseVoucherData && (
-            <div className="fixed inset-0 bg-black/80 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-              <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: '95vh' }}>
-                {/* Modal Header */}
-                <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
-                  <div className="flex items-center gap-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  {/* Modal Body */}
+                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+                    {/* Credit Period */}
                     <div>
-                      <h3 className="text-lg font-bold">Purchase Voucher Preview</h3>
-                      <p className="text-indigo-200 text-xs">Supplier Invoice #{postedPurchaseVoucherData.supplier_invoice_no}</p>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Credit Period</label>
+                      <input
+                        type="text"
+                        value={draftCreditPeriod}
+                        onChange={(e) => setDraftCreditPeriod(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400"
+                        placeholder="e.g., 30 Days"
+                      />
+                    </div>
+
+                    {/* Credit Terms */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Credit Terms</label>
+                      <textarea
+                        value={draftCreditTerms}
+                        onChange={(e) => setDraftCreditTerms(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
+                        rows={2}
+                        placeholder="Payment terms..."
+                      />
+                    </div>
+
+                    {/* Delivery Terms */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Delivery Terms</label>
+                      <textarea
+                        value={draftDeliveryTerms}
+                        onChange={(e) => setDraftDeliveryTerms(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
+                        rows={2}
+                        placeholder="FOB, CIF, etc..."
+                      />
+                    </div>
+
+                    {/* Penalty Terms */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Penalty Terms</label>
+                      <textarea
+                        value={draftPenaltyTerms}
+                        onChange={(e) => setDraftPenaltyTerms(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
+                        rows={2}
+                        placeholder="Late delivery penalties..."
+                      />
+                    </div>
+
+                    {/* Warranty Details */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Warranty / Guarantee Details</label>
+                      <textarea
+                        value={draftWarrantyDetails}
+                        onChange={(e) => setDraftWarrantyDetails(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
+                        rows={2}
+                        placeholder="Warranty period and scope..."
+                      />
+                    </div>
+
+                    {/* Force Majeure */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Force Majeure</label>
+                      <textarea
+                        value={draftForceMajeure}
+                        onChange={(e) => setDraftForceMajeure(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
+                        rows={2}
+                        placeholder="Standard force majeure clause..."
+                      />
+                    </div>
+
+                    {/* Dispute Terms */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Dispute &amp; Redressal</label>
+                      <textarea
+                        value={draftDisputeTerms}
+                        onChange={(e) => setDraftDisputeTerms(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm text-gray-800 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 resize-none"
+                        rows={2}
+                        placeholder="Jurisdiction and arbitration..."
+                      />
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+
+                  {/* Modal Footer */}
+                  <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
                     <button
-                      onClick={() => {
-                        const printContent = document.getElementById('purchase-invoice-print-area');
-                        if (!printContent) return;
-                        const win = window.open('', '_blank');
-                        if (!win) return;
-                        win.document.write(`<html><head><title>Purchase Voucher ${postedPurchaseVoucherData.supplier_invoice_no}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f5f5f5;font-weight:600}@media print{body{padding:0}}</style></head><body>${printContent.innerHTML}</body></html>`);
-                        win.document.close();
-                        win.focus();
-                        win.print();
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+                      onClick={() => setIsTermsModalOpen(false)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-[4px] hover:bg-gray-50 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                      Print
+                      Cancel
                     </button>
+                    <button
+                      onClick={saveTermsModal}
+                      className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-[4px] hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                      Save to Voucher
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Document Preview Modal */}
+            {isPurchasePreviewModalOpen && (
+              <div className="fixed inset-0 bg-black/75 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                <div className="w-full h-full max-w-6xl bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden animate-zoom-in">
+                  {/* Modal Header */}
+                  <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 leading-none">
+                          Document Preview
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {purchaseSupportingDocument?.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {purchasePreviewUrl && (
+                        <a
+                          href={purchasePreviewUrl}
+                          download={purchaseSupportingDocument?.name}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </a>
+                      )}
+                      <button
+                        onClick={() => setIsPurchasePreviewModalOpen(false)}
+                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="flex-1 bg-gray-100/50 relative overflow-auto flex items-center justify-center">
+                    {purchaseSupportingDocument?.type.startsWith('image/') ? (
+                      <img
+                        src={purchasePreviewUrl || ''}
+                        alt="Full Preview"
+                        className="max-w-full max-h-full object-contain p-4"
+                      />
+                    ) : (
+                      <iframe
+                        src={purchasePreviewUrl || ''}
+                        className="w-full h-full border-none bg-white"
+                        title="PDF Preview"
+                      />
+                    )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-center">
+                    <button
+                      onClick={() => setIsPurchasePreviewModalOpen(false)}
+                      className="px-10 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                    >
+                      Close Preview
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===================== PURCHASE PRINT PREVIEW MODAL ===================== */}
+            {showPurchasePrintPreview && postedPurchaseVoucherData && (
+              <div className="fixed inset-0 bg-black/80 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: '95vh' }}>
+                  {/* Modal Header */}
+                  <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      <div>
+                        <h3 className="text-lg font-bold">Purchase Voucher Preview</h3>
+                        <p className="text-indigo-200 text-xs">Supplier Invoice #{postedPurchaseVoucherData.supplier_invoice_no}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          const printContent = document.getElementById('purchase-invoice-print-area');
+                          if (!printContent) return;
+                          const win = window.open('', '_blank');
+                          if (!win) return;
+                          win.document.write(`<html><head><title>Purchase Voucher ${postedPurchaseVoucherData.supplier_invoice_no}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f5f5f5;font-weight:600}@media print{body{padding:0}}</style></head><body>${printContent.innerHTML}</body></html>`);
+                          win.document.close();
+                          win.focus();
+                          win.print();
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                        Print
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowPurchasePrintPreview(false);
+                          resetForm();
+                        }}
+                        className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Purchase Content */}
+                  <div className="flex-1 overflow-auto bg-gray-100 p-6">
+                    <div id="purchase-invoice-print-area" className="bg-white rounded-lg shadow-sm max-w-3xl mx-auto p-8">
+                      {/* Company Header */}
+                      <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-indigo-600">
+                        <div>
+                          {companyDetails?.name && (
+                            <h2 className="text-xl font-bold text-gray-900">{companyDetails.name}</h2>
+                          )}
+                          <p className="text-sm text-gray-500">{companyDetails?.address || ''}</p>
+                          {companyDetails?.gstin && <p className="text-xs text-gray-500 mt-1">GSTIN: {companyDetails.gstin}</p>}
+                        </div>
+                        <div className="text-right">
+                          <div className="inline-block bg-indigo-600 text-white text-xs font-bold px-4 py-1 rounded-full mb-3">PURCHASE VOUCHER</div>
+                          <table className="text-sm text-right">
+                            <tbody>
+                              <tr><td className="pr-4 text-gray-500 font-medium">Voucher No.</td><td className="font-bold text-gray-900">{postedPurchaseVoucherData.purchase_voucher_no}</td></tr>
+                              <tr><td className="pr-4 text-gray-500 font-medium">Date</td><td className="font-bold text-gray-900">{postedPurchaseVoucherData.date}</td></tr>
+                              {postedPurchaseVoucherData.supplier_invoice_no && <tr><td className="pr-4 text-gray-500 font-medium">Supplier Inv.</td><td className="text-gray-700">{postedPurchaseVoucherData.supplier_invoice_no}</td></tr>}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Vendor / Bill From */}
+                      <div className="grid grid-cols-2 gap-6 mb-6">
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Vendor</p>
+                          <p className="font-semibold text-gray-900">{postedPurchaseVoucherData.vendor_name}</p>
+                          {postedPurchaseVoucherData.gstin && <p className="text-xs text-gray-500">GSTIN: {postedPurchaseVoucherData.gstin}</p>}
+                          {postedPurchaseVoucherData.bill_from && (
+                            <p className="text-xs text-gray-600 mt-1">{postedPurchaseVoucherData.bill_from}</p>
+                          )}
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ship From</p>
+                          <p className="text-xs text-gray-600">
+                            {postedPurchaseVoucherData.ship_from || 'Same as Billing Address'}
+                          </p>
+                          {postedPurchaseVoucherData.input_type && <p className="text-xs text-gray-500 mt-1">Supply Type: {postedPurchaseVoucherData.input_type}</p>}
+                        </div>
+                      </div>
+
+                      {/* Item Details */}
+                      <div className="mb-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="h-px flex-1 bg-gray-200" />
+                          <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest px-2">Item Details</span>
+                          <div className="h-px flex-1 bg-gray-200" />
+                        </div>
+                        <table className="w-full text-sm mb-3">
+                          <thead>
+                            <tr className="bg-indigo-600 text-white">
+                              <th className="px-3 py-2 text-left">#</th>
+                              <th className="px-3 py-2 text-left">Item / Description</th>
+                              <th className="px-3 py-2 text-center">HSN</th>
+                              <th className="px-3 py-2 text-center">Qty</th>
+                              <th className="px-3 py-2 text-right">Rate</th>
+                              <th className="px-3 py-2 text-right">Taxable</th>
+                              <th className="px-3 py-2 text-right">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(postedPurchaseVoucherData.items || []).map((item: any, i: number) => (
+                              <tr key={i} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                                <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+                                <td className="px-3 py-2 font-medium text-gray-900">
+                                  {item.itemName || item.itemCode}
+                                  {item.description && <div className="text-xs text-gray-500 font-normal">{item.description}</div>}
+                                </td>
+                                <td className="px-3 py-2 text-center text-gray-500">{item.hsnSac || '-'}</td>
+                                <td className="px-3 py-2 text-center">{item.qty} {item.uom}</td>
+                                <td className="px-3 py-2 text-right font-mono">₹{Number(item.rate).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-right font-mono">₹{Number(item.taxableValue).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-right font-mono font-bold">₹{Number(item.invoiceValue).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="flex justify-end">
+                          <div className="w-72 bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+                            <div className="space-y-1.5 text-sm">
+                              <div className="flex justify-between"><span className="text-gray-500">Taxable Amount</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals?.taxableValue || 0).toFixed(2)}</span></div>
+                              {Number(postedPurchaseVoucherData.totals?.cgst || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">CGST</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.cgst).toFixed(2)}</span></div>}
+                              {Number(postedPurchaseVoucherData.totals?.sgst || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">SGST</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.sgst).toFixed(2)}</span></div>}
+                              {Number(postedPurchaseVoucherData.totals?.igst || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">IGST</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.igst).toFixed(2)}</span></div>}
+                              {Number(postedPurchaseVoucherData.totals?.cess || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Cess</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.cess).toFixed(2)}</span></div>}
+                              <div className="flex justify-between pt-2 border-t-2 border-indigo-600">
+                                <span className="font-bold text-gray-900 text-base">Grand Total</span>
+                                <span className="font-bold text-indigo-700 text-base font-mono">₹{Number(postedPurchaseVoucherData.totals?.invoiceValue || 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer / Signature */}
+                      <div className="border-t-2 border-gray-200 pt-8 mt-4 flex justify-end">
+                        <div className="text-right">
+                          <div className="border-t border-gray-400 pt-2 w-44 text-xs text-gray-500 text-center">Authorised Signature</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Buttons */}
+                  <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
                     <button
                       onClick={() => {
                         setShowPurchasePrintPreview(false);
                         resetForm();
                       }}
-                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                      className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      Close
                     </button>
-                  </div>
-                </div>
-
-                {/* Purchase Content */}
-                <div className="flex-1 overflow-auto bg-gray-100 p-6">
-                  <div id="purchase-invoice-print-area" className="bg-white rounded-lg shadow-sm max-w-3xl mx-auto p-8">
-                    {/* Company Header */}
-                    <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-indigo-600">
-                      <div>
-                        {companyDetails?.name && (
-                          <h2 className="text-xl font-bold text-gray-900">{companyDetails.name}</h2>
-                        )}
-                        <p className="text-sm text-gray-500">{companyDetails?.address || ''}</p>
-                        {companyDetails?.gstin && <p className="text-xs text-gray-500 mt-1">GSTIN: {companyDetails.gstin}</p>}
-                      </div>
-                      <div className="text-right">
-                        <div className="inline-block bg-indigo-600 text-white text-xs font-bold px-4 py-1 rounded-full mb-3">PURCHASE VOUCHER</div>
-                        <table className="text-sm text-right">
-                          <tbody>
-                            <tr><td className="pr-4 text-gray-500 font-medium">Voucher No.</td><td className="font-bold text-gray-900">{postedPurchaseVoucherData.purchase_voucher_no}</td></tr>
-                            <tr><td className="pr-4 text-gray-500 font-medium">Date</td><td className="font-bold text-gray-900">{postedPurchaseVoucherData.date}</td></tr>
-                            {postedPurchaseVoucherData.supplier_invoice_no && <tr><td className="pr-4 text-gray-500 font-medium">Supplier Inv.</td><td className="text-gray-700">{postedPurchaseVoucherData.supplier_invoice_no}</td></tr>}
-                          </tbody>
-                        </table>
-                      </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          const email = prompt('Enter recipient email address:');
+                          if (email) {
+                            const subject = encodeURIComponent(`Purchase Voucher ${postedPurchaseVoucherData.purchase_voucher_no} from ${companyDetails?.name || 'Our Company'}`);
+                            const body = encodeURIComponent(`Dear Team,\n\nPlease find attached Purchase Voucher No. ${postedPurchaseVoucherData.purchase_voucher_no} dated ${postedPurchaseVoucherData.date}.\n\nTotal Amount: ₹${Number(postedPurchaseVoucherData.totals?.invoiceValue || 0).toFixed(2)}\n\nRegards,\n${companyDetails?.name || ''}`);
+                            window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+                          }
+                        }}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        Email Invoice
+                      </button>
                     </div>
-
-                    {/* Vendor / Bill From */}
-                    <div className="grid grid-cols-2 gap-6 mb-6">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Vendor</p>
-                        <p className="font-semibold text-gray-900">{postedPurchaseVoucherData.vendor_name}</p>
-                        {postedPurchaseVoucherData.gstin && <p className="text-xs text-gray-500">GSTIN: {postedPurchaseVoucherData.gstin}</p>}
-                        {postedPurchaseVoucherData.bill_from && (
-                          <p className="text-xs text-gray-600 mt-1">{postedPurchaseVoucherData.bill_from}</p>
-                        )}
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ship From</p>
-                        <p className="text-xs text-gray-600">
-                          {postedPurchaseVoucherData.ship_from || 'Same as Billing Address'}
-                        </p>
-                        {postedPurchaseVoucherData.input_type && <p className="text-xs text-gray-500 mt-1">Supply Type: {postedPurchaseVoucherData.input_type}</p>}
-                      </div>
-                    </div>
-
-                    {/* Item Details */}
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="h-px flex-1 bg-gray-200" />
-                        <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest px-2">Item Details</span>
-                        <div className="h-px flex-1 bg-gray-200" />
-                      </div>
-                      <table className="w-full text-sm mb-3">
-                        <thead>
-                          <tr className="bg-indigo-600 text-white">
-                            <th className="px-3 py-2 text-left">#</th>
-                            <th className="px-3 py-2 text-left">Item / Description</th>
-                            <th className="px-3 py-2 text-center">HSN</th>
-                            <th className="px-3 py-2 text-center">Qty</th>
-                            <th className="px-3 py-2 text-right">Rate</th>
-                            <th className="px-3 py-2 text-right">Taxable</th>
-                            <th className="px-3 py-2 text-right">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(postedPurchaseVoucherData.items || []).map((item: any, i: number) => (
-                            <tr key={i} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                              <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                              <td className="px-3 py-2 font-medium text-gray-900">
-                                {item.itemName || item.itemCode}
-                                {item.description && <div className="text-xs text-gray-500 font-normal">{item.description}</div>}
-                              </td>
-                              <td className="px-3 py-2 text-center text-gray-500">{item.hsnSac || '-'}</td>
-                              <td className="px-3 py-2 text-center">{item.qty} {item.uom}</td>
-                              <td className="px-3 py-2 text-right font-mono">₹{Number(item.rate).toFixed(2)}</td>
-                              <td className="px-3 py-2 text-right font-mono">₹{Number(item.taxableValue).toFixed(2)}</td>
-                              <td className="px-3 py-2 text-right font-mono font-bold">₹{Number(item.invoiceValue).toFixed(2)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div className="flex justify-end">
-                        <div className="w-72 bg-indigo-50 rounded-lg p-4 border border-indigo-100">
-                          <div className="space-y-1.5 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-500">Taxable Amount</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals?.taxableValue || 0).toFixed(2)}</span></div>
-                            {Number(postedPurchaseVoucherData.totals?.cgst || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">CGST</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.cgst).toFixed(2)}</span></div>}
-                            {Number(postedPurchaseVoucherData.totals?.sgst || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">SGST</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.sgst).toFixed(2)}</span></div>}
-                            {Number(postedPurchaseVoucherData.totals?.igst || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">IGST</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.igst).toFixed(2)}</span></div>}
-                            {Number(postedPurchaseVoucherData.totals?.cess || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Cess</span><span className="font-mono">₹{Number(postedPurchaseVoucherData.totals.cess).toFixed(2)}</span></div>}
-                            <div className="flex justify-between pt-2 border-t-2 border-indigo-600">
-                              <span className="font-bold text-gray-900 text-base">Grand Total</span>
-                              <span className="font-bold text-indigo-700 text-base font-mono">₹{Number(postedPurchaseVoucherData.totals?.invoiceValue || 0).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer / Signature */}
-                    <div className="border-t-2 border-gray-200 pt-8 mt-4 flex justify-end">
-                      <div className="text-right">
-                        <div className="border-t border-gray-400 pt-2 w-44 text-xs text-gray-500 text-center">Authorised Signature</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Buttons */}
-                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-                  <button
-                    onClick={() => {
-                      setShowPurchasePrintPreview(false);
-                      resetForm();
-                    }}
-                    className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
-                  >
-                    Close
-                  </button>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        const email = prompt('Enter recipient email address:');
-                        if (email) {
-                          const subject = encodeURIComponent(`Purchase Voucher ${postedPurchaseVoucherData.purchase_voucher_no} from ${companyDetails?.name || 'Our Company'}`);
-                          const body = encodeURIComponent(`Dear Team,\n\nPlease find attached Purchase Voucher No. ${postedPurchaseVoucherData.purchase_voucher_no} dated ${postedPurchaseVoucherData.date}.\n\nTotal Amount: ₹${Number(postedPurchaseVoucherData.totals?.invoiceValue || 0).toFixed(2)}\n\nRegards,\n${companyDetails?.name || ''}`);
-                          window.open(`mailto:${email}?subject=${subject}&body=${body}`);
-                        }
-                      }}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                      Email Invoice
-                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          {isBulkUploadOpen && (
-            <BulkInvoiceUploadModal
-              voucherType={voucherType}
-              isLimitReached={isLimitReached}
-              activeSessionId={activeOcrSessionId}
-              initialStep={activeOcrSessionId ? 'review' : 'upload'}
-              onClose={() => {
-                setIsBulkUploadOpen(false);
-                setActiveOcrSessionId(null);
-                useOcrWorkflowStore.getState().clearWorkflow();
-                refetch(); // Refresh usage
-              }}
-              onEditRow={handleEditOcrRow}
-              onFinalized={(summary) => {
-                const created = summary.created ?? 0;
-                const skipped = summary.skipped ?? 0;
-                const duplicateSkipped = summary.duplicate_skipped ?? 0;
-                const pendingSkipped = summary.pending_skipped ?? 0;
-                const failed = summary.failed ?? 0;
-                // Extract the most specific error reason from the backend
-                const firstError = summary.errors?.[0]?.error ?? '';
-                const errorReason = firstError
-                  ? ` Reason: ${firstError.slice(0, 120)}`
-                  : '';
-                if (created > 0 && failed === 0) {
-                  showSuccess(`✅ Successfully saved ${created} invoice${created !== 1 ? 's' : ''} as Purchase Vouchers!`);
-                } else if (created > 0 && failed > 0) {
-                  showSuccess(`✅ Saved ${created} voucher${created !== 1 ? 's' : ''}. ${failed} had errors — check staging.`);
-                } else if (created === 0 && failed === 0) {
-                  if (duplicateSkipped > 0 && pendingSkipped === 0) {
-                    showSuccess(`ℹ️ All ${duplicateSkipped} invoice${duplicateSkipped !== 1 ? 's' : ''} were already saved (duplicates skipped).`);
-                  } else if (pendingSkipped > 0 && duplicateSkipped === 0) {
-                    showInfo(`ℹ️ ${pendingSkipped} invoice${pendingSkipped !== 1 ? 's' : ''} moved to Pending Purchases queue.`);
-                  } else if (duplicateSkipped > 0 && pendingSkipped > 0) {
-                    showSuccess(`ℹ️ ${duplicateSkipped} duplicate(s) skipped. ${pendingSkipped} invoice${pendingSkipped !== 1 ? 's' : ''} moved to Pending Purchases.`);
+            )}
+            {isBulkUploadOpen && (
+              <BulkInvoiceUploadModal
+                voucherType={voucherType}
+                isLimitReached={isLimitReached}
+                activeSessionId={activeOcrSessionId}
+                initialStep={activeOcrSessionId ? 'review' : 'upload'}
+                onClose={() => {
+                  setIsBulkUploadOpen(false);
+                  setActiveOcrSessionId(null);
+                  useOcrWorkflowStore.getState().clearWorkflow();
+                  refetch(); // Refresh usage
+                }}
+                onEditRow={handleEditOcrRow}
+                onFinalized={(summary) => {
+                  const created = summary.created ?? 0;
+                  const skipped = summary.skipped ?? 0;
+                  const duplicateSkipped = summary.duplicate_skipped ?? 0;
+                  const pendingSkipped = summary.pending_skipped ?? 0;
+                  const failed = summary.failed ?? 0;
+                  // Extract the most specific error reason from the backend
+                  const firstError = summary.errors?.[0]?.error ?? '';
+                  const errorReason = firstError
+                    ? ` Reason: ${firstError.slice(0, 120)}`
+                    : '';
+                  if (created > 0 && failed === 0) {
+                    showSuccess(`✅ Successfully saved ${created} invoice${created !== 1 ? 's' : ''} as Purchase Vouchers!`);
+                  } else if (created > 0 && failed > 0) {
+                    showSuccess(`✅ Saved ${created} voucher${created !== 1 ? 's' : ''}. ${failed} had errors — check staging.`);
+                  } else if (created === 0 && failed === 0) {
+                    if (duplicateSkipped > 0 && pendingSkipped === 0) {
+                      showSuccess(`ℹ️ All ${duplicateSkipped} invoice${duplicateSkipped !== 1 ? 's' : ''} were already saved (duplicates skipped).`);
+                    } else if (pendingSkipped > 0 && duplicateSkipped === 0) {
+                      showInfo(`ℹ️ ${pendingSkipped} invoice${pendingSkipped !== 1 ? 's' : ''} moved to Pending Purchases queue.`);
+                    } else if (duplicateSkipped > 0 && pendingSkipped > 0) {
+                      showSuccess(`ℹ️ ${duplicateSkipped} duplicate(s) skipped. ${pendingSkipped} invoice${pendingSkipped !== 1 ? 's' : ''} moved to Pending Purchases.`);
+                    } else {
+                      showSuccess('Finalization complete.');
+                    }
+                  } else if (created === 0 && failed > 0) {
+                    showError(`⚠️ ${failed} invoice${failed !== 1 ? 's' : ''} could not be saved.${errorReason}`);
                   } else {
                     showSuccess('Finalization complete.');
                   }
-                } else if (created === 0 && failed > 0) {
-                  showError(`⚠️ ${failed} invoice${failed !== 1 ? 's' : ''} could not be saved.${errorReason}`);
-                } else {
-                  showSuccess('Finalization complete.');
-                }
 
-                // Clear active states unconditionally and refresh scan data
-                setIsBulkUploadOpen(false);
-                setActiveOcrSessionId(null);
-                setActiveOcrFileHash(null);
-                setActiveOcrFileName(null);
-                useOcrWorkflowStore.getState().clearWorkflow();
-                refetch();
-              }}
-            />
-          )}
+                  // Clear active states unconditionally and refresh scan data
+                  setIsBulkUploadOpen(false);
+                  setActiveOcrSessionId(null);
+                  setActiveOcrFileHash(null);
+                  setActiveOcrFileName(null);
+                  useOcrWorkflowStore.getState().clearWorkflow();
+                  refetch();
+                }}
+              />
+            )}
 
 
-        </>
-      )}
+          </>
+        )}
       </div>
     </UniversalWorkspaceLayout>
   );

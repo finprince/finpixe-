@@ -243,126 +243,126 @@ const CustomerPortalPage: React.FC<CustomerPortalProps> = ({ onNavigate, setPref
             <div className="flex flex-col gap-6 text-left">
                 {/* Main Tabs */}
                 <div className="erp-tab-container">
-                {availableTabs.map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab as MainTab)}
-                        className={`erp-tab ${activeTab === tab ? 'active' : ''}`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+                    {availableTabs.map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as MainTab)}
+                            className={`erp-tab ${activeTab === tab ? 'active' : ''}`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Content Area */}
+                <div>
+                    {activeTab === 'Master' && (
+                        <div className="erp-card p-0 overflow-hidden">
+                            {/* Sub-tabs for Master */}
+                            <div className="erp-tab-container !mb-0 px-6 pt-4">
+                                <nav className="flex space-x-2">
+                                    {['Category', 'Sales Quotation & Order', 'Customer', 'Long-term Contracts'].filter(t => isSuperuser || hasTabAccess('Customer Portal', t)).map((subTab) => (
+                                        <button
+                                            key={subTab}
+                                            onClick={() => setActiveMasterSubTab(subTab as MasterSubTab)}
+                                            className={`erp-tab ${activeMasterSubTab === subTab ? 'active' : ''}`}
+                                        >
+                                            {subTab}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+
+                            {/* Masters Content */}
+                            <div>
+                                {activeMasterSubTab === 'Category' && <CategoryContent />}
+                                {activeMasterSubTab === 'Customer' && <CustomerContent onNavigate={onNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />}
+                                {activeMasterSubTab === 'Sales Quotation & Order' && <SalesOrderContent />}
+                                {activeMasterSubTab === 'Long-term Contracts' && <LongTermContractsContent />}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'Transaction' && (
+                        <div className="erp-card p-0 overflow-hidden">
+                            {/* Sub-tabs for Transaction */}
+                            <div className="erp-tab-container !mb-0 px-6 pt-4">
+                                <nav className="flex space-x-2">
+                                    {['Sales Quotation', 'Sales Order', 'Sales', 'Receipt'].filter(t => isSuperuser || hasTabAccess('Customer Portal', t)).map((subTab) => (
+                                        <button
+                                            key={subTab}
+                                            onClick={() => setActiveTransactionSubTab(subTab as TransactionSubTab)}
+                                            className={`erp-tab ${activeTransactionSubTab === subTab ? 'active' : ''}`}
+                                        >
+                                            {subTab}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+
+                            {/* Transactions Content */}
+                            <div className="p-8">
+                                {activeTransactionSubTab === 'Sales Quotation' && (
+                                    showCreateQuotation ? (
+                                        <CreateSalesQuotation
+                                            onCancel={() => {
+                                                setShowCreateQuotation(false);
+                                                setEditQuotationId(null);
+                                                setEditQuotationType(null);
+                                            }}
+                                            editId={editQuotationId}
+                                            editType={editQuotationType || activeSalesQuotationSubTab}
+                                        />
+                                    ) : (
+                                        <SalesQuotationList
+                                            onCreateQuotation={handleCreateQuotation}
+                                            onEditQuotation={handleEditQuotation}
+                                        />
+
+                                    )
+                                )}
+                                {activeTransactionSubTab === 'Sales Order' && (
+                                    showCreateOrder ? (
+                                        <CreateSalesOrder
+                                            editId={editSalesOrderId}
+                                            onCancel={() => {
+                                                setShowCreateOrder(false);
+                                                setEditSalesOrderId(null);
+                                            }}
+                                        />
+                                    ) : (
+                                        <SalesOrderList
+                                            key={refreshOrders}
+                                            onCreateOrder={() => {
+                                                setEditSalesOrderId(null);
+                                                setShowCreateOrder(true);
+                                            }}
+                                            onEditOrder={handleEditSalesOrder}
+                                            onViewOrder={handleViewSalesOrder}
+                                            onCancelOrder={handleCancelSalesOrder}
+                                        />
+                                    )
+                                )}
+                                {activeTransactionSubTab === 'Sales' && (
+                                    <SalesContent onNavigate={onNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />
+                                )}
+                                {activeTransactionSubTab === 'Receipt' && (
+                                    <ReceiptContent />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Sales Order View Modal */}
+                    <SalesOrderViewModal
+                        isOpen={isSalesOrderViewModalOpen}
+                        onClose={() => setIsSalesOrderViewModalOpen(false)}
+                        orderId={selectedSalesOrderId}
+                    />
+                </div>
             </div>
-
-            {/* Content Area */}
-            <div>
-                {activeTab === 'Master' && (
-                    <div className="erp-card p-0 overflow-hidden">
-                        {/* Sub-tabs for Master */}
-                        <div className="erp-tab-container !mb-0 px-6 pt-4">
-                            <nav className="flex space-x-2">
-                                {['Category', 'Sales Quotation & Order', 'Customer', 'Long-term Contracts'].filter(t => isSuperuser || hasTabAccess('Customer Portal', t)).map((subTab) => (
-                                    <button
-                                        key={subTab}
-                                        onClick={() => setActiveMasterSubTab(subTab as MasterSubTab)}
-                                        className={`erp-tab ${activeMasterSubTab === subTab ? 'active' : ''}`}
-                                    >
-                                        {subTab}
-                                    </button>
-                                ))}
-                            </nav>
-                        </div>
-
-                        {/* Masters Content */}
-                        <div>
-                            {activeMasterSubTab === 'Category' && <CategoryContent />}
-                            {activeMasterSubTab === 'Customer' && <CustomerContent onNavigate={onNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />}
-                            {activeMasterSubTab === 'Sales Quotation & Order' && <SalesOrderContent />}
-                            {activeMasterSubTab === 'Long-term Contracts' && <LongTermContractsContent />}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'Transaction' && (
-                    <div className="erp-card p-0 overflow-hidden">
-                        {/* Sub-tabs for Transaction */}
-                        <div className="erp-tab-container !mb-0 px-6 pt-4">
-                            <nav className="flex space-x-2">
-                                {['Sales Quotation', 'Sales Order', 'Sales', 'Receipt'].filter(t => isSuperuser || hasTabAccess('Customer Portal', t)).map((subTab) => (
-                                    <button
-                                        key={subTab}
-                                        onClick={() => setActiveTransactionSubTab(subTab as TransactionSubTab)}
-                                        className={`erp-tab ${activeTransactionSubTab === subTab ? 'active' : ''}`}
-                                    >
-                                        {subTab}
-                                    </button>
-                                ))}
-                            </nav>
-                        </div>
-
-                        {/* Transactions Content */}
-                        <div className="p-8">
-                            {activeTransactionSubTab === 'Sales Quotation' && (
-                                showCreateQuotation ? (
-                                    <CreateSalesQuotation
-                                        onCancel={() => {
-                                            setShowCreateQuotation(false);
-                                            setEditQuotationId(null);
-                                            setEditQuotationType(null);
-                                        }}
-                                        editId={editQuotationId}
-                                        editType={editQuotationType || activeSalesQuotationSubTab}
-                                    />
-                                ) : (
-                                    <SalesQuotationList
-                                        onCreateQuotation={handleCreateQuotation}
-                                        onEditQuotation={handleEditQuotation}
-                                    />
-
-                                )
-                            )}
-                            {activeTransactionSubTab === 'Sales Order' && (
-                                showCreateOrder ? (
-                                    <CreateSalesOrder
-                                        editId={editSalesOrderId}
-                                        onCancel={() => {
-                                            setShowCreateOrder(false);
-                                            setEditSalesOrderId(null);
-                                        }}
-                                    />
-                                ) : (
-                                    <SalesOrderList
-                                        key={refreshOrders}
-                                        onCreateOrder={() => {
-                                            setEditSalesOrderId(null);
-                                            setShowCreateOrder(true);
-                                        }}
-                                        onEditOrder={handleEditSalesOrder}
-                                        onViewOrder={handleViewSalesOrder}
-                                        onCancelOrder={handleCancelSalesOrder}
-                                    />
-                                )
-                            )}
-                            {activeTransactionSubTab === 'Sales' && (
-                                <SalesContent onNavigate={onNavigate} setPrefilledVoucherData={setPrefilledVoucherData} />
-                            )}
-                            {activeTransactionSubTab === 'Receipt' && (
-                                <ReceiptContent />
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Sales Order View Modal */}
-                <SalesOrderViewModal
-                    isOpen={isSalesOrderViewModalOpen}
-                    onClose={() => setIsSalesOrderViewModalOpen(false)}
-                    orderId={selectedSalesOrderId}
-                />
-            </div>
-        </div>
-    </UniversalWorkspaceLayout>
-);
+        </UniversalWorkspaceLayout>
+    );
 };
 
 // -- Mastery Sub-Components --
@@ -509,7 +509,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                 const response = await httpClient.get<Category[]>('/api/customerportal/categories/');
                 const processed = response.map(c => ({
                     ...c,
-                    full_path: [c.category, c.group, c.subgroup].filter(Boolean).join(' > ')
+                    full_path: [c.category, c.group, c.subgroup].filter(Boolean).join(' > ').replace(/\s*>\s*/g, ' > ')
                 }));
                 setCategories(processed);
             } catch (error) {
@@ -1503,6 +1503,8 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                 customerCategoryName = customer.customer_category_name || customer.category || '';
             }
         }
+
+        customerCategoryName = customerCategoryName.replace(/\s*>\s*/g, ' > ');
 
         const matchesCategory = categoryFilter === 'All Categories' || customerCategoryName === categoryFilter;
 
@@ -3446,9 +3448,9 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                             onChange={(e) => setCategoryFilter(e.target.value)}
                         >
                             <option>All Categories</option>
-                            {categories.map((cat) => (
-                                <option key={cat.id} value={cat.full_path || cat.category}>
-                                    {cat.full_path || [cat.category, cat.group, cat.subgroup].filter(Boolean).join(' > ')}
+                            {Array.from(new Set(categories.map(cat => (cat.full_path || [cat.category, cat.group, cat.subgroup].filter(Boolean).join(' > ')).replace(/\s*>\s*/g, ' > ')))).map((uniqueCat) => (
+                                <option key={uniqueCat} value={uniqueCat}>
+                                    {uniqueCat}
                                 </option>
                             ))}
                         </select>
@@ -3490,7 +3492,7 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                                                 categoryName = cat.full_path || cat.category;
                                             }
                                         }
-                                        return categoryName;
+                                        return categoryName.replace(/\s*>\s*/g, ' > ');
                                     })()}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -4040,6 +4042,29 @@ const LongTermContractsContent: React.FC = () => {
         }
     };
 
+    const getContractStatusInfo = (contract: any) => {
+        const today = new Date().toISOString().split('T')[0];
+        const isValid = contract.contract_validity_from <= today && today <= contract.contract_validity_to;
+
+        if (!isValid) return { text: 'Expired', color: 'bg-red-100 text-red-800' };
+        if (contract.is_paused) return { text: 'Paused', color: 'bg-yellow-100 text-yellow-800' };
+        return { text: 'Active', color: 'bg-green-100 text-green-800' };
+    };
+
+    const handleTogglePause = async (contract: any) => {
+        try {
+            const newPausedState = !contract.is_paused;
+            await httpClient.patch(`/api/customerportal/long-term-contracts/${contract.id}/`, {
+                is_paused: newPausedState
+            });
+            showSuccess(`Contract ${newPausedState ? 'paused' : 'resumed'} successfully`);
+            await fetchContracts();
+        } catch (error) {
+            handleApiError(error, 'Toggle Contract Pause');
+        }
+    };
+
+
     const fetchStockItems = async () => {
         try {
             // Fetch both Inventory Items and Services
@@ -4148,6 +4173,14 @@ const LongTermContractsContent: React.FC = () => {
         if (automateBilling && billingConfig.billPeriodTo && basicDetails.validityTo) {
             if (billingConfig.billPeriodTo > basicDetails.validityTo) {
                 showError('Bill Period To cannot be later than Contract Validity To.');
+                setActiveTab('Basic Details');
+                return;
+            }
+        }
+
+        if (automateBilling && billingConfig.billPeriodFrom && billingConfig.billPeriodTo) {
+            if (billingConfig.billPeriodFrom > billingConfig.billPeriodTo) {
+                showError('Bill Period From cannot be later than Bill Period To.');
                 setActiveTab('Basic Details');
                 return;
             }
@@ -4417,11 +4450,33 @@ const LongTermContractsContent: React.FC = () => {
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-700 mb-1">Attach Long-term Contract</label>
                                         <div className="border border-gray-300 rounded-[4px] px-4 py-2 flex items-center gap-4 bg-white">
-                                            <button className="px-3 py-1.5 border border-gray-300 rounded bg-gray-50 hover:bg-gray-100 text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                id="contract-document-upload"
+                                                className="hidden"
+                                                accept=".pdf,.doc,.docx"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        setBasicDetails(prev => ({ ...prev, contractDocument: file.name }));
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => document.getElementById('contract-document-upload')?.click()}
+                                                className="px-3 py-1.5 border border-gray-300 rounded bg-gray-50 hover:bg-gray-100 text-xs font-medium text-gray-700 transition-colors flex items-center gap-2"
+                                            >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                                                 Choose File
                                             </button>
-                                            <span className="text-xs text-gray-400">Supported formats: PDF, DOC (Max size: 10MB)</span>
+                                            <span className="text-xs text-gray-400">
+                                                {basicDetails.contractDocument ? (
+                                                    <span className="text-indigo-600 font-medium">{basicDetails.contractDocument}</span>
+                                                ) : (
+                                                    "Supported formats: PDF, DOC (Max size: 10MB)"
+                                                )}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -4747,10 +4802,37 @@ const LongTermContractsContent: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         if (activeTab === 'Basic Details') {
-                                            if (!basicDetails.contractNumber || !basicDetails.customerId || !basicDetails.contractType || !basicDetails.validityFrom || !basicDetails.validityTo) {
-                                                showError('Please fill all required fields in Basic Details section.');
+                                            const missingFields = [];
+                                            if (!basicDetails.contractNumber) missingFields.push('Contract No');
+                                            if (!basicDetails.customerId) missingFields.push('Customer');
+                                            if (!basicDetails.contractType) missingFields.push('Type');
+                                            if (!basicDetails.validityFrom) missingFields.push('Valid From');
+                                            if (!basicDetails.validityTo) missingFields.push('Valid To');
+                                            
+                                            if (missingFields.length > 0) {
+                                                showError(`Please fill all required fields: ${missingFields.join(', ')}`);
                                                 return;
                                             }
+
+                                            if (automateBilling && billingConfig.billPeriodFrom && basicDetails.validityFrom) {
+                                                if (billingConfig.billPeriodFrom < basicDetails.validityFrom) {
+                                                    showError('Bill Period From cannot be earlier than Contract Validity From.');
+                                                    return;
+                                                }
+                                            }
+                                            if (automateBilling && billingConfig.billPeriodTo && basicDetails.validityTo) {
+                                                if (billingConfig.billPeriodTo > basicDetails.validityTo) {
+                                                    showError('Bill Period To cannot be later than Contract Validity To.');
+                                                    return;
+                                                }
+                                            }
+                                            if (automateBilling && billingConfig.billPeriodFrom && billingConfig.billPeriodTo) {
+                                                if (billingConfig.billPeriodFrom > billingConfig.billPeriodTo) {
+                                                    showError('Bill Period From cannot be later than Bill Period To.');
+                                                    return;
+                                                }
+                                            }
+
                                             setActiveTab('Products / Services');
                                         }
                                         else if (activeTab === 'Products / Services') {
@@ -4811,6 +4893,7 @@ const LongTermContractsContent: React.FC = () => {
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">BRANCH</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">CONTRACT TYPE</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">VALIDITY PERIOD</th>
+                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">STATUS</th>
                             <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">ACTIONS</th>
                         </tr>
                     </thead>
@@ -4828,8 +4911,26 @@ const LongTermContractsContent: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 tabular-nums">
                                     {contract.contract_validity_from} <span className="mx-2 text-gray-400">-</span> {contract.contract_validity_to}
                                 </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-[4px] cursor-default ${getContractStatusInfo(contract).color}`}>
+                                        {getContractStatusInfo(contract).text}
+                                    </span>
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                     <div className="flex items-center justify-center gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
+                                        {getContractStatusInfo(contract).text !== 'Expired' && (
+                                            <button
+                                                onClick={() => handleTogglePause(contract)}
+                                                className={`transition-colors ${contract.is_paused ? 'text-green-600 hover:text-green-700' : 'text-yellow-600 hover:text-yellow-700'}`}
+                                                title={contract.is_paused ? 'Resume Contract' : 'Pause Contract'}
+                                            >
+                                                {contract.is_paused ? (
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                                ) : (
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                                                )}
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handleEditClick(contract)}
                                             className="text-gray-500 hover:text-[#6366F1] transition-colors"
@@ -6499,8 +6600,8 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
         ].join('|');
 
         const sortedForDedupe = [...ledgerEntries].sort((a, b) => {
-            const idA = parseInt(a.id.toString().replace('T-', '').replace('L-', '')) || 0;
-            const idB = parseInt(b.id.toString().replace('T-', '').replace('L-', '')) || 0;
+            const idA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+            const idB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
             return idB - idA;
         });
 
@@ -6530,8 +6631,8 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
         return [...dedupedEntries].sort((a, b) => {
             const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
             if (dateDiff !== 0) return dateDiff;
-            const idA = parseInt(a.id.toString().replace('T-', '').replace('L-', '')) || 0;
-            const idB = parseInt(b.id.toString().replace('T-', '').replace('L-', '')) || 0;
+            const idA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+            const idB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
             return idA - idB;
         }).map(entry => {
             balance += (entry.debit || 0) - (entry.credit || 0);
@@ -6700,7 +6801,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                 ['ADVANCE', '', '-', 'N/A'].includes(e.originalInv.reference_number.toUpperCase().trim())
             )
         ).map(e => {
-            const allocations = (ledgerEntries || []).filter(item => 
+            const allocations = (ledgerEntries || []).filter(item =>
                 item.postFrom === 'Receipt' &&
                 item.voucherNo === e.voucherNo &&
                 item.id !== e.id &&
@@ -6865,7 +6966,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                 const firstB = groups[bRef][0];
                 const dDiff = new Date(firstA?.date || 0).getTime() - new Date(firstB?.date || 0).getTime();
                 if (dDiff !== 0) return dDiff;
-                return parseInt(firstA?.id?.toString().replace('t-', '') || '0') - parseInt(firstB?.id?.toString().replace('t-', '') || '0');
+                return (parseInt(String(firstA?.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(firstB?.id).replace(/\D/g, ''), 10) || 0);
             });
 
             sortedGroupRefs.forEach(ref => {
@@ -6893,7 +6994,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                 const sources = entries.filter(e => ['Sales'].includes(e.postFrom))
                     .sort((a, b) => {
                         const d = new Date(a.date).getTime() - new Date(b.date).getTime();
-                        return d !== 0 ? d : parseInt(a.id.replace('t-', '')) - parseInt(b.id.replace('t-', ''));
+                        return d !== 0 ? d : (parseInt(String(a.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(b.id).replace(/\D/g, ''), 10) || 0);
                     });
 
                 if (sources.length === 0) return;
@@ -6901,7 +7002,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                 const applications = entries.filter(e => ['Receipt', 'Credit Note', 'Journal'].includes(e.postFrom))
                     .sort((a, b) => {
                         const d = new Date(a.date).getTime() - new Date(b.date).getTime();
-                        return d !== 0 ? d : parseInt(a.id.replace('t-', '')) - parseInt(b.id.replace('t-', ''));
+                        return d !== 0 ? d : (parseInt(String(a.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(b.id).replace(/\D/g, ''), 10) || 0);
                     });
 
                 const totalSourceAmt = sources.reduce((sum, s) => sum + ((s.debit || 0) - (s.credit || 0)), 0);
@@ -6917,7 +7018,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                         appliedRefNo: '-',
                         appliedAmount: '-',
                         pendingBalance: totalSourceAmt,
-                        status: totalSourceAmt === 0 ? 'Received' : firstSource.status,
+                        status: totalSourceAmt === 0 ? 'Received' : (firstSource.status === 'Not Due' ? 'Not Due' : 'Due'),
                         rowSpan: 1,
                         isFirstInSource: true
                     });
@@ -6928,9 +7029,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                     const totalAppAmtRounded = Math.round(totalAppAmt * 100);
                     const calculatedStatus = totalSourceAmtRounded <= totalAppAmtRounded
                         ? 'Received'
-                        : (totalAppAmtRounded > 0
-                            ? (firstSource.status === 'Not Due' ? 'Not Due' : 'Partially Received')
-                            : firstSource.status);
+                        : (firstSource.status === 'Not Due' ? 'Not Due' : (totalAppAmtRounded > 0 ? 'Partially Received' : 'Due'));
 
                     applications.forEach((app, appIdx) => {
                         const appAmt = (app.credit || 0) - (app.debit || 0);
@@ -6957,104 +7056,104 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
 
         return (
             <div className="overflow-x-auto">
-                    <table className="erp-table min-w-full">
-                        <thead className="bg-[#F8F9FA] border-b border-slate-200">
-                            <tr className="border-b border-slate-200">
-                                <th rowSpan={2} className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Date</th>
-                                <th rowSpan={2} className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Posted From</th>
-                                <th rowSpan={2} className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Reference No.</th>
-                                <th rowSpan={2} className="px-6 py-4 text-right text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Amount</th>
-                                <th colSpan={4} className="px-6 py-2 border-r border-slate-200 bg-indigo-50/30">
-                                    <div className="flex justify-center items-center h-full text-[11px] font-black text-indigo-600 uppercase tracking-widest">
-                                        Voucher Applied
-                                    </div>
-                                </th>
-                                <th rowSpan={2} className="px-6 py-4 text-center text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Status</th>
-                                <th rowSpan={2} className="px-6 py-4 text-center text-[11px] font-black text-slate-500 uppercase tracking-widest">Action</th>
-                            </tr>
-                            <tr>
-                                <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Date</th>
-                                <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Ref No.</th>
-                                <th className="px-6 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Amount</th>
-                                <th className="px-6 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Pending</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                            {allocationRows.map((row, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                    {row.isFirstInSource && (
-                                        <>
-                                            <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 align-top whitespace-nowrap">{formatDate(row.date)}</td>
-                                            <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100 align-top whitespace-nowrap">
-                                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.postedFrom === 'Sales' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
-                                                    {row.postedFrom}
-                                                </span>
-                                            </td>
-                                            <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm font-bold text-indigo-600 border-r border-slate-100 align-top whitespace-nowrap">{row.refNo}</td>
-                                            <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm text-right font-medium text-slate-900 border-r border-slate-100 align-top whitespace-nowrap">
-                                                {row.netAmount !== '-' ? `₹${row.netAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                                            </td>
-                                        </>
-                                    )}
-                                    <td className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100 whitespace-nowrap">{row.appliedDate !== '-' ? formatDate(row.appliedDate) : '-'}</td>
-                                    <td className="px-6 py-4 text-sm font-medium text-slate-700 border-r border-slate-100 whitespace-nowrap">{row.appliedRefNo && String(row.appliedRefNo).startsWith('ALC-') ? String(row.appliedRefNo).split('-').slice(2).join('-') : row.appliedRefNo}</td>
-                                    <td className="px-6 py-4 text-sm text-right font-bold text-emerald-600 border-r border-slate-100 whitespace-nowrap">
-                                        {row.appliedAmount !== '-' ? `₹${row.appliedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-right font-bold text-slate-900 border-r border-slate-100 whitespace-nowrap">
-                                        {row.pendingBalance !== '-' ? `₹${row.pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                                    </td>
-                                    {row.isFirstInSource && (
-                                        <>
-                                            <td rowSpan={row.rowSpan} className="px-6 py-4 text-center border-r border-slate-100 align-top whitespace-nowrap">
-                                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.status?.toLowerCase() === 'paid' || row.status?.toLowerCase() === 'received' || row.status?.toLowerCase() === 'utilized' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                                    row.status?.toLowerCase() === 'partially paid' || row.status?.toLowerCase() === 'partially received' || row.status?.toLowerCase() === 'partially due' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
-                                                        row.status?.toLowerCase() === 'due' || row.status?.toLowerCase() === 'due today' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                                                            'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
-                                                    {row.status}
-                                                </span>
-                                            </td>
-                                            <td rowSpan={row.rowSpan} className="px-6 py-4 whitespace-nowrap text-center align-top">
-                                                {(row.status?.toLowerCase() === 'partially received' || row.status?.toLowerCase() === 'due') && (
-                                                    <button
-                                                        onClick={() => handleAdvanceClick(row)}
-                                                        className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-[4px] hover:bg-indigo-700 transition-colors uppercase tracking-widest"
-                                                    >
-                                                        Reference
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </>
-                                    )}
-                                </tr>
-                            ))}
-                            {allocationRows.length === 0 && (
-                                <tr>
-                                    <td colSpan={10} className="px-6 py-16 text-center text-gray-400 text-sm font-medium italic">No sales documents found to allocate.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                        <tfoot className="bg-[#F8F9FA] border-t border-slate-200">
-                            <tr>
-                                <td colSpan={3} className="px-6 py-5 text-[11px] font-black text-gray-400 text-center tracking-widest uppercase">AGGREGATE SALES LEDGER STATUS</td>
-                                <td className="px-6 py-5 text-right text-[14px] font-black text-slate-800">
-                                    ₹{ledgerEntries.filter(e => ['Sales', 'Debit Note'].includes(e.postFrom))
-                                        .reduce((sum, e) => sum + ((e.debit || 0) - (e.credit || 0)), 0)
-                                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <table className="erp-table min-w-full">
+                    <thead className="bg-[#F8F9FA] border-b border-slate-200">
+                        <tr className="border-b border-slate-200">
+                            <th rowSpan={2} className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Date</th>
+                            <th rowSpan={2} className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Posted From</th>
+                            <th rowSpan={2} className="px-6 py-4 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Reference No.</th>
+                            <th rowSpan={2} className="px-6 py-4 text-right text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Amount</th>
+                            <th colSpan={4} className="px-6 py-2 border-r border-slate-200 bg-indigo-50/30">
+                                <div className="flex justify-center items-center h-full text-[11px] font-black text-indigo-600 uppercase tracking-widest">
+                                    Voucher Applied
+                                </div>
+                            </th>
+                            <th rowSpan={2} className="px-6 py-4 text-center text-[11px] font-black text-slate-500 uppercase tracking-widest border-r border-slate-200">Status</th>
+                            <th rowSpan={2} className="px-6 py-4 text-center text-[11px] font-black text-slate-500 uppercase tracking-widest">Action</th>
+                        </tr>
+                        <tr>
+                            <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Date</th>
+                            <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Ref No.</th>
+                            <th className="px-6 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Amount</th>
+                            <th className="px-6 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200">Pending</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                        {allocationRows.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                {row.isFirstInSource && (
+                                    <>
+                                        <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 align-top">{formatDate(row.date)}</td>
+                                        <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100 align-top">
+                                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.postedFrom === 'Sales' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                                                {row.postedFrom}
+                                            </span>
+                                        </td>
+                                        <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm font-bold text-indigo-600 border-r border-slate-100 align-top">{row.refNo}</td>
+                                        <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm text-right font-medium text-slate-900 border-r border-slate-100 align-top">
+                                            {row.netAmount !== '-' ? `₹${row.netAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                                        </td>
+                                    </>
+                                )}
+                                <td className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100">{row.appliedDate !== '-' ? formatDate(row.appliedDate) : '-'}</td>
+                                <td className="px-6 py-4 text-sm font-medium text-slate-700 border-r border-slate-100">{row.appliedRefNo && String(row.appliedRefNo).startsWith('ALC-') ? String(row.appliedRefNo).split('-').slice(2).join('-') : row.appliedRefNo}</td>
+                                <td className="px-6 py-4 text-sm text-right font-bold text-emerald-600 border-r border-slate-100">
+                                    {row.appliedAmount !== '-' ? `₹${row.appliedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
                                 </td>
-                                <td colSpan={3} className="bg-indigo-50/10 border-x border-gray-100/50"></td>
-                                <td className="px-6 py-5 text-right text-[14px] font-black text-rose-600 drop-shadow-sm">
-                                    ₹{allocationRows.reduce((sum, r, idx, arr) => {
-                                        const isLastInGroup = (idx === arr.length - 1) || (arr[idx + 1].isFirstInSource);
-                                        return isLastInGroup ? sum + r.pendingBalance : sum;
-                                    }, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                <td className="px-6 py-4 text-sm text-right font-bold text-slate-900 border-r border-slate-100">
+                                    {row.pendingBalance !== '-' ? `₹${row.pendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
                                 </td>
-                                <td></td>
-                                <td></td>
+                                {row.isFirstInSource && (
+                                    <>
+                                        <td rowSpan={row.rowSpan} className="px-6 py-4 text-center border-r border-slate-100 align-top">
+                                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.status?.toLowerCase() === 'paid' || row.status?.toLowerCase() === 'received' || row.status?.toLowerCase() === 'utilized' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                row.status?.toLowerCase() === 'partially paid' || row.status?.toLowerCase() === 'partially received' || row.status?.toLowerCase() === 'partially due' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
+                                                    row.status?.toLowerCase() === 'due' || row.status?.toLowerCase() === 'due today' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                        'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                                                {row.status}
+                                            </span>
+                                        </td>
+                                        <td rowSpan={row.rowSpan} className="px-6 py-4 whitespace-nowrap text-center align-top">
+                                            {(row.status?.toLowerCase() === 'partially received' || row.status?.toLowerCase() === 'due' || row.status?.toLowerCase() === 'due today') && (
+                                                <button
+                                                    onClick={() => handleAdvanceClick(row)}
+                                                    className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-[4px] hover:bg-indigo-700 transition-colors uppercase tracking-widest"
+                                                >
+                                                    Reference
+                                                </button>
+                                            )}
+                                        </td>
+                                    </>
+                                )}
                             </tr>
-                        </tfoot>
-                    </table>
-                </div>
+                        ))}
+                        {allocationRows.length === 0 && (
+                            <tr>
+                                <td colSpan={10} className="px-6 py-16 text-center text-gray-400 text-sm font-medium italic">No sales documents found to allocate.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                    <tfoot className="bg-[#F8F9FA] border-t border-slate-200">
+                        <tr>
+                            <td colSpan={3} className="px-6 py-5 text-[11px] font-black text-gray-400 text-center tracking-widest uppercase">AGGREGATE SALES LEDGER STATUS</td>
+                            <td className="px-6 py-5 text-right text-[14px] font-black text-slate-800">
+                                ₹{ledgerEntries.filter(e => ['Sales', 'Debit Note'].includes(e.postFrom))
+                                    .reduce((sum, e) => sum + ((e.debit || 0) - (e.credit || 0)), 0)
+                                    .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td colSpan={3} className="bg-indigo-50/10 border-x border-gray-100/50"></td>
+                            <td className="px-6 py-5 text-right text-[14px] font-black text-rose-600 drop-shadow-sm">
+                                ₹{allocationRows.reduce((sum, r, idx, arr) => {
+                                    const isLastInGroup = (idx === arr.length - 1) || (arr[idx + 1].isFirstInSource);
+                                    return isLastInGroup ? sum + r.pendingBalance : sum;
+                                }, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         );
     };
 
@@ -7068,44 +7167,44 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
 
         return (
             <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-[#F8F9FA]">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">MONTH</th>
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">DEBIT</th>
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">CREDIT</th>
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">CLOSING BALANCE</th>
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-[#F8F9FA]">
+                        <tr>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">MONTH</th>
+                            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">DEBIT</th>
+                            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">CREDIT</th>
+                            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-1/4">CLOSING BALANCE</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                        {filteredMonthData.map((entry, index) => (
+                            <tr
+                                key={index}
+                                onClick={() => handleMonthClick(entry.month)}
+                                className="hover:bg-indigo-50 transition-colors group cursor-pointer"
+                            >
+                                <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-gray-700 group-hover:text-indigo-600">{entry.month.split(' ')[0]}</td>
+                                <td className="px-6 py-5 whitespace-nowrap text-sm text-right text-gray-600 font-medium">₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td className="px-6 py-5 whitespace-nowrap text-sm text-right text-gray-600 font-medium">₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td className="px-6 py-5 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                                    ₹{Math.abs(entry.closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    <span className="ml-1 text-gray-500 text-xs font-normal">
+                                        {entry.closingBalance >= 0 ? 'Dr' : 'Cr'}
+                                    </span>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
-                            {filteredMonthData.map((entry, index) => (
-                                <tr
-                                    key={index}
-                                    onClick={() => handleMonthClick(entry.month)}
-                                    className="hover:bg-indigo-50 transition-colors group cursor-pointer"
-                                >
-                                    <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-gray-700 group-hover:text-indigo-600">{entry.month.split(' ')[0]}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap text-sm text-right text-gray-600 font-medium">₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap text-sm text-right text-gray-600 font-medium">₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                    <td className="px-6 py-5 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                                        ₹{Math.abs(entry.closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        <span className="ml-1 text-gray-500 text-xs font-normal">
-                                            {entry.closingBalance >= 0 ? 'Dr' : 'Cr'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="bg-[#F8F9FA]">
-                            <tr>
-                                <td className="px-6 py-5 text-sm font-bold text-gray-500 text-center tracking-wide">TOTAL</td>
-                                <td className="px-6 py-5 whitespace-nowrap text-sm text-right font-bold text-gray-900">₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                <td className="px-6 py-5 whitespace-nowrap text-sm text-right font-bold text-gray-900">₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                <td className="px-6 py-5 whitespace-nowrap text-sm text-right"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
+                        ))}
+                    </tbody>
+                    <tfoot className="bg-[#F8F9FA]">
+                        <tr>
+                            <td className="px-6 py-5 text-sm font-bold text-gray-500 text-center tracking-wide">TOTAL</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-sm text-right font-bold text-gray-900">₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-sm text-right font-bold text-gray-900">₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-5 whitespace-nowrap text-sm text-right"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         );
     };
 
@@ -8035,178 +8134,178 @@ function SalesContent({ onNavigate, setPrefilledVoucherData }: { onNavigate?: (p
             <div className="flex flex-col gap-6 text-left">
 
 
-            {viewMode === 'dashboard' ? (
-                <div>
-                    <div className="mb-6">
-                        <h2 className="section-title">Sales Categories</h2>
-                        <p className="helper-text mt-1">Select a sales category to view receivables aging intelligence.</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Export Card */}
-                        <CategoryCard
-                            category="Export"
-                            desc="View export sales aging."
-                            activeOrders={invoices.filter(inv => (customers.find(c => c.id === inv.customer_id)?.customer_category_name || '').toLowerCase().includes('export')).length}
-                            activeAdvances={allAdvancePayments.filter(adv => (adv.category || '').toLowerCase().includes('export')).length}
-                            onClick={() => handleCardClick('Export')}
-                        />
-
-                        {/* Within Country (B2B) Card */}
-                        <CategoryCard
-                            category="Within Country (B2B)"
-                            desc="View B2B sales aging."
-                            activeOrders={invoices.filter(inv => {
-                                const cat = (customers.find(c => c.id === inv.customer_id)?.customer_category_name || '').toLowerCase();
-                                return cat.includes('b2b') && !cat.includes('b2c');
-                            }).length}
-                            activeAdvances={allAdvancePayments.filter(adv => {
-                                const cat = (adv.category || '').toLowerCase();
-                                return cat.includes('b2b') && !cat.includes('b2c');
-                            }).length}
-                            onClick={() => handleCardClick('Within Country (B2B)')}
-                        />
-
-                        {/* Within Country (B2C) Card */}
-                        <CategoryCard
-                            category="Within Country (B2C)"
-                            desc="View B2C sales aging."
-                            activeOrders={invoices.filter(inv => (customers.find(c => c.id === inv.customer_id)?.customer_category_name || '').toLowerCase().includes('b2c')).length}
-                            activeAdvances={allAdvancePayments.filter(adv => (adv.category || '').toLowerCase().includes('b2c')).length}
-                            onClick={() => handleCardClick('Within Country (B2C)')}
-                        />
-                    </div>
-                </div>
-            ) : (
-                <>
-                    {/* Header Section */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setViewMode('dashboard')}
-                                className="p-2 hover:bg-gray-100 rounded-[4px] transition-colors"
-                                title="Back to Dashboard"
-                            >
-                                <ChevronLeft className="w-5 h-5 text-gray-600" />
-                            </button>
-                            <h3 className="text-xl font-bold text-gray-900">Sales - {activeCategory}</h3>
+                {viewMode === 'dashboard' ? (
+                    <div>
+                        <div className="mb-6">
+                            <h2 className="section-title">Sales Categories</h2>
+                            <p className="helper-text mt-1">Select a sales category to view receivables aging intelligence.</p>
                         </div>
-
-                        {/* Search Field */}
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Search Customer..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Export Card */}
+                            <CategoryCard
+                                category="Export"
+                                desc="View export sales aging."
+                                activeOrders={invoices.filter(inv => (customers.find(c => c.id === inv.customer_id)?.customer_category_name || '').toLowerCase().includes('export')).length}
+                                activeAdvances={allAdvancePayments.filter(adv => (adv.category || '').toLowerCase().includes('export')).length}
+                                onClick={() => handleCardClick('Export')}
                             />
-                            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+
+                            {/* Within Country (B2B) Card */}
+                            <CategoryCard
+                                category="Within Country (B2B)"
+                                desc="View B2B sales aging."
+                                activeOrders={invoices.filter(inv => {
+                                    const cat = (customers.find(c => c.id === inv.customer_id)?.customer_category_name || '').toLowerCase();
+                                    return cat.includes('b2b') && !cat.includes('b2c');
+                                }).length}
+                                activeAdvances={allAdvancePayments.filter(adv => {
+                                    const cat = (adv.category || '').toLowerCase();
+                                    return cat.includes('b2b') && !cat.includes('b2c');
+                                }).length}
+                                onClick={() => handleCardClick('Within Country (B2B)')}
+                            />
+
+                            {/* Within Country (B2C) Card */}
+                            <CategoryCard
+                                category="Within Country (B2C)"
+                                desc="View B2C sales aging."
+                                activeOrders={invoices.filter(inv => (customers.find(c => c.id === inv.customer_id)?.customer_category_name || '').toLowerCase().includes('b2c')).length}
+                                activeAdvances={allAdvancePayments.filter(adv => (adv.category || '').toLowerCase().includes('b2c')).length}
+                                onClick={() => handleCardClick('Within Country (B2C)')}
+                            />
                         </div>
                     </div>
+                ) : (
+                    <>
+                        {/* Header Section */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => setViewMode('dashboard')}
+                                    className="p-2 hover:bg-gray-100 rounded-[4px] transition-colors"
+                                    title="Back to Dashboard"
+                                >
+                                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                                </button>
+                                <h3 className="text-xl font-bold text-gray-900">Sales - {activeCategory}</h3>
+                            </div>
 
-                    {/* Aging Table */}
-                    <div className="bg-white border border-gray-200 rounded-[4px] overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        {/* Customer Information */}
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
-                                            Customer Code
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
-                                            Customer Name
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
-                                            Sub Category
-                                        </th>
+                            {/* Search Field */}
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Search Customer..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
+                                />
+                                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                            </div>
+                        </div>
 
-                                        {/* Aging Buckets */}
-                                        <th colSpan={5} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-b border-gray-200">
-                                            Amount - Due For
-                                        </th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-l border-gray-200">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                    <tr>
-                                        <th className="border-r border-gray-200"></th>
-                                        <th className="border-r border-gray-200"></th>
-                                        <th className="border-r border-gray-200"></th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
-                                            Not Due
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
-                                            0-45 Days
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
-                                            45-90 Days
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
-                                            {'>'} 6 Months
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50">
-                                            {'>'} 1 Year
-                                        </th>
-                                        <th className="border-l border-gray-200"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredData.map((customer) => (
-                                        <tr key={customer.customerId} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-100">
-                                                {customer.customerCode}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-100">
-                                                {customer.customerName}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-100">
-                                                {customer.subCategory}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
-                                                {customer.notDue > 0 ? formatCurrency(customer.notDue) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
-                                                {customer.days0to45 > 0 ? formatCurrency(customer.days0to45) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
-                                                {customer.days45to90 > 0 ? formatCurrency(customer.days45to90) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
-                                                {customer.months6 > 0 ? formatCurrency(customer.months6) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 bg-indigo-50/30">
-                                                {customer.year1 > 0 ? formatCurrency(customer.year1) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium border-l border-gray-100">
-                                                <div className="flex items-center justify-center space-x-3">
-                                                    <button
-                                                        onClick={() => {
-                                                            const custDef = customers.find(c => c.id?.toString() === customer.customerId);
-                                                            handleViewCustomer(customer.customerId, customer.customerName, custDef?.ledger_id, customer.is_also_vendor, custDef?.credit_period);
-                                                        }}
-                                                        className="text-indigo-600 hover:text-indigo-900"
-                                                        title="View Ledger"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {filteredData.length === 0 && (
+                        {/* Aging Table */}
+                        <div className="bg-white border border-gray-200 rounded-[4px] overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
                                         <tr>
-                                            <td colSpan={9} className="px-6 py-12 text-center text-gray-500 text-sm">
-                                                No customers found matching your search.
-                                            </td>
+                                            {/* Customer Information */}
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                                                Customer Code
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                                                Customer Name
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                                                Sub Category
+                                            </th>
+
+                                            {/* Aging Buckets */}
+                                            <th colSpan={5} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-b border-gray-200">
+                                                Amount - Due For
+                                            </th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-l border-gray-200">
+                                                Actions
+                                            </th>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                        <tr>
+                                            <th className="border-r border-gray-200"></th>
+                                            <th className="border-r border-gray-200"></th>
+                                            <th className="border-r border-gray-200"></th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
+                                                Not Due
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
+                                                0-45 Days
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
+                                                45-90 Days
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50 border-r border-gray-200">
+                                                {'>'} 6 Months
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-indigo-50">
+                                                {'>'} 1 Year
+                                            </th>
+                                            <th className="border-l border-gray-200"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {filteredData.map((customer) => (
+                                            <tr key={customer.customerId} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-100">
+                                                    {customer.customerCode}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-100">
+                                                    {customer.customerName}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-100">
+                                                    {customer.subCategory}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
+                                                    {customer.notDue > 0 ? formatCurrency(customer.notDue) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
+                                                    {customer.days0to45 > 0 ? formatCurrency(customer.days0to45) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
+                                                    {customer.days45to90 > 0 ? formatCurrency(customer.days45to90) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 border-r border-gray-100">
+                                                    {customer.months6 > 0 ? formatCurrency(customer.months6) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 bg-indigo-50/30">
+                                                    {customer.year1 > 0 ? formatCurrency(customer.year1) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium border-l border-gray-100">
+                                                    <div className="flex items-center justify-center space-x-3">
+                                                        <button
+                                                            onClick={() => {
+                                                                const custDef = customers.find(c => c.id?.toString() === customer.customerId);
+                                                                handleViewCustomer(customer.customerId, customer.customerName, custDef?.ledger_id, customer.is_also_vendor, custDef?.credit_period);
+                                                            }}
+                                                            className="text-indigo-600 hover:text-indigo-900"
+                                                            title="View Ledger"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {filteredData.length === 0 && (
+                                            <tr>
+                                                <td colSpan={9} className="px-6 py-12 text-center text-gray-500 text-sm">
+                                                    No customers found matching your search.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                </>
-            )}
+                    </>
+                )}
             </div>
         </UniversalWorkspaceLayout>
     );

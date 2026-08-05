@@ -644,20 +644,22 @@ const CreateSalesOrder: React.FC<CreateSalesOrderProps> = ({ onCancel, editId })
                                 <select
                                     value={soSeries}
                                     onChange={async (e) => {
-                                        const selectedSeries = e.target.value;
-                                        setSOSeries(selectedSeries);
+                                        const selectedSeriesName = e.target.value;
+                                        setSOSeries(selectedSeriesName);
+                                        
+                                        const selectedSeriesObj = soSeriesList.find(s => s.series_name === selectedSeriesName);
                                         
                                         // Fetch preview number when series changes
-                                        if (selectedSeries && !editId) {
+                                        if (selectedSeriesObj && !editId) {
                                             try {
-                                                const response = await httpClient.get<any>(`/api/customerportal/sales-order-series/${selectedSeries}/preview/`);
+                                                const response = await httpClient.get<any>(`/api/customerportal/sales-order-series/${selectedSeriesObj.id}/preview/`);
                                                 if (response && response.preview) {
                                                     setSONumber(response.preview);
                                                 }
                                             } catch (error) {
                                                 console.error('Error fetching SO preview:', error);
                                             }
-                                        } else if (!selectedSeries && !editId) {
+                                        } else if (!selectedSeriesName && !editId) {
                                             setSONumber('');
                                         }
                                     }}
@@ -665,7 +667,7 @@ const CreateSalesOrder: React.FC<CreateSalesOrderProps> = ({ onCancel, editId })
                                 >
                                     <option value="">Select series</option>
                                     {soSeriesList.map(s => (
-                                        <option key={s.id} value={s.id}>{s.series_name}</option>
+                                        <option key={s.id} value={s.series_name}>{s.series_name}</option>
                                     ))}
                                 </select>
                             </div>

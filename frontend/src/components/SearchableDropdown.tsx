@@ -51,8 +51,10 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     useEffect(() => {
         setFilteredOptions(
             options.filter(option => {
+                if (option === null || option === undefined) return false;
                 const label = typeof option === 'string' ? option : option.label;
-                return (label || '').toLowerCase().includes(searchTerm.toLowerCase());
+                if (!label || typeof label !== 'string' || !label.trim()) return false;
+                return label.toLowerCase().includes(searchTerm.toLowerCase());
             })
         );
     }, [searchTerm, options]);
@@ -136,9 +138,9 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                     if (onFocus) onFocus();
                 }}
                 className={`min-h-[42px] w-full px-3 py-2 text-left border rounded-[4px] flex justify-between items-center bg-white transition-all
-                    ${disabled ? 'bg-gray-100 cursor-not-allowed border-gray-300 text-gray-500' : 
-                      error ? 'border-red-500 bg-red-50 ring-1 ring-red-500' :
-                      'border-gray-300 focus:ring-1 focus:ring-indigo-500 hover:border-indigo-400'}
+                    ${disabled ? 'bg-gray-100 cursor-not-allowed border-gray-300 text-gray-500' :
+                        error ? 'border-red-500 bg-red-50 ring-1 ring-red-500' :
+                            'border-gray-300 focus:ring-1 focus:ring-indigo-500 hover:border-indigo-400'}
                     ${!value || (Array.isArray(value) && value.length === 0) ? (error ? 'text-red-600' : 'text-gray-500') : 'text-gray-900 shadow-sm'}
                     ${className}
                 `}
@@ -148,7 +150,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                         value.map(val => (
                             <span key={val} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-medium rounded border border-indigo-100 flex items-center gap-1">
                                 {getOptionLabel(val)}
-                                <span 
+                                <span
                                     className="hover:text-red-500 cursor-pointer font-bold ml-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -275,9 +277,9 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                             filteredOptions.map((option, index) => {
                                 const label = typeof option === 'string' ? option : option.label;
                                 const optValue = typeof option === 'string' ? option : option.value;
-                                const isSelected = isMulti && Array.isArray(value) 
+                                const isSelected = isMulti && Array.isArray(value)
                                     ? value.includes(optValue)
-                                    : value === optValue;
+                                    : (value !== undefined && value !== null && value !== '' && value === optValue);
 
                                 return (
                                     <button
@@ -293,7 +295,11 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                                                     onChange([...newValue, optValue]);
                                                 }
                                             } else {
-                                                onChange(optValue);
+                                                if (value === optValue) {
+                                                    onChange('');
+                                                } else {
+                                                    onChange(optValue);
+                                                }
                                                 setIsOpen(false);
                                             }
                                         }}

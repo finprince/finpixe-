@@ -1,4 +1,4 @@
-﻿import finpixeLogo from '../../assets/branding/logo';
+import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
@@ -339,6 +339,81 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
     return () => clearInterval(interval);
   }, [isIssueSlipTimeEdited, showIssueSlipForm]);
 
+  // Reset Issue Slip Form when closed
+  useEffect(() => {
+    if (!showIssueSlipForm) {
+      setIssueSlipTab('job-work');
+      setJobWorkSubTab('received');
+      setJobWorkSentType('outward');
+      setProductionType('materials_issued');
+      setOutwardType('sales');
+      setReasonsForReturn('');
+      setIssueSlipNumber('');
+      setIssueSlipDate(todayStr);
+      setIsIssueSlipTimeEdited(false);
+      setGoodsFromLocation('');
+      setGoodsToLocation('');
+      setInterProcessToLocation('');
+      setSelectedJobWorkOrderNos([]);
+      setJobWorkReceiptNo('');
+      setJobWorkOutwardRefNo('');
+      setVendorDeliveryChallan('');
+      setJwItemTab('outward');
+      setOutwardSalesOrder('');
+      setOutwardCustomerName('');
+      setOutwardBranch('');
+      setOutwardAddress('');
+      setOutwardGstin('');
+      setOutwardTotalBoxes('');
+      setOutwardSupplierInvoice('');
+      setOutwardVendorName('');
+      setSelectedOutwardSalesOrders([]);
+      setMaterialIssueSlipNo('');
+      setSelectedMaterialIssueSlips([]);
+      setSelectedProcessTransferSlips([]);
+      setProcessTransferSlipNo('');
+      setProdItemTab('materials_issued');
+      setIssueSlipItems([]);
+      setResultingWIPItems([]);
+      setConvertedOutputItems([]);
+      setFgReceiptSlipNo('');
+      setFgItemTab('materials_issued');
+      setFgMaterialsIssuedItems([]);
+      setGoodsProducedItems([]);
+      setConsumptionType('fixed_assets');
+      setFixedAssetLedger('');
+      setExpenseLedger('');
+      setSelectedIssueSlipSeriesName('');
+      setPostingNote('');
+      
+      setScrapSubType('production');
+      setScrapProdSlipSeries('');
+      setScrapProdSlipNo('');
+      setScrapProdDate(todayStr);
+      setScrapProdIssuedTo('');
+      setScrapProdProductionSlipNo('');
+      setScrapProdItems([]);
+      setScrapProdPostingNote('');
+      setScrapOtherSlipSeries('');
+      setScrapOtherSlipNo('');
+      setScrapOtherDate(todayStr);
+      setScrapOtherIssuedFrom('');
+      setScrapOtherIssuedTo('');
+      setScrapOtherItemsScrapped([]);
+      setScrapOtherResultingItems([]);
+      setScrapOtherPostingNote('');
+      setScrapDispSlipSeries('');
+      setScrapDispSlipNo('');
+      setScrapDispDate(todayStr);
+      setScrapDispIssuedFrom('');
+      setScrapDispItems([]);
+      setScrapDispReasonForDisposal('');
+      setScrapDispMethodOfDisposal('');
+      setScrapDispAgency('');
+      setScrapDispCertificate(null);
+    }
+  }, [showIssueSlipForm]);
+
 
   const [goodsFromLocation, setGoodsFromLocation] = useState('');
   const [goodsToLocation, setGoodsToLocation] = useState('');
@@ -499,7 +574,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
         setSelectedIssueSlipSeriesName(outwardSeries[0].name);
         setIssueSlipNumber(outwardSeries[0].preview || '');
       }
-    } else if (issueSlipTab === 'job-work' && jobWorkSubTab === 'sent' && jobWorkSentType === 'outward') {
+    } else if (issueSlipTab === 'job-work' && jobWorkSubTab === 'sent') {
       const jwSeries = issueSlipSeriesList.filter(s =>
         (s.issueSlipType || '').toLowerCase().includes('jobwork') ||
         (s.issueSlipType || '').toLowerCase().includes('job work') ||
@@ -507,8 +582,11 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
         (s.issueSlipType || '').toLowerCase().includes('job-work')
       );
       if (jwSeries.length === 1) {
-        setSelectedIssueSlipSeriesName(jwSeries[0].name);
-        setIssueSlipNumber(jwSeries[0].preview || '');
+        if (jobWorkSentType === 'outward') {
+          handleIssueSlipSeriesChange(jwSeries[0].name, setSelectedIssueSlipSeriesName, setIssueSlipNumber);
+        } else if (jobWorkSentType === 'receipt') {
+          handleIssueSlipSeriesChange(jwSeries[0].name, setSelectedIssueSlipSeriesName, setJobWorkReceiptNo);
+        }
       }
     } else if (issueSlipTab === 'consumption') {
       const consumptionSeries = issueSlipSeriesList.filter(s => (s.issueSlipType || '').toLowerCase() === 'consumption');
@@ -791,8 +869,11 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
 
   const fetchOutwardSalesOrders = async (customerName?: string) => {
     try {
-      const filters: any = { status: 'pending' };
-      if (customerName) filters.customer_name = customerName;
+      if (!customerName) {
+        setOutwardSalesOrderOptions([]);
+        return;
+      }
+      const filters: any = { status: 'pending', customer_name: customerName };
 
       const response = await apiService.getSalesOrders(filters);
       setOutwardSalesOrderOptions(Array.isArray(response) ? response : []);
@@ -1965,6 +2046,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
         const outwardPayload = {
           outward_slip_no: issueSlipNumber,
           issue_slip_series: selectedIssueSlipSeriesName,
+          issue_slip_series_id: issueSlipSeriesList.find((s: any) => s.name === selectedIssueSlipSeriesName)?.id,
           date: issueSlipDate || null,
           time: issueSlipTime || null,
           outward_type: outwardType,
@@ -2758,6 +2840,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
 
   const handlePurchaseReturnVendorChange = async (vendorName: string) => {
     setOutwardVendorName(vendorName);
+    setOutwardSupplierInvoice('');
     setOutwardBranch('');
     setOutwardBranchOptions([]);
     setOutwardAddress('');
@@ -4728,14 +4811,34 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                   {issueSlipTab === 'job-work' && jobWorkSubTab === 'sent' && jobWorkSentType === 'receipt' && (
                     <div className="mt-8 space-y-6">
                       {/* Top Row: Job work Receipt No */}
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-5">
+                        <div className="w-1/4">
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">Job-work Series</label>
+                          <select
+                            value={selectedIssueSlipSeriesName}
+                            onChange={(e) => handleIssueSlipSeriesChange(e.target.value, setSelectedIssueSlipSeriesName, setJobWorkReceiptNo)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                          >
+                            <option value="">Select Series</option>
+                            {issueSlipSeriesList.filter((s: any) =>
+                              (s.issueSlipType || '').toLowerCase().includes('jobwork') ||
+                              (s.issueSlipType || '').toLowerCase().includes('job work') ||
+                              (s.issueSlipType || '').toLowerCase().includes('job_work') ||
+                              (s.issueSlipType || '').toLowerCase().includes('job-work')
+                            ).map((s: any) => (
+                              <option key={s.id} value={s.name}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
                         <div className="w-1/4">
                           <label className="block text-sm font-semibold text-gray-700 mb-1">Job work Receipt No.</label>
                           <input
                             type="text"
                             value={jobWorkReceiptNo}
                             onChange={(e) => setJobWorkReceiptNo(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            readOnly={!!selectedIssueSlipSeriesName}
+                            placeholder="Enter Receipt No. or select series"
+                            className={`w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${selectedIssueSlipSeriesName ? 'bg-gray-50 text-indigo-700 font-semibold cursor-not-allowed' : ''}`}
                           />
                         </div>
                       </div>
@@ -5245,7 +5348,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                               }))}
                               selectedValues={selectedOutwardSalesOrders}
                               onChange={handleOutwardSalesOrderChange}
-                              placeholder="Select Pending Sales Orders"
+                              placeholder={outwardCustomerName ? "Select Pending Sales Orders" : "Select Customer First"}
+                              disabled={!outwardCustomerName}
                             />
                             {selectedOutwardSalesOrders.length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-1">
@@ -5549,25 +5653,16 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Vendor Name</label>
-                            {outwardSupplierInvoice ? (
-                              <input
-                                type="text"
-                                value={outwardVendorName}
-                                readOnly
-                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100"
-                              />
-                            ) : (
-                              <select
-                                value={outwardVendorName}
-                                onChange={(e) => handlePurchaseReturnVendorChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              >
-                                <option value="">Select Vendor</option>
-                                {vendors.map(v => (
-                                  <option key={v.id} value={v.vendor_name}>{v.vendor_name}</option>
-                                ))}
-                              </select>
-                            )}
+                            <select
+                              value={outwardVendorName}
+                              onChange={(e) => handlePurchaseReturnVendorChange(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Select Vendor</option>
+                              {vendors.map(v => (
+                                <option key={v.id} value={v.vendor_name}>{v.vendor_name}</option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Branch</label>
@@ -7433,7 +7528,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                                       })()}
                                     </select>
                                   </td>
-                                  <td className="px-3 py-2"><input type="number" value={item.quantity} onChange={(e) => handleIssueSlipItemChange(index, 'quantity', e.target.value)} placeholder="Qty" className="w-full px-2 py-1 border border-gray-300 rounded text-sm" /></td>
+                                  <td className="px-3 py-2"><input type="number" min="0" value={item.quantity} onChange={(e) => handleIssueSlipItemChange(index, 'quantity', e.target.value)} placeholder="Qty" className="w-full px-2 py-1 border border-gray-300 rounded text-sm" /></td>
                                   <td className="px-3 py-2"><input type="number" value={item.rate} readOnly className="w-full px-2 py-1 bg-gray-50 border border-gray-300 rounded text-sm cursor-not-allowed" /></td>
                                   <td className="px-3 py-2 text-sm font-medium">₹{Number(item.value || 0).toFixed(2)}</td>
                                   <td className="px-3 py-2 text-center">

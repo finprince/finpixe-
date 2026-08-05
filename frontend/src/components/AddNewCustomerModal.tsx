@@ -475,9 +475,14 @@ const AddNewCustomerModal: React.FC<AddNewCustomerModalProps> = ({ isOpen, onClo
                                 <select value={formData.customer_category} onChange={e => setFormData(p => ({ ...p, customer_category: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white">
                                     <option value="">Select Category</option>
-                                    {Array.from(new Map(categories.map(cat => [cat.full_path || [cat.category, cat.group, cat.subgroup].filter(Boolean).join(' > '), cat])).values()).map(cat => (
+                                    {Array.from(new Map(categories.map(cat => {
+                                        const rawPath = cat.full_path || [cat.category, cat.group, cat.subgroup].filter(Boolean).join(' > ');
+                                        const normalizedDisplay = rawPath.trim().replace(/\s*>\s*/g, ' > ');
+                                        const dedupeKey = normalizedDisplay.toLowerCase();
+                                        return [dedupeKey, { ...cat, display_path: normalizedDisplay }];
+                                    })).values()).map(cat => (
                                         <option key={cat.id} value={cat.id}>
-                                            {cat.full_path || [cat.category, cat.group, cat.subgroup].filter(Boolean).join(' > ')}
+                                            {cat.display_path}
                                         </option>
                                     ))}
                                 </select>
