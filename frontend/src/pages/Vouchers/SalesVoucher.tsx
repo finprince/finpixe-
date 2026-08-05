@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { apiService } from '../../services/api';
 import { httpClient } from '../../services/httpClient';
 import { showError, showSuccess } from '../../utils/toast';
@@ -1646,8 +1646,20 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
         });
 
         let filtered = Array.from(uniqueMap.values());
+        
+        if (!customerName) {
+            return []; // Return empty list if no customer is selected
+        }
+        
+        const rawCustName = resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '').toString().trim().toLowerCase() : customerName.trim().toLowerCase();
+
+        filtered = filtered.filter(doc => {
+            const docCustName = (doc.customer || '').toString().trim().toLowerCase();
+            return docCustName === rawCustName;
+        });
+        
         return filtered;
-    }, [salesOrders, salesQuotations, customerName, masterCustomers, salesOrderNos]);
+    }, [salesOrders, salesQuotations, customerName, masterCustomers, salesOrderNos, resolvedCustomer]);
 
     const [itemRows, setItemRows] = useState<ItemRow[]>([
         {
@@ -1959,11 +1971,24 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     const showForeignTabs = stateType === 'export' || FOREIGN_INVOICE_TYPES.includes(invoiceType);
 
     const applySlipData = (val: string, slipsList: any[]) => {
-        const selectedSlip = slipsList.find(s =>
-            (s.outward_slip_no === val) ||
-            (s.slip_no === val) ||
-            (s.id?.toString() === val)
-        );
+        const rawCustName = resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName;
+        const cleanRawCustName = rawCustName.split(' - CUST-')[0].trim().toLowerCase();
+
+        let selectedSlip = slipsList.find(s => {
+            const isNumMatch = (s.outward_slip_no === val) || (s.slip_no === val) || (s.id?.toString() === val);
+            if (!isNumMatch) return false;
+            const slipCustomer = (s.customer_name || s.customerName || '').split(' - CUST-')[0].trim().toLowerCase();
+            return !cleanRawCustName || !slipCustomer || slipCustomer === cleanRawCustName;
+        });
+
+        if (!selectedSlip) {
+            selectedSlip = slipsList.find(s =>
+                (s.outward_slip_no === val) ||
+                (s.slip_no === val) ||
+                (s.id?.toString() === val)
+            );
+        }
+
         if (selectedSlip) {
             setOutwardSlipId(selectedSlip.id || null);
         } else {
@@ -2076,11 +2101,32 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             setOutwardSlipError('');
             return true;
         }
-        const selectedSlip = outwardSlipsData.find(s =>
-            (s.outward_slip_no === outwardSlipNo) ||
-            (s.slip_no === outwardSlipNo) ||
-            (s.id?.toString() === outwardSlipNo)
-        );
+
+        const rawCustName = resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName;
+        const cleanRawCustName = rawCustName.split(' - CUST-')[0].trim().toLowerCase();
+
+        // 1. First try matching by explicit ID if available
+        let selectedSlip = outwardSlipsData.find(s => outwardSlipId && (s.id === outwardSlipId || s.id?.toString() === outwardSlipId?.toString()));
+
+        // 2. Next try matching by slip number AND customer name
+        if (!selectedSlip) {
+            selectedSlip = outwardSlipsData.find(s => {
+                const isNumMatch = (s.outward_slip_no === outwardSlipNo) || (s.slip_no === outwardSlipNo) || (s.id?.toString() === outwardSlipNo);
+                if (!isNumMatch) return false;
+                const slipCustomer = (s.customer_name || s.customerName || '').split(' - CUST-')[0].trim().toLowerCase();
+                return !cleanRawCustName || !slipCustomer || slipCustomer === cleanRawCustName;
+            });
+        }
+
+        // 3. Fallback to matching by slip number alone
+        if (!selectedSlip) {
+            selectedSlip = outwardSlipsData.find(s =>
+                (s.outward_slip_no === outwardSlipNo) ||
+                (s.slip_no === outwardSlipNo) ||
+                (s.id?.toString() === outwardSlipNo)
+            );
+        }
+
         if (!selectedSlip) {
             setOutwardSlipError('');
             return true;
@@ -2091,9 +2137,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
         const slipBranch = selectedSlip.branch || selectedSlip.branch_name || '';
         const slipGstin = selectedSlip.gstin || '';
 
-        const rawCustName = resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName;
         const cleanSlipCustomer = slipCustomer.split(' - CUST-')[0].trim().toLowerCase();
-        const cleanRawCustName = rawCustName.split(' - CUST-')[0].trim().toLowerCase();
         if (slipCustomer && rawCustName && cleanSlipCustomer !== cleanRawCustName) {
             setOutwardSlipError(`Customer Name '${rawCustName}' does not match Outward Slip (${slipCustomer}).`);
             return false;
@@ -4023,7 +4067,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             const isSelected = row.selected !== false;
                                             return (
                                                 <React.Fragment key={row.id}>
-                                                    <tr className={`hover:bg-opacity-80 transition-colors ${rowColorClass || 'hover:bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
+                                                    <tr className={`group hover:bg-opacity-80 transition-colors ${rowColorClass || 'hover:bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
                                                         <td className="px-3 py-2 text-center border-r border-gray-200">
                                                             <input
                                                                 type="checkbox"
@@ -4276,33 +4320,33 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                 <table className="w-full">
                                     <thead className="bg-indigo-600 text-white">
                                         <tr>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">S. No.</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">S. No.</th>
                                             {salesOrderNos.length > 0 && (
-                                                <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Sales Order No.</th>
+                                                <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">SO No.</th>
                                             )}
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Item Code</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Item Name</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">HSN/SAC</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Qty</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">UOM</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Alternate Unit</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Item Rate</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Taxable Value</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Item Code</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Item Name</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">HSN/SAC</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Qty</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">UOM</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Alt Unit</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Rate</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Tax Value</th>
                                             {!isTaxHidden && (
                                                 !isInterState ? (
                                                     <>
-                                                        <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">CGST</th>
-                                                        <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">SGST/UTGST</th>
+                                                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">CGST</th>
+                                                        <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">SGST</th>
                                                     </>
                                                 ) : (
-                                                    <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">IGST</th>
+                                                    <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">IGST</th>
                                                 )
                                             )}
                                             {!isCessHidden && (
-                                                <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">CESS</th>
+                                                <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">CESS</th>
                                             )}
-                                            <th className="px-3 py-2 text-xs font-semibold text-center border-r border-blue-400">Invoice Value</th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-center">Delete</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center border-r border-blue-400 whitespace-nowrap">Inv Value</th>
+                                            <th className="px-2 py-2 text-[11px] font-semibold text-center sticky right-0 z-10 bg-indigo-600 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">Del</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -4311,8 +4355,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             const isSelected = row.selected !== false;
                                             return (
                                                 <React.Fragment key={row.id}>
-                                                    <tr className={`border-b border-gray-200 hover:bg-opacity-80 transition-colors ${rowColorClass || 'hover:bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
-                                                        <td className="px-2 py-2 text-center text-sm font-medium border-r border-gray-200">
+                                                    <tr className={`group border-b border-gray-200 hover:bg-opacity-80 transition-colors ${rowColorClass || 'hover:bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
+                                                        <td className="px-1 py-1 text-center text-sm font-medium border-r border-gray-200">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isSelected}
@@ -4320,14 +4364,14 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 className={`w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 ${gstRegistered ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                                                                 disabled={gstRegistered}
                                                             />
-                                                            <span className="ml-2">{index + 1}</span>
+                                                            <span className="ml-1 text-xs">{index + 1}</span>
                                                         </td>
                                                         {salesOrderNos.length > 0 && (
-                                                            <td className="px-2 py-2 border-r border-gray-200 text-sm text-center text-gray-600">
+                                                            <td className="px-1 py-1 border-r border-gray-200 text-xs text-center text-gray-600">
                                                                 {row.sourceDoc || '-'}
                                                             </td>
                                                         )}
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200 min-w-[100px]">
                                                             <SearchableDropdown
                                                                 options={itemCodeOptions}
                                                                 value={row.itemCode}
@@ -4336,7 +4380,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 disabled={gstRegistered}
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200 min-w-[120px]">
                                                             <SearchableDropdown
                                                                 options={itemNameOptions}
                                                                 value={row.itemName}
@@ -4345,27 +4389,27 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 disabled={gstRegistered}
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200 min-w-[70px]">
                                                             <input
                                                                 type="text"
                                                                 value={row.hsnSac}
                                                                 onChange={(e) => handleItemRowChange(row.id, 'hsnSac', e.target.value)}
-                                                                className={`w-full px-2 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-sm text-center ${gstRegistered ? 'bg-gray-100 opacity-70 cursor-not-allowed' : 'bg-transparent'}`}
+                                                                className={`w-full px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center ${gstRegistered ? 'bg-gray-100 opacity-70 cursor-not-allowed' : 'bg-transparent'}`}
                                                                 disabled={gstRegistered}
                                                                 placeholder="HSN/SAC"
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                 value={row.qty}
                                                                 min="0"
                                                                 onChange={(e) => handleItemRowChange(row.id, 'qty', e.target.value)}
-                                                                className="w-20 px-2 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-sm text-center bg-transparent"
+                                                                className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                 placeholder="Qty"
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200 min-w-[70px]">
                                                             <SearchableDropdown
                                                                 options={getRowUomOptions(row)}
                                                                 value={row.uom}
@@ -4374,16 +4418,16 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 disabled={gstRegistered}
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="text"
                                                                 value={row.alternateUnit}
                                                                 readOnly
-                                                                className="w-24 px-2 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-sm"
+                                                                className="w-20 px-1 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-[11px] text-center"
                                                                 placeholder="Alt Unit"
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                 value={row.itemRate}
@@ -4391,78 +4435,78 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 readOnly={activeTab === 'item_tax_inr'}
                                                                 onChange={activeTab === 'item_tax_inr' ? undefined : (e) => handleItemRowChange(row.id, 'itemRate', e.target.value)}
                                                                 title={activeTab === 'item_tax_inr' ? 'Rate (INR) is auto-calculated as Rate (FC) × Conversion Rate' : undefined}
-                                                                className={`w-24 px-2 py-1 border-0 rounded text-sm ${activeTab === 'item_tax_inr'
+                                                                className={`w-20 px-1 py-1 border-0 rounded text-[11px] text-center ${activeTab === 'item_tax_inr'
                                                                     ? 'bg-gray-100 bg-opacity-50 text-gray-600 cursor-not-allowed select-none'
                                                                     : 'focus:ring-1 focus:ring-indigo-500'
                                                                     }`}
                                                                 placeholder="Rate"
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="text"
                                                                 value={row.taxableValue}
                                                                 readOnly
-                                                                className="w-24 px-2 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-sm"
+                                                                className="w-20 px-1 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-[11px] text-center"
                                                             />
                                                         </td>
                                                         {!isTaxHidden && (
                                                             !isInterState ? (
                                                                 <>
-                                                                    <td className="px-2 py-2 border-r border-gray-200">
+                                                                    <td className="px-1 py-1 border-r border-gray-200">
                                                                         <input
                                                                             type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                             value={row.cgst}
                                                                             min="0"
                                                                             onChange={(e) => handleItemRowChange(row.id, 'cgst', e.target.value)}
-                                                                            className="w-20 px-2 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-sm bg-transparent"
+                                                                            className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                             placeholder="CGST"
                                                                         />
                                                                     </td>
-                                                                    <td className="px-2 py-2 border-r border-gray-200">
+                                                                    <td className="px-1 py-1 border-r border-gray-200">
                                                                         <input
                                                                             type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                             value={row.sgst}
                                                                             min="0"
                                                                             onChange={(e) => handleItemRowChange(row.id, 'sgst', e.target.value)}
-                                                                            className="w-20 px-2 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-sm bg-transparent"
+                                                                            className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                             placeholder="SGST"
                                                                         />
                                                                     </td>
                                                                 </>
                                                             ) : (
-                                                                <td className="px-2 py-2 border-r border-gray-200">
+                                                                <td className="px-1 py-1 border-r border-gray-200">
                                                                     <input
                                                                         type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                         value={row.igst}
                                                                         readOnly
-                                                                        className="w-20 px-2 py-1 border-0 rounded text-sm bg-gray-50 bg-opacity-50 text-gray-700 cursor-not-allowed"
+                                                                        className="w-16 px-1 py-1 border-0 rounded text-[11px] text-center bg-gray-50 bg-opacity-50 text-gray-700 cursor-not-allowed"
                                                                         placeholder="IGST"
                                                                     />
                                                                 </td>
                                                             )
                                                         )}
                                                         {!isCessHidden && (
-                                                            <td className="px-2 py-2 border-r border-gray-200">
+                                                            <td className="px-1 py-1 border-r border-gray-200">
                                                                 <input
                                                                     type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                     value={row.cess}
                                                                     min="0"
                                                                     onChange={(e) => handleItemRowChange(row.id, 'cess', e.target.value)}
-                                                                    className="w-20 px-2 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-sm bg-transparent"
+                                                                    className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                     placeholder="CESS"
                                                                 />
                                                             </td>
                                                         )}
-                                                        <td className="px-2 py-2 border-r border-gray-200">
+                                                        <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="text"
                                                                 value={row.invoiceValue}
                                                                 readOnly
-                                                                className="w-28 px-2 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-sm font-medium"
+                                                                className="w-24 px-1 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-[11px] text-center font-medium"
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2 text-center">
+                                                        <td className="px-1 py-1 text-center sticky right-0 z-10 bg-white group-hover:bg-gray-50 border-l border-gray-200 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleDeleteItemRow(row.id)}
@@ -4478,9 +4522,9 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     </tr>
                                                     {/* Sales Ledger and Description Row */}
                                                     <tr className={`border-b border-gray-200 ${rowColorClass || 'bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
-                                                        <td colSpan={4} className="px-2 py-2">
+                                                        <td colSpan={4} className="px-1 py-1">
                                                             <div className="flex items-center gap-2">
-                                                                <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Sales Ledger:</label>
+                                                                <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-1">Sales Ledger:</label>
                                                                 <div className="flex-1">
                                                                     <SearchableDropdown
                                                                         options={salesLedgerOptions}
@@ -4491,15 +4535,15 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td colSpan={!isInterState ? 10 : 9} className="px-2 py-2">
+                                                        <td colSpan={!isInterState ? 10 : 9} className="px-1 py-1 pr-8">
                                                             <div className="flex items-center gap-2">
-                                                                <label className="text-xs font-medium text-gray-700 whitespace-nowrap">ledger narration:</label>
+                                                                <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-2 uppercase">Ledger Narration:</label>
                                                                 <input
                                                                     type="text"
                                                                     value={row.description}
                                                                     onChange={(e) => handleItemRowChange(row.id, 'description', e.target.value)}
                                                                     placeholder="Enter ledger narration"
-                                                                    className={`flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-indigo-500 ${gstRegistered ? 'bg-gray-100 opacity-70 cursor-not-allowed' : 'bg-white bg-opacity-80'}`}
+                                                                    className={`flex-1 px-2 py-1 border border-gray-300 rounded text-[11px] focus:ring-1 focus:ring-indigo-500 ${gstRegistered ? 'bg-gray-100 opacity-70 cursor-not-allowed' : 'bg-white bg-opacity-80'}`}
                                                                     disabled={gstRegistered}
                                                                 />
                                                             </div>
@@ -4511,65 +4555,65 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
 
                                         {/* Totals Row */}
                                         <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
-                                            <td colSpan={8} className="px-3 py-2 text-right text-sm">Total:</td>
-                                            <td className="px-2 py-2">
+                                            <td colSpan={8} className="px-2 py-2 text-right text-[11px]">Total:</td>
+                                            <td className="px-1 py-1">
                                                 <input
                                                     type="text"
                                                     value={calculateTotals().taxableValue.toFixed(2)}
                                                     readOnly
-                                                    className="w-24 px-2 py-1 bg-white border border-gray-300 rounded text-sm font-semibold text-center"
+                                                    className="w-20 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                 />
                                             </td>
                                             {!isTaxHidden && (
                                                 !isInterState ? (
                                                     <>
-                                                        <td className="px-2 py-2">
+                                                        <td className="px-1 py-1">
                                                             <input
                                                                 type="text"
                                                                 value={calculateTotals().cgst.toFixed(2)}
                                                                 readOnly
-                                                                className="w-20 px-2 py-1 bg-white border border-gray-300 rounded text-sm font-semibold text-center"
+                                                                className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                             />
                                                         </td>
-                                                        <td className="px-2 py-2">
+                                                        <td className="px-1 py-1">
                                                             <input
                                                                 type="text"
                                                                 value={calculateTotals().sgst.toFixed(2)}
                                                                 readOnly
-                                                                className="w-20 px-2 py-1 bg-white border border-gray-300 rounded text-sm font-semibold text-center"
+                                                                className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                             />
                                                         </td>
                                                     </>
                                                 ) : (
-                                                    <td className="px-2 py-2">
+                                                    <td className="px-1 py-1">
                                                         <input
                                                             type="text"
                                                             value={calculateTotals().igst.toFixed(2)}
                                                             readOnly
-                                                            className="w-20 px-2 py-1 bg-white border border-gray-300 rounded text-sm font-semibold text-center"
+                                                            className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                         />
                                                     </td>
                                                 )
                                             )}
                                             {!isCessHidden && (
-                                                <td className="px-2 py-2">
+                                                <td className="px-1 py-1">
                                                     <input
                                                         type="text"
                                                         value={calculateTotals().cess.toFixed(2)}
                                                         readOnly
-                                                        className="w-20 px-2 py-1 bg-white border border-gray-300 rounded text-sm font-semibold text-center"
+                                                        className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                     />
                                                 </td>
                                             )}
-                                            <td className="px-2 py-2">
+                                            <td className="px-1 py-1">
                                                 <input
                                                     type="text"
                                                     value={calculateTotals().invoiceValue.toFixed(2)}
                                                     readOnly
-                                                    className="w-28 px-2 py-1 bg-white border border-gray-300 rounded text-sm font-semibold text-center"
+                                                    className="w-24 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                 />
                                             </td>
-                                            <td className="px-2 py-2"></td>
+                                            <td className="px-1 py-1 sticky right-0 z-10 bg-gray-100 border-l border-gray-200 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]"></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -6077,6 +6121,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             {
                 isIssueSlipModalOpen && (
                     <CreateIssueSlipModal
+                        allowedTypes={['sales']}
                         onClose={() => setIsIssueSlipModalOpen(false)}
                         initialData={{
                             customerName: resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName,

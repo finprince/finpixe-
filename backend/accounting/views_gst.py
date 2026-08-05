@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum, Q, Count, Min, Max
 from accounting.models_voucher_sales import VoucherSalesInvoiceDetails, VoucherSalesItems
+from accounting.models import AdvanceAllocation
 from core.mixins import IsBranchMember
 
 def get_payment_details(v):

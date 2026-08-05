@@ -188,10 +188,11 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
                 const seen = new Set<string>();
 
                 allPaths.forEach(path => {
-                    const lower = path.toLowerCase();
+                    const trimmed = path.trim().replace(/\s*>\s*/g, ' > ');
+                    const lower = trimmed.toLowerCase();
                     if (!seen.has(lower)) {
                         seen.add(lower);
-                        uniquePaths.push(path);
+                        uniquePaths.push(trimmed);
                     }
                 });
 

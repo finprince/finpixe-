@@ -2802,6 +2802,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
 
             {isIssueSlipModalOpen && (
                 <CreateIssueSlipModal
+                    allowedTypes={['purchase_return']}
                     onClose={() => setIsIssueSlipModalOpen(false)}
                     onSave={(data) => {
                         console.log('Outward Slip Data:', data);

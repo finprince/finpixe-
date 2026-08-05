@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { httpClient } from '../services/httpClient';
 import { showWarning } from '../utils/toast';
@@ -57,9 +57,10 @@ interface CreateIssueSlipModalProps {
         address?: string;
         gstin?: string;
     };
+    allowedTypes?: ('sales' | 'purchase_return')[];
 }
 
-const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, onSave, initialData }) => {
+const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, onSave, initialData, allowedTypes }) => {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -79,7 +80,8 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
     const [address, setAddress] = useState(initialData?.address || '');
     const [gstin, setGstin] = useState(initialData?.gstin || '');
     const [postingNote, setPostingNote] = useState('');
-    const [outwardType, setOutwardType] = useState<'sales' | 'purchase_return'>('sales');
+    const defaultType = (allowedTypes && allowedTypes.length === 1) ? allowedTypes[0] : 'sales';
+    const [outwardType, setOutwardType] = useState<'sales' | 'purchase_return'>(defaultType);
     const [reasonsForReturn, setReasonsForReturn] = useState('');
 
     // Delivery Challan / Dispatch Details State
@@ -264,16 +266,26 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
 
     // Update Address & GSTIN when Branch changes
 
-    // Fetch next Issue Slip Number
-    const fetchNextSlipNo = React.useCallback((seriesName: string, seriesList: any[]) => {
+    // Fetch next Issue Slip Number dynamically from API
+    const fetchNextSlipNo = React.useCallback(async (seriesName: string, seriesList: any[]) => {
         if (!seriesName || seriesList.length === 0) {
             setOutwardSlipNo('');
             return;
         }
         const selectedSeriesObj = seriesList.find((s: any) => s.name === seriesName);
         if (selectedSeriesObj) {
-            // Fetch the preview value of the selected Outward Slip Series
+            // Set initial preview as fallback
             setOutwardSlipNo(selectedSeriesObj.preview || '');
+            try {
+                const response = await httpClient.get<{ outward_slip_no: string }>(
+                    `/api/inventory/master-voucher-issue-slip/${selectedSeriesObj.id}/next-number/`
+                );
+                if (response && response.outward_slip_no) {
+                    setOutwardSlipNo(response.outward_slip_no);
+                }
+            } catch (error) {
+                console.error('Error fetching next issue slip number:', error);
+            }
         }
     }, []);
 
@@ -540,9 +552,11 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
             }
         }
 
+        const selectedSeriesObj = outwardSeriesList.find((s: any) => s.name === outwardSlipSeries);
         const payload = {
             outward_slip_no: outwardSlipNo,
             issue_slip_series_name: outwardSlipSeries || '',
+            issue_slip_series_id: selectedSeriesObj ? selectedSeriesObj.id : null,
             date: date || null,
             time: time || null,
             outward_type: outwardType,
@@ -629,33 +643,39 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                 </div>
 
                 <div className="p-6">
-                    {/* Outward Type Toggle */}
-                    <div className="flex items-center gap-6 mb-6">
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                            <input
-                                type="radio"
-                                name="outward_type"
-                                checked={outwardType === 'sales'}
-                                onChange={() => setOutwardType('sales')}
-                                className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <span className={`text-sm font-bold uppercase tracking-wide transition-colors ${outwardType === 'sales' ? 'text-indigo-700' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                                Sales
-                            </span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                            <input
-                                type="radio"
-                                name="outward_type"
-                                checked={outwardType === 'purchase_return'}
-                                onChange={() => setOutwardType('purchase_return')}
-                                className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <span className={`text-sm font-bold uppercase tracking-wide transition-colors ${outwardType === 'purchase_return' ? 'text-indigo-700' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                                Purchase Return
-                            </span>
-                        </label>
-                    </div>
+                    {/* Outward Type Selection */}
+                    {(!allowedTypes || allowedTypes.length > 1) && (
+                        <div className="flex items-center gap-6 mb-6 pb-4 border-b border-gray-100">
+                            {(!allowedTypes || allowedTypes.includes('sales')) && (
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input
+                                        type="radio"
+                                        name="outward_type"
+                                        checked={outwardType === 'sales'}
+                                        onChange={() => setOutwardType('sales')}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <span className={`text-sm font-bold uppercase tracking-wide transition-colors ${outwardType === 'sales' ? 'text-indigo-700' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                                        Sales
+                                    </span>
+                                </label>
+                            )}
+                            {(!allowedTypes || allowedTypes.includes('purchase_return')) && (
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input
+                                        type="radio"
+                                        name="outward_type"
+                                        checked={outwardType === 'purchase_return'}
+                                        onChange={() => setOutwardType('purchase_return')}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <span className={`text-sm font-bold uppercase tracking-wide transition-colors ${outwardType === 'purchase_return' ? 'text-indigo-700' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                                        Purchase Return
+                                    </span>
+                                </label>
+                            )}
+                        </div>
+                    )}
 
                     {/* Row 1 */}
                     <div className="grid grid-cols-4 gap-5">

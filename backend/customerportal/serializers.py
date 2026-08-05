@@ -358,7 +358,14 @@ class CustomerMasterLongTermContractBasicDetailSerializer(serializers.ModelSeria
 
     class Meta:
         model = CustomerMasterLongTermContractBasicDetail
-        fields = ['id', 'tenant_id', 'contract_number', 'customer_id', 'customer_name', 'branch_id', 'branch_name', 'contract_type', 'contract_validity_from', 'contract_validity_to', 'contract_document', 'automate_billing', 'bill_start_date', 'billing_frequency', 'bill_period_from', 'bill_period_to', 'is_active', 'is_deleted', 'created_at', 'updated_at', 'created_by', 'products_services', 'terms_conditions']
+        fields = [
+            'id', 'tenant_id', 'contract_number', 'customer_id', 'customer_name',
+            'branch_id', 'branch_name', 'contract_type', 'contract_validity_from', 'contract_validity_to',
+            'contract_document', 'automate_billing', 'bill_start_date', 'billing_frequency',
+            'bill_period_from', 'bill_period_to',
+            'is_active', 'is_paused', 'is_deleted', 'created_at', 'updated_at', 'created_by',
+            'products_services', 'terms_conditions'
+        ]
         read_only_fields = ['id', 'tenant_id', 'created_by', 'created_at', 'updated_at']
 
     def get_branch_name(self, obj):

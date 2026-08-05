@@ -219,6 +219,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
     // Filter Receive In (Debit) options: Cash, Bank, CC, OD, and Loans/Borrowings
     const receiveInLedgers = useMemo(() => {
         const filtered = allLedgers.filter(l => {
+            if (!l || !l.name || !l.name.trim()) return false;
             const group = (l.group || '').toLowerCase();
             const category = (l.category || '').toLowerCase();
             const words = group.split(/[\s-]+/); // split by space or hyphen
@@ -236,7 +237,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
             );
         });
         // Deduplicate by name
-        return Array.from(new Map<string, any>(filtered.map(l => [(l.name || '').toLowerCase(), l])).values());
+        return Array.from(new Map<string, any>(filtered.filter(l => l.name && l.name.trim()).map(l => [(l.name || '').toLowerCase(), l])).values());
     }, [allLedgers]);
 
     const receiveFromOptions = useMemo(() => {
@@ -1543,7 +1544,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                 type="number" onWheel={(e) => e.currentTarget.blur()}
                                 value={topAmount || ''}
                                 onChange={(e) => {
-                                    const val = parseFloat(e.target.value) || 0;
+                                    const val = Math.max(0, parseFloat(e.target.value) || 0);
                                     setTopAmount(val);
                                     handleTotalAmountChange(val);
                                 }}
@@ -1578,7 +1579,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                     <input
                                         type="number" onWheel={(e) => e.currentTarget.blur()}
                                         value={singleAdvanceAmount || ''}
-                                        onChange={(e) => setSingleAdvanceAmount(parseFloat(e.target.value) || 0)}
+                                        onChange={(e) => setSingleAdvanceAmount(Math.max(0, parseFloat(e.target.value) || 0))}
 
                                         className="w-full px-3 py-2 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                                         placeholder="0.00"
@@ -1616,7 +1617,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
 
                             {receiveFrom ? (
                                 <>
-                                    <div className="border-2 border-gray-200 rounded-[4px] overflow-hidden">
+                                    <div className="border-2 border-gray-200 rounded-[4px] overflow-x-auto">
                                         <table className="w-full">
                                             <thead className="bg-indigo-600 border-b-2 border-indigo-700 text-white">
                                                 <tr>
@@ -1673,7 +1674,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                 <input
                                                                     type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                     value={txn.receipt || ''}
-                                                                    onChange={(e) => handleReceiptChange(index, parseFloat(e.target.value) || 0)}
+                                                                    onChange={(e) => handleReceiptChange(index, Math.max(0, parseFloat(e.target.value) || 0))}
                                                                     placeholder="0"
                                                                     className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
                                                                         status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
@@ -1878,7 +1879,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                 key={`amount-${row.id}`}
                                                 type="number" onWheel={(e) => e.currentTarget.blur()}
                                                 value={row.amount || ''}
-                                                onChange={e => handleReceiptRowChange(row.id, 'amount', parseFloat(e.target.value) || 0)}
+                                                onChange={e => handleReceiptRowChange(row.id, 'amount', Math.max(0, parseFloat(e.target.value) || 0))}
 
                                                 placeholder="Receive now/Advance total"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm h-[40px]"
@@ -1936,8 +1937,9 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                 <div className="bg-white rounded-[4px] p-4 min-h-[400px]">
                                     {bulkTransactions.length > 0 ? (
                                         <>
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                                            <div className="overflow-x-auto w-full border border-gray-200 rounded-[4px]">
+                                                <table className="w-full text-sm min-w-max">
+                                                    <thead className="bg-gray-50 border-b-2 border-gray-200">
                                                     <tr>
                                                         <th className="px-2 py-3 text-left text-xs font-medium text-gray-600 uppercase">DATE</th>
                                                         <th className="px-2 py-3 text-left text-xs font-medium text-gray-600 uppercase">REFERENCE</th>
@@ -2002,7 +2004,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                     <input
                                                                         type="number" onWheel={(e) => e.currentTarget.blur()}
                                                                         value={transaction.receiveNow || ''}
-                                                                        onChange={e => handleReceiveNowChange(transaction.id, parseFloat(e.target.value) || 0)}
+                                                                        onChange={e => handleReceiveNowChange(transaction.id, Math.max(0, parseFloat(e.target.value) || 0))}
                                                                         className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
                                                                             status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
                                                                                 status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
@@ -2023,6 +2025,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                     })}
                                                 </tbody>
                                             </table>
+                                            </div>
                                             <div className="border-t-2 border-gray-200 bg-white px-6 py-4 flex justify-end items-center gap-4">
                                                 <span className="text-sm font-semibold text-gray-700">Total Receipt</span>
                                                 <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-[4px] text-sm font-bold text-gray-900 min-w-[120px] text-right">
@@ -2062,7 +2065,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                 <input
                                                     type="number" onWheel={(e) => e.currentTarget.blur()}
                                                     value={advanceAmount || ''}
-                                                    onChange={e => setAdvanceAmount(parseFloat(e.target.value) || 0)}
+                                                    onChange={e => setAdvanceAmount(Math.max(0, parseFloat(e.target.value) || 0))}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded"
                                                 />
                                             </div>

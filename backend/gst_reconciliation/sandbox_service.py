@@ -11,18 +11,47 @@ class SandboxGSTService:
     """
 
     def __init__(self, client_id=None, client_secret=None):
-        self.client_id = client_id or os.environ.get('SANDBOX_API_TEST_KEY') or os.environ.get('WHITEBOOKS_CLIENT_ID')
-        self.client_secret = client_secret or os.environ.get('SANDBOX_API_TEST_SECRET') or os.environ.get('WHITEBOOKS_CLIENT_SECRET')
-        self.email = os.environ.get('WHITEBOOKS_EMAIL', 'val@gmail.com')
-        self.base_url = 'https://apisandbox.whitebooks.in'
-        self.mock_mode = True
-
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
+        except Exception:
+            pass
+        self.client_id = client_id or os.environ.get('WHITEBOOKS_CLIENT_ID') or os.environ.get('SANDBOX_API_TEST_KEY')
+        self.client_secret = client_secret or os.environ.get('WHITEBOOKS_CLIENT_SECRET') or os.environ.get('SANDBOX_API_TEST_SECRET')
+        self.email = os.environ.get('WHITEBOOKS_EMAIL', 'dharunm100903@gmail.com')
+        self.base_url = "https://apisandbox.whitebooks.in"
+        # Set USE_MOCK_SANDBOX=False in backend/.env to connect directly to live WhiteBooks Sandbox API
+        mock_env = os.environ.get('USE_MOCK_SANDBOX', 'True').lower()
+        self.mock_mode = mock_env in ('true', '1', 'yes')
+        
     def _get_auth_headers(self, gstin):
         """WhiteBooks requires specific headers including gst_username and state_cd"""
-        gst_username_map = {'33AAGCB1286Q1ZB': 'TN_NT2.152383', '27AAGCB1286Q1Z4': 'MH_NT2.1641', '33AAGCB1286Q2ZA': 'TN_NT2.152384', '27AAGCB1286Q2Z3': 'MH_NT2.1642'}
-        username = gst_username_map.get(gstin, 'TN_NT2.152383')
-        state_cd = '33' if username.startswith('TN') else '27'
-        return {'Accept': 'application/json', 'Content-Type': 'application/json', 'gst_username': username, 'state_cd': state_cd, 'ip_address': '127.0.0.1', 'client_id': self.client_id or '', 'client_secret': self.client_secret or ''}
+        clean_gstin = str(gstin or '').strip().upper()
+        state_cd = clean_gstin[:2] if (len(clean_gstin) >= 2 and clean_gstin[:2].isdigit()) else '33'
+
+        gst_username_map = {
+            '33AAGCB1286Q1ZB': 'TN_NT2.152383',
+            '27AAGCB1286Q1Z4': 'MH_NT2.1641',
+            '33AAGCB1286Q2ZA': 'TN_NT2.152384',
+            '27AAGCB1286Q2Z3': 'MH_NT2.1642'
+        }
+
+        if clean_gstin in gst_username_map:
+            username = gst_username_map[clean_gstin]
+        elif os.environ.get('WHITEBOOKS_GST_USERNAME'):
+            username = os.environ.get('WHITEBOOKS_GST_USERNAME')
+        else:
+            username = clean_gstin or 'TN_NT2.152383'
+
+        return {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'gst_username': username,
+            'state_cd': state_cd,
+            'ip_address': '127.0.0.1',
+            'client_id': self.client_id or '',
+            'client_secret': self.client_secret or ''
+        }
 
     def request_otp(self, gstin):
         """Request OTP from WhiteBooks API"""

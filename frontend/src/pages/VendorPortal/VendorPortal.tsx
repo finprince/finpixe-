@@ -1,4 +1,4 @@
-﻿// Vendor Portal - Master Configuration
+// Vendor Portal - Master Configuration
 import finpixeLogo from '../../assets/branding/logo';
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Eye, Pencil, Trash2, Plus, Search, Filter, ChevronLeft, X, Receipt, Check, Download } from 'lucide-react';
@@ -800,7 +800,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                 const dB = new Date(b.date).getTime();
                 if (dA !== dB) return dA - dB;
                 // Within same date, use numeric ID fallback
-                return parseInt(a.id.replace('t-', '')) - parseInt(b.id.replace('t-', ''));
+                return (parseInt(String(a.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(b.id).replace(/\D/g, ''), 10) || 0);
             });
 
             let balance = 0;
@@ -973,7 +973,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             const dDiff = new Date(firstA?.date || 0).getTime() - new Date(firstB?.date || 0).getTime();
             if (dDiff !== 0) return dDiff;
             // Within same date, maintain chronological order via ID
-            return parseInt(firstA?.id?.toString().replace('t-', '') || '0') - parseInt(firstB?.id?.toString().replace('t-', '') || '0');
+            return (parseInt(String(firstA?.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(firstB?.id).replace(/\D/g, ''), 10) || 0);
         });
 
         sortedGroupRefs.forEach(ref => {
@@ -1007,7 +1007,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             const sources = entries.filter(e => ['Purchase', 'Sales'].includes(e.transferFrom))
                 .sort((a, b) => {
                     const d = new Date(a.date).getTime() - new Date(b.date).getTime();
-                    return d !== 0 ? d : parseInt(a.id.replace('t-', '')) - parseInt(b.id.replace('t-', ''));
+                    return d !== 0 ? d : (parseInt(String(a.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(b.id).replace(/\D/g, ''), 10) || 0);
                 });
 
             // If no Purchase (source) exists in this group, do not show it in Allocation View
@@ -1016,7 +1016,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             const applications = entries.filter(e => ['Payment', 'Receipt', 'Debit Note', 'Credit Note'].includes(e.transferFrom))
                 .sort((a, b) => {
                     const d = new Date(a.date).getTime() - new Date(b.date).getTime();
-                    return d !== 0 ? d : parseInt(a.id.replace('t-', '')) - parseInt(b.id.replace('t-', ''));
+                    return d !== 0 ? d : (parseInt(String(a.id).replace(/\D/g, ''), 10) || 0) - (parseInt(String(b.id).replace(/\D/g, ''), 10) || 0);
                 });
 
             // Combine all sources in the group for one span
@@ -3243,7 +3243,12 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
 
         } catch (error: any) {
             console.error('❌ Error during vendor onboarding:', error);
-            handleApiError(error, 'Save Vendor');
+            if (error.response?.status === 404 || error.response?.status === 403) {
+                resetVendorCreationFlow();
+                showError('Vendor not found in current workspace. Form has been reset.');
+            } else {
+                handleApiError(error, 'Save Vendor');
+            }
         } finally {
             setIsSubmitting(false);
         }

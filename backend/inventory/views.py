@@ -182,15 +182,17 @@ def increment_issue_slip_series(tenant_id, series_name, series_id=None):
         elif series_name:
             series = InventoryMasterIssueSlip.objects.filter(tenant_id=tenant_id, name=series_name).first()
             
-        if series and series.preview:
-            match = re.search(r'(\d+)$', series.preview)
-            if match:
-                num_str = match.group(1)
-                num = int(num_str) + 1
-                prefix = series.preview[:match.start()]
-                series.preview = f"{prefix}{num:0{len(num_str)}d}"
-            else:
-                series.preview = f"{series.preview}-1"
+        if series:
+            # Increment start_from based logic to handle suffixes properly
+            current_num = series.start_from if series.start_from else 1
+            series.start_from = current_num + 1
+            
+            prefix = series.prefix or ""
+            suffix = series.suffix or ""
+            digits = series.required_digits if series.required_digits else 4
+            
+            num_str = str(series.start_from).zfill(digits)
+            series.preview = f"{prefix}{num_str}{suffix}"
             series.save()
     except Exception as e:
         import logging
@@ -321,7 +323,7 @@ class InventoryOperationJobWorkViewSet(viewsets.ModelViewSet):
             instance = serializer.save(tenant_id=tenant_id)
             
             # Increment the preview number in the master series
-            series_name = self.request.data.get('issue_slip_series')
+            series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
             series_id = self.request.data.get('issue_slip_series_id')
             increment_issue_slip_series(tenant_id, series_name, series_id)
             
@@ -366,7 +368,7 @@ class InventoryOperationInterUnitViewSet(viewsets.ModelViewSet):
         instance = serializer.save(tenant_id=tenant_id)
         
         # Increment the preview number in the master series
-        series_name = self.request.data.get('issue_slip_series')
+        series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
         series_id = self.request.data.get('issue_slip_series_id')
         increment_issue_slip_series(tenant_id, series_name, series_id)
 
@@ -404,7 +406,7 @@ class InventoryOperationLocationChangeViewSet(viewsets.ModelViewSet):
         instance = serializer.save(tenant_id=tenant_id)
         
         # Increment the preview number in the master series
-        series_name = self.request.data.get('issue_slip_series')
+        series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
         series_id = self.request.data.get('issue_slip_series_id')
         increment_issue_slip_series(tenant_id, series_name, series_id)
 
@@ -450,7 +452,7 @@ class InventoryOperationProductionViewSet(viewsets.ModelViewSet):
             instance = serializer.save(tenant_id=tenant_id)
             
             # Increment
-            series_name = self.request.data.get('issue_slip_series')
+            series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
             series_id = self.request.data.get('issue_slip_series_id')
             increment_issue_slip_series(tenant_id, series_name, series_id)
 
@@ -497,7 +499,7 @@ class InventoryOperationConsumptionViewSet(viewsets.ModelViewSet):
             instance = serializer.save(tenant_id=tenant_id)
             
             # Increment
-            series_name = self.request.data.get('issue_slip_series')
+            series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
             series_id = self.request.data.get('issue_slip_series_id')
             increment_issue_slip_series(tenant_id, series_name, series_id)
 
@@ -539,7 +541,7 @@ class InventoryOperationScrapViewSet(viewsets.ModelViewSet):
             instance = serializer.save(tenant_id=tenant_id)
             
             # Increment
-            series_name = self.request.data.get('issue_slip_series')
+            series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
             series_id = self.request.data.get('issue_slip_series_id')
             increment_issue_slip_series(tenant_id, series_name, series_id)
 
@@ -584,7 +586,7 @@ class InventoryOperationOutwardViewSet(viewsets.ModelViewSet):
             
             # Increment
             series_id = self.request.data.get('issue_slip_series_id')
-            series_name = self.request.data.get('issue_slip_series')
+            series_name = self.request.data.get('issue_slip_series') or self.request.data.get('issue_slip_series_name')
             increment_issue_slip_series(tenant_id, series_name, series_id)
 
             # Record Movement
@@ -668,16 +670,17 @@ class InventoryOperationNewGRNViewSet(viewsets.ModelViewSet):
         elif series_name:
             series = InventoryMasterGRN.objects.filter(tenant_id=tenant_id, name=series_name).first()
 
-        if series and series.preview:
-            import re
-            match = re.search(r'(\d+)$', series.preview)
-            if match:
-                num_str = match.group(1)
-                num = int(num_str) + 1
-                prefix = series.preview[:match.start()]
-                series.preview = f"{prefix}{num:0{len(num_str)}d}"
-            else:
-                series.preview = f"{series.preview}-1"
+        if series:
+            # Increment start_from based logic to handle suffixes properly
+            current_num = series.start_from if series.start_from else 1
+            series.start_from = current_num + 1
+            
+            prefix = series.prefix or ""
+            suffix = series.suffix or ""
+            digits = series.required_digits if series.required_digits else 4
+            
+            num_str = str(series.start_from).zfill(digits)
+            series.preview = f"{prefix}{num_str}{suffix}"
             series.save()
         
         # Record Stock Movement for GRN

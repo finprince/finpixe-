@@ -176,7 +176,7 @@ export default function GSTR2Page({ onNavigate, setViewVoucherData }: { onNaviga
 
                 <div className="erp-container p-0 shadow-sm overflow-hidden">
                     <div
-                        className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto select-none"
+                        className="erp-tab-container mb-0 border-b border-slate-100 px-6 overflow-x-auto overflow-y-hidden select-none"
                         onWheel={(e) => {
                             if (e.deltaY !== 0) {
                                 e.currentTarget.scrollLeft += e.deltaY;
