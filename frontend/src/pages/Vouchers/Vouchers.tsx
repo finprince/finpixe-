@@ -13003,16 +13003,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <Icon name="edit" className="w-4 h-4" />
                       EDIT VOUCHER
                     </button>
-                    {isSalesVoucher && (
-                      <button
-                        id="cancel-invoice-btn"
-                        onClick={handleCancelInvoice}
-                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
-                      >
-                        <Icon name="x-circle" className="w-4 h-4" />
-                        CANCEL INVOICE
-                      </button>
-                    )}
+
                     <button
                       onClick={handleCloseVoucher}
                       className="flex items-center gap-2 bg-indigo-800/60 text-indigo-50 px-5 py-3 rounded-xl font-bold text-sm border border-indigo-400/40 hover:bg-indigo-800/90 transition-all active:scale-95"
