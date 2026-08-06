@@ -239,9 +239,17 @@ const ServicePage: React.FC<ServicePageProps> = ({ navParams }) => {
 
   const fetchLedgers = async () => {
     try {
+      // Fetch all ledgers and filter for Expenditure category on the frontend
       const response = await httpClient.get('/api/masters/ledgers/');
       if (response && Array.isArray(response)) {
-        setLedgers(response);
+        const expenseLedgers = response.filter((item: any) => {
+          const cat = (item.category || '').toLowerCase();
+          return cat === 'expense' || cat === 'expenditure';
+        });
+        const uniqueLedgers = Array.from(
+          new Map(expenseLedgers.map((item: any) => [item.name || item.id, item])).values()
+        );
+        setLedgers(uniqueLedgers);
       }
     } catch (error) {
       handleApiError(error, 'Fetch Ledgers');

@@ -553,14 +553,30 @@ class DaybookReportView(BaseExcelView):
             for v in vouchers:
                 v_id = v.get('id')
                 amt = float(v.get('amount') or v.get('total') or 0)
+                v_type = v.get('type', '')
+                # Map voucher type to the correct source hint so the frontend
+                # routes the detail fetch to the right API endpoint.
+                source_map = {
+                    'Sales': 'voucher_sales_new',
+                    'Purchase': 'purchase_voucher',
+                    'Payment': 'payment',
+                    'Receipt': 'receipt',
+                    'Contra': 'contra',
+                    'Journal': 'journal',
+                    'Expenses': 'expense',
+                    'Debit Note': 'debit_note_voucher',
+                    'Credit Note': 'credit_note_voucher',
+                }
+                source_hint = source_map.get(v_type, v_type.lower())
                 data.append({
                     'id': v_id,
                     'voucher_id': v_id,
                     'reference_id': v_id,
                     'source_id': v_id,
+                    'source': source_hint,
                     'date': str(v['date']),
-                    'type': v.get('type', ''),
-                    'voucher_type': v.get('type', ''),
+                    'type': v_type,
+                    'voucher_type': v_type,
                     'voucher_number': v.get('voucher_number') or v.get('invoice_no') or '',
                     'invoice_no': v.get('voucher_number') or v.get('invoice_no') or '',
                     'party': v.get('party') or '',
