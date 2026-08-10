@@ -1,0 +1,29 @@
+To issue goods from the central warehouse, you can follow these steps:
+
+1. **Stage 1: Materials Issued**
+	* Select the PRODUCTION tab and check MATERIALS ISSUED FOR PRODUCTION.
+	* Choose the transaction DATE, TIME, raw material warehouse under ISSUED FROM, and production line under ISSUED TO.
+	* In the Raw Materials grid (left), click + ADD RAW MATERIAL to enter raw items consumed.
+	* In the Resulting WIP grid (right), click + ADD WIP ITEM to log any intermediate products.
+	* Click POST & CLOSE.
+
+2. **Stage 3: Finished Goods Produced**
+	* Select the PRODUCTION tab and check FINISHED GOODS PRODUCED.
+	* Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+	* PROCESS TRANSFER SLIP NO.: Select the parent Process Transfer Slip(s) from the dropdown to link input processes. (Hold Ctrl/Cmd to select multiple).
+	* Select your commercial warehouse under ISSUED TO.
+
+3. **A.7.6 Outward Slips (Sales & Purchase Returns)**
+	* A. Sales Outward Slips: Used to record dispatches to customers.
+	* Select the OUTWARD tab and check SALES.
+	* Select the ISSUE SLIP SERIES to generate the OUTWARD SLIP NO. (e.g., kg17).
+	* Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+	* PROCESS TRANSFER SLIP NO.: Select the parent Process Transfer Slip(s) from the dropdown to link input processes. (Hold Ctrl/Cmd to select multiple).
+	* Select your commercial warehouse under ISSUED TO.
+
+4. **Dual Grid Sub-Tabs:**
+	* Materials Issued: Displays raw materials pulled from the parent slips.
+	* Converted Output: Enter the intermediate Work-in-Progress (WIP) items generated.
+	* Click POST & CLOSE.
+
+Please note that these steps are based on the provided evidence documents and may vary depending on your specific system or process.

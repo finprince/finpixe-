@@ -1,22 +1,17 @@
-"""
-Standardized exceptions package for Kiki AI ERP Agent.
-"""
 from .kiki_exceptions import (
-    KikiException,
-    SchemaException,
-    QueryBuilderException,
-    SqlValidationException,
-    SqlExecutionException,
-    OllamaException,
-    InvestigationException,
+    KikiBaseException,
+    KikiTenantSecurityException,
+    KikiRBACPermissionException,
+    KikiModelTimeoutException,
+    KikiSQLValidationException,
+    KikiQueryCostExceededException
 )
 
 __all__ = [
-    "KikiException",
-    "SchemaException",
-    "QueryBuilderException",
-    "SqlValidationException",
-    "SqlExecutionException",
-    "OllamaException",
-    "InvestigationException",
+    "KikiBaseException",
+    "KikiTenantSecurityException",
+    "KikiRBACPermissionException",
+    "KikiModelTimeoutException",
+    "KikiSQLValidationException",
+    "KikiQueryCostExceededException"
 ]

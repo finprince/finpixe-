@@ -1,6 +1,3 @@
-"""
-Configuration package for Kiki AI ERP Agent.
-"""
-from .settings import KikiSettings
+from .settings import kiki_settings, KikiSettings
 
-__all__ = ["KikiSettings"]
+__all__ = ["kiki_settings", "KikiSettings"]

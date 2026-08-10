@@ -1,0 +1,43 @@
+Evidence Documents:
+Select the warehouse under ISSUED FROM (LOCATION).
+Under ITEMS, click + ADD ITEM and enter Code, Name, UOM, Qty, and Rate. The system calculates the Capitalized Value automatically.
+Click POST & CLOSE.
+B. Issued for Daily Operations (Expensed)
+Use this option when inventory is consumed for routine operations and should be expensed immediately.
+Select the CONSUMPTION tab and check ISSUED FOR DAILY OPERATIONS.
+Select the EXPENSE LEDGER* (e.g. Office Expenses) and specify the source warehouse location under ISSUED FROM (LOCATION).
+---
+Select the PRODUCTION tab and check FINISHED GOODS PRODUCED.
+Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+PROCESS TRANSFER SLIP NO.: Select the parent Process Transfer Slip(s) from the dropdown to link input processes. (Hold Ctrl/Cmd to select multiple).
+Select your commercial warehouse under ISSUED TO.
+Dual Grid Sub-Tabs:
+Materials Issued: Displays the consumed components list.
+Goods Produced: Click + ADD ITEM to record the finished items (Code, Name, HSN, UOM, Qty Available, Qty Issued, Rate, and Amount).
+---
+Fill out the header details:
+Date & Time: Enter transaction date and time.
+Location: Select the receiving company warehouse.
+GRN Series Name: Select your numbering series. The GRN NO. will automatically generate.
+Vendor Name & Branch: Select the supplier (for purchases) or customer (for sales returns). GSTIN and address details will auto-fill.
+Purchase Order No.: Select the parent purchase order(s). (You can hold Ctrl/Cmd to select multiple POs).
+Upload Document: Click to attach the supplier's invoice or delivery challan.
+---
+REASON FOR DISPOSAL: Explanation note.
+METHOD OF DISPOSAL: Process description (e.g., Recycling, Incineration).
+DISPOSAL AGENCY: Select the scrap buying contractor from the dropdown.
+CERTIFICATE OF DISPOSAL: Click UPLOAD CERTIFICATE to attach third-party disposal receipts or certificates.
+Click POST & CLOSE.
+A.8 Stock Movement Summary Dashboard
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+---
+Select the OUTWARD tab and check SALES.
+Select the ISSUE SLIP SERIES to generate the OUTWARD SLIP NO. (e.g. kg17).
+Set the DATE, TIME, and LOCATION warehouse the items are leaving.
+SALES ORDER NO.: Optionally select pending sales orders from the dropdown to pull quantities and terms.
+Select the CUSTOMER NAME and BRANCH (Address and GSTIN will auto-fill).
+Under ITEMS, click + ADD ITEM and enter: Item Code, Name, HSN, UOM, Quantity, No. of boxes/packs, and Remarks. The system displays the calculated TOTAL NUMBER OF BOXES / PACKS below the grid.
+
+User Question: What is the process for approving stock write-offs above 50,000 INR?
+Provide a complete, factual, evidence-based answer.

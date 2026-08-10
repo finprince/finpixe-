@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { httpClient } from '../services/httpClient';
 import { apiService } from '../services';
 import { showError, showSuccess, showInfo } from '../utils/toast';
@@ -2012,7 +2012,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                 </div>
             </div>
 
-            {/* Inline Create Vendor Modal triggered during Upload to Kiki */}
+            {/* Inline Create Vendor Modal triggered during Upload to System */}
             {isCreateVendorModalOpen && (
                 <CreateNewVendorFullModal
                     prefilledData={extractedVendorData || {}}

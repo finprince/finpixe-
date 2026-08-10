@@ -1,0 +1,42 @@
+Evidence Documents:
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+---
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+A.7.3 Location Change Slips
+Used for internal stock movements between warehouses under the same company premises. It does not require transporter dispatch details or e-way bills.
+Select the LOCATION CHANGE tab.
+Select the ISSUE SLIP SERIES (fills the ISSUE SLIP NO.).
+Set transaction DATE, TIME, GOODS SENT FROM (source location) and GOODS SENT TO (destination location).
+---
+Stage 2: Inter-Process Transfer
+Used when materials are undergoing multi-step processing and move between work centers.
+Select the PRODUCTION tab and check INTER-PROCESS TRANSFER.
+Enter the PROCESS TRANSFER SLIP NO., DATE, and TIME.
+MATERIAL ISSUE SLIP NO.: Select the parent Material Issue Slip(s) from the dropdown. (You can hold Ctrl/Cmd to select multiple slips).
+Select the destination department location under ISSUED TO (the source location auto-fills from the linked slips).
+Dual Grid Sub-Tabs:
+---
+Select the PRODUCTION tab and check FINISHED GOODS PRODUCED.
+Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+PROCESS TRANSFER SLIP NO.: Select the parent Process Transfer Slip(s) from the dropdown to link input processes. (Hold Ctrl/Cmd to select multiple).
+Select your commercial warehouse under ISSUED TO.
+Dual Grid Sub-Tabs:
+Materials Issued: Displays the consumed components list.
+Goods Produced: Click + ADD ITEM to record the finished items (Code, Name, HSN, UOM, Qty Available, Qty Issued, Rate, and Amount).
+---
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+
+User Question: How are stock transfers processed between warehouses?
+Provide a complete, factual, evidence-based answer.

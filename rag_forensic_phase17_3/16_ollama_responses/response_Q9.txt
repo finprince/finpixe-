@@ -1,0 +1,20 @@
+According to the provided documentation, Goods Receipt Notes (GRNs) record incoming materials and update stock levels and ledger entries as follows:
+
+1. **Inward Quantity and Value**: When a GRN is recorded, the system updates the "Inward" quantity and value in the Stock Movement Summary dashboard under the Operations tab.
+2. **Opening Stock**: The system also updates the "Opening Stock" quantity and value to reflect the new stock balance at the beginning of the period.
+3. **Closing Stock**: The system calculates the "Closing Stock" by adding the "Inward" quantity and subtracting the "Outward" quantity, then updates the ledger entries accordingly.
+
+Here's a step-by-step breakdown:
+
+1. When a GRN is recorded, the system checks if there are any existing stock balances for the item.
+2. If there are no existing stock balances, the system creates a new entry in the ledger with the "Inward" quantity and value.
+3. If there are existing stock balances, the system updates the opening stock balance by adding the "Inward" quantity and subtracting the "Outward" quantity.
+4. The system then calculates the closing stock balance by taking the sum of the updated opening stock balance and the "Inward" quantity minus the "Outward" quantity.
+5. The calculated closing stock balance is then reflected in the ledger entries.
+
+This process ensures that the inventory levels and ledger entries are accurately updated when a GRN is recorded, providing a real-time overview of stock flows and valuations.
+
+References:
+
+* A.6 Recording Transactions: Goods Receipt Notes (GRN)
+* Stock Movement Summary dashboard under the Operations tab

@@ -1,0 +1,15 @@
+According to the provided Evidence Documents, stock transfers between warehouses can be processed through two methods:
+
+1. **Inter-Unit Slips**: This method is used for inventory transfers between sister units or distinct corporate branches. To process an inter-unit slip:
+	* Select the INTER-UNIT tab.
+	* Set the transfer DATE and TIME.
+	* Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+	* Add items to the grid, including Code, Name, HSN/SAC, UOM, Qty, and Rate.
+	* Fill in Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+
+2. **Location Change Slips**: This method is used for internal stock movements between warehouses under the same company premises. It does not require transporter dispatch details or e-way bills. To process a location change slip:
+	* Select the LOCATION CHANGE tab.
+	* Set transaction DATE, TIME, GOODS SENT FROM (source location), and GOODS SENT TO (destination location).
+	* Add items to the grid, including Code, Name, HSN/SAC, UOM, Qty, and Rate.
+
+In both cases, the process involves selecting the relevant tab, setting the necessary details, adding items to the grid, and clicking POST & CLOSE to complete the transfer.

@@ -1,0 +1,49 @@
+=== QUERY: What is the quantum encryption protocol used for inventory database backups? ===
+Rewritten: What is the Quantum Encryption Protocol used for inventory database backups?
+Compressed Evidence Chunks: 5
+
+Prompt Sent:
+Evidence Documents:
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+B.1 Backend Directory & Source Code Paths
+The backend inventory codebase is situated at backend/inventory/. It contains the following core files:
+models.py
+: Defines Django models, database index fields, unique constraints, and Django ORM mappings.
+serializers.py
+: Contains data validation logic, creation overrides, and address mappings for transport compliance.
+---
+UNIQUE KEY `inventory_master_category_uniq` (`tenant_id`,`category`(100),`group`(100),`subgroup`(100),`sub_subgroup`(100)),
+  KEY `inventory_master_category_tenant_id_idx` (`tenant_id`),
+  KEY `inventory_master_category_is_active_idx` (`tenant_id`,`is_active`),
+  KEY `inventory_master_category_category_idx` (`category`(100)),
+  CONSTRAINT `inventory_master_category_tenant_id_fk` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Inventory Category Hierarchy';
+---
+UNIQUE KEY `inventory_master_category_uniq` (`tenant_id`,`category`(100),`group`(100),`subgroup`(100),`sub_subgroup`(100)),
+  KEY `inventory_master_category_tenant_id_idx` (`tenant_id`),
+  KEY `inventory_master_category_is_active_idx` (`tenant_id`,`is_active`),
+  KEY `inventory_master_category_category_idx` (`category`(100)),
+  CONSTRAINT `inventory_master_category_tenant_id_fk` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Inventory Category Hierarchy';
+---
+Section A: End-User Functional Guide (Step-by-step guides, user interfaces, form fields, and operational workflows).
+Section B: Developer Technical Specifications (Codebase file structures, viewset controllers, business flow models, and serializers).
+Section C: Database Schema & DDL Specifications (MySQL tables, indexes, constraints, and relationships).
+SECTION A: End-User Functional Guide
+This section is written for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions on a daily basis.
+---
+UNIQUE KEY `inventory_master_category_uniq` (`tenant_id`,`category`(100),`group`(100),`subgroup`(100),`sub_subgroup`(100)),
+  KEY `inventory_master_category_tenant_id_idx` (`tenant_id`),
+  KEY `inventory_master_category_is_active_idx` (`tenant_id`,`is_active`),
+  KEY `inventory_master_category_category_idx` (`category`(100)),
+  CONSTRAINT `inventory_master_category_tenant_id_fk` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Inventory Category Hierarchy';
+
+User Question: What is the Quantum Encryption Protocol used for inventory database backups?
+Provide a complete, factual, evidence-based answer.
+
+Ollama Reply:
+There is no mention of a "Quantum Encryption Protocol" in the provided documents. The documents appear to be related to an inventory management system, and they discuss topics such as database schema, file structures, and technical specifications.
+
+Therefore, it is not possible to provide a factual answer to this question based on the evidence provided, as there is no mention of a Quantum Encryption Protocol or any information about how it might be used for inventory database backups.

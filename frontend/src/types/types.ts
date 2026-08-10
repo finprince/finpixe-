@@ -358,12 +358,7 @@ export interface ExtractedInvoiceData {
   lineItems: ExtractedLineItem[];
 }
 
-// For AI Agent
-export interface AgentMessage {
-  role: 'user' | 'model';
-  text: string;
-  sources?: { uri: string; title: string; }[];
-}
+
 
 // For Mass Upload feature
 export type MassUploadStatus = 'pending' | 'processing' | 'success' | 'error';

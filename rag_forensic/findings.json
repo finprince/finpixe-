@@ -1,0 +1,30 @@
+{
+  "test_document": {
+    "path": "C:\\Users\\ulaganathan\\Downloads\\Finpixe Inventory sample content.docx",
+    "size_bytes": 31419,
+    "sha256": "99e21264c12e986acbaec4fe38aa3c8c54910d589c1e14ec8d5327507b7dcc4e",
+    "paragraphs": 574,
+    "raw_text_characters": 33209
+  },
+  "ingestion": {
+    "chunks_generated": 85,
+    "chunking_strategy": "semantic_paragraph_heading_hierarchy",
+    "validation_passed": true
+  },
+  "embedding": {
+    "model": "BAAI/bge-large-en-v1.5",
+    "dimension": 1024,
+    "norms_consistent": true
+  },
+  "retrieval": {
+    "dense_provider": "ChromaVectorStoreProvider",
+    "sparse_provider": "BM25SparseEngine",
+    "fusion": "RRF (Reciprocal Rank Fusion)",
+    "reranker": "BGE-Reranker-Large"
+  },
+  "synthesis": {
+    "llm_provider": "OllamaClient",
+    "prompt_budget": "dynamic_budget_context_compressor"
+  },
+  "verdict": "HEALTHY WITH WARNINGS"
+}

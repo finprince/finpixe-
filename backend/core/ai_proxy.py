@@ -8,7 +8,7 @@ All Google GenAI SDK dependencies have been eliminated.
 The provider abstraction layer (core/providers/) is the sole AI interface.
 
 Configuration:
-    QWEN_MODEL    = qwen-vl-max          (model name served by your vLLM/Ollama server)
+    QWEN_MODEL    = qwen-vl-max          (model name served by your vLLM server)
     QWEN_API_BASE = http://localhost:8080/v1  (your Qwen server base URL)
     QWEN_API_KEY  = EMPTY                (leave empty for unauthenticated local servers)
 """
@@ -733,7 +733,7 @@ def process_ai_request(request_data: dict) -> dict:
             history = request_data.get('history', []) or []
 
             agent_system_prompt = (
-                "You are Kiki, a helpful AI accounting assistant for an Indian ERP system. "
+                "You are a helpful AI accounting assistant for an Indian ERP system. "
                 "Answer the user's question clearly and concisely in plain text. "
                 "Do NOT wrap your reply in JSON, code blocks, or any structured format. "
                 "Respond ONLY with natural language text."

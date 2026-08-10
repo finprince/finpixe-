@@ -1,0 +1,92 @@
+=== QUERY: How does multi-location warehouse management integrate with purchase orders? ===
+Rewritten: What is the integration process for Multi-Location Warehouse Management and Purchase Orders?
+Compressed Evidence Chunks: 5
+
+Prompt Sent:
+Evidence Documents:
+Fill out the header details:
+Date & Time: Enter transaction date and time.
+Location: Select the receiving company warehouse.
+GRN Series Name: Select your numbering series. The GRN NO. will automatically generate.
+Vendor Name & Branch: Select the supplier (for purchases) or customer (for sales returns). GSTIN and address details will auto-fill.
+Purchase Order No.: Select the parent purchase order(s). (You can hold Ctrl/Cmd to select multiple POs).
+Upload Document: Click to attach the supplier's invoice or delivery challan.
+---
+Create Group: Under the GROUP input box, type the group name (e.g., Import). Click CREATE GROUP.
+Success Alert: A banner will confirm: Success: Group created successfully!. The group will populate in the category tree.
+A.3 Location Management (Godowns & Warehouses)
+Locations enable you to track stock across different company premises or third-party facilities.
+Step-by-Step: Creating a Location
+Open Inventory > Master > Location.
+Fill out the Create Location form:
+Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+---
+Create Group: Under the GROUP input box, type the group name (e.g., Import). Click CREATE GROUP.
+Success Alert: A banner will confirm: Success: Group created successfully!. The group will populate in the category tree.
+A.3 Location Management (Godowns & Warehouses)
+Locations enable you to track stock across different company premises or third-party facilities.
+Step-by-Step: Creating a Location
+Open Inventory > Master > Location.
+Fill out the Create Location form:
+Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+---
+Create Group: Under the GROUP input box, type the group name (e.g., Import). Click CREATE GROUP.
+Success Alert: A banner will confirm: Success: Group created successfully!. The group will populate in the category tree.
+A.3 Location Management (Godowns & Warehouses)
+Locations enable you to track stock across different company premises or third-party facilities.
+Step-by-Step: Creating a Location
+Open Inventory > Master > Location.
+Fill out the Create Location form:
+Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+---
+Create Group: Under the GROUP input box, type the group name (e.g., Import). Click CREATE GROUP.
+Success Alert: A banner will confirm: Success: Group created successfully!. The group will populate in the category tree.
+A.3 Location Management (Godowns & Warehouses)
+Locations enable you to track stock across different company premises or third-party facilities.
+Step-by-Step: Creating a Location
+Open Inventory > Master > Location.
+Fill out the Create Location form:
+Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+
+User Question: What is the integration process for Multi-Location Warehouse Management and Purchase Orders?
+Provide a complete, factual, evidence-based answer.
+
+Ollama Reply:
+Based on the provided Evidence Documents, I can provide a step-by-step guide on how to integrate Multi-Location Warehouse Management with Purchase Orders.
+
+**Step 1: Create Locations**
+
+To enable multi-location warehouse management, you need to create separate locations for each warehouse or office. To do this:
+
+* Open Inventory > Master > Location.
+* Fill out the Create Location form:
+	+ Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+	+ GROUP input box: Type the group name (e.g., Import) and click CREATE GROUP.
+
+**Step 2: Assign Locations to Purchase Orders**
+
+Once you have created locations, you can assign them to purchase orders. To do this:
+
+* Open Purchase Order > Create Purchase Order.
+* Fill out the Create Purchase Order form:
+	+ Vendor Name & Branch: Select the supplier (for purchases) or customer (for sales returns).
+	+ GSTIN and address details will auto-fill.
+	+ Location: Select the receiving company warehouse from the dropdown list.
+
+**Step 3: Upload Documents**
+
+After assigning locations to purchase orders, you can upload relevant documents such as invoices or delivery challans. To do this:
+
+* Open Purchase Order > Create Purchase Order.
+* Fill out the Create Purchase Order form:
+	+ Upload Document: Click to attach the supplier's invoice or delivery challan.
+
+**Step 4: Track Stock Across Locations**
+
+Once you have created locations and assigned them to purchase orders, you can track stock across different company premises or third-party facilities. To do this:
+
+* Open Inventory > Master > Location.
+* Select a location from the category tree.
+* View the stock levels for that location.
+
+By following these steps, you can integrate Multi-Location Warehouse Management with Purchase Orders and effectively manage your inventory across different locations.

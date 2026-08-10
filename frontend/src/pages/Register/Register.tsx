@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiService } from "../../services";
 import Icon from "../../components/Icon";
-import KIKILogo from '../../assets/finpixe_with_empty_bg.png';
+import FinpixeLogo from '../../assets/finpixe_with_empty_bg.png';
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, ArrowLeft, KeyRound, Globe, Check, Eye, EyeOff } from "lucide-react";
@@ -299,7 +299,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
         {/* Top Brand Header */}
         <div className="flex items-center gap-3.5 z-10 text-left">
           <div className="w-24 h-24 flex items-center justify-center">
-            <img src={KIKILogo} alt="Finpixe logo" className="w-full h-full object-contain" />
+            <img src={FinpixeLogo} alt="Finpixe logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <h2 className="text-4xl font-extrabold text-slate-900 tracking-widest leading-none">FINPIXE</h2>
@@ -536,7 +536,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     id="email"
                     label="Admin Email"
                     type="email"
-                    placeholder="admin@KIKI.com"
+                    placeholder="admin@company.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     onKeyDown={e => handleEnter(e, 'pwd')}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { apiService } from '../../services';
 import Icon from '../../components/Icon';
-import KIKILogo from '../../assets/finpixe_with_empty_bg.png';
+import FinpixeLogo from '../../assets/finpixe_with_empty_bg.png';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, Building2, Eye, EyeOff } from 'lucide-react';
@@ -249,7 +249,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                 {/* Top Brand Header */}
                 <div className="flex items-center gap-3.5 z-10">
                     <div className="w-24 h-24 flex items-center justify-center">
-                        <img src={KIKILogo} alt="Finpixe logo" className="w-full h-full object-contain" />
+                        <img src={FinpixeLogo} alt="Finpixe logo" className="w-full h-full object-contain" />
                     </div>
                     <div>
                         <h2 className="text-4xl font-extrabold text-slate-900 tracking-widest leading-none">FINPIXE</h2>

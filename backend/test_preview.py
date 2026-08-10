@@ -7,10 +7,12 @@ django.setup()
 from gst_reconciliation.models import GSTR3BReport
 
 try:
-    report, created = GSTR3BReport.objects.get_or_create(
+    report = GSTR3BReport.objects.filter(
         period_month='January', 
         period_year='2024-25'
-    )
+    ).first()
+    if not report:
+        report = GSTR3BReport.objects.create(period_month='January', period_year='2024-25')
     print("SUCCESS report created or fetched:", report.id)
     print("status:", report.status)
     print("arn_number:", report.arn_number)

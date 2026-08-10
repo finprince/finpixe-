@@ -249,7 +249,7 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ branch, onBack }) => {
                                     <div className="grid grid-cols-2 gap-8">
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Primary Email</label>
-                                            <p className="text-sm font-bold text-slate-800">{branch.name.toLowerCase().replace(' ', '')}@kiki.com</p>
+                                            <p className="text-sm font-bold text-slate-800">{branch.name.toLowerCase().replace(' ', '')}@company.com</p>
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Contact Phone</label>

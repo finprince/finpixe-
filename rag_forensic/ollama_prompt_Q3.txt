@@ -1,0 +1,47 @@
+=== QUERY: What are the features of reorder point automation and valuation methods? ===
+Rewritten: What are the features of Reorder Point Automation?
+Compressed Evidence Chunks: 5
+
+Prompt Sent:
+Evidence Documents:
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+---
+Select the OUTWARD tab and check SALES.
+Select the ISSUE SLIP SERIES to generate the OUTWARD SLIP NO. (e.g. kg17).
+Set the DATE, TIME, and LOCATION warehouse the items are leaving.
+SALES ORDER NO.: Optionally select pending sales orders from the dropdown to pull quantities and terms.
+Select the CUSTOMER NAME and BRANCH (Address and GSTIN will auto-fill).
+Under ITEMS, click + ADD ITEM and enter: Item Code, Name, HSN, UOM, Quantity, No. of boxes/packs, and Remarks. The system displays the calculated TOTAL NUMBER OF BOXES / PACKS below the grid.
+---
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+---
+REASON FOR DISPOSAL: Explanation note.
+METHOD OF DISPOSAL: Process description (e.g., Recycling, Incineration).
+DISPOSAL AGENCY: Select the scrap buying contractor from the dropdown.
+CERTIFICATE OF DISPOSAL: Click UPLOAD CERTIFICATE to attach third-party disposal receipts or certificates.
+Click POST & CLOSE.
+A.8 Stock Movement Summary Dashboard
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+---
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+
+User Question: What are the features of Reorder Point Automation?
+Provide a complete, factual, evidence-based answer.
+
+Ollama Reply:
+Based on the provided Evidence Documents, there is no mention of "Reorder Point Automation" as a feature in the Inventory module. The documents only cover basic records configuration (categories, warehouses, stock items, and serial series templates), posting transaction vouchers (Goods Receipt Notes and Issue Slips), and reviewing stock movement dashboards.
+
+Therefore, I cannot provide an answer to this question based on the provided evidence. If you have additional information or context about Reorder Point Automation, I may be able to help you better.

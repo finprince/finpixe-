@@ -1,0 +1,42 @@
+Evidence Documents:
+SECTION A: End-User Functional Guide
+This section is written for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions on a daily basis.
+A.1 Module Overview & Navigation
+The Finpixe Inventory module manages stock balances, godowns, categories, and transaction slips.
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+---
+Finpixe Inventory Management: 
+Audience: End-Users, System Administrators, Developers, Business Analysts, QA Engineers
+This consolidated document is the single source of truth for the Finpixe Inventory Management module. It is divided into three sections:
+Section A: End-User Functional Guide (Step-by-step guides, user interfaces, form fields, and operational workflows).
+Section B: Developer Technical Specifications (Codebase file structures, viewset controllers, business flow models, and serializers).
+---
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+---
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+Raw Material: Unprocessed materials.
+Work in Progress: Intermediate stages of production.
+Finished Goods: Completed products ready for sale.
+Stores and Spares: Operational and repair parts.
+Packing Material: Materials used to package goods.
+Stock in Trade: Goods purchased for direct resale.
+By-product: Secondary products generated during manufacturing.
+Scrap: Discarded material or waste.
+---
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+B.1 Backend Directory & Source Code Paths
+The backend inventory codebase is situated at backend/inventory/. It contains the following core files:
+models.py
+: Defines Django models, database index fields, unique constraints, and Django ORM mappings.
+serializers.py
+: Contains data validation logic, creation overrides, and address mappings for transport compliance.
+
+User Question: What is the primary purpose of Finpixe Inventory module?
+Provide a complete, factual, evidence-based answer.

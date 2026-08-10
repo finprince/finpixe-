@@ -1,0 +1,537 @@
+Finpixe Inventory Management:
+Audience: End-Users, System Administrators, Developers, Business Analysts, QA Engineers
+This consolidated document is the single source of truth for the Finpixe Inventory Management module. It is divided into three sections:
+Section A: End-User Functional Guide (Step-by-step guides, user interfaces, form fields, and operational workflows).
+Section B: Developer Technical Specifications (Codebase file structures, viewset controllers, business flow models, and serializers).
+Section C: Database Schema & DDL Specifications (MySQL tables, indexes, constraints, and relationships).
+SECTION A: End-User Functional Guide
+This section is written for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions on a daily basis.
+A.1 Module Overview & Navigation
+The Finpixe Inventory module manages stock balances, godowns, categories, and transaction slips.
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+Raw Material: Unprocessed materials.
+Work in Progress: Intermediate stages of production.
+Finished Goods: Completed products ready for sale.
+Stores and Spares: Operational and repair parts.
+Packing Material: Materials used to package goods.
+Stock in Trade: Goods purchased for direct resale.
+By-product: Secondary products generated during manufacturing.
+Scrap: Discarded material or waste.
+Navigating and Creating Category Groups
+Go to Inventory > Master > Category.
+Navigate Tree: Single-click a category folder on the left to highlight it. Double-click any folder to expand or collapse its sub-groups (e.g. Import under Raw Material).
+Select Parent: Click a category from the tree (e.g. Raw Material). The right-hand panel displays: Category Preview: Creating New Group under Raw Material.
+Create Group: Under the GROUP input box, type the group name (e.g., Import). Click CREATE GROUP.
+Success Alert: A banner will confirm: Success: Group created successfully!. The group will populate in the category tree.
+A.3 Location Management (Godowns & Warehouses)
+Locations enable you to track stock across different company premises or third-party facilities.
+Step-by-Step: Creating a Location
+Open Inventory > Master > Location.
+Fill out the Create Location form:
+Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+Location Type*: Select the type from the dropdown:
+Company Premises: Warehouses owned or operated by the company.
+Job Worker Location: Third-party subcontractor processing sites.
+Customer Location: Client storage sites.
+Vendor Location: Supplier warehouse sites.
+Agent Location: Broker hubs.
+Distributor Location: Distribution partners.
+Customs Warehouse: Bonded customs storage.
+Other Third-Party Location: Any other third-party storage.
+Country* & State*: Select region details.
+City* & Pincode*: Enter local city and postal codes.
+Address Lines: Fill in Address Line 1*, Address Line 2 (Optional), and Address Line 3 (Optional).
+GSTIN (Optional): Input the 15-character GSTIN if this warehouse is registered separately.
+Click CREATE LOCATION.
+Managing Locations
+Saved locations appear in the Existing Locations table:
+Search: Filter locations by name using the Search locations... bar.
+View / Edit: Inspect full details or modify address lines and location types.
+Delete: Remove locations if they have no transaction history.
+A.4 Inventory Item Setup
+Define individual stock items with attributes, measurement units, pricing, and tax structures.
+Step-by-Step: Adding an Item
+Open Inventory > Master > Inventory Items.
+Click + ADD ITEM to open the Create New Item dialog.
+Enter the configurations:
+Item Code*: Unique SKU code.
+Item Name*: Product name.
+Item Description: Optional product descriptions.
+Category: Map the item to a predefined category group.
+Create Vendor-Specific Item Code (Checkbox): Check this option if you want to assign a code matching your vendor's catalog.
+Unit (UOM)*: Select the primary unit of measure (e.g., kg, nos, bag).
+Alternate Unit: Select a secondary unit if needed (e.g., box).
+Conversion: If you set an alternate unit, enter the ratio (e.g., 1 box = 12 nos).
+Rate: Enter the standard price.
+Rate Unit Dropdown: Select whether the rate applies to the primary UOM or Alternate Unit.
+HSN Code*: Input the HSN code for tax compliance.
+GST Rate (%)*: Enter the GST percentage (e.g., 18.00%).
+Cess Rate (%)*: Enter the compensation cess tax percentage (optional).
+Click SAVE & CLOSE to save.
+Importing Items in Bulk
+Click UPLOAD next to + ADD ITEM on the list view, select your CSV/Excel spreadsheet containing matching columns, and import.
+A.5 GRN & Issue Slip Series Configuration
+Configure customizable voucher numbering templates for compliance.
+Step-by-Step: Creating a Numbering Series
+Navigate to Inventory > Master > GRN & ISSUE SLIP.
+Click the GRN or ISSUE SLIP sub-tab.
+Fill out the creation form:
+Series Name*: Reference name (e.g., PurSeries, JobSeries).
+Series Type*: Select the document workflow (e.g., purchase, consumption, production).
+Prefix: Characters at the beginning of the serial (e.g., GRN-).
+Suffix: Characters at the end (e.g., /2026).
+Digits*: Zero-padding length (e.g., entering 4 generates serials like 0001).
+Start From*: Starting sequence number (e.g., 1).
+Sample Preview: Review the dynamically updated example (e.g., GRN-0001/2026).
+Click SAVE.
+A.6 Recording Transactions: Goods Receipt Notes (GRN)
+A Goods Receipt Note (GRN) records incoming materials.
+Step-by-Step: Recording a GRN
+Go to Inventory > Operations and click + ADD NEW GRN.
+Select the GRN subtype: PURCHASE or SALES RETURN.
+Fill out the header details:
+Date & Time: Enter transaction date and time.
+Location: Select the receiving company warehouse.
+GRN Series Name: Select your numbering series. The GRN NO. will automatically generate.
+Vendor Name & Branch: Select the supplier (for purchases) or customer (for sales returns). GSTIN and address details will auto-fill.
+Purchase Order No.: Select the parent purchase order(s). (You can hold Ctrl/Cmd to select multiple POs).
+Upload Document: Click to attach the supplier's invoice or delivery challan.
+Fill out the Items Grid:
+Add rows using + ADD ITEM.
+Enter: Item Code, Item Name, UOM, PO Qty (from purchase order), Inv Qty (from invoice), Received Qty, Accepted Qty, Rejected Qty, and Short/Excess quantity (system-calculated difference), along with line remarks.
+Fill out Transit Details:
+Received/Dispatch From: Dispatch location.
+Received Date & Time: Incoming arrival date and time.
+Mode of Transport: Select transport mode (e.g., Road, Rail, Air).
+Delivery Type: Select transport delivery type (e.g., Self, Courier).
+Transporter Name & ID/GSTIN: Transporter details.
+Vehicle No.: Delivery vehicle registration number.
+LR/GR/Consignment No.: Bill of Lading or consignment note number.
+Upload Transit Document: Attach transport records or receipt notes.
+Click POST & CLOSE to commit the stock.
+A.7 Recording Transactions: Issue Slips
+Under Operations, click + ADD NEW ISSUE SLIP to open the slip entry form.
+A.7.1 Job-Work Slips (Outward & Receipt)
+Used for subcontractor operations where materials are sent to or returned from a job worker.
+A. Goods Sent for Jobwork (Outward)
+Select the JOB-WORK tab and choose GOODS SENT FOR JOBWORK.
+Set the direction toggle to OUTWARD.
+Choose the JOB-WORK SERIES template. The JOBWORK OUTWARD NO. will auto-populate.
+Select the DATE, TIME, and ISSUED FROM warehouse location.
+Select the VENDOR NAME (subcontractor) and BRANCH (vendor address and GSTIN will auto-populate). Link it to an active PURCHASE ORDER NO..
+Under ITEMS, click + ADD ITEM and enter codes, quantities, and rates.
+Under Dispatch Details:
+Enter DISPATCH FROM address.
+Select DELIVERY TYPE and MODE OF TRANSPORT.
+Enter TRANSPORTER ID/GSTIN, TRANSPORTER NAME, VEHICLE NO., and LR/GR/CONSIGNMENT number.
+Select DISPATCH DATE and DISPATCH TIME.
+Attach copies of your challan using the UPLOAD DOCUMENT button.
+Statutory Generation: Click GENERATE DELIVERY CHALLAN or GENERATE E-WAY BILL to print compliance forms.
+Click POST & CLOSE.
+B. Goods Received for Jobwork (Receipt)
+Select the JOB-WORK tab, choose GOODS SENT FOR JOBWORK, and toggle the direction to RECEIPT.
+Enter the JOB WORK RECEIPT NO., DATE, and TIME.
+Job Work Outward No.: Select the original outward job work slip number. This links the receipt back to the original dispatch to track materials returned.
+Select the VENDOR NAME and BRANCH.
+Input VENDOR'S RETURN DELIVERY CHALLAN NO. and SUPPLIER INVOICE NO. details.
+Verify the item list in the grid and click POST & CLOSE.
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+A.7.3 Location Change Slips
+Used for internal stock movements between warehouses under the same company premises. It does not require transporter dispatch details or e-way bills.
+Select the LOCATION CHANGE tab.
+Select the ISSUE SLIP SERIES (fills the ISSUE SLIP NO.).
+Set transaction DATE, TIME, GOODS SENT FROM (source location) and GOODS SENT TO (destination location).
+Add items in the grid, enter optional remarks under POSTING NOTE, and click POST & CLOSE.
+A.7.4 Production Slips (Stages 1, 2, and 3)
+Tracks materials through the manufacturing process.
+Stage 1: Materials Issued for Production
+Under the PRODUCTION tab, select MATERIALS ISSUED FOR PRODUCTION.
+Select the ISSUE SLIP SERIES (generates the MATERIAL ISSUE SLIP NO.).
+Choose the transaction DATE, TIME, raw material warehouse under ISSUED FROM, and production line under ISSUED TO.
+Dual Grid:
+Raw Materials (Left Grid): Click + ADD RAW MATERIAL to enter raw items consumed.
+Resulting WIP (Right Grid): Click + ADD WIP ITEM to log any intermediate products.
+Click POST & CLOSE.
+Stage 2: Inter-Process Transfer
+Used when materials are undergoing multi-step processing and move between work centers.
+Select the PRODUCTION tab and check INTER-PROCESS TRANSFER.
+Enter the PROCESS TRANSFER SLIP NO., DATE, and TIME.
+MATERIAL ISSUE SLIP NO.: Select the parent Material Issue Slip(s) from the dropdown. (You can hold Ctrl/Cmd to select multiple slips).
+Select the destination department location under ISSUED TO (the source location auto-fills from the linked slips).
+Dual Grid Sub-Tabs:
+Materials Issued: Displays raw materials pulled from the parent slips.
+Converted Output: Enter the intermediate Work-in-Progress (WIP) items generated.
+Click POST & CLOSE.
+Stage 3: Finished Goods Produced
+Logs completed goods entering the commercial warehouse.
+Select the PRODUCTION tab and check FINISHED GOODS PRODUCED.
+Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+PROCESS TRANSFER SLIP NO.: Select the parent Process Transfer Slip(s) from the dropdown to link input processes. (Hold Ctrl/Cmd to select multiple).
+Select your commercial warehouse under ISSUED TO.
+Dual Grid Sub-Tabs:
+Materials Issued: Displays the consumed components list.
+Goods Produced: Click + ADD ITEM to record the finished items (Code, Name, HSN, UOM, Qty Available, Qty Issued, Rate, and Amount).
+Click POST & CLOSE.
+A.7.5 Consumption Slips (Fixed Assets vs. Operations)
+Consumption slips write off inventory items consumed internally.
+A. Issued for Fixed Assets (Capitalization)
+Use this option when inventory is consumed to build or maintain capital assets, adding to their capitalized value.
+Select the CONSUMPTION tab and check ISSUED FOR FIXED ASSETS.
+Select the ISSUE SLIP SERIES (generates ISSUE SLIP NO.), DATE, and TIME.
+FIXED ASSET LEDGER*: Select the target capital ledger account (e.g. Plant & Machinery) from the dropdown.
+Select the warehouse under ISSUED FROM (LOCATION).
+Under ITEMS, click + ADD ITEM and enter Code, Name, UOM, Qty, and Rate. The system calculates the Capitalized Value automatically.
+Click POST & CLOSE.
+B. Issued for Daily Operations (Expensed)
+Use this option when inventory is consumed for routine operations and should be expensed immediately.
+Select the CONSUMPTION tab and check ISSUED FOR DAILY OPERATIONS.
+Select the EXPENSE LEDGER* (e.g. Office Expenses) and specify the source warehouse location under ISSUED FROM (LOCATION).
+List the items, enter notes, and click POST & CLOSE.
+A.7.6 Outward Slips (Sales & Purchase Returns)
+Outward slips record goods leaving your commercial control.
+A. Sales Outward Slips
+Used to record dispatches to customers.
+Select the OUTWARD tab and check SALES.
+Select the ISSUE SLIP SERIES to generate the OUTWARD SLIP NO. (e.g. kg17).
+Set the DATE, TIME, and LOCATION warehouse the items are leaving.
+SALES ORDER NO.: Optionally select pending sales orders from the dropdown to pull quantities and terms.
+Select the CUSTOMER NAME and BRANCH (Address and GSTIN will auto-fill).
+Under ITEMS, click + ADD ITEM and enter: Item Code, Name, HSN, UOM, Quantity, No. of boxes/packs, and Remarks. The system displays the calculated TOTAL NUMBER OF BOXES / PACKS below the grid.
+Fill out the Delivery Challan / Dispatch Details at the bottom (transporter name, transport mode, vehicle number, etc.).
+Click POST & CLOSE.
+B. Purchase Return Slips
+Used to return items to vendors.
+Select the OUTWARD tab and check PURCHASE RETURN.
+Select the series (generates the OUTWARD SLIP NO.), DATE, TIME, and LOCATION.
+SUPPLIER INVOICE NO.: Select the original supplier invoice number from the dropdown.
+Select the VENDOR NAME (Supplier) and BRANCH.
+In the items grid, list the returned items and packaging boxes count.
+REASONS FOR RETURN*: Input the return justification (e.g., Defective parts, Expired stock).
+Click POST & CLOSE.
+A.7.7 Scrap Slips (Production, Reclaimed, & Disposal)
+Scrap slips record unusable material wastage or log scrap sales.
+A. Production Scrap
+Used when scrap is generated during a specific production run.
+Select the SCRAP tab and check PRODUCTION SCRAP.
+Select the series (generates the SCRAP ISSUE SLIP NO.), DATE, and TIME.
+Set ISSUED FROM (production line location) and ISSUED TO (designated Scrap Yard).
+PRODUCTION SLIP NO.: Select the relevant production slip from the dropdown to link the scrap to a specific batch run.
+List the scrap items in the grid, specify UOM, enter the Qty Generated, and click POST & CLOSE.
+B. Other Scrap (Dual Grid)
+Used when standard inventory items are damaged or expire, writing off the main product while recovering scrap materials.
+Select the SCRAP tab and check OTHER SCRAP.
+Specify numbering series, date, time, and locations.
+Dual Grid layout:
+Items Scrapped (Top Grid): Click + ADD ITEM to list the original commercial items written off.
+Resulting Scrap (Bottom Grid): Click + ADD ITEM to log the recovered waste materials generated (along with quantity, rate, and scrap value).
+Click POST & CLOSE.
+C. Scrap Disposed (Disposal)
+Used to record the commercial sale or permanent disposal of accumulated scrap.
+Select the SCRAP tab and check SCRAP DISPOSED.
+Select the series (generates the SCRAP DISPOSAL SLIP NO.), DATE, TIME, and the scrap warehouse under ISSUED FROM.
+In the items grid, add the scrap items being removed (specifying Code, Name, Qty Disposed, Rate, and Scrap Value). The system calculates the TOTAL VALUE.
+Fill in disposal details:
+REASON FOR DISPOSAL: Explanation note.
+METHOD OF DISPOSAL: Process description (e.g., Recycling, Incineration).
+DISPOSAL AGENCY: Select the scrap buying contractor from the dropdown.
+CERTIFICATE OF DISPOSAL: Click UPLOAD CERTIFICATE to attach third-party disposal receipts or certificates.
+Click POST & CLOSE.
+A.8 Stock Movement Summary Dashboard
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+Item Code & Item Name: Item SKU and name.
+UOM: Unit of measurement.
+Opening Stock (Qty & Value): Stock balances and values at the beginning of the period.
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+Closing Stock (Qty & Value): Net physical stock remaining (Opening Qty + Inward Qty - Outward Qty) and its financial valuation.
+Actions: Click View on any row to drill down into the transaction log (individual GRNs and Issue Slips) for that specific item.
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+B.1 Backend Directory & Source Code Paths
+The backend inventory codebase is situated at backend/inventory/. It contains the following core files:
+models.py
+: Defines Django models, database index fields, unique constraints, and Django ORM mappings.
+serializers.py
+: Contains data validation logic, creation overrides, and address mappings for transport compliance.
+views.py
+: Implements model viewsets, custom endpoints, auto-increment serial generation logic, and pending receipt filters.
+api.py
+: Routes base API calls through the custom flow layer to enforce RBAC and strict tenant checks.
+flow.py
+: Enforces business-layer logic, authorization checks, and maps request contexts to the database.
+database.py
+: Abstraction layer for raw data querying and bulk insertions.
+urls.py
+: Directs standard endpoints and custom router actions.
+report_views.py
+: Compiles real-time metrics for inventory valuations, item summaries, aging, and warehouse splits.
+B.2 API Endpoints & Controller Layer
+The API endpoints are exposed via ModelViewSet classes registered in
+urls.py
+.
+B.2.1 Master Endpoints (Standard CRUD)
+Categories: /api/master-categories/
+Locations: /api/locations/
+Items: /api/items/
+Custom Action: POST /api/items/bulk/ triggers bulk_create_stock_items in the flow layer.
+Units: /api/units/
+GRN Series: /api/master-voucher-grn/
+Custom Action: GET /api/master-voucher-grn/{id}/next-number/ returns the next sequence.
+Issue Slip Series: /api/master-voucher-issue-slip/
+Custom Action: GET /api/master-voucher-issue-slip/{id}/next-number/ calculates the next serial using a prefix counter check.
+B.2.2 Operation Endpoints
+Job-Work: /api/operations/job-work/
+Inter-Unit: /api/operations/inter-unit/
+Location Change: /api/operations/location-change/
+Production: /api/operations/production/
+Query parameter production_type allows filtering by materials_issued, inter_process_transfer, or finished_goods_produced.
+Consumption: /api/operations/consumption/
+Scrap: /api/operations/scrap/
+Outward Commercial: /api/operations/outward/
+New Goods Receipt Note: /api/operations/new-grn/
+Custom Action: GET /api/operations/new-grn/next-grn-number/ generates a default GRN-0001 or increments the last recorded invoice.
+B.2.3 Advanced Compliance Lookups
+Pending GRNs list: GET /api/operations/pending-grns/?vendor_name=XYZ
+Queries VoucherPurchaseSupplierDetails in the accounting module to find posted purchases GRNs that do not have associated purchase vouchers.
+HSN Tax Lookup: GET /api/hsn-details/?hsn_code=XXXX
+Queries HsnGstMaster database table and returns matching IGST percentage rates.
+B.3 Serializers, Data Validation, & Dispatch logic
+Validation rules are enforced in
+serializers.py
+.
+B.3.1 Dynamic Dispatch Address Mapping
+Operation serializers (e.g. InventoryOperationJobWorkSerializer, InventoryOperationInterUnitSerializer, InventoryOperationOutwardSerializer) include mapping hooks in create and update functions. If a payload contains a nested delivery_challan object, it automatically maps the transport details to flat database columns:
+python
+validated_data['dispatch_from'] = dc_data.get('dispatch_from') or dc_data.get('dispatch_address')
+validated_data['mode_of_transport'] = dc_data.get('mode_of_transport')
+validated_data['dispatch_date'] = dc_data.get('dispatch_date')
+validated_data['dispatch_time'] = dc_data.get('dispatch_time')
+validated_data['delivery_type'] = dc_data.get('delivery_type')
+validated_data['transporter_id'] = dc_data.get('transporter_id')
+validated_data['transporter_name'] = dc_data.get('transporter_name')
+validated_data['vehicle_no'] = dc_data.get('vehicle_no') or dc_data.get('vehicle_number')
+validated_data['lr_gr_consignment'] = dc_data.get('lr_gr_consignment')
+B.3.2 Production Slip Quantity & Valuation Recalculations
+In InventoryOperationProductionSerializer.validate(), the serializer automatically iterates through raw materials and WIP grids to recalculate the line valuations before database commit:
+python
+def validate(self, data):
+items = data.get('items', [])
+if items:
+for item in items:
+qty = 0
+for k in ['qty_issued', 'quantity', 'quantityIssued', 'quantityProduced', 'issueQty']:
+if k in item and item[k]:
+qty = float(item[k])
+break
+rate = float(item.get('rate', 0.0))
+item['amount'] = round(qty * rate, 2)
+return data
+B.4 Frontend Layout & React Page Architecture
+The user interface is implemented in the root file
+Inventory.tsx
+.
+B.4.1 State Management & Sub-Tabs
+The UI maintains tab selections using URL page query parameters (?page=Inventory). Internally, it switches layouts using structural variables:
+Active Module View: activeTab ('master' vs 'operations').
+Master Sub-Tab: activeSubTab ('category', 'location', 'items', 'grn_issueslip').
+Voucher Type Toggle: activeVoucherSubTab (for GRN/Issue Slip numbering sub-tabs).
+SECTION C: Database Schema & DDL Specifications
+Below are the MySQL table definitions derived from
+schema.sql
+.
+C.1 Category Masters (inventory_master_category)
+sql
+CREATE TABLE `inventory_master_category` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+`category` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'General' COMMENT 'Top-level category',
+`group` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT 'Group under category',
+`subgroup` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT 'Subgroup under group',
+`sub_subgroup` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT 'Sub-subgroup',
+`is_active` tinyint(1) NOT NULL DEFAULT '1',
+`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+PRIMARY KEY (`id`),
+UNIQUE KEY `inventory_master_category_uniq` (`tenant_id`,`category`(100),`group`(100),`subgroup`(100),`sub_subgroup`(100)),
+KEY `inventory_master_category_tenant_id_idx` (`tenant_id`),
+KEY `inventory_master_category_is_active_idx` (`tenant_id`,`is_active`),
+KEY `inventory_master_category_category_idx` (`category`(100)),
+CONSTRAINT `inventory_master_category_tenant_id_fk` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Inventory Category Hierarchy';
+C.2 Storage Locations (inventory_master_location)
+sql
+CREATE TABLE `inventory_master_location` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+`name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Location name',
+`location_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Type of location',
+`address_line1` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT 'Address Line 1',
+`address_line2` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`address_line3` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`city` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+`state` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+`country` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'India',
+`pincode` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+`vendor_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`customer_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`location_address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`gstin` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+PRIMARY KEY (`id`),
+KEY `inventory_master_location_tenant_id_idx` (`tenant_id`),
+KEY `inventory_master_location_name_idx` (`tenant_id`,`name`),
+CONSTRAINT `inventory_master_location_tenant_id_fk` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Inventory Locations Godowns';
+C.3 Inventory Items (inventory_master_inventoryitems)
+sql
+CREATE TABLE `inventory_master_inventoryitems` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+`item_code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ITEM000' COMMENT 'Unique SKU code',
+`item_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'New Item' COMMENT 'Item name',
+`description` text COLLATE utf8mb4_unicode_ci,
+`category_id` bigint DEFAULT NULL,
+`category_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`subgroup_id` bigint DEFAULT NULL,
+`is_vendor_specific` tinyint(1) NOT NULL DEFAULT '0',
+`vendor_specific_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`vendor_specific_suffix` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`uom` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'nos' COMMENT 'Primary Unit of Measure',
+`alternate_uom` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Alternate Unit',
+`conversion_factor` decimal(15,4) DEFAULT NULL COMMENT 'Conversion multiplier',
+`rate` decimal(15,2) NOT NULL DEFAULT '0.00' COMMENT 'Rate',
+`rate_unit` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Rate per Unit',
+`hsn_code` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`gst_rate` decimal(5,2) DEFAULT NULL,
+`cess_rate` decimal(5,2) DEFAULT NULL,
+`reorder_level` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`is_saleable` tinyint(1) NOT NULL DEFAULT '0',
+`is_active` tinyint(1) NOT NULL DEFAULT '1',
+`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+PRIMARY KEY (`id`),
+KEY `inv_items_tenant_id_idx` (`tenant_id`),
+KEY `inv_items_category_id_idx` (`category_id`),
+KEY `inv_items_item_code_idx` (`item_code`),
+CONSTRAINT `inv_items_category_fk` FOREIGN KEY (`category_id`) REFERENCES `inventory_master_category` (`id`) ON DELETE SET NULL,
+CONSTRAINT `inv_items_tenant_id_fk` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Inventory Master Items';
+C.4 Series Setup (inventory_master_grn & inventory_master_issueslip)
+sql
+CREATE TABLE `inventory_master_grn` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` varchar(36) NOT NULL,
+`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+`name` varchar(255) NOT NULL,
+`grn_type` varchar(100) NOT NULL,
+`prefix` varchar(50) DEFAULT NULL,
+`suffix` varchar(50) DEFAULT NULL,
+`year` char(4) DEFAULT NULL,
+`required_digits` int NOT NULL DEFAULT '0',
+`preview` varchar(255) DEFAULT NULL,
+`is_active` tinyint(1) NOT NULL DEFAULT '1',
+PRIMARY KEY (`id`),
+KEY `idx_img_tenant` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `inventory_master_issueslip` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` varchar(36) NOT NULL,
+`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+`name` varchar(255) NOT NULL,
+`issue_slip_type` varchar(100) NOT NULL,
+`prefix` varchar(50) DEFAULT NULL,
+`suffix` varchar(50) DEFAULT NULL,
+`year` char(4) DEFAULT NULL,
+`required_digits` int NOT NULL DEFAULT '0',
+`preview` varchar(255) DEFAULT NULL,
+`is_active` tinyint(1) NOT NULL DEFAULT '1',
+PRIMARY KEY (`id`),
+KEY `idx_imi_tenant` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+C.5 Consumption Operations (inventory_operation_consumption)
+sql
+CREATE TABLE `inventory_operation_consumption` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+`created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+`issue_slip_no` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+`date` date DEFAULT NULL,
+`time` time DEFAULT NULL,
+`status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Draft',
+`goods_from_location` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`goods_to_location` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`posting_note` text COLLATE utf8mb4_unicode_ci,
+`items` json DEFAULT NULL,
+`delivery_challan` json DEFAULT NULL,
+`eway_bill_details` json DEFAULT NULL,
+`dispatch_from` text COLLATE utf8mb4_unicode_ci,
+`mode_of_transport` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`dispatch_date` date DEFAULT NULL,
+`dispatch_time` time DEFAULT NULL,
+`delivery_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`transporter_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`transporter_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`vehicle_no` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`lr_gr_consignment` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+PRIMARY KEY (`id`),
+KEY `idx_ioc_tenant` (`tenant_id`),
+KEY `idx_ioc_issue_slip` (`issue_slip_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+C.6 Commercial Outwards (inventory_operation_outward)
+sql
+CREATE TABLE `inventory_operation_outward` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`tenant_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+`created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+`updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+`outward_slip_no` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+`date` date DEFAULT NULL,
+`time` time DEFAULT NULL,
+`outward_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'sales' COMMENT 'sales or purchase_return',
+`location_id` bigint DEFAULT NULL,
+`sales_order_no` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`customer_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`customer_id` bigint DEFAULT NULL,
+`supplier_invoice_no` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`vendor_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`branch` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`address` text COLLATE utf8mb4_unicode_ci,
+`gstin` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`total_boxes` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`posting_note` text COLLATE utf8mb4_unicode_ci,
+`status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+`linked_sales_voucher_id` bigint DEFAULT NULL,
+`items` json DEFAULT NULL,
+`delivery_challan` json DEFAULT NULL,
+`eway_bill_details` json DEFAULT NULL,
+`dispatch_from` text COLLATE utf8mb4_unicode_ci,
+`mode_of_transport` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`dispatch_date` date DEFAULT NULL,
+`dispatch_time` time DEFAULT NULL,
+`delivery_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`transporter_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`transporter_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`vehicle_no` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`lr_gr_consignment` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `linked_sales_voucher_id` (`linked_sales_voucher_id`),
+KEY `idx_ioo_tenant` (`tenant_id`),
+KEY `idx_ioo_outward_slip` (`outward_slip_no`),
+CONSTRAINT `fk_ioo_location` FOREIGN KEY (`location_id`) REFERENCES `inventory_master_location` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

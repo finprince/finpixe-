@@ -1,0 +1,42 @@
+Evidence Documents:
+SECTION A: End-User Functional Guide
+This section is written for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions on a daily basis.
+A.1 Module Overview & Navigation
+The Finpixe Inventory module manages stock balances, godowns, categories, and transaction slips.
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+---
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+Closing Stock (Qty & Value): Net physical stock remaining (Opening Qty + Inward Qty - Outward Qty) and its financial valuation.
+Actions: Click View on any row to drill down into the transaction log (individual GRNs and Issue Slips) for that specific item.
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+---
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+---
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+A.7.3 Location Change Slips
+Used for internal stock movements between warehouses under the same company premises. It does not require transporter dispatch details or e-way bills.
+Select the LOCATION CHANGE tab.
+Select the ISSUE SLIP SERIES (fills the ISSUE SLIP NO.).
+Set transaction DATE, TIME, GOODS SENT FROM (source location) and GOODS SENT TO (destination location).
+---
+Select the warehouse under ISSUED FROM (LOCATION).
+Under ITEMS, click + ADD ITEM and enter Code, Name, UOM, Qty, and Rate. The system calculates the Capitalized Value automatically.
+Click POST & CLOSE.
+B. Issued for Daily Operations (Expensed)
+Use this option when inventory is consumed for routine operations and should be expensed immediately.
+Select the CONSUMPTION tab and check ISSUED FOR DAILY OPERATIONS.
+Select the EXPENSE LEDGER* (e.g. Office Expenses) and specify the source warehouse location under ISSUED FROM (LOCATION).
+
+User Question: What is the maximum allowed delay for Daily Stock Reconciliation?
+Provide a complete, factual, evidence-based answer.

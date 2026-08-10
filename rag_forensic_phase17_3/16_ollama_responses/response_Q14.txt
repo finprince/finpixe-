@@ -1,0 +1,15 @@
+Based on the provided evidence documents, serial numbers appear to be unique identifiers assigned to Goods Receipt Notes (GRN) and Issue Slips in an inventory management system.
+
+According to the Step-by-Step guide for creating a numbering series, serial numbers are generated using a combination of prefix, suffix, digits, and start-from values. The prefix is characters at the beginning of the serial, the suffix is characters at the end, and the digits refer to the zero-padding length. For example, entering 4 as the digit value would generate serials like GRN-0001/2026.
+
+The evidence also suggests that there are different types of serial numbers, including:
+
+* GRN Series: This series appears to be used for Goods Receipt Notes (GRNs), which record incoming materials.
+* Issue Slip Series: This series is used for issue slips, which likely track the movement of goods within the inventory system.
+
+In addition, the evidence mentions that there are custom actions and endpoints related to serial numbers, such as:
+
+* GET /api/master-voucher-grn/{id}/next-number/: This endpoint returns the next sequence number in a GRN series.
+* GET /api/master-voucher-issue-slip/{id}/next-number/: This endpoint calculates the next serial number using a prefix counter check.
+
+Overall, serial numbers appear to be an essential component of the inventory management system, allowing for tracking and identification of goods as they move through the system.

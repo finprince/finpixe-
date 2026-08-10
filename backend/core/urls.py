@@ -6,7 +6,7 @@ from .auth_views import (
 )
 from .views import (
     health_check, check_status, check_phone,
-    AgentMessageView, AIProxyView,
+    AIProxyView,
     health_with_metrics, AdminPaymentsView,
     extraction_average_time, OCRCacheUpdateView,
     BranchViewSet
@@ -58,13 +58,10 @@ urlpatterns = [
 
     # AI Services
     path('ai/<str:action>/', AIProxyView.as_view(), name='ai-proxy'),
-    path('ai/ocr-cache/<int:record_id>/update/', OCRCacheUpdateView.as_view(), name='ocr-cache-update'),
-    path('agent/message/', AgentMessageView.as_view()),  # Legacy endpoint, uses AI proxy internally
-    # ai_metrics and ai_job_status removed — Redis-based polling decommissioned
-    path('extraction-average-time/', extraction_average_time, name='extraction-average-time'),
-    
-    # Kiki AI ERP Agent
     path('kiki/', include('core.kiki.api.urls')),
+    path('v2/kiki/', include('core.kiki.api.urls')),
+    path('ai/ocr-cache/<int:record_id>/update/', OCRCacheUpdateView.as_view(), name='ocr-cache-update'),
+    path('extraction-average-time/', extraction_average_time, name='extraction-average-time'),
 
     path('', include(router.urls)),
 ]

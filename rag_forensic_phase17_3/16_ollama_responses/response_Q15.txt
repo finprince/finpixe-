@@ -1,0 +1,13 @@
+Based on the provided Evidence Documents, there is no explicit definition or mention of "Lead Time" in the given documents. However, I can provide some general information about lead time that might be relevant to the context.
+
+In inventory management and supply chain management, Lead Time refers to the duration between the placement of an order or request for a product and its actual receipt or delivery. It encompasses the time taken by suppliers to process orders, manufacture products, and transport them to customers.
+
+Lead Time can be broken down into three main components:
+
+1. Order-to-Delivery (OTD) Time: The time it takes from placing an order to receiving the goods.
+2. Production Lead Time: The time required for a supplier or manufacturer to produce the product.
+3. Transportation Lead Time: The time taken for the product to travel from the supplier's location to the customer's location.
+
+In the context of Finpixe, Lead Time might be relevant when managing inventory levels, forecasting demand, and optimizing supply chain operations. However, without further information or specific documentation related to lead times in Finpixe, it is difficult to provide a more detailed answer.
+
+If you have any additional questions or would like me to clarify anything else, please feel free to ask!

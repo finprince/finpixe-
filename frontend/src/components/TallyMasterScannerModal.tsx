@@ -169,7 +169,7 @@ const TallyMasterScannerModal: React.FC<TallyMasterScannerModalProps> = ({ onClo
     }, [initialFiles]);
 
     // ── Actions ──────────────────────────────────────────────────────────────────
-    const handleUploadToKiki = () => {
+    const handleUploadToSystem = () => {
         if (!onUpload) return;
         if (masterResults.length === 0) { showError('No data to upload.'); return; }
 

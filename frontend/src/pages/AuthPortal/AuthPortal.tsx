@@ -1,6 +1,6 @@
 import React from 'react';
 import Icon from '../../components/Icon';
-import KIKILogo from '../../assets/finpixe_with_empty_bg.png';
+import FinpixeLogo from '../../assets/finpixe_with_empty_bg.png';
 import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, Building2, UserCheck, KeyRound, Globe } from 'lucide-react';
 
 /**
@@ -198,7 +198,7 @@ const AuthPortal: React.FC = () => {
                 {/* Top Brand Header */}
                 <div className="flex items-center gap-3.5 z-10 text-left">
                     <div className="w-24 h-24 flex items-center justify-center">
-                        <img src={KIKILogo} alt="Finpixe logo" className="w-full h-full object-contain" />
+                        <img src={FinpixeLogo} alt="Finpixe logo" className="w-full h-full object-contain" />
                     </div>
                     <div>
                         <h2 className="text-4xl font-extrabold text-slate-900 tracking-widest leading-none">FINPIXE</h2>
