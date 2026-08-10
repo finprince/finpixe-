@@ -1,0 +1,16 @@
+{
+  "1_vector_store_unavailable": "PASSED - BM25 Sparse Search Fallback (DEGRADED_SPARSE)",
+  "2_bm25_unavailable": "PASSED - Dense Vector Search Fallback (DEGRADED_DENSE)",
+  "3_embedding_unavailable": "PASSED - Controlled Exception & HTTP 503",
+  "4_reranker_unavailable": "PASSED - Rank Preserved from RRF Candidates",
+  "5_ollama_unavailable": "PASSED - Fallback Factual Grounded Evidence Summary",
+  "6_ollama_timeout": "PASSED - KikiModelTimeoutException Handled Cleanly",
+  "7_invalid_embedding_dimension": "PASSED - MIGRATION_REQUIRED Triggered",
+  "8_index_corruption": "PASSED - Auto Rebuild Triggered",
+  "9_metadata_corruption": "PASSED - Default Metadata Applied",
+  "10_wrong_tenant": "PASSED - Tenant Context Rejection",
+  "11_invalid_active_index": "PASSED - Default Collection Fallback",
+  "12_reindex_failure": "PASSED - Rollback to Previous Active Pointer",
+  "13_partial_ingestion": "PASSED - Atomic Transaction Reversion",
+  "14_duplicate_ingestion": "PASSED - Idempotent Deduplication"
+}

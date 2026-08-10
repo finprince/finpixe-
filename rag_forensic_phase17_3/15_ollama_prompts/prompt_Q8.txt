@@ -1,0 +1,50 @@
+Evidence Documents:
+Digits*: Zero-padding length (e.g., entering 4 generates serials like 0001).
+Start From*: Starting sequence number (e.g., 1).
+Sample Preview: Review the dynamically updated example (e.g., GRN-0001/2026).
+Click SAVE.
+A.6 Recording Transactions: Goods Receipt Notes (GRN)
+A Goods Receipt Note (GRN) records incoming materials.
+Step-by-Step: Recording a GRN
+Go to Inventory > Operations and click + ADD NEW GRN.
+Select the GRN subtype: PURCHASE or SALES RETURN.
+Fill out the header details:
+Date & Time: Enter transaction date and time.
+---
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+To access the module, select INVENTORY from the left-hand navigation sidebar. Toggle between configurations and operations using the MASTER and OPERATIONS tabs at the top of the main screen.
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+---
+SECTION A: End-User Functional Guide
+This section is written for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions on a daily basis.
+A.1 Module Overview & Navigation
+The Finpixe Inventory module manages stock balances, godowns, categories, and transaction slips.
+Master: Configure basic records (categories, warehouses, stock items, and serial series templates).
+Operations: Post transaction vouchers (Goods Receipt Notes and Issue Slips) and review stock movement dashboards.
+---
+Job-Work: /api/operations/job-work/
+Inter-Unit: /api/operations/inter-unit/
+Location Change: /api/operations/location-change/
+Production: /api/operations/production/
+Query parameter production_type allows filtering by materials_issued, inter_process_transfer, or finished_goods_produced.
+Consumption: /api/operations/consumption/
+Scrap: /api/operations/scrap/
+Outward Commercial: /api/operations/outward/
+New Goods Receipt Note: /api/operations/new-grn/
+Custom Action: GET /api/operations/new-grn/next-grn-number/ generates a default GRN-0001 or increments the last recorded invoice.
+---
+Upload Transit Document: Attach transport records or receipt notes.
+Click POST & CLOSE to commit the stock.
+A.7 Recording Transactions: Issue Slips
+Under Operations, click + ADD NEW ISSUE SLIP to open the slip entry form.
+A.7.1 Job-Work Slips (Outward & Receipt)
+Used for subcontractor operations where materials are sent to or returned from a job worker.
+A. Goods Sent for Jobwork (Outward)
+Select the JOB-WORK tab and choose GOODS SENT FOR JOBWORK.
+Set the direction toggle to OUTWARD.
+Choose the JOB-WORK SERIES template. The JOBWORK OUTWARD NO. will auto-populate.
+
+User Question: What is the interaction between Goods Receipt Notes, Purchase Orders, and Accounts Payable?
+Provide a complete, factual, evidence-based answer.

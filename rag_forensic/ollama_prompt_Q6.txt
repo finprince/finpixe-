@@ -1,0 +1,83 @@
+=== QUERY: How do users create a stock transfer request between warehouses? ===
+Rewritten: What are the steps for creating a stock transfer request between warehouses?
+Compressed Evidence Chunks: 5
+
+Prompt Sent:
+Evidence Documents:
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+A.7.3 Location Change Slips
+Used for internal stock movements between warehouses under the same company premises. It does not require transporter dispatch details or e-way bills.
+Select the LOCATION CHANGE tab.
+Select the ISSUE SLIP SERIES (fills the ISSUE SLIP NO.).
+Set transaction DATE, TIME, GOODS SENT FROM (source location) and GOODS SENT TO (destination location).
+---
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+---
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+---
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+---
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+
+User Question: What are the steps for creating a stock transfer request between warehouses?
+Provide a complete, factual, evidence-based answer.
+
+Ollama Reply:
+Based on the provided Evidence Documents, the steps for creating a stock transfer request between warehouses are as follows:
+
+1. Select the "LOCATION CHANGE" tab.
+2. Fill in the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+3. Set the transaction DATE and TIME.
+4. Select GOODS SENT FROM (source location) and GOODS SENT TO (destination location).
+5. In the items grid, add the items with the following details:
+	* Code
+	* Name
+	* HSN/SAC
+	* UOM
+	* Qty
+	* Rate
+
+Alternatively, you can use Inter-Unit Slips for inventory transfers between sister units or distinct corporate branches by following these steps:
+
+1. Select the "INTER-UNIT" tab.
+2. Fill in the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+3. Set the transfer DATE and TIME.
+4. Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+5. In the items grid, add the items with the following details:
+	* Code
+	* Name
+	* HSN/SAC
+	* UOM
+	* Qty
+	* Rate
+
+Note that Inter-Unit Slips do not require transporter dispatch details or e-way bills, whereas Location Change Slips may require these details depending on the specific requirements of your organization.

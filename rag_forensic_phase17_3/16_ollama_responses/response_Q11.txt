@@ -1,0 +1,14 @@
+The document is about the Finpixe Inventory Management module, which provides a comprehensive guide for end-users, system administrators, developers, business analysts, and QA engineers. The main topics covered in this document are:
+
+1. End-User Functional Guide: This section provides step-by-step guides, user interfaces, form fields, and operational workflows for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions.
+2. Developer Technical Specifications: This section provides technical details on codebase file structures, viewset controllers, business flow models, and serializers for developers to work with the Finpixe Inventory Management module.
+3. Database Schema & DDL Specifications: This section provides information on MySQL tables, indexes, constraints, and relationships for database administrators and developers.
+
+Specifically, this document covers topics such as:
+
+* Recording transactions using issue slips
+* Managing locations (godowns and warehouses)
+* Creating groups and categories
+* Tracking stock across different company premises or third-party facilities
+
+Overall, the Finpixe Inventory Management module provides a comprehensive solution for managing inventory, tracking transactions, and monitoring stock levels.

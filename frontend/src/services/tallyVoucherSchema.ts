@@ -8,7 +8,7 @@
 //   ✅  Must contain ONLY official Tally export column names
 //   ✅  Case-sensitive, space-sensitive matching enforced
 //   ❌  Must NOT reuse internal DB names
-//   ❌  Must NOT reuse Kiki AI Scan headers
+//   ❌  Must NOT reuse AI Scan headers
 //   ❌  Must NOT include calculated fields (e.g., Total IGST, Total Taxable Value)
 //   ❌  Must NOT include system/convenience fields (e.g., Vendor Name, Customer Name)
 //   ❌  Must NOT share constants with Sales / Purchase / Payment schemas

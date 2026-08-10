@@ -1,0 +1,5 @@
+Unfortunately, there is no information provided in the given Evidence Documents that would allow me to determine the minimum threshold percentage for stock variance reporting.
+
+The documents appear to be related to configuring and managing an inventory system, including setting up GST rates, cess rates, and numbering series templates. They also provide technical specifications for developers and system administrators.
+
+However, I did not find any information about stock variance reporting or a minimum threshold percentage in the provided documents. If you have additional context or documentation that might be relevant to this question, please feel free to share it with me.

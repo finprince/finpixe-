@@ -1583,9 +1583,7 @@ class ApiService {
         return httpClient.postFormData('/api/ai/stock-extract/', formData);
     }
 
-    async sendAgentMessage(message: string, useGrounding: boolean, contextData?: string) {
-        return httpClient.post('/api/kiki/chat/', { question: message, query: message, useGrounding, contextData });
-    }
+
 
 
     async generateNarration(voucherData: any) {

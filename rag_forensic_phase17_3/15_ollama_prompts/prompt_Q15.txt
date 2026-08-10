@@ -1,0 +1,50 @@
+Evidence Documents:
+A.2 Category Management (Stock Groups)
+Inventory Categories let you organize items hierarchically. Finpixe pre-loads standard categories:
+Raw Material: Unprocessed materials.
+Work in Progress: Intermediate stages of production.
+Finished Goods: Completed products ready for sale.
+Stores and Spares: Operational and repair parts.
+Packing Material: Materials used to package goods.
+Stock in Trade: Goods purchased for direct resale.
+By-product: Secondary products generated during manufacturing.
+Scrap: Discarded material or waste.
+---
+Click POST & CLOSE.
+A.7.7 Scrap Slips (Production, Reclaimed, & Disposal)
+Scrap slips record unusable material wastage or log scrap sales.
+A. Production Scrap
+Used when scrap is generated during a specific production run.
+Select the SCRAP tab and check PRODUCTION SCRAP.
+Select the series (generates the SCRAP ISSUE SLIP NO.), DATE, and TIME.
+Set ISSUED FROM (production line location) and ISSUED TO (designated Scrap Yard).
+PRODUCTION SLIP NO.: Select the relevant production slip from the dropdown to link the scrap to a specific batch run.
+---
+Set ISSUED FROM (production line location) and ISSUED TO (designated Scrap Yard).
+PRODUCTION SLIP NO.: Select the relevant production slip from the dropdown to link the scrap to a specific batch run.
+List the scrap items in the grid, specify UOM, enter the Qty Generated, and click POST & CLOSE.
+B. Other Scrap (Dual Grid)
+Used when standard inventory items are damaged or expire, writing off the main product while recovering scrap materials.
+Select the SCRAP tab and check OTHER SCRAP.
+Specify numbering series, date, time, and locations.
+---
+Use this option when inventory is consumed to build or maintain capital assets, adding to their capitalized value.
+Select the CONSUMPTION tab and check ISSUED FOR FIXED ASSETS.
+Select the ISSUE SLIP SERIES (generates ISSUE SLIP NO.), DATE, and TIME.
+FIXED ASSET LEDGER*: Select the target capital ledger account (e.g. Plant & Machinery) from the dropdown.
+Select the warehouse under ISSUED FROM (LOCATION).
+Under ITEMS, click + ADD ITEM and enter Code, Name, UOM, Qty, and Rate. The system calculates the Capitalized Value automatically.
+---
+Items: /api/items/
+Custom Action: POST /api/items/bulk/ triggers bulk_create_stock_items in the flow layer.
+Units: /api/units/
+GRN Series: /api/master-voucher-grn/
+Custom Action: GET /api/master-voucher-grn/{id}/next-number/ returns the next sequence.
+Issue Slip Series: /api/master-voucher-issue-slip/
+Custom Action: GET /api/master-voucher-issue-slip/{id}/next-number/ calculates the next serial using a prefix counter check.
+B.2.2 Operation Endpoints
+Job-Work: /api/operations/job-work/
+Inter-Unit: /api/operations/inter-unit/
+
+User Question: What is Lead Time?
+Provide a complete, factual, evidence-based answer.

@@ -88,7 +88,7 @@ const PayrollPage: React.FC = () => {
                 <div>
                     <div className="flex items-center gap-4">
           <div className="w-11 h-11 rounded-2xl bg-white border border-[#C7D2FE] shadow-[0_8px_16px_rgba(99, 102, 241,0.08)] flex items-center justify-center overflow-hidden shrink-0">
-            <img src={finpixeLogo} alt="Kiki logo" className="w-9 h-9 object-contain drop-shadow-sm" />
+            <img src={finpixeLogo} alt="Finpixe logo" className="w-9 h-9 object-contain drop-shadow-sm" />
           </div>
           <div>
 <h1 className="page-title">Payroll Management</h1>

@@ -1,0 +1,50 @@
+Evidence Documents:
+Select the destination department location under ISSUED TO (the source location auto-fills from the linked slips).
+Dual Grid Sub-Tabs:
+Materials Issued: Displays raw materials pulled from the parent slips.
+Converted Output: Enter the intermediate Work-in-Progress (WIP) items generated.
+Click POST & CLOSE.
+Stage 3: Finished Goods Produced
+Logs completed goods entering the commercial warehouse.
+Select the PRODUCTION tab and check FINISHED GOODS PRODUCED.
+Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+---
+Select the CONSUMPTION tab and check ISSUED FOR DAILY OPERATIONS.
+Select the EXPENSE LEDGER* (e.g. Office Expenses) and specify the source warehouse location under ISSUED FROM (LOCATION).
+List the items, enter notes, and click POST & CLOSE.
+A.7.6 Outward Slips (Sales & Purchase Returns)
+Outward slips record goods leaving your commercial control.
+A. Sales Outward Slips
+Used to record dispatches to customers.
+Select the OUTWARD tab and check SALES.
+Select the ISSUE SLIP SERIES to generate the OUTWARD SLIP NO. (e.g. kg17).
+---
+Select the PRODUCTION tab and check FINISHED GOODS PRODUCED.
+Enter the FG RECEIPT SLIP NO., DATE, and TIME.
+PROCESS TRANSFER SLIP NO.: Select the parent Process Transfer Slip(s) from the dropdown to link input processes. (Hold Ctrl/Cmd to select multiple).
+Select your commercial warehouse under ISSUED TO.
+Dual Grid Sub-Tabs:
+Materials Issued: Displays the consumed components list.
+Goods Produced: Click + ADD ITEM to record the finished items (Code, Name, HSN, UOM, Qty Available, Qty Issued, Rate, and Amount).
+---
+Under the PRODUCTION tab, select MATERIALS ISSUED FOR PRODUCTION.
+Select the ISSUE SLIP SERIES (generates the MATERIAL ISSUE SLIP NO.).
+Choose the transaction DATE, TIME, raw material warehouse under ISSUED FROM, and production line under ISSUED TO.
+Dual Grid:
+Raw Materials (Left Grid): Click + ADD RAW MATERIAL to enter raw items consumed.
+Resulting WIP (Right Grid): Click + ADD WIP ITEM to log any intermediate products.
+Click POST & CLOSE.
+Stage 2: Inter-Process Transfer
+Used when materials are undergoing multi-step processing and move between work centers.
+---
+A.7.2 Inter-Unit Slips
+Used for inventory transfers between sister units or distinct corporate branches.
+Select the INTER-UNIT tab.
+Select the ISSUE SLIP SERIES to populate the ISSUE SLIP NO..
+Set the transfer DATE and TIME.
+Select GOODS SENT FROM (origin warehouse) and GOODS SENT TO (destination unit).
+In the items grid, add the items (Code, Name, HSN/SAC, UOM, Qty, and Rate).
+Fill in the Delivery Challan / Dispatch Details (transporter name, transport mode, vehicle registration, etc.) and click POST & CLOSE.
+
+User Question: What are the steps to follow for issuing goods from the central warehouse?
+Provide a complete, factual, evidence-based answer.

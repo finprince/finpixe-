@@ -1,18 +1,112 @@
+"""
+KIKI Configuration Settings
+============================
+Configuration driven architecture settings loaded from environment or defaults.
+"""
 import os
 
 class KikiSettings:
-    """
-    Centralized configuration settings for Kiki AI ERP Agent.
-    All configurable parameters are read from environment variables with sensible defaults.
-    """
-    OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")).rstrip('/')
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b")
-    MAX_INVESTIGATION_STEPS: int = int(os.getenv("KIKI_MAX_STEPS", "4"))
-    MAX_ROWS_PER_QUERY: int = int(os.getenv("KIKI_MAX_ROWS", "200"))
-    QUERY_TIMEOUT_SECONDS: int = int(os.getenv("KIKI_QUERY_TIMEOUT", "30"))
-    SCHEMA_REFRESH_INTERVAL: int = int(os.getenv("KIKI_SCHEMA_REFRESH", "3600"))
-    LLM_TEMPERATURE: float = float(os.getenv("KIKI_LLM_TEMP", "0.1"))
-    LLM_TOP_P: float = float(os.getenv("KIKI_LLM_TOP_P", "0.9"))
-    MAX_SCHEMA_MATCHES: int = int(os.getenv("KIKI_MAX_SCHEMA_MATCHES", "6"))
-    OLLAMA_REQUEST_TIMEOUT: int = int(os.getenv("KIKI_OLLAMA_TIMEOUT", "120"))
+    # Ollama Local Runtime Configuration
+    OLLAMA_BASE_URL: str = os.getenv("KIKI_OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("KIKI_OLLAMA_MODEL", "qwen2.5vl:7b")
+    ROUTER_MODEL: str = os.getenv("KIKI_ROUTER_MODEL", "llama3:latest")
+    REASONING_MODEL: str = os.getenv("KIKI_REASONING_MODEL", "qwen2.5vl:7b")
+    EMBEDDING_MODEL: str = os.getenv("KIKI_EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
+
+
+    
+    # Model Execution Timeouts (Seconds)
+    ROUTER_TIMEOUT_SECONDS: int = int(os.getenv("KIKI_ROUTER_TIMEOUT", "30"))
+    REASONING_TIMEOUT_SECONDS: int = int(os.getenv("KIKI_REASONING_TIMEOUT", "60"))
+    
+    # Redis Cache Configuration
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CACHE_DEFAULT_TTL: int = int(os.getenv("KIKI_CACHE_TTL", "900"))  # 15 mins
+    
+    # Vector DB (ChromaDB) Configuration
+    CHROMADB_PERSIST_DIRECTORY: str = os.getenv(
+        "KIKI_CHROMADB_DIR",
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "chromadb")
+    )
+    
+    # Query Safety Limits
+    MAX_QUERY_ROW_LIMIT: int = int(os.getenv("KIKI_MAX_QUERY_ROW_LIMIT", "500"))
+    MAX_QUERY_SCAN_LIMIT: int = int(os.getenv("KIKI_MAX_QUERY_SCAN_LIMIT", "50000"))
+    
+    # Semantic Knowledge Routing Threshold
+    KNOWLEDGE_ROUTING_THRESHOLD: float = float(os.getenv("KIKI_KNOWLEDGE_ROUTING_THRESHOLD", "0.50"))
+
+    # Phase 15 — Conversation Context Engine
+    MAX_CONTEXT_TURNS: int = int(os.getenv("KIKI_MAX_CONTEXT_TURNS", "10"))
+    CONTEXT_SESSION_TTL_MINUTES: int = int(os.getenv("KIKI_SESSION_TTL_MINUTES", "30"))
+    NLU_MAX_HISTORY_TURNS: int = int(os.getenv("KIKI_NLU_HISTORY_TURNS", "5"))
+    
+    # Active Providers (Provider Pattern)
+    LLM_PROVIDER: str = os.getenv("KIKI_LLM_PROVIDER", "ollama")
+    EMBEDDING_PROVIDER: str = os.getenv("KIKI_EMBEDDING_PROVIDER", "bge_local")
+    VECTOR_PROVIDER: str = os.getenv("KIKI_VECTOR_PROVIDER", "chromadb")
+    CACHE_PROVIDER: str = os.getenv("KIKI_CACHE_PROVIDER", "redis")
+
+    # Phase 17.1 — RAG Embedding Explicit Configuration
+    EMBEDDING_DISTANCE_METRIC: str = os.getenv("KIKI_EMBEDDING_DISTANCE_METRIC", "cosine")
+    EMBEDDING_NORMALIZED: bool = os.getenv("KIKI_EMBEDDING_NORMALIZED", "true").lower() == "true"
+    RAG_INDEX_RETENTION_COUNT: int = int(os.getenv("KIKI_INDEX_RETENTION_COUNT", "3"))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 17.4 — Production Hardening: Single Source of Truth for RAG Config
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Reranker model (moved from hardcoded default in reranker_provider.py)
+    RERANKER_MODEL: str = os.getenv(
+        "KIKI_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    )
+
+    # Chroma collection names (moved from module-level string constants)
+    PRIMARY_COLLECTION_NAME: str = os.getenv(
+        "KIKI_PRIMARY_COLLECTION", "kiki_knowledge_documents"
+    )
+    GLOBAL_COLLECTION_NAME: str = os.getenv(
+        "KIKI_GLOBAL_COLLECTION", "finpixe_global_knowledge"
+    )
+
+    # Global knowledge corpus tenant / security identity
+    GLOBAL_KNOWLEDGE_TENANT_ID: str = os.getenv("KIKI_GLOBAL_TENANT_ID", "global")
+    GLOBAL_KNOWLEDGE_SECURITY_LEVEL: str = os.getenv(
+        "KIKI_GLOBAL_SECURITY_LEVEL", "Public"
+    )
+
+    # Schema / metadata version written into every indexed chunk
+    SCHEMA_VERSION: str = os.getenv("KIKI_SCHEMA_VERSION", "2025.1")
+
+    # Retrieval tuning knobs (moved from inline literals in execution_pipeline / reranker)
+    RAG_TOP_K: int = int(os.getenv("KIKI_RAG_TOP_K", "10"))
+    RERANKER_TOP_K: int = int(os.getenv("KIKI_RERANKER_TOP_K", "5"))
+    CONTEXT_TOKEN_BUDGET: int = int(os.getenv("KIKI_CONTEXT_TOKEN_BUDGET", "2584"))
+
+    # NLU adaptive bypass — structural signal only, NO keyword/business routing
+    # When True, self-contained queries without conversational dependency skip Ollama NLU.
+    NLU_BYPASS_ENABLED: bool = os.getenv("KIKI_NLU_BYPASS", "true").lower() == "true"
+
+    # Tenant security — fail-closed policy
+    # False (production) = reject any request without a valid tenant
+    # True  (demo/dev)   = allow anonymous requests mapped to "anonymous" scope
+    TENANT_ANONYMOUS_ALLOWED: bool = (
+        os.getenv("KIKI_TENANT_ANON_ALLOWED", "true").lower() == "true"
+    )
+
+    # Phase 18 & 18.1: Ollama performance, dynamic token budget & synthesis settings
+    OLLAMA_KEEP_ALIVE: str = os.getenv("KIKI_OLLAMA_KEEP_ALIVE", "60m")
+    OLLAMA_MIN_CTX: int = int(os.getenv("KIKI_OLLAMA_MIN_CTX", "2048"))
+    OLLAMA_MAX_CTX: int = int(os.getenv("KIKI_OLLAMA_MAX_CTX", "8192"))
+    OLLAMA_MIN_OUTPUT_TOKENS: int = int(os.getenv("KIKI_OLLAMA_MIN_OUTPUT", "128"))
+    OLLAMA_DEFAULT_OUTPUT_TOKENS: int = int(os.getenv("KIKI_OLLAMA_DEFAULT_OUTPUT", "512"))
+    OLLAMA_MAX_OUTPUT_TOKENS: int = int(os.getenv("KIKI_OLLAMA_MAX_OUTPUT", "1536"))
+    OLLAMA_NUM_THREAD: int = int(os.getenv("KIKI_OLLAMA_NUM_THREAD", "8"))
+    SYNTHESIS_PROMPT_VERSION: str = os.getenv("KIKI_SYNTHESIS_PROMPT_VER", "v2025.1")
+    RESPONSE_CACHE_ENABLED: bool = os.getenv("KIKI_RESPONSE_CACHE_ENABLED", "true").lower() == "true"
+    RESPONSE_CACHE_TTL_SECONDS: int = int(os.getenv("KIKI_RESPONSE_CACHE_TTL", "3600"))
+
+kiki_settings = KikiSettings()
+
+
 

@@ -1,8 +1,8 @@
 """
-Evidence package for Kiki AI ERP Agent.
-Contains EvidenceBuilder and EvidenceValidator.
+KIKI Evidence Module — Phase 15 V3
+================──────────────────
+Standardized Evidence data models and Evidence Aggregator for hybrid execution.
 """
-from .evidence_builder import EvidenceBuilder
-from .evidence_validator import EvidenceValidator
+from .model import Evidence, Citation
 
-__all__ = ["EvidenceBuilder", "EvidenceValidator"]
+__all__ = ["Evidence", "Citation"]

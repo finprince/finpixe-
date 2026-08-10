@@ -1,0 +1,53 @@
+=== QUERY: What safety stock calculation parameters or threshold percentages are specified? ===
+Rewritten: What safety stock calculation parameters are specified?
+Compressed Evidence Chunks: 5
+
+Prompt Sent:
+Evidence Documents:
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+Closing Stock (Qty & Value): Net physical stock remaining (Opening Qty + Inward Qty - Outward Qty) and its financial valuation.
+Actions: Click View on any row to drill down into the transaction log (individual GRNs and Issue Slips) for that specific item.
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+---
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+Closing Stock (Qty & Value): Net physical stock remaining (Opening Qty + Inward Qty - Outward Qty) and its financial valuation.
+Actions: Click View on any row to drill down into the transaction log (individual GRNs and Issue Slips) for that specific item.
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+---
+B.4 Frontend Layout & React Page Architecture
+The user interface is implemented in the root file 
+Inventory.tsx
+.
+B.4.1 State Management & Sub-Tabs
+The UI maintains tab selections using URL page query parameters (?page=Inventory). Internally, it switches layouts using structural variables:
+Active Module View: activeTab ('master' vs 'operations').
+Master Sub-Tab: activeSubTab ('category', 'location', 'items', 'grn_issueslip').
+Voucher Type Toggle: activeVoucherSubTab (for GRN/Issue Slip numbering sub-tabs).
+---
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+Closing Stock (Qty & Value): Net physical stock remaining (Opening Qty + Inward Qty - Outward Qty) and its financial valuation.
+Actions: Click View on any row to drill down into the transaction log (individual GRNs and Issue Slips) for that specific item.
+SECTION B: Developer Technical Specifications
+This section is written for developers and system administrators to maintain, extend, and integrate the inventory module.
+---
+Upload Transit Document: Attach transport records or receipt notes.
+Click POST & CLOSE to commit the stock.
+A.7 Recording Transactions: Issue Slips
+Under Operations, click + ADD NEW ISSUE SLIP to open the slip entry form.
+A.7.1 Job-Work Slips (Outward & Receipt)
+Used for subcontractor operations where materials are sent to or returned from a job worker.
+A. Goods Sent for Jobwork (Outward)
+Select the JOB-WORK tab and choose GOODS SENT FOR JOBWORK.
+Set the direction toggle to OUTWARD.
+Choose the JOB-WORK SERIES template. The JOBWORK OUTWARD NO. will auto-populate.
+
+User Question: What safety stock calculation parameters are specified?
+Provide a complete, factual, evidence-based answer.
+
+Ollama Reply:
+There is no mention of safety stock calculation parameters in the provided documents. The documents appear to be related to inventory management and tracking, but they do not provide information on how to calculate safety stock levels. Safety stock calculations typically involve considering factors such as lead time, demand variability, and supply chain reliability to determine an optimal buffer stock level.

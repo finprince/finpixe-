@@ -1,0 +1,16 @@
+Based on the provided documentation, here's an explanation of the interaction between Goods Receipt Notes (GRN), Purchase Orders, and Accounts Payable:
+
+**Goods Receipt Notes (GRN)**: A GRN is used to record incoming materials or goods received from a supplier. It serves as a proof of delivery and helps track inventory levels.
+
+**Purchase Orders**: A Purchase Order is an order placed with a supplier for goods or services. In Finpixe, it appears that Purchase Orders are not explicitly linked to Goods Receipt Notes. However, when a Purchase Order is fulfilled, the supplier delivers the goods, which are then recorded in a Goods Receipt Note.
+
+**Accounts Payable**: Accounts Payable refers to the amount owed by an organization to its suppliers or vendors for goods or services received. In Finpixe, it seems that Accounts Payable is not directly linked to Goods Receipt Notes or Purchase Orders. However, when a supplier delivers goods and a GRN is recorded, the organization's liability to the supplier increases, which would be reflected in the Accounts Payable account.
+
+The interaction between these three processes can be summarized as follows:
+
+1. A Purchase Order is placed with a supplier.
+2. The supplier delivers the goods, which are then recorded in a Goods Receipt Note (GRN).
+3. The GRN serves as proof of delivery and helps track inventory levels.
+4. As the organization receives goods from suppliers, its liability to those suppliers increases, reflected in the Accounts Payable account.
+
+In summary, Goods Receipt Notes record incoming materials, Purchase Orders are used to place orders with suppliers, and Accounts Payable reflects the amount owed by an organization to its suppliers for goods or services received. While there is no direct link between these processes, they are interconnected through the recording of inventory movements and supplier payments.

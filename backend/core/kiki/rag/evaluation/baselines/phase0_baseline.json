@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-08-07 16:07:27",
+  "total_eval_time_seconds": 33.04,
+  "total_queries_tested": 5,
+  "metrics": {
+    "hit_rate_at_k": 1.0,
+    "recall_at_k": 1.0,
+    "precision_at_k": 1.0,
+    "mrr": 1.0,
+    "ndcg": 1.0,
+    "citation_accuracy": 1.0,
+    "mean_latency_ms": 6608.99,
+    "top_k": 5
+  },
+  "query_details": [
+    {
+      "id": "eval_001",
+      "query": "What is AST-RIM Optimizer?",
+      "latency_ms": 32155.77,
+      "hit": true,
+      "rank": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "retrieved_chunks": 5
+    },
+    {
+      "id": "eval_002",
+      "query": "How many casual leaves are allowed per year?",
+      "latency_ms": 265.8,
+      "hit": true,
+      "rank": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "retrieved_chunks": 5
+    },
+    {
+      "id": "eval_003",
+      "query": "Who approves invoice above 5 lakh?",
+      "latency_ms": 168.44,
+      "hit": true,
+      "rank": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "retrieved_chunks": 5
+    },
+    {
+      "id": "eval_004",
+      "query": "What are the input tax credit conditions under Section 16?",
+      "latency_ms": 279.14,
+      "hit": true,
+      "rank": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "retrieved_chunks": 8
+    },
+    {
+      "id": "eval_005",
+      "query": "Explain voucher posting in FINPIXE ERP",
+      "latency_ms": 175.79,
+      "hit": true,
+      "rank": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "retrieved_chunks": 5
+    }
+  ]
+}

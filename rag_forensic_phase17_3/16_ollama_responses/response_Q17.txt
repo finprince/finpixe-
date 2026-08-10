@@ -1,0 +1,3 @@
+Based on the provided Evidence Documents, there is no mention of a "maximum allowed delay" for Daily Stock Reconciliation in either Section A (End-User Functional Guide) or Section B (Developer Technical Specifications). The documents only provide information on how to manage stock, locations, and transactions, as well as technical specifications for developers and system administrators.
+
+Therefore, it is not possible to provide a complete, factual, evidence-based answer to this question.

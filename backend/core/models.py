@@ -280,3 +280,56 @@ class ExtractionPerformance(models.Model):
 
 # Alias for architecture transition
 Branch = Tenant
+
+
+class RAGReindexJob(models.Model):
+    """Authoritative DB Model tracking RAG Knowledge Reindex Jobs."""
+    job_id = models.CharField(max_length=64, primary_key=True)
+    status = models.CharField(max_length=32, choices=[
+        ('REINDEX_IDLE', 'Idle'),
+        ('REINDEX_REQUIRED', 'Required'),
+        ('REINDEX_SCHEDULED', 'Scheduled'),
+        ('REINDEX_RUNNING', 'Running'),
+        ('REINDEX_VALIDATING', 'Validating'),
+        ('REINDEX_READY_TO_PROMOTE', 'Ready to Promote'),
+        ('REINDEX_PROMOTED', 'Promoted'),
+        ('REINDEX_FAILED', 'Failed'),
+        ('REINDEX_ROLLED_BACK', 'Rolled Back'),
+    ], default='REINDEX_IDLE')
+    trigger_type = models.CharField(max_length=32)
+    reason = models.TextField()
+    source_index_version = models.CharField(max_length=64)
+    target_index_version = models.CharField(max_length=64)
+    source_corpus_version = models.CharField(max_length=64)
+    target_corpus_version = models.CharField(max_length=64)
+    embedding_model = models.CharField(max_length=128)
+    embedding_dimension = models.IntegerField()
+    distance_metric = models.CharField(max_length=32)
+    normalized = models.BooleanField()
+    progress = models.FloatField(default=0.0)
+    documents_total = models.IntegerField(default=0)
+    documents_processed = models.IntegerField(default=0)
+    chunks_total = models.IntegerField(default=0)
+    chunks_processed = models.IntegerField(default=0)
+    error_message = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'rag_reindex_jobs'
+
+
+class RAGActiveIndex(models.Model):
+    """Authoritative DB Model tracking Active Vector Index Pointer."""
+    active_index_version = models.CharField(max_length=64, primary_key=True)
+    corpus_version = models.CharField(max_length=64)
+    embedding_model = models.CharField(max_length=128)
+    embedding_dimension = models.IntegerField()
+    distance_metric = models.CharField(max_length=32)
+    normalized = models.BooleanField()
+    promoted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'rag_active_index'
+

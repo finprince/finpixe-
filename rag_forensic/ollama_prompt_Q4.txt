@@ -1,0 +1,71 @@
+=== QUERY: What is FIFO, LIFO, and Weighted Average costing in the inventory system? ===
+Rewritten: What are FIFO, LIFO, and Weighted Average costing methods in the inventory system?
+Compressed Evidence Chunks: 5
+
+Prompt Sent:
+Evidence Documents:
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+Item Code & Item Name: Item SKU and name.
+UOM: Unit of measurement.
+Opening Stock (Qty & Value): Stock balances and values at the beginning of the period.
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+---
+database.py
+: Abstraction layer for raw data querying and bulk insertions.
+urls.py
+: Directs standard endpoints and custom router actions.
+report_views.py
+: Compiles real-time metrics for inventory valuations, item summaries, aging, and warehouse splits.
+B.2 API Endpoints & Controller Layer
+The API endpoints are exposed via ModelViewSet classes registered in 
+urls.py
+.
+B.2.1 Master Endpoints (Standard CRUD)
+Categories: /api/master-categories/
+Locations: /api/locations/
+Items: /api/items/
+Custom Action: POST /api/items/bulk/ triggers bulk_create_stock_items in the flow layer.
+---
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+Item Code & Item Name: Item SKU and name.
+UOM: Unit of measurement.
+Opening Stock (Qty & Value): Stock balances and values at the beginning of the period.
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+---
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+Item Code & Item Name: Item SKU and name.
+UOM: Unit of measurement.
+Opening Stock (Qty & Value): Stock balances and values at the beginning of the period.
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+---
+The Stock Movement Summary dashboard under the Operations tab gives you a real-time overview of stock flows and valuations.
+Category: The mapped inventory group (e.g., Raw Material > c).
+Item Code & Item Name: Item SKU and name.
+UOM: Unit of measurement.
+Opening Stock (Qty & Value): Stock balances and values at the beginning of the period.
+Inward (Qty & Value): Total units and values received via GRNs and inward operations.
+Outward (Qty & Value): Total units and values dispatched via Issue Slips and outward operations.
+
+User Question: What are FIFO, LIFO, and Weighted Average costing methods in the inventory system?
+Provide a complete, factual, evidence-based answer.
+
+Ollama Reply:
+Based on the provided documents, I can provide an evidence-based answer to your question:
+
+FIFO (First-In-First-Out), LIFO (Last-In-First-Out), and Weighted Average are three common costing methods used in inventory systems.
+
+**FIFO (First-In-First-Out)**: This method assumes that the first items received or produced are the first ones sold or consumed. In this approach, the cost of the oldest items is matched with the revenue generated from their sale. FIFO is often used when there is a high volume of inventory turnover and it's easier to track the order in which items were received.
+
+**LIFO (Last-In-First-Out)**: This method assumes that the last items received or produced are the first ones sold or consumed. In this approach, the cost of the most recent items is matched with the revenue generated from their sale. LIFO is often used when there is a low volume of inventory turnover and it's easier to track the order in which items were received.
+
+**Weighted Average**: This method calculates the average cost of all items in stock, taking into account both the quantity and value of each item. The weighted average cost is then matched with the revenue generated from the sale of those items. Weighted Average is often used when there are multiple purchases or productions of the same item at different prices.
+
+These costing methods can be applied to the Stock Movement Summary dashboard under the Operations tab, which provides a real-time overview of stock flows and valuations. The dashboard displays information such as Opening Stock (Qty & Value), Inward (Qty & Value), and Outward (Qty & Value) for each item, allowing users to track inventory movements and apply costing methods like FIFO, LIFO, or Weighted Average.
+
+Please note that this answer is based on the provided documents and may not be a comprehensive overview of all possible inventory costing methods.

@@ -13462,7 +13462,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   const firstRow = data[0];
 
                   if (voucherType === 'Purchase' || voucherType === 'Debit Note') {
-                    // Map flat "Kiki schema" columns to Purchase form internal state
+                    // Map flat extracted schema columns to Purchase form internal state
                     // Column names exactly match VOUCHER_COLUMN_SCHEMAS['Purchase']
 
                     // "Supplier Invoice No." (with dot) — also tolerate legacy name without dot

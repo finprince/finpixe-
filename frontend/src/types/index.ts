@@ -22,7 +22,6 @@ export type {
   VoucherNumbering,
   ExtractedLineItem,
   ExtractedInvoiceData,
-  AgentMessage,
   MassUploadStatus,
   MassUploadFile,
   User,

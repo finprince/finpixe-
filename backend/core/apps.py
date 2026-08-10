@@ -38,3 +38,12 @@ class CoreConfig(AppConfig):
                     print("\033[92m" + f"[OK] AI Model Connection: SUCCESS ({AI_MODEL_NAME})" + "\033[0m")
             except Exception as ai_e:
                 print("\033[91m" + f"[ERROR] AI Startup Error: {str(ai_e)}" + "\033[0m")
+
+            # KIKI Phase 17.1 RAG Subsystem Preloading & Provenance Validation
+            try:
+                from core.kiki.rag.runtime_manager import rag_runtime_manager
+                status = rag_runtime_manager.initialize()
+                print("\033[92m" + f"[OK] KIKI RAG Runtime Lifecycle Initialized: STATUS = {status}" + "\033[0m")
+            except Exception as rag_e:
+                print("\033[93m" + f"[WARNING] KIKI RAG Startup Initialization Warning: {str(rag_e)}" + "\033[0m")
+

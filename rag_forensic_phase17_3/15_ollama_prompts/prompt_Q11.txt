@@ -1,0 +1,44 @@
+Evidence Documents:
+Finpixe Inventory Management: 
+Audience: End-Users, System Administrators, Developers, Business Analysts, QA Engineers
+This consolidated document is the single source of truth for the Finpixe Inventory Management module. It is divided into three sections:
+Section A: End-User Functional Guide (Step-by-step guides, user interfaces, form fields, and operational workflows).
+Section B: Developer Technical Specifications (Codebase file structures, viewset controllers, business flow models, and serializers).
+---
+Section A: End-User Functional Guide (Step-by-step guides, user interfaces, form fields, and operational workflows).
+Section B: Developer Technical Specifications (Codebase file structures, viewset controllers, business flow models, and serializers).
+Section C: Database Schema & DDL Specifications (MySQL tables, indexes, constraints, and relationships).
+SECTION A: End-User Functional Guide
+This section is written for accountants, inventory managers, and warehouse operators to manage stock, locations, and transactions on a daily basis.
+---
+Upload Transit Document: Attach transport records or receipt notes.
+Click POST & CLOSE to commit the stock.
+A.7 Recording Transactions: Issue Slips
+Under Operations, click + ADD NEW ISSUE SLIP to open the slip entry form.
+A.7.1 Job-Work Slips (Outward & Receipt)
+Used for subcontractor operations where materials are sent to or returned from a job worker.
+A. Goods Sent for Jobwork (Outward)
+Select the JOB-WORK tab and choose GOODS SENT FOR JOBWORK.
+Set the direction toggle to OUTWARD.
+Choose the JOB-WORK SERIES template. The JOBWORK OUTWARD NO. will auto-populate.
+---
+Select the ISSUE SLIP SERIES (fills the ISSUE SLIP NO.).
+Set transaction DATE, TIME, GOODS SENT FROM (source location) and GOODS SENT TO (destination location).
+Add items in the grid, enter optional remarks under POSTING NOTE, and click POST & CLOSE.
+A.7.4 Production Slips (Stages 1, 2, and 3)
+Tracks materials through the manufacturing process.
+Stage 1: Materials Issued for Production
+Under the PRODUCTION tab, select MATERIALS ISSUED FOR PRODUCTION.
+Select the ISSUE SLIP SERIES (generates the MATERIAL ISSUE SLIP NO.).
+---
+Create Group: Under the GROUP input box, type the group name (e.g., Import). Click CREATE GROUP.
+Success Alert: A banner will confirm: Success: Group created successfully!. The group will populate in the category tree.
+A.3 Location Management (Godowns & Warehouses)
+Locations enable you to track stock across different company premises or third-party facilities.
+Step-by-Step: Creating a Location
+Open Inventory > Master > Location.
+Fill out the Create Location form:
+Location Name*: Name of the warehouse or office (e.g., Chennai Main Warehouse).
+
+User Question: What is the Document about? Summarize the main topics.
+Provide a complete, factual, evidence-based answer.

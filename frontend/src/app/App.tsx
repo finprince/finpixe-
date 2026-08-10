@@ -28,7 +28,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 // Import TypeScript types for type safety
 // These define the shape of our data structures (see ../types/types.ts)
-import type { Page, Ledger, Voucher, ExtractedInvoiceData, CompanyDetails, LedgerGroupMaster, AgentMessage, SalesPurchaseVoucher, StockItem } from '../types';
+import type { Page, Ledger, Voucher, ExtractedInvoiceData, CompanyDetails, LedgerGroupMaster, SalesPurchaseVoucher, StockItem } from '../types';
 import { ChevronDown } from 'lucide-react';
 
 // ============================================================================
@@ -64,10 +64,11 @@ import Sidebar from '../components/Sidebar';  // Left navigation sidebar
 import MasterSidebar, { MasterPage } from '../components/MasterSidebar';
 import MasterHeader from '../components/MasterHeader';
 import Modal from '../components/Modal';                  // Reusable modal dialog
-import AIAgent from '../components/AIAgent';              // AI Agent (Kiki)
+
 import FloatingCalculator from '../components/FloatingCalculator';
 import FloatingCalendar from '../components/FloatingCalendar';
 import FloatingNotes from '../components/FloatingNotes';
+import { KikiPanel } from '../components/kiki';
 import Icon from '../components/Icon';                    // Icon component
 import ErrorBoundary from '../components/ErrorBoundary';  // Error handling wrapper
 import { showError, showSuccess } from '../utils/toast';
@@ -76,13 +77,13 @@ import CustomerViewModal from '../pages/CustomerPortal/CustomerViewModal';
 
 
 // Import assets
-import kikiLogo from '../assets/kiki-agent-orange.png';
+
 
 // ============================================================================
 // SERVICE IMPORTS
 // ============================================================================
 // AI Services - Google Gemini integration for invoice extraction and AI agent
-import { extractInvoiceDataWithRetry, getAgentResponse, getGroundedAgentResponse } from '../services/geminiService';
+import { extractInvoiceDataWithRetry } from '../services/geminiService';
 
 // API Service - Handles all HTTP requests to Django backend
 import { apiService, httpClient } from '../services';
@@ -299,26 +300,8 @@ const App: React.FC = () => {
   // Prefilled voucher data from AI invoice extraction
   const [prefilledVoucherData, setPrefilledVoucherData] = useState<ExtractedInvoiceData | null>(null);
 
-  // AI Agent (Kiki) - open/closed state
-  const [isAgentOpen, setIsAgentOpen] = useState(false);
-
-  // AI Agent conversation history
-  const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([
-    { role: 'model', text: 'Hello! I am Finpixe AI. How can I help you with your accounting data today? Use the toggle below to search the web for up-to-date information.' }
-  ]);
-
-  // AI Agent loading state (when waiting for response)
-  const [isAgentLoading, setIsAgentLoading] = useState(false);
-
-  // ============================================================================
-  // STATE VARIABLES - UI Modals & Notifications
-  // ============================================================================
-
   // Import summary - shows success/failure count after bulk import
   const [importSummary, setImportSummary] = useState<{ success: number, failed: number } | null>(null);
-
-  // CONTEXT STATE: Stores what the AI is waiting for (Name, Email, etc.)
-  const [pendingContext, setPendingContext] = useState<{ field: string, action: string, data?: any } | null>(null);
 
   // Deactivation modal - shown when user account is deactivated
   const [showDeactivationModal, setShowDeactivationModal] = useState(false);
@@ -1060,333 +1043,7 @@ const App: React.FC = () => {
     }
   }, [vouchers.length, getUserPlan, getPlanLimits]);
 
-  // AI Agent state for queue status
-  const [agentQueueStatus, setAgentQueueStatus] = useState<{ queuePosition?: number; estimatedWaitSeconds?: number; code?: string } | undefined>();
 
-  // --- AI AGENT ACTION DISPATCHER ---
-  const handleAgentAction = async (action: any) => {
-
-    const { tool_use, parameters } = action;
-
-    try {
-      switch (tool_use) {
-        case 'navigate': {
-          const pageMap: Record<string, string> = {
-            'dashboard': 'Dashboard',
-            'masters': 'Masters',
-            'inventory': 'Inventory',
-            'vouchers': 'Vouchers',
-            'reports': 'Reports',
-            'settings': 'Settings',
-            'payroll': 'Payroll',
-            'vendor portal': 'Vendor Portal',
-            'vendors': 'Vendor Portal',
-            'vendor': 'Vendor Portal',
-            'customer portal': 'Customer Portal',
-            'customers': 'Customer Portal',
-            'customer': 'Customer Portal',
-            'service': 'Service',
-            'services': 'Service'
-          };
-          const paramPage = (parameters.page || '').toLowerCase().trim();
-
-          // Direct match from aliases
-          if (pageMap[paramPage]) {
-            setCurrentPage(pageMap[paramPage] as Page);
-            return `✅ Navigated to ${pageMap[paramPage]}`;
-          }
-
-          // Fuzzy match (fallback)
-          const targetPageKey = Object.keys(pageMap).find(key =>
-            key.includes(paramPage) || paramPage.includes(key)
-          );
-
-          if (targetPageKey) {
-            setCurrentPage(pageMap[targetPageKey] as Page);
-            return `✅ Navigated to ${pageMap[targetPageKey]}`;
-          }
-
-          return `❌ Could not find page: "${parameters.page}". Try "Dashboard", "Inventory", "Vendors", etc.`;
-        }
-
-        case 'ask_for_info': {
-          // AI requests more info. Save the context state.
-          setPendingContext({
-            field: parameters.field,
-            action: parameters.action,
-            data: parameters.data || {} // Optional: Store partial data if AI sends it back
-          });
-          return parameters.question; // The reply text is just the question
-        }
-
-        case 'create_customer': {
-          // Use Customer Portal API for rich data
-          const payload = {
-            customer_name: parameters.name,
-            customer_code: `CUST-${Date.now().toString().slice(-6)}`,
-            email_address: parameters.email || null,
-            contact_number: parameters.phone || null,
-            // Default required fields for the API
-            gst_details: { gstins: [], branches: [] },
-            products_services: { items: [] }
-          };
-
-          try {
-            await httpClient.post('/api/customerportal/customer-master/', payload);
-            setCurrentPage('Customer Portal');
-            return `✅ Created customer '${parameters.name}' with full details. Navigating to Customer Portal.`;
-          } catch (err) {
-            console.error(err);
-            return `❌ Failed to create customer via Portal API.`;
-          }
-        }
-
-        case 'create_vendor': {
-          // Use Vendor Portal "Basic Details" API
-          const payload = {
-            vendor_name: parameters.name,
-            vendor_code: `VEN-${Date.now().toString().slice(-6)}`,
-            email: parameters.email,
-            contact_no: parameters.phone,
-            is_also_customer: false
-          };
-
-          try {
-            await httpClient.post('/api/vendors/basic-details/', payload);
-            setCurrentPage('Vendor Portal');
-            return `✅ Created vendor '${parameters.name}' with email/phone. Navigating to Vendor Portal.`;
-          } catch (err) {
-            console.error(err);
-            return `❌ Failed to create vendor. Ensure Email and Phone are provided.`;
-          }
-        }
-
-        case 'delete_customer': {
-          const ledger = ledgers.find(l => l.name.toLowerCase() === parameters.name.toLowerCase());
-          if (ledger) {
-            const idToDelete = ledger.id || ledger.name;
-            await handleDeleteLedger(idToDelete);
-            return `🗑️ Deleted customer: ${parameters.name}`;
-          }
-          return `❌ Customer not found: ${parameters.name}`;
-        }
-
-        case 'create_item': {
-          await httpClient.post('/api/inventory/items/', {
-            item_code: parameters.item_code,
-            name: parameters.name,
-            category: parameters.category || 1,
-            rate: parameters.rate || '0.00'
-          });
-          setCurrentPage('Inventory');
-          return `✅ Created item '${parameters.name}' and navigated to Inventory.`;
-        }
-
-        case 'delete_item': {
-          const itemsRes = await httpClient.get<any[]>('/api/inventory/items/');
-          const item = itemsRes.find(i => i.name.toLowerCase() === parameters.name.toLowerCase());
-          if (item) {
-            await httpClient.delete(`/api/inventory/items/${item.id}/`);
-            return `🗑️ Deleted item: ${parameters.name}`;
-          }
-          return `❌ Item not found: ${parameters.name}`;
-        }
-
-        case 'create_voucher': {
-          const voucherData = {
-            voucher_type: parameters.type || 'sales',
-            voucher_number: 'AUTO',
-            date: new Date().toISOString().split('T')[0],
-            party_name: parameters.party_name,
-            amount: parameters.amount || 0
-          };
-          await httpClient.post(`/api/masters/master-voucher-${parameters.type || 'sales'}/`, voucherData);
-          return `✅ Created ${parameters.type} voucher for ${parameters.party_name}`;
-        }
-
-        case 'delete_voucher': {
-          const v = vouchers.find(v => (v as any).voucher_number === parameters.voucher_number || v.id === parameters.id);
-          if (v) {
-            await httpClient.delete(`/api/masters/master-voucher-${v.type.toLowerCase()}/${v.id}/`);
-            return `🗑️ Deleted voucher ${(v as any).voucher_number}`;
-          }
-          return `❌ Voucher not found`;
-        }
-
-        default:
-          return `Unknown action: ${tool_use}`;
-      }
-    } catch (error: any) {
-      console.error("Action Execution Failed:");
-      return `❌ Action failed: ${error.message || 'Unknown error'}`;
-    }
-  };
-
-  const handleSendMessageToAgent = async (message: string, useGrounding: boolean) => {
-    let finalMessageText = message;
-
-    // INJECT CONTEXT if we are waiting for an answer
-    if (pendingContext) {
-      finalMessageText = `[SYSTEM: The user is answering your request for '${pendingContext.field}' for action '${pendingContext.action}'. Treat this input as the value for '${pendingContext.field}'. PRESERVE unrelated context.]\nUser Input: "${message}"`;
-      // Do not clear immediately? Or clear and assume AI consumes it?
-      // Better to clear it, assuming AI will either act or ask for next field.
-      setPendingContext(null);
-    }
-
-    const userMessage: AgentMessage = { role: 'user', text: message }; // Show original text to user
-    setAgentMessages(prev => [...prev, userMessage]);
-    setIsAgentLoading(true);
-    setAgentQueueStatus(undefined); // Clear previous queue status
-
-    try {
-      let modelMessage: AgentMessage;
-      let queueStatus;
-
-      if (useGrounding) {
-        const response = await getGroundedAgentResponse(message);
-        modelMessage = { role: 'model', text: response.text, sources: response.sources };
-      } else {
-        const contextData = JSON.stringify({
-          // Truncate large lists to stay within token/char limits (300K char limit on backend)
-          vouchers: vouchers.slice(0, 100),
-          ledgers,
-          stockItems: stockItems.slice(0, 100),
-          ledgerGroups,
-          companyDetails,
-          currentDate: new Date().toISOString().split('T')[0],
-          // Inject Rich Data (Spliced)
-          vendors: richVendors.slice(0, 100),
-          customers: richCustomers.slice(0, 100),
-          // Inject Schema
-          tables: userTables
-        });
-
-        // Prepare updated history locally (since state update is async)
-        const currentHistory = [...agentMessages, { role: 'user', text: finalMessageText }].map(msg => ({
-          role: msg.role === 'model' ? 'model' : 'user',
-          text: msg.text
-        }));
-
-        const response: any = await getAgentResponse(contextData, finalMessageText, currentHistory);
-        let replyText = response.reply;
-
-        // --- Frontend Navigation Execution & Ambiguity Handling ---
-        if (response.intent === 'NAVIGATION' && response.route) {
-          const targetRoute = response.route || '';
-          // Extract page parameter value dynamically from route
-          const match = targetRoute.match(/page=([^&]+)/i);
-          const pageParam = match ? match[1].toLowerCase() : targetRoute.toLowerCase();
-          
-          const pageMap: Record<string, Page> = {
-            'vouchers': 'Vouchers',
-            'vendor-portal': 'Vendor Portal',
-            'customer-portal': 'Customer Portal',
-            'inventory': 'Inventory',
-            'dashboard': 'Dashboard',
-            'purchase': 'Purchase Orders',
-            'pendingpurchase': 'Purchase Orders',
-            'reports': 'Reports',
-            'gst': 'Reports',
-            'ledgers': 'Ledgers',
-            'bank-upload': 'Bank Statement Upload' as Page,
-          };
-
-          for (const [key, pageName] of Object.entries(pageMap)) {
-            if (pageParam.includes(key) || targetRoute.toLowerCase().includes(key)) {
-              setCurrentPage(pageName);
-              break;
-            }
-          }
-        } else if (response.intent === 'NAVIGATION_OPTIONS' && Array.isArray(response.options)) {
-          // Format navigation options payload for user choice
-          const optionLines = response.options.map((opt: any) => `- **[${opt.title}](${opt.route})**: ${opt.description}`).join('\n');
-          replyText = `${response.final_response || response.reply}\n\nPlease select your destination:\n${optionLines}`;
-        }
-
-
-
-        // --- JSON Parsing & Tool Execution ---
-        try {
-          let jsonString = '';
-          // 1. Try md code block
-          const codeBlockMatch = replyText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-          if (codeBlockMatch) {
-            jsonString = codeBlockMatch[1];
-          } else {
-            // 2. Try raw JSON extraction
-            const jsonMatch = replyText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              jsonString = jsonMatch[0];
-            }
-          }
-
-          if (jsonString) {
-            const action = JSON.parse(jsonString);
-            if (action.tool_use) {
-              // Agentic tool call — execute it
-              const actionResult = await handleAgentAction(action);
-              replyText = `${actionResult}\n\n(Action: ${action.tool_use})`;
-            } else {
-              // LLM returned a JSON envelope instead of plain text.
-              // Extract the human-readable message from all known response shapes:
-              //   { response: "text" }                   ← structured OCR most common
-              //   { response: { message: "text" } }
-              //   { message: "text" }
-              //   { reply: "text" }
-              //   { data: { message: "text" } }
-              //   { answer: "text" }
-              //   { text: "text" }
-              const extractedMessage =
-                (typeof action?.response === 'string' ? action.response : null) ??
-                action?.response?.message ??
-                action?.message ??
-                action?.reply ??
-                action?.answer ??
-                action?.text ??
-                action?.data?.message ??
-                null;
-              if (extractedMessage && typeof extractedMessage === 'string') {
-                replyText = extractedMessage;
-              }
-              // If still no known field found, leave replyText as the raw string
-              // so nothing is silently swallowed.
-            }
-          }
-        } catch (e) {
-          // JSON parse failed — replyText remains the original raw string from the model
-        }
-        // -------------------------------------
-
-        modelMessage = { role: 'model', text: replyText };
-
-        // Set queue status if applicable
-        if (response.code === 'QUEUED' || response.code === 'RATE_LIMIT') {
-          queueStatus = {
-            code: response.code,
-            retryAfter: response.retryAfter,
-            queuePosition: response.queuePosition,
-            estimatedWaitSeconds: response.estimatedWaitSeconds
-          };
-        }
-      }
-
-      setAgentMessages(prev => [...prev, modelMessage]);
-      if (queueStatus) {
-        setAgentQueueStatus(queueStatus);
-      }
-
-      // Clear queue status after 10 seconds
-      if (queueStatus) {
-        setTimeout(() => setAgentQueueStatus(undefined), 10000);
-      }
-
-    } catch (err) {
-      const errorMessage: AgentMessage = { role: 'model', text: 'Sorry, I had trouble connecting to the AI. Please try again.' };
-      setAgentMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsAgentLoading(false);
-    }
-  };
 
   const clearPrefilledData = useCallback(() => setPrefilledVoucherData(null), []);
 
@@ -1714,73 +1371,9 @@ const App: React.FC = () => {
       <FloatingCalculator />
       <FloatingCalendar />
       <FloatingNotes />
-
-      {/* ── Floating Kiki AI Launcher Button ─────────────────────── */}
-      {!isAgentOpen && (
-        <button
-          onClick={() => setIsAgentOpen(true)}
-          role="button"
-          aria-label="Open Kiki AI"
-          tabIndex={0}
-          className="fixed bottom-6 right-6 z-40 flex items-center justify-center md:justify-start gap-[10px] w-11 h-11 md:w-[180px] md:h-[52px] p-1.5 md:px-3.5 md:py-2.5 bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-full shadow-[0_8px_30px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(15,23,42,0.12)] transition-all duration-200 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A00]"
-          title="Open Kiki AI (Ctrl+K)"
-        >
-          {/* 36px Fox Icon Container with Status Dot */}
-          <div className="relative w-9 h-9 rounded-full bg-[#FFF7ED] dark:bg-orange-950/40 border border-[#FED7AA] dark:border-orange-900/50 flex items-center justify-center shrink-0 group-active:ring-2 group-active:ring-[#FF8A00] transition-all">
-            <img
-              src={kikiLogo}
-              alt="Kiki Fox"
-              className="w-[34px] h-[34px] object-contain rounded-full"
-            />
-            {/* 8px Green Status Dot with Gentle Pulse */}
-            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 duration-1000" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E] ring-2 ring-white dark:ring-slate-900" />
-            </span>
-          </div>
-
-          {/* Launcher Text */}
-          <div className="hidden md:flex flex-col text-left leading-tight shrink-0">
-            <span className="text-[14px] font-semibold text-[#111827] dark:text-white tracking-tight">
-              Kiki AI
-            </span>
-            <span className="text-[11px] font-medium text-[#6B7280] dark:text-slate-400 mt-0.5">
-              Copilot Active
-            </span>
-          </div>
-
-          {/* Keyboard Shortcut Badge */}
-          <span className="hidden md:flex items-center justify-center w-6 h-6 ml-auto rounded-md bg-[#F8FAFC] dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 text-[10px] font-mono font-medium text-slate-400 dark:text-slate-400 shrink-0 select-none">
-            ⌘K
-          </span>
-        </button>
-      )}
+      <KikiPanel onNavigate={(page) => handleNavigate(page as Page)} />
 
 
-
-
-
-      <AIAgent
-        isOpen={isAgentOpen}
-        onClose={() => setIsAgentOpen(false)}
-        messages={agentMessages}
-        onSendMessage={handleSendMessageToAgent}
-        isLoading={isAgentLoading}
-        queueStatus={agentQueueStatus}
-        onNavigate={(routeOrPage: string) => {
-          let pageSlug = routeOrPage;
-          if (routeOrPage.includes('?page=')) {
-            pageSlug = routeOrPage.split('?page=')[1].split('&')[0];
-          } else if (routeOrPage.startsWith('/')) {
-            pageSlug = routeOrPage.replace('/', '');
-          }
-          const targetPage = mapPageSlugToPageName(pageSlug);
-          setCurrentPage(targetPage);
-          const url = new URL(window.location.href);
-          url.searchParams.set('page', targetPage);
-          window.history.pushState({}, '', url.pathname + url.search);
-        }}
-      />
 
 
       {globalVendorId !== null && (
