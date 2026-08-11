@@ -1,8 +1,17 @@
 """
-digital_pdf_extractor.py — Native Digital PDF Extraction & Transaction Reconstruction
+digital_pdf_extractor.py — Native Digital PDF Extraction & Explicit Line Classification
 ====================================================================================
 Bypasses OCR table Markdown reconstruction for digital PDFs.
-Extracts native text lines and reconstructs canonical bank transactions using spatial boundaries.
+Extracts native text lines, classifies each line explicitly, and reconstructs canonical bank transactions.
+
+Line Classification Taxonomy:
+  - TRANSACTION_START        : Valid date anchor + transaction amount(s)
+  - TRANSACTION_CONTINUATION : Continuation text belonging to preceding transaction
+  - OPENING_BALANCE          : Initial "B/F" opening balance row
+  - PAGE_HEADER              : Bank header, address, branch info, table headers
+  - PAGE_FOOTER              : Page numbers, website links, disclaimer text
+  - BLANK                    : Empty whitespace line
+  - UNKNOWN                  : Unclassified text line
 """
 import io
 import re
@@ -18,7 +27,7 @@ IGNORED_HEADERS = [
     "BANK OF BARODA", "PEELAMEDU", "ADDRESS:", "HELPLINE", "BRANCH PHONE",
     "MICR CODE", "A/C Name", "City", "Tel No", "Nomination", "Scheme Description",
     "Joint Holders", "A/C Number", "Statement of account", "DATE PARTICULARS",
-    "https://cbdrpt001", "Page No:", "B/F"
+    "https://cbdrpt001", "Page No:", "Page Total:", "Grand Total:", "ClrBal:"
 ]
 
 
@@ -54,20 +63,38 @@ def _extract_amounts_from_line(line: str) -> list[tuple[str, float]]:
     return nums
 
 
+def classify_line(line_text: str) -> tuple[str, str | None, list[tuple[str, float]]]:
+    """
+    Classifies a raw text line into explicit line classification taxonomy.
+    """
+    clean_t = line_text.strip()
+    if not clean_t:
+        return "BLANK", None, []
+
+    if any(h in clean_t for h in IGNORED_HEADERS):
+        if "Page Total:" in clean_t or "Grand Total:" in clean_t or "https://cbdrpt001" in clean_t:
+            return "PAGE_FOOTER", None, []
+        return "PAGE_HEADER", None, []
+
+    amts = _extract_amounts_from_line(clean_t)
+
+    if "B/F" in clean_t:
+        return "OPENING_BALANCE", None, amts
+
+    parsed_d = _parse_date(clean_t)
+    if parsed_d and amts:
+        return "TRANSACTION_START", parsed_d, amts
+    elif parsed_d:
+        return "TRANSACTION_START", parsed_d, []
+    elif len(amts) >= 2:
+        return "TRANSACTION_START", None, amts
+
+    return "TRANSACTION_CONTINUATION", None, []
+
+
 def extract_digital_pdf_transactions(file_bytes: bytes, metrics=None) -> list[dict]:
     """
-    Native digital PDF transaction extractor.
-    Returns list of standardized transaction dictionaries:
-      [
-        {
-          "date": "YYYY-MM-DD",
-          "narration": "Full narration string",
-          "debit": float | None,
-          "credit": float | None,
-          "balance": float | None,
-          "ref_no": str | None
-        }
-      ]
+    Native digital PDF transaction extractor with explicit line taxonomy classification.
     """
     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
     total_pages = len(reader.pages)
@@ -81,14 +108,14 @@ def extract_digital_pdf_transactions(file_bytes: bytes, metrics=None) -> list[di
         lines = text.split("\n")
         for l_idx, l in enumerate(lines):
             l_clean = l.strip()
-            if not l_clean:
-                continue
+            line_type, parsed_d, amts = classify_line(l_clean)
             native_lines.append({
                 "page": p_idx + 1,
                 "line_index": l_idx,
                 "text": l_clean,
-                "date": _parse_date(l_clean),
-                "amounts": _extract_amounts_from_line(l_clean)
+                "classification": line_type,
+                "date": parsed_d,
+                "amounts": amts
             })
 
     canonical_transactions = []
@@ -97,11 +124,12 @@ def extract_digital_pdf_transactions(file_bytes: bytes, metrics=None) -> list[di
     running_balance = None
 
     for line_obj in native_lines:
+        c_type = line_obj["classification"]
         text = line_obj["text"]
+        amts = line_obj["amounts"]
+        date_str = line_obj["date"]
 
-        # Capture opening balance line
-        if "B/F" in text:
-            amts = line_obj["amounts"]
+        if c_type == "OPENING_BALANCE":
             if amts:
                 opening_balance = amts[-1][1]
                 running_balance = opening_balance
@@ -110,14 +138,10 @@ def extract_digital_pdf_transactions(file_bytes: bytes, metrics=None) -> list[di
                 logger.info(f"[DIGITAL PDF EXTRACTOR] Captured Opening Balance: {opening_balance}")
             continue
 
-        if any(h in text for h in IGNORED_HEADERS):
+        if c_type in ("PAGE_HEADER", "PAGE_FOOTER", "BLANK"):
             continue
 
-        date_str = line_obj["date"]
-        amts = line_obj["amounts"]
-
-        # Transaction Boundary Anchor
-        if date_str:
+        if c_type == "TRANSACTION_START":
             if current_txn:
                 canonical_transactions.append(current_txn)
 
@@ -164,7 +188,7 @@ def extract_digital_pdf_transactions(file_bytes: bytes, metrics=None) -> list[di
                 "ref_no": None,
                 "source_page": line_obj["page"]
             }
-        else:
+        elif c_type == "TRANSACTION_CONTINUATION":
             if current_txn:
                 current_txn["narration"] += " " + text
 
