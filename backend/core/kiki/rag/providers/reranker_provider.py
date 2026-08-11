@@ -1,16 +1,17 @@
 """
-KIKI Local Neural Reranker Provider — Phase 17.4 Hardened
-==========================================================
-Concrete implementation of BaseReranker utilizing local cross-encoder scoring.
+KIKI Local Neural Reranker Provider — Phase 19 Hardened
+========================================================
+Concrete implementation of BaseReranker utilizing local cross-encoder scoring
+on NVIDIA CUDA GPU.
 
-Phase 17.4 changes:
-  - Removed dangerous "FALLBACK" string sentinel (was switching invisibly to keyword scoring)
-  - Model name now read from kiki_settings.RERANKER_MODEL (not hardcoded)
-  - preload() added for eager startup loading
-  - is_loaded() property exposed for health checks
-  - Degraded path is explicit: returns unranked candidates with warning log, never
-    silently pretends neural reranking occurred when it did not
+Phase 19 CUDA & Offline Enforcements:
+  - Loads CrossEncoder from local path (backend/models/rag/reranker/ms-marco-MiniLM-L-6-v2/) with local_files_only=True.
+  - Enforces CUDA execution (cuda:0).
+  - Fail-fast with GPU_REQUIRED_UNAVAILABLE if CUDA is required but unavailable.
 """
+import os
+import torch
+from pathlib import Path
 from typing import Dict, Any, List
 from ..interfaces.reranker import BaseReranker
 from core.kiki.config import kiki_settings
@@ -20,60 +21,81 @@ logger = get_kiki_logger("reranker_provider")
 
 
 class LocalRerankerProvider(BaseReranker):
-    """Local Cross-Encoder Reranker Provider — Phase 17.4 Hardened."""
+    """Local Cross-Encoder Reranker Provider with CUDA Acceleration & Zero-Network Offline Mode."""
 
     def __init__(self, model_name: str = None):
-        # Phase 17.4: model from settings, not a hardcoded default
         self.model_name = model_name or getattr(
             kiki_settings, "RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
         )
+        self.target_device = getattr(kiki_settings, "RERANKER_DEVICE", "cuda")
         self._cross_encoder = None
-        self._is_loaded: bool = False   # Phase 17.4: explicit flag, NO "FALLBACK" sentinel
-
-    # ── Properties ────────────────────────────────────────────────────────────
+        self._is_loaded: bool = False
+        self._device = None
 
     def is_loaded(self) -> bool:
-        """True if the cross-encoder has been successfully loaded."""
         return self._is_loaded
-
-    # ── Startup preload ───────────────────────────────────────────────────────
 
     def preload(self) -> bool:
         """
-        Eagerly load the cross-encoder during application startup.
-        Call from AppConfig.ready() or RAGRuntimeManager.initialize().
-
-        On failure: logs error, marks _is_loaded=False, returns False.
-        Does NOT raise — reranker unavailability is a DEGRADED state, not FAILED.
+        Eagerly load the cross-encoder onto CUDA during application startup.
+        Loads strictly from local model directory with zero network calls.
         """
         if self._is_loaded:
-            logger.info(
-                f"[RERANKER PROVIDER] Cross-encoder '{self.model_name}' already loaded."
-            )
+            logger.info(f"[RERANKER PROVIDER] Cross-encoder '{self.model_name}' already loaded on {self._device}.")
             return True
 
-        logger.info(f"[RERANKER PROVIDER] Preloading cross-encoder '{self.model_name}'...")
+        # Check CUDA requirement
+        cuda_ok = torch.cuda.is_available()
+        if self.target_device == "cuda" and not cuda_ok:
+            if getattr(kiki_settings, "RAG_REQUIRE_GPU", True) and not getattr(kiki_settings, "DEVELOPMENT_ALLOW_CPU_FALLBACK", False):
+                raise RuntimeError(
+                    "[RERANKER PROVIDER] ❌ GPU_REQUIRED_UNAVAILABLE: CUDA is required for CrossEncoder reranker "
+                    "but no usable CUDA device was detected."
+                )
+            logger.warning("[RERANKER PROVIDER] CUDA unavailable. Falling back to CPU for development mode.")
+            actual_device = "cpu"
+        else:
+            actual_device = "cuda" if cuda_ok else "cpu"
+
+        # Determine local model path
+        base_models = Path(getattr(kiki_settings, "LOCAL_MODELS_DIR", "backend/models/rag"))
+        local_rerank_path = base_models / "reranker" / "ms-marco-MiniLM-L-6-v2"
+
+        if local_rerank_path.exists() and (local_rerank_path / "model.safetensors").exists():
+            model_target = str(local_rerank_path)
+            local_files_only = True
+            logger.info(f"[RERANKER PROVIDER] Loading reranker from local directory: {local_rerank_path}")
+        else:
+            model_target = self.model_name
+            local_files_only = getattr(kiki_settings, "HF_LOCAL_ONLY", True)
+            logger.info(f"[RERANKER PROVIDER] Preloading cross-encoder '{self.model_name}'...")
+
         try:
             from sentence_transformers import CrossEncoder
-            self._cross_encoder = CrossEncoder(self.model_name)
-            self._is_loaded = True
-            logger.info(
-                f"[RERANKER PROVIDER] ✅ Cross-encoder '{self.model_name}' loaded successfully."
+
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+            self._cross_encoder = CrossEncoder(
+                model_target,
+                device=actual_device,
+                local_files_only=local_files_only
             )
+            self._device = str(self._cross_encoder.model.device)
+            self._is_loaded = True
+            logger.info(f"[RERANKER PROVIDER] ✅ Cross-encoder '{self.model_name}' loaded on {self._device}.")
             return True
         except Exception as e:
             self._cross_encoder = None
             self._is_loaded = False
-            logger.error(
-                f"[RERANKER PROVIDER] ❌ Failed to load '{self.model_name}': {e}. "
-                "Reranker will degrade gracefully (pass-through unranked candidates)."
-            )
+            self._device = None
+            msg = f"[RERANKER PROVIDER] ❌ Failed to load '{self.model_name}': {e}"
+            logger.error(msg)
+            if getattr(kiki_settings, "RAG_REQUIRE_GPU", True):
+                raise RuntimeError(msg) from e
             return False
 
-    # ── Internal accessor ─────────────────────────────────────────────────────
-
     def _get_encoder(self):
-        """Returns cross-encoder or None. Triggers lazy preload with warning if not loaded."""
         if not self._is_loaded:
             logger.warning(
                 "[RERANKER PROVIDER] _get_encoder() called without prior preload(). "
@@ -82,23 +104,12 @@ class LocalRerankerProvider(BaseReranker):
             self.preload()
         return self._cross_encoder if self._is_loaded else None
 
-    # ── Rerank ────────────────────────────────────────────────────────────────
-
     def rerank(
         self,
         query: str,
         candidates: List[Dict[str, Any]],
         top_k: int = None
     ) -> List[Dict[str, Any]]:
-        """
-        Re-scores candidate chunks using cross-encoder and returns top_k highest scorers.
-
-        Phase 17.4 degraded path:
-          If cross-encoder is NOT loaded, candidates are returned in their current
-          order (RRF-ranked order) with rerank_score=None and a warning logged.
-          The system records reranker_available=False in logs.
-          NO keyword-based fallback scoring is performed.
-        """
         if top_k is None:
             top_k = getattr(kiki_settings, "RERANKER_TOP_K", 5)
 
@@ -110,7 +121,6 @@ class LocalRerankerProvider(BaseReranker):
 
         encoder = self._get_encoder()
 
-        # Phase 17.4: explicit degraded path — no hidden keyword scoring
         if encoder is None:
             logger.warning(
                 f"[RERANKER PROVIDER] ⚠️  Reranker unavailable (reranker_available=False). "
@@ -122,15 +132,14 @@ class LocalRerankerProvider(BaseReranker):
                 c_copy["reranker_available"] = False
             return candidates[:top_k]
 
-        # Neural cross-encoder scoring
+        # Neural cross-encoder scoring on CUDA GPU
         pairs = [[query, c.get("text", "")] for c in candidates]
         try:
-            scores = encoder.predict(pairs)
+            scores = encoder.predict(pairs, batch_size=32)
             scored_candidates = []
             for idx, c in enumerate(candidates):
                 c_copy = dict(c)
                 raw_score = float(scores[idx])
-                # Sigmoid normalisation to [0, 1] range
                 norm_score = 1.0 / (1.0 + (2.71828 ** (-raw_score)))
                 c_copy["rerank_score"] = round(norm_score, 4)
                 c_copy["reranker_available"] = True
@@ -138,12 +147,11 @@ class LocalRerankerProvider(BaseReranker):
 
             scored_candidates.sort(key=lambda x: x["rerank_score"], reverse=True)
             logger.info(
-                f"[RERANKER PROVIDER] Reranked {len(candidates)} → top {top_k} candidates."
+                f"[RERANKER PROVIDER] Reranked {len(candidates)} → top {min(top_k, len(scored_candidates))} candidates on {self._device}."
             )
             return scored_candidates[:top_k]
-
         except Exception as e:
-            logger.error(f"[RERANKER PROVIDER] Cross-encoder prediction error: {e}")
+            logger.error(f"[RERANKER PROVIDER] Reranking exception on {self._device}: {e}")
             return candidates[:top_k]
 
 
