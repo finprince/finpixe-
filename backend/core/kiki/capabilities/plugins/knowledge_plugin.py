@@ -1,8 +1,13 @@
 """
-KIKI Knowledge Retrieval Capability Plugin — Phase 15 V3
-==========================================================
+KIKI Knowledge Retrieval Capability Plugin — Phase 18.5 Hardened
+===================================================================
 Plugin capability for unstructured statutory knowledge and document search.
 Interacts strictly through the KnowledgeProvider abstract interface and returns a standardized Evidence object.
+
+Phase 18.5 UX Corrections:
+- Synthesis prompt enforces direct conversational response without "Source 1:" or "Based on sources" leakage.
+- Returns clean synthesis_text without appending raw inline sources markdown.
+- Structured citations array is passed as clean metadata for collapsed UI rendering.
 """
 from typing import Dict, Any, List, Optional
 from ..base import BaseCapability, CapabilityProbeResult
@@ -82,7 +87,7 @@ class KnowledgeRetrievalCapability(BaseCapability):
             # Fallback for general statutory questions with no matching custom upload chunks
             try:
                 llm_provider = ProviderFactory.get_llm_provider()
-                prompt = f"User Question: '{rewritten_question}'\nProvide a clear, accurate, enterprise statutory knowledge answer."
+                prompt = f"User Question: '{rewritten_question}'\nProvide a clear, direct, conversational AI assistant response."
                 reply_text = llm_provider.generate(
                     model=kiki_settings.REASONING_MODEL,
                     prompt=prompt,
@@ -90,7 +95,7 @@ class KnowledgeRetrievalCapability(BaseCapability):
                 )
             except Exception as e:
                 logger.warning(f"Knowledge fallback synthesis error: {str(e)}")
-                reply_text = "Knowledge lookup completed. Please refer to statutory guidelines or internal documentation."
+                reply_text = "I don't have enough information in the available knowledge to answer that reliably."
 
             evidence_obj.payload["synthesis_text"] = reply_text
             evidence_obj.summary = reply_text
@@ -99,25 +104,25 @@ class KnowledgeRetrievalCapability(BaseCapability):
         # 2. Assemble context & prompt local Ollama reasoning model
         context_str = evidence_obj.payload["context_string"]
         system_prompt = (
-            "You are KIKI 2027, an enterprise AI assistant. "
-            "Answer the user's question completely using all relevant supplied evidence. "
-            "Combine complementary information from multiple retrieved chunks. "
-            "Preserve technical details, numbers, procedures, constraints, and relationships. "
-            "Do not discard unique factual details merely to make the answer shorter. "
-            "Do not invent information that is not supported by the evidence. "
-            "If the supplied evidence is insufficient, explicitly state that."
+            "You are KIKI 2027, a helpful conversational AI assistant.\n"
+            "Answer the user's question directly, clearly, and naturally.\n"
+            "Use all relevant supplied context internally to form your answer.\n"
+            "DO NOT say 'Based on the supplied sources', 'According to Source 1', or 'Source 1:'.\n"
+            "DO NOT insert source lists, chunk IDs, vector scores, or RAG metadata into your response text.\n"
+            "Combine complementary facts smoothly into a natural conversational response.\n"
+            "If the supplied context does not contain enough information to answer the question, state:\n"
+            "\"I don't have enough information in the available knowledge to answer that reliably.\""
         )
 
         prompt = (
             f"User Question: '{rewritten_question}'\n\n"
-            f"Supplied Enterprise Knowledge Context:\n{context_str}\n\n"
-            f"Provide a complete, accurate, grounded response using all supplied evidence above."
+            f"Context:\n{context_str}\n\n"
+            f"Provide a clean, direct, conversational response answering the user's question."
         )
-
 
         try:
             llm_provider = ProviderFactory.get_llm_provider()
-            answer_text = llm_provider.generate(
+            raw_answer = llm_provider.generate(
                 model=kiki_settings.REASONING_MODEL,
                 prompt=prompt,
                 system_prompt=system_prompt,
@@ -125,22 +130,23 @@ class KnowledgeRetrievalCapability(BaseCapability):
             )
         except Exception as e:
             logger.warning(f"LLM synthesis error: {str(e)}")
-            first_cite = evidence_obj.citations[0] if evidence_obj.citations else None
-            doc_label = first_cite.document_name if first_cite else "Document"
-            answer_text = f"Based on document '{doc_label}':\n{evidence_obj.payload['chunks'][0]['text']}"
+            raw_answer = "I don't have enough information in the available knowledge to answer that reliably."
 
-        # 3. Build clean markdown citations
-        formatted_citations = []
-        for cite in evidence_obj.citations:
-            formatted_citations.append({
-                "document_name": cite.document_name,
-                "page_number": cite.page_number,
-                "section_heading": cite.section_heading
-            })
+        # Post-process answer text to strip any residual "Source 1:" or "Based on the provided sources" prefixes
+        clean_answer = raw_answer.strip()
+        lines = clean_answer.split('\n')
+        filtered_lines = []
+        for line in lines:
+            lower_l = line.lower().strip()
+            if lower_l.startswith(("source 1:", "source 2:", "source 3:", "source 4:", "source 5:")):
+                continue
+            if lower_l.startswith("based on the supplied sources") or lower_l.startswith("based on the provided sources"):
+                line = line.split(":", 1)[-1].strip() if ":" in line else line
+            filtered_lines.append(line)
+        clean_answer = "\n".join(filtered_lines).strip()
 
-        sources_markdown = citation_builder.format_citation_markdown(formatted_citations)
-        full_reply = answer_text + sources_markdown
+        # 3. Store clean synthesis text without inline sources markdown
+        evidence_obj.payload["synthesis_text"] = clean_answer
+        evidence_obj.summary = clean_answer
 
-        evidence_obj.payload["synthesis_text"] = full_reply
-        evidence_obj.summary = full_reply
         return evidence_obj
