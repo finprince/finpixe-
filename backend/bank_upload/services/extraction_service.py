@@ -93,11 +93,27 @@ def extract_transactions(file_obj) -> tuple[list, dict]:
         metrics = ExtractionMetrics(file_name)
         logger.info(f"🔍 Starting hardened extraction: {file_name}")
 
-        # ── Step 1: Paged Processing for PDFs ──
+        # ── Step 1: PDF Classification & Native vs OCR Routing ──
         is_pdf = mime_type == 'application/pdf' or file_name.lower().endswith('.pdf')
         if is_pdf:
-            rows = _extract_pdf_paged(file_bytes, file_name, metrics)
+            from .pdf_type_detector import detect_pdf_type
+            pdf_info = detect_pdf_type(file_bytes)
+            if pdf_info.get("pdf_type") == "digital":
+                logger.info(
+                    f"📄 [DIGITAL PDF ROUTING] '{file_name}' classified as DIGITAL "
+                    f"({pdf_info.get('pages')} pages, {pdf_info.get('char_count_total')} chars). "
+                    "Bypassing OCR Markdown table reconstruction in favor of Native Digital Extraction."
+                )
+                from .digital_pdf_extractor import extract_digital_pdf_transactions
+                rows = extract_digital_pdf_transactions(file_bytes, metrics)
+            else:
+                logger.info(
+                    f"📷 [SCANNED PDF ROUTING] '{file_name}' classified as SCANNED. "
+                    "Routing to Isolated OCR Pipeline."
+                )
+                rows = _extract_pdf_paged(file_bytes, file_name, metrics)
         else:
+
             # Standard Processing for CSV/Excel/Images
             text_payload = _to_text(file_bytes, file_name, mime_type)
             if not text_payload and not mime_type.startswith('image/'):
