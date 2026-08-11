@@ -114,12 +114,18 @@ class ChromaVectorStoreProvider(BaseVectorStoreProvider):
             )
             return False, "PROVENANCE_MISSING"
 
-        # Model mismatch
-        if prov.get("embedding_model") != caps.model_id:
+        # Model mismatch check using canonical identity comparison
+        from ..provenance import canonicalize_embedding_model_id
+        index_model_canonical = canonicalize_embedding_model_id(prov.get("embedding_model"))
+        runtime_model_canonical = canonicalize_embedding_model_id(caps.model_id)
+
+        if index_model_canonical != runtime_model_canonical:
             return False, (
                 f"MIGRATION_REQUIRED: model mismatch — "
-                f"index={prov.get('embedding_model')}, runtime={caps.model_id}"
+                f"index={prov.get('embedding_model')} ({index_model_canonical}), "
+                f"runtime={caps.model_id} ({runtime_model_canonical})"
             )
+
 
         # Dimension mismatch
         if prov.get("embedding_dimension") and prov.get("embedding_dimension") != caps.dimension:
