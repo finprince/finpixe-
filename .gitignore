@@ -12,8 +12,8 @@ __pycache__/
 
 # Environments
 .env
-backend/.env
-frontend/.env
+
+
 
 # Local RAG Data & Models
 backend/data/

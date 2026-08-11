@@ -1,9 +1,0 @@
-According to the provided Evidence Documents, the primary purpose of the Finpixe Inventory module is to manage stock balances, godowns, categories, and transaction slips for accountants, inventory managers, and warehouse operators on a daily basis.
-
-This is stated in Section A: End-User Functional Guide, under Module Overview & Navigation:
-
-"The Finpixe Inventory module manages stock balances, godowns, categories, and transaction slips."
-
-Additionally, the same section provides an overview of the module's features, including configuring basic records (categories, warehouses, stock items, and serial series templates), posting transaction vouchers (Goods Receipt Notes and Issue Slips), and reviewing stock movement dashboards.
-
-Therefore, the primary purpose of Finpixe Inventory module is to provide a comprehensive platform for managing inventory-related activities.

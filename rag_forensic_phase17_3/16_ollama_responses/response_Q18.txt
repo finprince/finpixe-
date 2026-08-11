@@ -1,8 +1,0 @@
-Based on the provided Evidence Documents, the following reports are generated during Month-End Inventory Closing:
-
-1. **Inventory Valuation Report**: This report provides an accurate valuation of inventory at the end of the month, considering the movement of goods, including receipts, issues, and scrap.
-2. **Scrap Report**: This report details the quantity and value of scrap materials generated during the month, helping to identify areas for improvement in production processes.
-3. **Consumption Slip Report**: This report provides a record of inventory items consumed internally, including those used for fixed assets or operations.
-4. **Finished Goods Produced Report**: This report summarizes the quantity and value of finished goods produced during the month, providing insights into production performance.
-
-These reports are essential for accurate financial reporting, inventory management, and decision-making in the organization.

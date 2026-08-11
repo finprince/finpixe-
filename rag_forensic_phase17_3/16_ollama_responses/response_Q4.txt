@@ -1,9 +1,0 @@
-The Finpixe Inventory module does not explicitly mention Reorder Level, Safety Stock, and Economic Order Quantity (EOQ). However, these concepts are fundamental to inventory management and can be explained as follows:
-
-1. **Reorder Level**: This is the minimum quantity of an item that should be reordered when the current stock level falls below a certain threshold. It's used to trigger automatic reordering or to alert the inventory manager to place an order.
-
-2. **Safety Stock**: This is an additional buffer stock kept on hand to ensure that there are enough items in stock to meet customer demand during periods of high usage or supply chain disruptions. Safety stock helps prevent stockouts and reduces the risk of lost sales.
-
-3. **Economic Order Quantity (EOQ)**: This is the quantity of an item that minimizes the total cost of ordering, receiving, storing, and handling inventory. EOQ takes into account factors such as setup costs, holding costs, and order quantity to determine the optimal amount to order at one time.
-
-These concepts are essential for effective inventory management, ensuring that there is enough stock on hand to meet customer demand while minimizing excess inventory and associated costs.

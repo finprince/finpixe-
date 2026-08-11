@@ -1,1 +1,0 @@
-from django.contrib.auth import get_user_model; User = get_user_model(); u = User.objects.first(); print(getattr(u, 'tenant_id', None) or getattr(u, 'branch_id', None) or getattr(u, 'id', 'default_tenant'))

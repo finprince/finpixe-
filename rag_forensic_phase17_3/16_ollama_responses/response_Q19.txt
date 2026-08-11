@@ -1,3 +1,0 @@
-According to the provided Evidence Documents, the document required before releasing raw materials to production is the "MATERIALS ISSUED FOR PRODUCTION" slip.
-
-This document is part of Stage 1: Materials Issued for Production, which involves selecting the ISSUE SLIP SERIES, setting transaction DATE and TIME, specifying the raw material warehouse under ISSUED FROM, and the production line under ISSUED TO.
