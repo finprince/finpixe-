@@ -1,3 +1,4 @@
+import { NumericFormat } from 'react-number-format';
 import React, { useState, useMemo, useRef } from 'react';
 import { apiService } from '../../services/api';
 import { httpClient } from '../../services/httpClient';
@@ -4105,8 +4106,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                             />
                                                         </td>
                                                         <td className="px-3 py-2 border-r border-gray-200">
-                                                            <input
-                                                                type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                            <NumericFormat
+                                                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                                 value={row.itemRate}
                                                                 onChange={(e) => handleForeignItemRowChange(row.id, 'itemRate', e.target.value)}
                                                                 className="w-full px-2 py-1.5 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-sm text-center bg-transparent"
@@ -4116,7 +4117,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                         <td className="px-3 py-2">
                                                             <input
                                                                 type="text"
-                                                                value={row.invoiceValue}
+                                                                value={Number(row.invoiceValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                 readOnly
                                                                 className="w-full px-2 py-1.5 bg-gray-50 bg-opacity-50 border-0 rounded text-sm font-medium text-center text-gray-700"
                                                                 placeholder="0.00"
@@ -4428,12 +4429,12 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                             />
                                                         </td>
                                                         <td className="px-1 py-1 border-r border-gray-200">
-                                                            <input
-                                                                type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                            <NumericFormat
+                                                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                                 value={row.itemRate}
-                                                                min="0"
+                                                                
                                                                 readOnly={activeTab === 'item_tax_inr'}
-                                                                onChange={activeTab === 'item_tax_inr' ? undefined : (e) => handleItemRowChange(row.id, 'itemRate', e.target.value)}
+                                                                onValueChange={activeTab === 'item_tax_inr' ? undefined : (values) => handleItemRowChange(row.id, 'itemRate', values.value)}
                                                                 title={activeTab === 'item_tax_inr' ? 'Rate (INR) is auto-calculated as Rate (FC) × Conversion Rate' : undefined}
                                                                 className={`w-20 px-1 py-1 border-0 rounded text-[11px] text-center ${activeTab === 'item_tax_inr'
                                                                     ? 'bg-gray-100 bg-opacity-50 text-gray-600 cursor-not-allowed select-none'
@@ -4445,7 +4446,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                         <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="text"
-                                                                value={row.taxableValue}
+                                                                value={Number(row.taxableValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                 readOnly
                                                                 className="w-20 px-1 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-[11px] text-center"
                                                             />
@@ -4454,21 +4455,21 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                             !isInterState ? (
                                                                 <>
                                                                     <td className="px-1 py-1 border-r border-gray-200">
-                                                                        <input
-                                                                            type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                                        <NumericFormat
+                                                                            thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                                             value={row.cgst}
-                                                                            min="0"
-                                                                            onChange={(e) => handleItemRowChange(row.id, 'cgst', e.target.value)}
+                                                                            
+                                                                            onValueChange={(values) => handleItemRowChange(row.id, 'cgst', values.value)}
                                                                             className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                             placeholder="CGST"
                                                                         />
                                                                     </td>
                                                                     <td className="px-1 py-1 border-r border-gray-200">
-                                                                        <input
-                                                                            type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                                        <NumericFormat
+                                                                            thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                                             value={row.sgst}
-                                                                            min="0"
-                                                                            onChange={(e) => handleItemRowChange(row.id, 'sgst', e.target.value)}
+                                                                            
+                                                                            onValueChange={(values) => handleItemRowChange(row.id, 'sgst', values.value)}
                                                                             className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                             placeholder="SGST"
                                                                         />
@@ -4478,7 +4479,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                                 <td className="px-1 py-1 border-r border-gray-200">
                                                                     <input
                                                                         type="number" onWheel={(e) => e.currentTarget.blur()}
-                                                                        value={row.igst}
+                                                                        value={Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                         readOnly
                                                                         className="w-16 px-1 py-1 border-0 rounded text-[11px] text-center bg-gray-50 bg-opacity-50 text-gray-700 cursor-not-allowed"
                                                                         placeholder="IGST"
@@ -4488,11 +4489,11 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                         )}
                                                         {!isCessHidden && (
                                                             <td className="px-1 py-1 border-r border-gray-200">
-                                                                <input
-                                                                    type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                                <NumericFormat
+                                                                    thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                                     value={row.cess}
-                                                                    min="0"
-                                                                    onChange={(e) => handleItemRowChange(row.id, 'cess', e.target.value)}
+                                                                    
+                                                                    onValueChange={(values) => handleItemRowChange(row.id, 'cess', values.value)}
                                                                     className="w-16 px-1 py-1 border-0 focus:ring-1 focus:ring-indigo-500 rounded text-[11px] text-center bg-transparent"
                                                                     placeholder="CESS"
                                                                 />
@@ -4501,7 +4502,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                         <td className="px-1 py-1 border-r border-gray-200">
                                                             <input
                                                                 type="text"
-                                                                value={row.invoiceValue}
+                                                                value={Number(row.invoiceValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                 readOnly
                                                                 className="w-24 px-1 py-1 bg-gray-50 bg-opacity-50 border-0 rounded text-[11px] text-center font-medium"
                                                             />
@@ -4559,7 +4560,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             <td className="px-1 py-1">
                                                 <input
                                                     type="text"
-                                                    value={calculateTotals().taxableValue.toFixed(2)}
+                                                    value={calculateTotals().taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     readOnly
                                                     className="w-20 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                 />
@@ -4570,7 +4571,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                         <td className="px-1 py-1">
                                                             <input
                                                                 type="text"
-                                                                value={calculateTotals().cgst.toFixed(2)}
+                                                                value={calculateTotals().cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                 readOnly
                                                                 className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                             />
@@ -4578,7 +4579,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                         <td className="px-1 py-1">
                                                             <input
                                                                 type="text"
-                                                                value={calculateTotals().sgst.toFixed(2)}
+                                                                value={calculateTotals().sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                 readOnly
                                                                 className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                             />
@@ -4588,7 +4589,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <td className="px-1 py-1">
                                                         <input
                                                             type="text"
-                                                            value={calculateTotals().igst.toFixed(2)}
+                                                            value={calculateTotals().igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             readOnly
                                                             className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                         />
@@ -4599,7 +4600,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                 <td className="px-1 py-1">
                                                     <input
                                                         type="text"
-                                                        value={calculateTotals().cess.toFixed(2)}
+                                                        value={calculateTotals().cess.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         readOnly
                                                         className="w-16 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                     />
@@ -4608,7 +4609,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             <td className="px-1 py-1">
                                                 <input
                                                     type="text"
-                                                    value={calculateTotals().invoiceValue.toFixed(2)}
+                                                    value={calculateTotals().invoiceValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     readOnly
                                                     className="w-24 px-1 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-center"
                                                 />
@@ -4698,7 +4699,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             <td className="px-4 py-3 border-r border-gray-300">
                                                 <input
                                                     type="text"
-                                                    value={calculateTotals().taxableValue.toFixed(2)}
+                                                    value={calculateTotals().taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     readOnly
                                                     className="w-full px-2 py-1 bg-gray-50 border-0 rounded text-sm text-center"
                                                 />
@@ -4707,7 +4708,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                 <td className="px-4 py-3 border-r border-gray-300">
                                                     <input
                                                         type="text"
-                                                        value={calculateTotals().igst.toFixed(2)}
+                                                        value={calculateTotals().igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         readOnly
                                                         className="w-full px-2 py-1 bg-gray-50 border-0 rounded text-sm text-center"
                                                     />
@@ -4718,7 +4719,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <td className="px-4 py-3 border-r border-gray-300">
                                                         <input
                                                             type="text"
-                                                            value={calculateTotals().cgst.toFixed(2)}
+                                                            value={calculateTotals().cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             readOnly
                                                             className="w-full px-2 py-1 bg-gray-50 border-0 rounded text-sm text-center"
                                                         />
@@ -4726,7 +4727,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <td className="px-4 py-3 border-r border-gray-300">
                                                         <input
                                                             type="text"
-                                                            value={calculateTotals().sgst.toFixed(2)}
+                                                            value={calculateTotals().sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             readOnly
                                                             className="w-full px-2 py-1 bg-gray-50 border-0 rounded text-sm text-center"
                                                         />
@@ -4737,7 +4738,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                 <td className="px-4 py-3">
                                                     <input
                                                         type="text"
-                                                        value={calculateTotals().cess.toFixed(2)}
+                                                        value={calculateTotals().cess.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         readOnly
                                                         className="w-full px-2 py-1 bg-gray-50 border-0 rounded text-sm text-center"
                                                     />
@@ -4759,7 +4760,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             </label>
                                             <input
                                                 type="text"
-                                                value={calculateTotals().invoiceValue.toFixed(2)}
+                                                value={calculateTotals().invoiceValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 readOnly
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-semibold"
                                             />
@@ -4812,7 +4813,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
 
                                             <input
                                                 type="text"
-                                                value={paymentTdsIncomeTax}
+                                                value={Number(paymentTdsIncomeTax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 readOnly
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-right cursor-not-allowed font-semibold"
                                                 placeholder="0.00"
@@ -4843,7 +4844,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     const tdsIT = parseFloat(paymentTdsIncomeTax) || 0;
                                                     const tdsGst = parseFloat(paymentTdsGst) || 0;
                                                     const isTcsActive = customerTcsEnabled || customerTcsRate > 0;
-                                                    return isTcsActive ? (invVal + tdsIT - tdsGst).toFixed(2) : (invVal - tdsIT - tdsGst).toFixed(2);
+                                                    return isTcsActive ? (invVal + tdsIT - tdsGst).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (invVal - tdsIT - tdsGst).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                                 })()}
                                                 readOnly
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-right cursor-not-allowed font-semibold"
@@ -4856,7 +4857,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             </label>
                                             <input
                                                 type="text"
-                                                value={paymentAdvance}
+                                                value={Number(paymentAdvance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 readOnly
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-semibold"
                                             />
@@ -4868,7 +4869,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                             </label>
                                             <input
                                                 type="text"
-                                                value={paymentPayable}
+                                                value={Number(paymentPayable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 readOnly
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-bold text-lg text-indigo-700"
                                             />

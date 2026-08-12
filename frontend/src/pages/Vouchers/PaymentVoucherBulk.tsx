@@ -1,3 +1,4 @@
+import { NumericFormat } from 'react-number-format';
 import React, { useState, useEffect, useMemo } from 'react';
 import { showError, showSuccess } from '../../utils/toast';
 import { httpClient } from '../../services/httpClient';
@@ -406,11 +407,11 @@ const PaymentVoucherBulk: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
               <div className="space-y-2">
                 {paymentRows.map((row) => (
-                  <input
+                  <NumericFormat
                     key={`amount-${row.id}`}
-                    type="number" onWheel={(e) => e.currentTarget.blur()}
+                    thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                     value={row.amount || ''}
-                    onChange={e => handlePaymentRowChange(row.id, 'amount', parseFloat(e.target.value) || 0)}
+                    onValueChange={values => handlePaymentRowChange(row.id, 'amount', parseFloat(values.value) || 0)}
                    
                     placeholder="Pay now/Advance total"
                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
