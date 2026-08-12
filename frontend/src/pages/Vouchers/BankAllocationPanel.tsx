@@ -486,10 +486,10 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
                               </button>
                             </td>
                             <td className="px-3 py-4 text-right">
-                              <input
-                                type="number" onWheel={(e) => e.currentTarget.blur()}
+                              <NumericFormat
+                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                 value={txn.payment || ''}
-                                onChange={e => handlePaymentChange(index, parseFloat(e.target.value) || 0)}
+                                onValueChange={values => handlePaymentChange(index, parseFloat(values.value) || 0)}
                                 placeholder="0"
                                 className={`w-20 px-2 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${
                                   status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' : 

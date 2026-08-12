@@ -733,12 +733,12 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                           <td className="p-3">
                             <div className="relative flex items-center">
                               <span className="absolute left-2.5 text-xs font-bold text-slate-400">₹</span>
-                              <input
-                                type="number"
+                              <NumericFormat
+                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                 step="0.01"
                                 value={row.amount || ''}
-                                onChange={e => {
-                                  const val = e.target.value;
+                                onValueChange={values => {
+                                  const val = values.value;
                                   setAllRows(prev => prev.map(r => r.id === row.id ? { ...r, amount: val } : r));
                                 }}
                                 onBlur={async () => {

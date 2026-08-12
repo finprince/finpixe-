@@ -1,4 +1,5 @@
 import finpixeLogo from '../../assets/branding/logo';
+import { NumericFormat } from 'react-number-format';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -4579,10 +4580,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             tds_it: purchaseTdsIt || 0,
             advance_paid: purchaseAdvancePaid || 0,
             to_pay: (
-              purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)
-              + (purchaseTaxIsTcs ? (Number(purchaseTdsIt) || 0) : -(Number(purchaseTdsIt) || 0))
-              - (Number(purchaseAdvancePaid) || 0)
-            ).toFixed(2),
+                          purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)
+                          + (purchaseTaxIsTcs ? (Number(purchaseTdsIt) || 0) : -(Number(purchaseTdsIt) || 0))
+                          - (Number(purchaseAdvancePaid) || 0)
+                        ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             posting_note: purchasePostingNote,
             terms: purchaseTerms,
             advance_references: purchaseAdvanceRefs
@@ -7411,7 +7412,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               <input
                                 type="number"
                                 onWheel={(e) => e.currentTarget.blur()}
-                                value={row.taxableValue}
+                                value={Number(row.taxableValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 onChange={(e) => handlePurchaseItemChange(index, 'taxableValue', e.target.value)}
                                 className="w-20 px-1 py-1 border border-indigo-200 bg-indigo-50 rounded text-right text-[11px] font-semibold text-indigo-700 focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 focus:bg-white transition-colors"
                               />
@@ -7420,9 +7421,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               <>
                                 {/* CGST — Editable */}
                                 <td className="px-1 py-1 border-r border-gray-200">
-                                  <input
-                                    type="number"
-                                    onWheel={(e) => e.currentTarget.blur()}
+                                  <NumericFormat
+                                    thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                     value={row.cgst}
                                     onChange={(e) => handlePurchaseItemChange(index, 'cgst', e.target.value)}
                                     className="w-16 px-1 py-1 border border-blue-200 bg-blue-50 rounded text-right text-[11px] font-semibold text-blue-700 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 focus:bg-white transition-colors"
@@ -7430,9 +7430,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                                 </td>
                                 {/* SGST — Editable */}
                                 <td className="px-1 py-1 border-r border-gray-200">
-                                  <input
-                                    type="number"
-                                    onWheel={(e) => e.currentTarget.blur()}
+                                  <NumericFormat
+                                    thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                     value={row.sgst}
                                     onChange={(e) => handlePurchaseItemChange(index, 'sgst', e.target.value)}
                                     className="w-16 px-1 py-1 border border-green-200 bg-green-50 rounded text-right text-[11px] font-semibold text-green-700 focus:ring-1 focus:ring-green-400 focus:border-green-400 focus:bg-white transition-colors"
@@ -7445,7 +7444,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                                 <input
                                   type="number"
                                   onWheel={(e) => e.currentTarget.blur()}
-                                  value={row.igst}
+                                  value={Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   onChange={(e) => handlePurchaseItemChange(index, 'igst', e.target.value)}
                                   className="w-16 px-1 py-1 border border-purple-200 bg-purple-50 rounded text-right text-[11px] font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
                                 />
@@ -7453,9 +7452,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             )}
 
                             <td className="px-1 py-1 border-r border-gray-200">
-                              <input
-                                type="number"
-                                onWheel={(e) => e.currentTarget.blur()}
+                              <NumericFormat
+                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                 value={row.cess}
                                 onChange={(e) => handlePurchaseItemChange(index, 'cess', e.target.value)}
                                 className="w-16 px-1 py-1 border border-purple-200 bg-purple-50 rounded text-right text-[11px] font-semibold text-purple-700 focus:ring-1 focus:ring-purple-400 focus:border-purple-400 focus:bg-white transition-colors"
@@ -7561,19 +7559,19 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     <tbody>
                       <tr className="bg-white">
                         <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">
-                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.taxableValue) || 0), 0)).toFixed(2)}
+                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.taxableValue) || 0), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">
-                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.igst) || 0), 0)).toFixed(2)}
+                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.igst) || 0), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">
-                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.cgst) || 0), 0)).toFixed(2)}
+                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.cgst) || 0), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">
-                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.sgst) || 0), 0)).toFixed(2)}
+                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.sgst) || 0), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 text-center text-sm font-medium">
-                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.cess) || 0), 0)).toFixed(2)}
+                          {(purchaseItems.reduce((sum, item) => sum + (Number(item.cess) || 0), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     </tbody>
@@ -7588,7 +7586,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <input
                         type="number" onWheel={(e) => e.currentTarget.blur()}
                         readOnly
-                        value={(purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)).toFixed(2)}
+                        value={(purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-semibold text-sm"
                       />
                     </div>
@@ -7629,7 +7627,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
                       <input
                         type="text"
-                        value={purchaseTdsIt}
+                        value={Number(purchaseTdsIt || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         onChange={(e) => setPurchaseTdsIt(e.target.value)}
                         className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-right text-sm"
                         placeholder="0.00"
@@ -7640,7 +7638,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <input
                         type="text"
                         readOnly
-                        value={purchaseAdvancePaid}
+                        value={Number(purchaseAdvancePaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         title="Sum of Applied Now column from the Advance grid (auto-calculated)"
                         className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-semibold text-sm"
                         placeholder="0.00"
@@ -7659,7 +7657,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         value={(
                           purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)
                           + (purchaseTaxIsTcs ? (Number(purchaseTdsIt) || 0) : -(Number(purchaseTdsIt) || 0))
-                        ).toFixed(2)}
+                        ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         title="Invoice Value ± TDS/TCS (before advance deduction)"
                         className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-semibold text-sm"
                       />
@@ -7675,7 +7673,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)
                           + (purchaseTaxIsTcs ? (Number(purchaseTdsIt) || 0) : -(Number(purchaseTdsIt) || 0))
                           - (Number(purchaseAdvancePaid) || 0)
-                        ).toFixed(2)}
+                        ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         title="Net Amount Due = Gross Amount Due − Advance Paid (auto-calculated)"
                         className="w-full px-3 py-1.5 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-bold text-base text-indigo-700"
                       />
@@ -8538,11 +8536,11 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                    <input
-                      type="number" onWheel={(e) => e.currentTarget.blur()}
+                    <NumericFormat
+                      thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                       value={advanceAmount}
 
-                      onChange={e => setAdvanceAmount(parseFloat(e.target.value) || 0)}
+                      onValueChange={values => setAdvanceAmount(parseFloat(values.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -8721,13 +8719,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
                   <div className="space-y-2">
                     {bulkRows.map((row) => (
-                      <input
+                      <NumericFormat
                         key={`amount-${row.id}`}
-                        type="number" onWheel={(e) => e.currentTarget.blur()}
+                        thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                         value={row.amount || ''}
 
-                        onChange={e => {
-                          const newRows = bulkRows.map(r => r.id === row.id ? { ...r, amount: parseFloat(e.target.value) || 0 } : r);
+                        onValueChange={values => {
+                          const newRows = bulkRows.map(r => r.id === row.id ? { ...r, amount: parseFloat(values.value) || 0 } : r);
                           setBulkRows(newRows);
                         }}
                         placeholder="Receive now/Advance total"
@@ -9905,8 +9903,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           {cnInputType.includes('CGST & SGST') ? (
                             <>
                               <td className="px-2 py-2 border-r border-gray-200">
-                                <input
-                                  type="number" onWheel={(e) => e.currentTarget.blur()}
+                                <NumericFormat
+                                  thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                   value={row.cgst}
                                   onChange={(e) => handleCreditNoteItemChange(index, 'cgst', e.target.value)}
                                   readOnly={cnReverseGstTcs === 'No'}
@@ -9915,8 +9913,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                                 />
                               </td>
                               <td className="px-2 py-2 border-r border-gray-200">
-                                <input
-                                  type="number" onWheel={(e) => e.currentTarget.blur()}
+                                <NumericFormat
+                                  thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                   value={row.sgst}
                                   onChange={(e) => handleCreditNoteItemChange(index, 'sgst', e.target.value)}
                                   readOnly={cnReverseGstTcs === 'No'}
@@ -9929,7 +9927,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <td className="px-2 py-2 border-r border-gray-200">
                               <input
                                 type="number" onWheel={(e) => e.currentTarget.blur()}
-                                value={row.igst}
+                                value={Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 onChange={(e) => handleCreditNoteItemChange(index, 'igst', e.target.value)}
                                 readOnly={cnReverseGstTcs === 'No'}
                                 className={`w-full border-none bg-transparent focus:ring-0 p-0 text-sm text-right pr-1 ${cnReverseGstTcs === 'No' ? 'text-gray-500 cursor-default' : 'text-indigo-600 font-medium'}`}
@@ -9938,8 +9936,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             </td>
                           )}
                           <td className="px-2 py-2 border-r border-gray-200">
-                            <input
-                              type="number" onWheel={(e) => e.currentTarget.blur()}
+                            <NumericFormat
+                              thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                               value={row.cess}
                               onChange={(e) => handleCreditNoteItemChange(index, 'cess', e.target.value)}
                               readOnly={cnReverseGstTcs === 'No'}
@@ -10299,7 +10297,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           <td className="px-2 py-2 border-r border-gray-200 pr-1">
                             <input
                               type="number" onWheel={(e) => e.currentTarget.blur()}
-                              value={row.igst}
+                              value={Number(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               onChange={(e) => handleCreditNoteItemChange(index, 'igst', e.target.value)}
                               readOnly={cnReverseGstTcs === 'No'}
                               className={`w-full border-none bg-transparent focus:ring-0 p-0 text-sm text-right pr-1 ${cnReverseGstTcs === 'No' ? 'text-gray-500 cursor-default' : 'text-indigo-600 font-medium'}`}
@@ -10307,8 +10305,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             />
                           </td>
                           <td className="px-2 py-2 border-r border-gray-200 pr-1">
-                            <input
-                              type="number" onWheel={(e) => e.currentTarget.blur()}
+                            <NumericFormat
+                              thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                               value={row.cess}
                               onChange={(e) => handleCreditNoteItemChange(index, 'cess', e.target.value)}
                               readOnly={cnReverseGstTcs === 'No'}
@@ -11338,10 +11336,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                      <input
-                        type="number" onWheel={(e) => e.currentTarget.blur()}
+                      <NumericFormat
+                        thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                         value={advanceAmount}
-                        onChange={e => setAdvanceAmount(parseFloat(e.target.value) || 0)}
+                        onValueChange={values => setAdvanceAmount(parseFloat(values.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
@@ -11403,10 +11401,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
-                        <input
-                          type="number" onWheel={(e) => e.currentTarget.blur()}
+                        <NumericFormat
+                          thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                           value={simpleAmount}
-                          onChange={e => setSimpleAmount(parseFloat(e.target.value) || 0)}
+                          onValueChange={values => setSimpleAmount(parseFloat(values.value) || 0)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                         <div className="flex items-center gap-4 mt-2">
@@ -11555,10 +11553,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             />
                           </td>
                           <td className="px-4 py-3">
-                            <input
-                              type="number" onWheel={(e) => e.currentTarget.blur()}
+                            <NumericFormat
+                              thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                               value={advanceAmount}
-                              onChange={e => setAdvanceAmount(parseFloat(e.target.value) || 0)}
+                              onValueChange={values => setAdvanceAmount(parseFloat(values.value) || 0)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             />
                           </td>
@@ -11597,8 +11595,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
-                      <input
-                        type="number" onWheel={(e) => e.currentTarget.blur()}
+                      <NumericFormat
+                        thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                         value={simpleAmount}
                         readOnly
                         className="w-full px-3 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-gray-500"
@@ -11690,8 +11688,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Total Amount</label>
-                        <input
-                          type="number" onWheel={(e) => e.currentTarget.blur()}
+                        <NumericFormat
+                          thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                           value={simpleAmount}
                           readOnly
                           className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 text-gray-500 text-xs"
@@ -12093,11 +12091,11 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             {/* Amount (INR) — shown always; auto-filled from Payment for forex */}
             <div className="grid grid-cols-[160px_1fr] gap-4 items-center">
               <label className="text-sm font-medium text-gray-700">Amount (INR)</label>
-              <input
-                type="number" onWheel={(e) => e.currentTarget.blur()}
+              <NumericFormat
+                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                 value={simpleAmount}
-                onChange={e => {
-                  const v = parseFloat(e.target.value) || 0;
+                onValueChange={values => {
+                  const v = parseFloat(values.value) || 0;
                   setSimpleAmount(v);
                   if (!isForex) setContraPaymentAmtINR(v || '');
                 }}
@@ -12190,7 +12188,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           <div><label className="form-label">To Account</label><SearchableDropdown value={toAccount} onChange={setToAccount} options={accountLedgers.map(l => l.name)} placeholder="Select To Account" /></div>
         </>}
         {type !== 'Contra' && <div><label className="form-label">Party</label><SearchableDropdown value={party} onChange={setParty} options={partyLedgers.map(l => l.name)} placeholder="Select Party" /></div>}
-        <div><label className="form-label">Amount</label><input type="number" onWheel={(e) => e.currentTarget.blur()} value={simpleAmount} onChange={e => setSimpleAmount(parseFloat(e.target.value))} className="form-input" /></div>
+        <div><label className="form-label">Amount</label><NumericFormat thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false} value={simpleAmount} onValueChange={values => setSimpleAmount(parseFloat(values.value))} className="form-input" /></div>
         <div className="relative"><label className="form-label">Narration</label><textarea value={narration} onChange={e => setNarration(e.target.value)} className="form-input w-full pr-10" rows={3}></textarea><button onClick={handleGenerateNarration} disabled={isNarrationLoading} className="absolute top-7 right-2 text-indigo-500 hover:text-slate-700 disabled:text-gray-300" title="Generate Narration with AI">{isNarrationLoading ? <Icon name="spinner" className="w-5 h-5 animate-spin" /> : <Icon name="wand-sparkles" className="w-5 h-5" />}</button></div>
       </div>
     );

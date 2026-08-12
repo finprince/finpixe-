@@ -1,3 +1,4 @@
+import { NumericFormat } from 'react-number-format';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { httpClient, apiService } from '../../services';
 import { showError, showSuccess } from '../../utils/toast';
@@ -1540,11 +1541,11 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                     <div className="flex justify-end mb-4">
                         <div className="w-[200px]">
                             <label className="block text-sm font-medium text-gray-700 mb-1 text-right">Amount</label>
-                            <input
-                                type="number" onWheel={(e) => e.currentTarget.blur()}
+                            <NumericFormat
+                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                 value={topAmount || ''}
-                                onChange={(e) => {
-                                    const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                onValueChange={(values) => {
+                                    const val = Math.max(0, parseFloat(values.value) || 0);
                                     setTopAmount(val);
                                     handleTotalAmountChange(val);
                                 }}
@@ -1576,10 +1577,10 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-xs font-medium text-indigo-700 mb-1">Amount</label>
-                                    <input
-                                        type="number" onWheel={(e) => e.currentTarget.blur()}
+                                    <NumericFormat
+                                        thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                         value={singleAdvanceAmount || ''}
-                                        onChange={(e) => setSingleAdvanceAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                                        onValueChange={(values) => setSingleAdvanceAmount(Math.max(0, parseFloat(values.value) || 0))}
 
                                         className="w-full px-3 py-2 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                                         placeholder="0.00"
@@ -1671,10 +1672,10 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                                 </button>
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                <input
-                                                                    type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                                <NumericFormat
+                                                                    thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                                     value={txn.receipt || ''}
-                                                                    onChange={(e) => handleReceiptChange(index, Math.max(0, parseFloat(e.target.value) || 0))}
+                                                                    onValueChange={(values) => handleReceiptChange(index, Math.max(0, parseFloat(values.value) || 0))}
                                                                     placeholder="0"
                                                                     className={`w-24 px-3 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' :
                                                                         status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' :
@@ -1875,11 +1876,11 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
                                     <div className="space-y-3">
                                         {receiptRows.map((row) => (
-                                            <input
+                                            <NumericFormat
                                                 key={`amount-${row.id}`}
-                                                type="number" onWheel={(e) => e.currentTarget.blur()}
+                                                thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                                 value={row.amount || ''}
-                                                onChange={e => handleReceiptRowChange(row.id, 'amount', Math.max(0, parseFloat(e.target.value) || 0))}
+                                                onValueChange={values => handleReceiptRowChange(row.id, 'amount', Math.max(0, parseFloat(values.value) || 0))}
 
                                                 placeholder="Receive now/Advance total"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm h-[40px]"
