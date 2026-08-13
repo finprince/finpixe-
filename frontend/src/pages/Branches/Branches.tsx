@@ -9,6 +9,7 @@ import { decodeJWT } from '../../services/jwtUtils';
 interface Branch {
     id: string;
     name: string;
+    company_name?: string;
     gstin: string;
     country?: string;
     state?: string;
@@ -39,6 +40,7 @@ const BranchesPage: React.FC = () => {
     // Form states
     const [currentStep, setCurrentStep] = useState(1);
     const [selectedPlan, setSelectedPlan] = useState('FREE');
+    const [companyName, setCompanyName] = useState('');
     const [branchName, setBranchName] = useState('');
     const [adminName, setAdminName] = useState('');
     const [branchGstin, setBranchGstin] = useState('');
@@ -103,6 +105,7 @@ const BranchesPage: React.FC = () => {
     const validateStep = (step: number) => {
         setError(null);
         if (step === 1) {
+            if (!companyName) return "Company Name is required";
             if (!businessType) return "Business Type is required";
             if (!branchGstin) return "Branch GSTIN is required";
             if (branchGstin.length !== 15) return "GSTIN must be exactly 15 characters";
@@ -154,7 +157,8 @@ const BranchesPage: React.FC = () => {
 
         try {
             await masterApiService.createBranch({
-                name: branchName,
+                name: companyName,
+                company_name: companyName,
                 business_type: businessType,
                 gstin: branchGstin,
                 phone,
@@ -215,6 +219,7 @@ const BranchesPage: React.FC = () => {
     const resetForm = () => {
         setCurrentStep(1);
         setSelectedPlan('FREE');
+        setCompanyName('');
         setBranchName('');
         setBusinessType('');
         setAdminName(''); setBranchGstin(''); setPhone(''); setEmail(''); setUsername(''); setPassword('');
@@ -379,20 +384,27 @@ const BranchesPage: React.FC = () => {
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company Name</label>
+                                        <input
+                                            id="company-name"
+                                            type="text"
+                                            value={companyName}
+                                            onChange={e => { setCompanyName(e.target.value); setBranchName(e.target.value); }}
+                                            onKeyDown={e => handleEnter(e, 'branch-type')}
+                                            className="erp-input w-full h-12 text-sm font-bold shadow-sm"
+                                            placeholder="e.g. Buds Tech Consultancy"
+                                            autoFocus
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type of Business</label>
                                         <select
-                                            id="branch-name"
+                                            id="branch-type"
                                             value={businessType}
-                                            onChange={e => {
-                                                setBusinessType(e.target.value);
-                                                // If we're replacing the name, maybe use business type as name
-                                                // but since name must be unique, we might need more.
-                                                // For now, let's just use it as the name too.
-                                                setBranchName(e.target.value);
-                                            }}
+                                            onChange={e => setBusinessType(e.target.value)}
                                             onKeyDown={e => handleEnter(e, 'branch-gstin')}
                                             className="erp-input w-full h-12 text-sm font-bold shadow-sm"
-                                            autoFocus
                                             required
                                         >
                                             <option value="">Select Business Type</option>
@@ -401,6 +413,8 @@ const BranchesPage: React.FC = () => {
                                             ))}
                                         </select>
                                     </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-5">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Branch GSTIN</label>
                                         <input

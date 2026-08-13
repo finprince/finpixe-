@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SmartInvoiceUploadModal.tsx (OCR Staging & Workflow)
  * 
  * Implements a consolidated OCR staging & editing workflow:
@@ -64,6 +64,8 @@ export interface ScanResult {
     missing_items?: any[];
     items?: any[];
     _isSnapshot?: boolean;
+    company_match_detected?: boolean;
+    company_match_decision?: string | null;
 }
 
 interface FinalizeErrorItem {
@@ -376,6 +378,102 @@ const normalizeVoucherField = (k: string, voucherType: string) => {
 // ResolveConflictModal removed (integrated into EditInvoiceModal)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Own Company Warning Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface OwnCompanyWarningModalProps {
+    row: ScanResult;
+    companyName: string;
+    companyGstin: string;
+    onProceed: () => void;
+    onNotProceed: () => void;
+}
+
+const OwnCompanyWarningModal: React.FC<OwnCompanyWarningModalProps> = ({
+    row, companyName, companyGstin, onProceed, onNotProceed
+}) => {
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)' }}>
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                {/* Header */}
+                <div className="relative p-6 text-white" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ef4444 100%)' }}>
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
+                    <div className="relative flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl shadow-lg border border-white/30">
+                            🏢
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Own Company Detected</p>
+                            <h2 className="text-xl font-black leading-tight">This is Your Company!</h2>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6 space-y-4">
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+                        <p className="text-xs font-black text-amber-700 uppercase tracking-widest">Invoice Detected</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Invoice No.</p>
+                                <p className="text-sm font-black text-slate-800">{row.invoice_number || '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</p>
+                                <p className="text-sm font-black text-slate-800">{row.invoice_date || '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vendor Name</p>
+                                <p className="text-sm font-bold text-slate-700 truncate" title={row.vendor_name}>{row.vendor_name || '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">GSTIN</p>
+                                <p className="text-xs font-mono font-bold text-slate-700">{row.vendor_gstin || '—'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Your Company</p>
+                        <p className="text-sm font-bold text-slate-800">{companyName || '(Your Company)'}</p>
+                        {companyGstin && <p className="text-xs font-mono text-slate-500 mt-0.5">{companyGstin}</p>}
+                    </div>
+
+                    <p className="text-sm text-slate-600 leading-relaxed font-medium text-center">
+                        The GSTIN or name on this invoice matches <span className="font-black text-orange-600">your own company</span>.
+                        Do you want to proceed adding it as a purchase?
+                    </p>
+
+                    <div className="flex gap-3 pt-1">
+                        <button
+                            id="own-company-not-proceed"
+                            onClick={onNotProceed}
+                            className="flex-1 h-12 bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-red-100 hover:border-red-300 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Not Proceed
+                        </button>
+                        <button
+                            id="own-company-proceed"
+                            onClick={onProceed}
+                            className="flex-[1.5] h-12 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                            style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Proceed
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Modal
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -402,6 +500,27 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
+
+    // ── Own-Company Detection ────────────────────────────────────────────────
+    const [companyGstin, setCompanyGstin] = useState<string>('');
+    const [companyName, setCompanyName] = useState<string>('');
+    // Queue of rows that matched own company GSTIN — shown one by one
+    const [ownCompanyQueue, setOwnCompanyQueue] = useState<ScanResult[]>([]);
+    const [ownCompanyAlertRow, setOwnCompanyAlertRow] = useState<ScanResult | null>(null);
+    const processedOwnCompanyHashes = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        // Fetch the company's own GSTIN and name from settings
+        httpClient.get<any>('/api/company-settings/').then((res: any) => {
+            const gstin = (res?.gstin || res?.data?.gstin || '').toString().trim().toUpperCase();
+            const name = (res?.name || res?.data?.name || '').toString().trim().toUpperCase();
+            if (gstin) setCompanyGstin(gstin);
+            if (name) setCompanyName(name);
+        }).catch(() => {
+            // silently ignore — feature degrades gracefully
+        });
+    }, []);
+
 
     const {
         step, setStep,
@@ -506,6 +625,87 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
     const [extractedVendorData, setExtractedVendorData] = useState<any>(null);
     const [isCreateVendorModalOpen, setIsCreateVendorModalOpen] = useState(false);
 
+    // ── Own-company detection: triggered after scan results update ────────────
+    const checkForOwnCompanyRows = useCallback((rows: ScanResult[]) => {
+        const cleanStr = (s: string) => (s || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const newMatches: ScanResult[] = [];
+        for (const row of rows) {
+            if (row.company_match_decision === 'PROCEED' || row.company_match_decision === 'NOT_PROCEED') continue;
+            if (processedOwnCompanyHashes.current.has(row.file_hash)) continue;
+
+            const isBackendDetected = !!row.company_match_detected;
+            const rowGstin = cleanStr(row.vendor_gstin || '');
+            const rowName = cleanStr(row.vendor_name || '');
+            const compGstin = cleanStr(companyGstin);
+            const compName = cleanStr(companyName);
+
+            const hasGstin = !!(compGstin && rowGstin && rowGstin !== '—');
+            const hasName = !!(compName && rowName && rowName !== '—');
+
+            const gstinMatch = hasGstin && (rowGstin === compGstin);
+            const nameMatch = hasName && (rowName === compName || rowName.includes(compName) || compName.includes(rowName));
+
+            let matched = false;
+            if (hasGstin && hasName) {
+                matched = gstinMatch && nameMatch;
+            } else if (hasGstin) {
+                matched = gstinMatch;
+            } else if (hasName) {
+                matched = nameMatch;
+            }
+
+            if (isBackendDetected || matched) {
+                processedOwnCompanyHashes.current.add(row.file_hash);
+                newMatches.push(row);
+            }
+        }
+        if (newMatches.length > 0) {
+            setOwnCompanyQueue(prev => [...prev, ...newMatches]);
+        }
+    }, [companyGstin, companyName]);
+
+    // Re-check when scanResults, companyName, or companyGstin are loaded/updated
+    useEffect(() => {
+        if (scanResults && scanResults.length > 0) {
+            checkForOwnCompanyRows(scanResults);
+        }
+    }, [scanResults, companyName, companyGstin, checkForOwnCompanyRows]);
+
+    // Show next queued own-company row when queue changes and no alert is shown
+    useEffect(() => {
+        if (!ownCompanyAlertRow && ownCompanyQueue.length > 0) {
+            setOwnCompanyAlertRow(ownCompanyQueue[0]);
+            setOwnCompanyQueue(prev => prev.slice(1));
+        }
+    }, [ownCompanyQueue, ownCompanyAlertRow]);
+
+    const handleOwnCompanyProceed = async () => {
+        if (!ownCompanyAlertRow) return;
+        const row = ownCompanyAlertRow;
+        setOwnCompanyAlertRow(null);
+        try {
+            await httpClient.patch(`/api/ocr-staging/${row.id || row.file_hash}/`, { company_match_decision: 'PROCEED' });
+            setScanResults(prev => prev.map(r => r.file_hash === row.file_hash ? { ...r, company_match_decision: 'PROCEED' } : r));
+            showSuccess('Confirmed invoice for purchase processing.');
+        } catch {
+            setScanResults(prev => prev.map(r => r.file_hash === row.file_hash ? { ...r, company_match_decision: 'PROCEED' } : r));
+        }
+    };
+
+    const handleOwnCompanyNotProceed = async () => {
+        if (!ownCompanyAlertRow) return;
+        const row = ownCompanyAlertRow;
+        setOwnCompanyAlertRow(null);
+        try {
+            await httpClient.patch(`/api/ocr-staging/${row.id || row.file_hash}/`, { company_match_decision: 'NOT_PROCEED' });
+            setScanResults(prev => prev.filter(r => r.file_hash !== row.file_hash));
+            showSuccess('Invoice removed — not added to purchases or pending purchases.');
+        } catch {
+            setScanResults(prev => prev.filter(r => r.file_hash !== row.file_hash));
+            showSuccess('Invoice removed.');
+        }
+    };
+
     const openCreateVendorModal = (row: ScanResult) => {
         console.info('[FORENSIC][INVOICE_SCANNER_VENDOR_LIFECYCLE] CREATE_VENDOR_BUTTON_CLICK');
         setResolvingRow(row);
@@ -522,11 +722,11 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
         }));
 
         const prefData = {
-            vendor_name: row.vendor_name || supplier['vendor_name'] || supplier['Vendor Name'] || '',
-            gstin: row.vendor_gstin || supplier['gstin'] || supplier['GSTIN'] || '',
+            vendor_name: (row.vendor_name && row.vendor_name !== '—') ? row.vendor_name : (supplier['vendor_name'] || supplier['Vendor Name'] || supplier['name'] || ''),
+            gstin: (row.vendor_gstin && row.vendor_gstin !== '—') ? row.vendor_gstin : (supplier['gstin'] || supplier['GSTIN'] || ''),
             address: supplier['vendor_address'] || supplier['Address'] || supplier['address'] || '',
             state: supplier['vendor_city'] || supplier['State'] || supplier['state'] || '',
-            branch: supplier['branch'] || row.branch || '',
+            branch: (row.branch && row.branch !== '—') ? row.branch : (supplier['branch'] || ''),
             vendor_category: supplier['vendor_category'] || supplier['Vendor Category'] || '',
             supplier_items: supplier_items
         };
@@ -1103,8 +1303,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                         file_path: inv.file_path || 'Finalized Result',
                         invoice_number: inv.invoice_number || inv.invoice_no || '—',
                         invoice_date: inv.invoice_date || '—',
-                        vendor_name: inv.vendor_name || '—',
-                        vendor_gstin: inv.vendor_gstin || inv.gstin || '—',
+                        vendor_name: (inv.vendor_name && inv.vendor_name !== '—') ? inv.vendor_name : (inv.extracted_data?.vendor_name || ''),
+                        vendor_gstin: (inv.vendor_gstin && inv.vendor_gstin !== '—') ? inv.vendor_gstin : (inv.gstin || ''),
                         branch: inv.branch || '—',
                         total_amount: String(inv.total_amount || inv.invoice_total || '0.00'),
                         extracted_data: inv.extracted_data || inv,
@@ -1258,6 +1458,9 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     vStatus = 'VOUCHER_CREATED';
                 } else if (backendStatus === 'RESOLVED' || backendStatus === 'resolved' || backendStatus === 'MATCHED_VENDOR') {
                     vStatus = 'RESOLVED';
+                } else if (backendStatus === 'PENDING_PURCHASE' || backendStatus === 'pending_purchase' || backendStatus === 'NEED_TO_SAVE') {
+                    // Record is in the pending purchase queue — show Need to Save button so user can open edit and finalize
+                    vStatus = 'PENDING_PURCHASE' as any;
                 } else if (['NEED_VENDOR', 'VENDOR_MISSING', 'NOT_FOUND', 'not_found', 'Vendor Missing', 'CREATE_VENDOR'].includes(backendStatus)) {
                     vStatus = 'NEED_VENDOR';
                 } else if (backendStatus === 'GSTIN_CONFLICT' || backendStatus === 'gstin_conflict') {
@@ -1307,10 +1510,13 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     inv['invoice_date'],
                     inv['Voucher Date'], inv['Invoice Date'], inv['Date'],
                 );
+                const supplierDetails = rawExtracted?.sections?.supplier_details || {};
                 const vendorName = clean(
                     r.vendor_name,
+                    supplierDetails['vendor_name'], supplierDetails['Vendor Name'], supplierDetails['name'],
                     inv['vendor_name'],
                     inv['Vendor Name'], inv['Supplier Name'], inv['Party Name'], inv['Bill From'],
+                    rawExtracted['vendor_name'],
                 );
                 const vendorGstin = clean(
                     r.gstin, r.vendor_gstin,
@@ -1347,6 +1553,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                     vendor_id: r.vendor_id,
                     branch: clean(r.branch, inv['branch'], inv['Branch']),
                     extracted_data: rawExtracted,
+                    company_match_detected: !!(r.company_match_detected || rawExtracted?.company_match_detected),
+                    company_match_decision: r.company_match_decision || rawExtracted?.company_match_decision || null,
                     status: r.status || vStatus,
                     created_at: r.created_at || new Date().toISOString(),
                     error_message: r.validation_message || '',
@@ -1405,6 +1613,12 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                 });
                 return finalRows;
             });
+            // ── Own-Company Detection: Check newly loaded rows ──
+            // Only trigger for terminal/complete states (not while still scanning)
+            const isTerminal = !['processing', 'PENDING', 'PROCESSING', 'EXTRACTING'].includes(pipelineStatus);
+            if (isTerminal && seeded.length > 0) {
+                checkForOwnCompanyRows(seeded);
+            }
             console.log("API count:", rows.length);
 
             // [BUG 2 FIX: PROGRESSIVE REVIEW UNLOCK] 
@@ -2241,7 +2455,16 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                 />
             )}
 
-
+            {/* Own Company Warning Modal */}
+            {ownCompanyAlertRow && (
+                <OwnCompanyWarningModal
+                    row={ownCompanyAlertRow}
+                    companyName={companyName}
+                    companyGstin={companyGstin}
+                    onProceed={handleOwnCompanyProceed}
+                    onNotProceed={handleOwnCompanyNotProceed}
+                />
+            )}
 
             {/* Details Side Panel */}
             {detailsRow && (
@@ -2460,8 +2683,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('all')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'all'
-                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
-                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
+                                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
                                             }`}
                                     >
                                         <span>📂 All</span>
@@ -2474,8 +2697,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('vendor_required')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'vendor_required'
-                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
-                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
+                                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
                                             }`}
                                     >
                                         <span>👤 Vendor Required</span>
@@ -2488,8 +2711,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('item_required')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'item_required'
-                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
-                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150 border border-indigo-600'
+                                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100'
                                             }`}
                                     >
                                         <span>📦 Item Required</span>
@@ -2502,8 +2725,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('gst_mismatch')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'gst_mismatch'
-                                                ? 'bg-rose-600 text-white shadow-md shadow-rose-150 border border-rose-600'
-                                                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100'
+                                            ? 'bg-rose-600 text-white shadow-md shadow-rose-150 border border-rose-600'
+                                            : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100'
                                             }`}
                                     >
                                         <span>⚠️ GST Mismatch</span>
@@ -2516,8 +2739,8 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                     <button
                                         onClick={() => setActiveFilter('voucher_need_save')}
                                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 select-none outline-none ${activeFilter === 'voucher_need_save'
-                                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-150 border border-emerald-600'
-                                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100'
+                                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-150 border border-emerald-600'
+                                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100'
                                             }`}
                                     >
                                         <span>💾 Need to Save</span>
@@ -2775,7 +2998,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         {getGstStatus(row) === 'GST_MISMATCH' ? (
                                                                             <button
                                                                                 onClick={() => {
-                                                                                     setGstCorrectionRow(row);
+                                                                                    setGstCorrectionRow(row);
                                                                                 }}
                                                                                 title="Click to resolve GST Mismatch"
                                                                                 className="hover:scale-105 active:scale-95 transition-transform duration-150 outline-none focus:outline-none cursor-pointer"
@@ -2801,7 +3024,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         ) : getGstStatus(row) === 'GST_MISMATCH' ? (
                                                                             <button
                                                                                 onClick={() => {
-                                                                                     setGstCorrectionRow(row);
+                                                                                    setGstCorrectionRow(row);
                                                                                 }}
                                                                                 title="Open Invoice to Resolve GST Mismatch"
                                                                                 className="bg-rose-600 text-white border border-rose-700 px-2 py-1 rounded hover:bg-rose-700 transition-colors cursor-pointer font-bold focus:outline-none inline-block shadow-sm"
@@ -2821,10 +3044,10 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                                         showInfo("Editing is not available in standalone mode.");
                                                                                     }
                                                                                 }}
-                                                                                title="Open Voucher For Review"
-                                                                                className="bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-200 hover:text-indigo-800 transition-colors cursor-pointer font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 inline-block"
+                                                                                title="Click to open voucher and save"
+                                                                                className="bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-1 rounded hover:bg-emerald-200 hover:text-emerald-900 transition-colors cursor-pointer font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 inline-block shadow-sm animate-pulse hover:animate-none"
                                                                             >
-                                                                                Need to Save
+                                                                                💾 Need to Save
                                                                             </button>
                                                                         ) : (['NEED_VENDOR', 'VENDOR_MISSING', 'NOT_FOUND', 'GSTIN_CONFLICT', 'CREATE_VENDOR'].includes(row.validationStatus)) ? (
                                                                             <span className="bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-1 rounded">Create Vendor First</span>

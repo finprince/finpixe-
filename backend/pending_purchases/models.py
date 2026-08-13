@@ -30,6 +30,10 @@ class PendingPurchase(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
+    # Fields that exist in DB but were missing from model
+    company_match_detected = models.BooleanField(default=False, db_index=True)
+    company_match_decision = models.CharField(max_length=20, null=True, blank=True, db_index=True)
+
     class Meta:
         db_table = 'pending_purchase_queue'
         constraints = [

@@ -265,7 +265,7 @@ class CleanOCRStagingView(views.APIView):
         supplier = sections.get('supplier_details', {})
         header = norm.get('header', {})
         from .normalize import fix_encoding_corruption
-        vendor_name_val = fix_encoding_corruption(header.get('vendor_name') or supplier.get('vendor_name') or norm.get('vendor_name') or '—')
+        vendor_name_val = fix_encoding_corruption(header.get('vendor_name') or supplier.get('vendor_name') or norm.get('vendor_name') or '')
         is_finalized = v_status_record in {'FINALIZED', 'VOUCHER_CREATED', 'COMPLETED', 'EXTRACTED'} or getattr(r, 'processed', False)
         is_failed = v_status_record in {'FAILED', 'ERROR'}
         if is_finalized:
@@ -418,6 +418,9 @@ class CleanOCRStagingView(views.APIView):
             res['vendor_status'] = 'EXISTS' if v_id or db_vendor_status in ('EXISTS', 'FOUND', 'MATCHED', 'RESOLVED') else 'NEW'
             ui_status = 'Needs Review'
         res['extracted_data'] = {'sections': sections, 'bill_from': bill_from, 'billing_address': bill_to, 'items': items_val, 'line_items': items_val, 'item_status': item_status, 'missing_items': missing_items, **norm}
+        ext_dict = getattr(r, 'extracted_data', {}) if isinstance(getattr(r, 'extracted_data', None), dict) else {}
+        res['company_match_detected'] = bool(norm.get('company_match_detected') or ext_dict.get('company_match_detected'))
+        res['company_match_decision'] = norm.get('company_match_decision') or ext_dict.get('company_match_decision')
         res['created_at'] = getattr(r, 'created_at', None)
         res['voucher_type'] = getattr(r, 'voucher_type', 'PURCHASE')
         is_vendor_exists = res['vendor_status'] == 'EXISTS'
@@ -615,6 +618,19 @@ class CleanOCRStagingView(views.APIView):
                             continue
                     mapped_data.append(mapped)
             logger.info(f'[STAGING_POLL] session={session_id} records={len(mapped_data)} terminal=True pipeline_status=completed hydration_pending=False')
+            # [ROOT_CAUSE_FIX] If snapshot was empty (snapshot_json=[]), fall back to live DB records
+            # to prevent returning FINALIZED with zero rows when data is in InvoiceTempOCR table.
+            if not mapped_data and all_db_records:
+                logger.warning(f'[SNAPSHOT_EMPTY_FALLBACK] session={session_id} — snapshot had no rows, falling back to {len(all_db_records)} live DB records')
+                for db_record in all_db_records:
+                    if not getattr(db_record, 'tenant_id', None) and tenant_id:
+                        db_record.tenant_id = tenant_id
+                    mapped = self._map_record_to_ui_row(db_record, norm_data=db_record.extracted_data, vendor_map=_snap_vendor_map)
+                    if resume:
+                        if mapped.get('is_saved') or mapped.get('validationStatus') in {'VOUCHER_CREATED', 'DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE'} or mapped.get('processed'):
+                            continue
+                    mapped_data.append(mapped)
+                logger.info(f'[SNAPSHOT_EMPTY_FALLBACK] session={session_id} fallback produced {len(mapped_data)} rows')
             for row in mapped_data:
                 logger.critical('[FORENSIC_ITEMS_STRUCTURE]\n%s', json.dumps(row.get('items'), indent=2, default=str))
                 logger.critical('[FORENSIC_ITEMS_LIFECYCLE] [BEFORE_API_RESPONSE] record_id=%s invoice_no=%s item_count=%d item_status=%s payload_keys=%s', row.get('id'), row.get('invoice_no'), len(row.get('items', [])), row.get('item_status'), list(row.keys()))
@@ -652,6 +668,22 @@ class CleanOCRStagingView(views.APIView):
                 record = InvoiceTempOCR.objects.filter(id=int(file_hash) if str(file_hash).isdigit() else None).first()
         if not record:
             return Response({'error': 'File not found'}, status=404)
+        
+        company_match_decision = request.data.get('company_match_decision')
+        if company_match_decision:
+            if not isinstance(record.extracted_data, dict):
+                record.extracted_data = {}
+            record.extracted_data['company_match_decision'] = company_match_decision
+            if company_match_decision == 'NOT_PROCEED':
+                record.validation_status = 'REJECTED'
+            record.save(update_fields=['extracted_data', 'validation_status'])
+            from pending_purchases.models import PendingPurchase
+            PendingPurchase.objects.filter(source_scan_row_id=record.id).update(
+                company_match_decision=company_match_decision,
+                pending_purchase_status='REJECTED' if company_match_decision == 'NOT_PROCEED' else 'PENDING'
+            )
+            return Response({'status': 'SUCCESS', 'id': record.id, 'company_match_decision': company_match_decision})
+
         updated_data = request.data.get('extracted_data')
         if not updated_data:
             status_val = request.data.get('status')

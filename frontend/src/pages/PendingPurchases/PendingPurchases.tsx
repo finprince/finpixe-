@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { httpClient } from '../../services';
 import { CheckCircle, Trash2, Save, X } from 'lucide-react';
 import Package from 'lucide-react/dist/esm/icons/package';
@@ -128,8 +128,37 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
   const [isCreateVendorModalOpen, setIsCreateVendorModalOpen] = useState(false);
   const [vendorResolvingRow, setVendorResolvingRow] = useState<any>(null);
 
-// editingRow state removed as editing is handled by VouchersPage navigation
-  const [gstCorrectionRow, setGstCorrectionRow] = useState<any | null>(null);
+  const [companyGstin, setCompanyGstin] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('');
+
+  useEffect(() => {
+    httpClient.get<any>('/api/company-settings/').then((res: any) => {
+      const gstin = (res?.gstin || res?.data?.gstin || res?.company_profile?.gstin || res?.company_profile?.gst_number || '').toString().trim();
+      const name = (res?.name || res?.company_name || res?.data?.name || res?.data?.company_name || res?.company_profile?.name || '').toString().trim();
+      if (gstin) setCompanyGstin(gstin);
+      if (name) setCompanyName(name);
+    }).catch(() => {});
+  }, []);
+
+  const isCompanyMatch = (purchase: any) => {
+    if (purchase.company_match_decision === 'PROCEED' || purchase.company_match_decision === 'NOT_PROCEED') return false;
+    if (purchase.company_match_detected || purchase.extraction_payload?.company_match_detected) return true;
+    
+    const cleanStr = (s: string) => (s || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const ext = purchase.extraction_payload || {};
+    const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
+    const header = ext.header || {};
+    const rowName = cleanStr(purchase.vendor_name || supplier.vendor_name || supplier['Vendor Name'] || supplier.name || header.vendor_name || ext.vendor_name || '');
+    const rowGstin = cleanStr(purchase.vendor_gstin || supplier.gstin || supplier['GSTIN'] || ext.vendor_gstin || ext.gstin || '');
+    
+    const compGstin = cleanStr(companyGstin);
+    const compName = cleanStr(companyName);
+
+    const gstinMatch = compGstin && rowGstin && rowGstin !== '—' && (rowGstin === compGstin);
+    const nameMatch = compName && rowName && rowName !== '—' && (rowName === compName || rowName.includes(compName) || compName.includes(rowName));
+
+    return gstinMatch || nameMatch;
+  };
 
   // Per-row loading states
   const [revalidating, setRevalidating] = useState<Set<number>>(new Set());
@@ -297,6 +326,21 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
   const openCreateVendorModal = (purchase: any) => {
     setVendorResolvingRow(purchase);
     setIsCreateVendorModalOpen(true);
+  };
+
+  const handleCompanyMatchDecision = async (purchaseId: number | string, decision: 'PROCEED' | 'NOT_PROCEED') => {
+    try {
+      await httpClient.post(`/api/pending-purchases/${purchaseId}/company-match-decision/`, { decision });
+      if (decision === 'PROCEED') {
+        showSuccess("Confirmed invoice for purchase processing.");
+        setPendingPurchases(prev => prev.map(p => p.id === purchaseId ? { ...p, company_match_decision: 'PROCEED' } : p));
+      } else {
+        showSuccess("Invoice removed from Purchase & Pending Purchase.");
+        setPendingPurchases(prev => prev.filter(p => p.id !== purchaseId));
+      }
+    } catch (e: any) {
+      showError("Failed to update company match decision.");
+    }
   };
 
   return (
@@ -605,6 +649,32 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                     const isResolving = resolving.has(purchase.id);
                     return (
                       <React.Fragment key={purchase.id}>
+                        {isCompanyMatch(purchase) && (
+                          <tr key={`comp_match_${purchase.id}`} className="bg-amber-50 border-b border-amber-200">
+                            <td colSpan={13} className="px-4 py-2.5">
+                              <div className="flex items-center justify-between gap-3 text-amber-900 text-xs font-semibold">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-amber-600 font-bold">⚠️ Self-Company Invoice Detected:</span>
+                                  <span>This invoice matches your company name/GSTIN. Is this intended for purchase?</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'PROCEED')}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-3 py-1 rounded shadow-sm transition-colors cursor-pointer"
+                                  >
+                                    Proceed
+                                  </button>
+                                  <button
+                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'NOT_PROCEED')}
+                                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded shadow-sm transition-colors cursor-pointer"
+                                  >
+                                    Not Proceed
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                         <tr className="group hover:bg-indigo-50/40 transition-colors">
                           <td className="px-3 py-3 text-center text-xs font-bold text-gray-500">{idx + 1}</td>
 
@@ -623,11 +693,21 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
                           {/* Vendor */}
                           <td className="px-4 py-3">
-                            <span className="font-bold text-gray-900 text-[11px] leading-tight truncate max-w-[120px] block" title={purchase.vendor_name}>{purchase.vendor_name || '—'}</span>
+                            {(() => {
+                              const ext = purchase.extraction_payload || {};
+                              const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
+                              const header = ext.header || {};
+                              const name = purchase.vendor_name || supplier.vendor_name || supplier['Vendor Name'] || supplier.name || header.vendor_name || ext.vendor_name || '—';
+                              return <span className="font-bold text-gray-900 text-[11px] leading-tight truncate max-w-[120px] block" title={name}>{name}</span>;
+                            })()}
                           </td>
 
                           {/* GSTIN */}
-                          <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{purchase.vendor_gstin || '—'}</td>
+                          <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{(() => {
+                            const ext = purchase.extraction_payload || {};
+                            const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
+                            return purchase.vendor_gstin || supplier.gstin || supplier['GSTIN'] || ext.vendor_gstin || ext.gstin || '—';
+                          })()}</td>
 
                           {/* Branch */}
                           <td className="px-3 py-3 text-[11px] text-gray-600 font-medium">

@@ -15,6 +15,41 @@ class PendingPurchaseSerializer(serializers.ModelSerializer):
         model = PendingPurchase
         fields = '__all__'
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Enrich vendor_name from extraction_payload if the DB field is empty
+        DASH_VALUES = {'—', '-', '', None, 'null', 'NULL', 'None', 'N/A', 'NA'}
+        if data.get('vendor_name') in DASH_VALUES:
+            ext = instance.extraction_payload or {}
+            sections = ext.get('sections', {})
+            supplier = sections.get('supplier_details', {})
+            header = ext.get('header', {})
+            for candidate in [
+                supplier.get('vendor_name'), supplier.get('Vendor Name'), supplier.get('name'),
+                header.get('vendor_name'), header.get('Vendor Name'),
+                ext.get('vendor_name'), ext.get('Vendor Name'),
+            ]:
+                v = str(candidate or '').strip()
+                if v and v not in DASH_VALUES:
+                    data['vendor_name'] = v
+                    break
+        # Enrich vendor_gstin similarly
+        if data.get('vendor_gstin') in DASH_VALUES:
+            ext = instance.extraction_payload or {}
+            sections = ext.get('sections', {})
+            supplier = sections.get('supplier_details', {})
+            header = ext.get('header', {})
+            for candidate in [
+                supplier.get('gstin'), supplier.get('GSTIN'), supplier.get('vendor_gstin'),
+                header.get('gstin'), header.get('vendor_gstin'),
+                ext.get('canonical_vendor_gstin'), ext.get('vendor_gstin'), ext.get('gstin'),
+            ]:
+                v = str(candidate or '').strip()
+                if v and v not in DASH_VALUES:
+                    data['vendor_gstin'] = v
+                    break
+        return data
+
 
 class PendingPurchaseViewSet(viewsets.ModelViewSet):
     queryset = PendingPurchase.objects.all()
@@ -91,11 +126,41 @@ class PendingPurchaseViewSet(viewsets.ModelViewSet):
 
         qs = PendingPurchase.objects.filter(company_id=tenant_id)
 
-        status_param = self.request.query_params.get('status')
+        status_param = getattr(self.request, 'query_params', self.request.GET).get('status')
         if status_param:
             qs = qs.filter(pending_purchase_status=status_param)
+        else:
+            qs = qs.exclude(pending_purchase_status='REJECTED').exclude(company_match_decision='NOT_PROCEED')
 
         return qs.order_by('-created_at')
+
+    @action(detail=True, methods=['post'], url_path='company-match-decision')
+    def company_match_decision(self, request, pk=None):
+        pp = self.get_object()
+        decision = str(request.data.get('decision', '')).upper()
+        if decision not in ('PROCEED', 'NOT_PROCEED'):
+            return Response({'error': 'Invalid decision. Must be PROCEED or NOT_PROCEED'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        pp.company_match_decision = decision
+        if decision == 'NOT_PROCEED':
+            pp.pending_purchase_status = 'REJECTED'
+        pp.save(update_fields=['company_match_decision', 'pending_purchase_status', 'updated_at'])
+
+        staging = self._get_and_verify_staging_record(pp)
+        if staging:
+            if not isinstance(staging.extracted_data, dict):
+                staging.extracted_data = {}
+            staging.extracted_data['company_match_decision'] = decision
+            if decision == 'NOT_PROCEED':
+                staging.validation_status = 'REJECTED'
+            staging.save(update_fields=['extracted_data', 'validation_status'])
+
+        return Response({
+            'success': True,
+            'id': pp.id,
+            'company_match_decision': decision,
+            'pending_purchase_status': pp.pending_purchase_status
+        })
 
     @action(detail=True, methods=['get'])
     def staging_row(self, request, pk=None):

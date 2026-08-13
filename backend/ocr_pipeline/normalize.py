@@ -576,13 +576,14 @@ def derive_branch_from_address(addr: str) -> str:
             return branch
     return ""
 
-def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[str, Any]:
+def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_type: str = 'PURCHASE') -> Dict[str, Any]:
     """
     STRICT CANONICAL NORMALIZER.
     Provides ONE authoritative snake_case record.
     """
     import time
     t_start_norm = time.time()
+    v_type = (voucher_type or (invoice.get('voucher_type') if isinstance(invoice, dict) else None) or 'PURCHASE').upper()
     tenant_gstin = None
     tenant_name = None
     tenant_address_keywords = set()
@@ -779,13 +780,38 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
     vendor_name_val = fix_encoding_corruption(str(get_strict(["vendor_name", "supplier_name", "name"])[0]))
     vendor_name_clean = vendor_name_val.strip().lower()
     if tenant_name and (vendor_name_clean == tenant_name or vendor_name_clean == "main branch"):
-        logger.warning(f"[TENANT_ISOLATION_WARN] Extracted vendor_name '{vendor_name_val}' matches tenant name '{tenant_name}'. Wiping to prevent contamination.")
-        vendor_name_val = ""
+        if v_type != 'PURCHASE':
+            logger.warning(f"[TENANT_ISOLATION_WARN] Extracted vendor_name '{vendor_name_val}' matches tenant name '{tenant_name}'. Wiping to prevent contamination.")
+            vendor_name_val = ""
+        else:
+            logger.info(f"[TENANT_ISOLATION_PASS] Extracted vendor_name '{vendor_name_val}' matches tenant name '{tenant_name}', preserving for PURCHASE invoice.")
 
     gstin_val = normalize_gstin_safe(get_strict(["gstin", "vendor_gstin", "supplier_gstin"])[0])
     if tenant_gstin and gstin_val and gstin_val.upper() == tenant_gstin:
-        logger.warning(f"[TENANT_ISOLATION_WARN] Extracted GSTIN '{gstin_val}' matches tenant GSTIN '{tenant_gstin}'. Wiping vendor GSTIN to prevent contamination.")
-        gstin_val = ""
+        if v_type != 'PURCHASE':
+            logger.warning(f"[TENANT_ISOLATION_WARN] Extracted GSTIN '{gstin_val}' matches tenant GSTIN '{tenant_gstin}'. Wiping vendor GSTIN to prevent contamination.")
+            gstin_val = ""
+        else:
+            logger.info(f"[TENANT_ISOLATION_PASS] Extracted GSTIN '{gstin_val}' matches tenant GSTIN '{tenant_gstin}', preserving for PURCHASE invoice.")
+
+    company_match_detected = False
+    name_matched = False
+    gstin_matched = False
+    if tenant_name and vendor_name_clean:
+        clean_v = re.sub(r'[^a-z0-9]', '', str(vendor_name_clean).lower())
+        clean_t = re.sub(r'[^a-z0-9]', '', str(tenant_name).lower())
+        if clean_v and clean_t and (clean_v == clean_t or clean_v in clean_t or clean_t in clean_v):
+            name_matched = True
+    if tenant_gstin and gstin_val and gstin_val.strip().upper() == tenant_gstin.strip().upper():
+        gstin_matched = True
+
+    has_both_tenant = bool(tenant_name and tenant_gstin)
+    has_both_extracted = bool(vendor_name_clean and gstin_val)
+
+    if has_both_tenant and has_both_extracted:
+        company_match_detected = name_matched and gstin_matched
+    else:
+        company_match_detected = name_matched or gstin_matched
 
     # Run GSTIN Ownership Classifier
     from ocr_pipeline.gstin_classifier import GSTINOwnershipClassifier
@@ -852,6 +878,7 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None) -> Dict[st
         "invoice_date": normalize_date(get_strict(["invoice_date", "date", "bill_date", "supplier_invoice_date"])[0]),
         "vendor_name": vendor_name_val,
         "buyer_name": buyer_name_val,
+        "company_match_detected": company_match_detected,
         "gstin": gstin_val,
         "raw_gstin": classification.get("raw_vendor_gstin") or gstin_val,
         "canonical_gstin": canonicalize_gstin_ocr(gstin_val),
@@ -1434,7 +1461,7 @@ def get_normalized_items(invoice: Any, tenant_id: str = None, layout_type: str =
 
     return merge_item_continuations(normalized_items)
 
-def get_canonical_export_record(invoice: Any, tenant_id: str = None) -> Dict[str, Any]:
+def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_type: str = 'PURCHASE') -> Dict[str, Any]:
     """
     PHASE 4: CANONICAL SCHEMA STABILIZATION
     Provides ONE authoritative normalized export record using CanonicalInvoiceSchema.
