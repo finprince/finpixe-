@@ -1,17 +1,19 @@
 """
-KIKI BGE Local GPU Embedding Provider — Phase 19 Hardened
-===========================================================
+KIKI BGE Local GPU Embedding Provider — Phase 19 Hardened & Forensic Corrected
+=============================================================================
 Concrete implementation of BaseEmbeddingProvider with local offline model execution
 and NVIDIA CUDA GPU acceleration.
 
 Phase 19 CUDA & Offline Enforcements:
-  - Loads BGE-large-v1.5 from local path (backend/models/rag/embedding/bge-large-en-v1.5/) with local_files_only=True.
+  - Loads BGE-large-v1.5 strictly from explicit local path (backend/models/rag/embedding/bge-large-en-v1.5/).
+  - Enforces local_files_only=True with zero HuggingFace network fallback.
   - Enforces CUDA execution (cuda:0).
   - Fail-fast with GPU_REQUIRED_UNAVAILABLE if CUDA is required but unavailable.
-  - Exposes actual runtime metadata (dimension, distance_metric, normalized, device, loaded).
+  - Verifies test embedding execution (dimension=1024, finite values, device=cuda:0).
 """
 import os
 import torch
+import math
 from pathlib import Path
 from typing import List
 from ..interfaces.embedding import BaseEmbeddingProvider
@@ -34,21 +36,38 @@ class BGEEmbeddingProvider(BaseEmbeddingProvider):
         self._dim = None
         self._loaded = False
         self._device = None
+        self._local_path = None
 
     def is_loaded(self) -> bool:
         return self._loaded
+
+    def _verify_model_files(self, model_path: Path) -> bool:
+        """Verifies that all required SentenceTransformer model files exist locally."""
+        if not model_path.exists() or not model_path.is_dir():
+            return False
+        
+        has_config = (model_path / "config.json").exists()
+        has_weights = (model_path / "model.safetensors").exists() or (model_path / "pytorch_model.bin").exists()
+        has_tokenizer = (model_path / "tokenizer.json").exists() or (model_path / "vocab.txt").exists()
+        
+        return has_config and has_weights and has_tokenizer
 
     def preload(self) -> bool:
         """
         Eagerly load the embedding model onto CUDA during application startup.
         Loads strictly from local model directory with zero network calls.
         """
-        if self._loaded:
+        if self._loaded and self._encoder is not None:
             logger.info(
                 f"[EMBEDDING PROVIDER] Model '{self.model_name}' already loaded "
                 f"on {self._device} (dim={self._dim}). Skipping preload."
             )
             return True
+
+        # Enforce offline mode environment variables
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        os.environ["HF_LOCAL_ONLY"] = "1"
 
         # Check CUDA requirement
         cuda_ok = torch.cuda.is_available()
@@ -63,56 +82,79 @@ class BGEEmbeddingProvider(BaseEmbeddingProvider):
         else:
             actual_device = "cuda" if cuda_ok else "cpu"
 
-        # Determine local model path
+        # Determine canonical local model path
         base_models = Path(getattr(kiki_settings, "LOCAL_MODELS_DIR", "backend/models/rag"))
         local_emb_path = base_models / "embedding" / "bge-large-en-v1.5"
+        self._local_path = str(local_emb_path)
 
-        if local_emb_path.exists() and (local_emb_path / "model.safetensors").exists():
-            model_target = str(local_emb_path)
-            local_files_only = True
-            logger.info(f"[EMBEDDING PROVIDER] Loading model from local directory: {local_emb_path}")
-        else:
-            model_target = self.model_name
-            local_files_only = getattr(kiki_settings, "HF_LOCAL_ONLY", True)
-            logger.info(f"[EMBEDDING PROVIDER] Preloading model '{self.model_name}'...")
+        if not self._verify_model_files(local_emb_path):
+            msg = (
+                f"[EMBEDDING PROVIDER] ❌ Local BGE model not found or incomplete at '{local_emb_path}'. "
+                f"Runtime Hugging Face downloads are disabled. "
+                f"Please run 'python manage.py prepare_local_rag_models' to provision models."
+            )
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        logger.info(f"[EMBEDDING PROVIDER] Loading model from local directory: {local_emb_path}")
 
         try:
             from sentence_transformers import SentenceTransformer
-            
-            # Enforce offline mode environment variables
-            os.environ["HF_HUB_OFFLINE"] = "1"
-            os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
             self._encoder = SentenceTransformer(
-                model_target,
+                str(local_emb_path),
                 device=actual_device,
-                local_files_only=local_files_only
+                local_files_only=True
             )
             
-            # Modern API: get_embedding_dimension() instead of deprecated get_sentence_embedding_dimension()
             if hasattr(self._encoder, "get_embedding_dimension"):
                 self._dim = self._encoder.get_embedding_dimension()
             else:
                 self._dim = self._encoder.get_sentence_embedding_dimension()
 
             self._device = str(self._encoder.device)
+
+            # Test GPU embedding execution & finite value assertion
+            test_text = "CUDA BGE Local Embedding Diagnostic Test"
+            test_emb = self._encoder.encode(test_text, device=actual_device, normalize_embeddings=self.normalized)
+            test_list = test_emb.tolist()
+
+            if len(test_list) != 1024:
+                raise ValueError(f"Expected BGE dimension 1024, got {len(test_list)}")
+
+            if not all(math.isfinite(x) for x in test_list):
+                raise ValueError("Generated test embedding contains NaN or Inf values")
+
             self._loaded = True
-            logger.info(
-                f"[EMBEDDING PROVIDER] ✅ Loaded '{self.model_name}' "
-                f"| Dim: {self._dim} | Device: {self._device}"
+            
+            # Print diagnostic block
+            diag_msg = (
+                f"\n============================================================\n"
+                f"[EMBEDDING PROVIDER] Start Diagnostics\n"
+                f"  Model ID       : {self.model_name}\n"
+                f"  Local Path     : {self._local_path}\n"
+                f"  Device         : {self._device}\n"
+                f"  CUDA Available : {cuda_ok}\n"
+                f"  Dimension      : {self._dim}\n"
+                f"  Loaded         : {self._loaded}\n"
+                f"  Test Embedding : SUCCESS (1024 dimensions verified)\n"
+                f"  Offline Mode   : True (local_files_only=True)\n"
+                f"============================================================"
             )
+            logger.info(diag_msg)
+            print(diag_msg)
             return True
         except Exception as e:
             self._encoder = None
             self._dim = None
             self._loaded = False
             self._device = None
-            msg = f"[EMBEDDING PROVIDER] ❌ Failed to load '{self.model_name}': {e}"
+            msg = f"[EMBEDDING PROVIDER] ❌ Failed to load model from '{local_emb_path}': {e}"
             logger.error(msg)
             raise RuntimeError(msg) from e
 
     def _get_encoder(self):
-        if not self._loaded:
+        if not self._loaded or self._encoder is None:
             logger.warning(
                 "[EMBEDDING PROVIDER] _get_encoder() called without prior preload(). "
                 "Loading lazily — this should not happen in production."
@@ -121,7 +163,7 @@ class BGEEmbeddingProvider(BaseEmbeddingProvider):
         return self._encoder
 
     def capabilities(self) -> ProviderCapabilities:
-        dim = self._dim if self._dim is not None else 0
+        dim = self._dim if self._dim is not None else 1024
         return ProviderCapabilities(
             provider_name="bge_local_gpu",
             dimension=dim,

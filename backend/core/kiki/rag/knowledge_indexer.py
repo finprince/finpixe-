@@ -98,6 +98,11 @@ class KnowledgeIndexer:
         )
         start_time = time.time()
 
+        # Eagerly preload BGE embedding provider on CUDA before processing
+        if not bge_embedding_provider.is_loaded():
+            logger.info("[KNOWLEDGE INDEXER] Eagerly preloading BGE CUDA embedding provider...")
+            bge_embedding_provider.preload()
+
         global_coll_name = self._get_global_collection_name()
         global_coll, _ = self._get_or_create_collection(rebuild=rebuild)
 
@@ -183,10 +188,9 @@ class KnowledgeIndexer:
                     # Phase 4: Embed using active BGE provider
                     embeddings = bge_embedding_provider.embed_documents(documents)
 
-                    # Phase 5: Write to GLOBAL collection ONLY
-                    # (Phase 17.4: dual-write removed — no write to kiki_knowledge_documents here)
+                    # Phase 5: Write to GLOBAL collection ONLY (using upsert for idempotency)
                     try:
-                        global_coll.add(
+                        global_coll.upsert(
                             ids=ids,
                             documents=documents,
                             embeddings=embeddings,
@@ -199,7 +203,7 @@ class KnowledgeIndexer:
                                 f"'{global_coll_name}'. Rebuilding..."
                             )
                             global_coll, _ = self._get_or_create_collection(rebuild=True)
-                            global_coll.add(
+                            global_coll.upsert(
                                 ids=ids,
                                 documents=documents,
                                 embeddings=embeddings,
@@ -236,6 +240,19 @@ class KnowledgeIndexer:
 
         execution_time = round(time.time() - start_time, 2)
 
+        # Purge any stale chunk IDs from Chroma that are no longer part of the active corpus
+        if all_indexed_chunks:
+            current_ids = set(c["chunk_id"] for c in all_indexed_chunks)
+            try:
+                existing_res = global_coll.get(include=[])
+                existing_ids = set(existing_res.get("ids", []))
+                stale_ids = list(existing_ids - current_ids)
+                if stale_ids:
+                    global_coll.delete(ids=stale_ids)
+                    logger.info(f"[KNOWLEDGE INDEXER] Purged {len(stale_ids)} stale chunk IDs from '{global_coll_name}'.")
+            except Exception as purge_e:
+                logger.warning(f"[KNOWLEDGE INDEXER] Stale chunk purge failed: {purge_e}")
+
         # Phase 5: Write full provenance to global collection
         if all_indexed_chunks:
             corpus_hash = hashlib.sha256(
@@ -270,13 +287,15 @@ class KnowledgeIndexer:
 
         # Phase 6: Index BM25 sparse index with corpus provenance
         if all_indexed_chunks:
-            bm25_sparse_engine.index_chunks(
+            from .pipeline.sparse_engine import get_bm25_engine
+            target_bm25 = get_bm25_engine(global_coll_name)
+            target_bm25.index_chunks(
                 chunks=all_indexed_chunks,
                 corpus_version=corpus_version,
                 index_version=index_version,
             )
             logger.info(
-                f"[KNOWLEDGE INDEXER] ✅ BM25 indexed {len(all_indexed_chunks)} chunks | "
+                f"[KNOWLEDGE INDEXER] ✅ BM25 indexed {len(all_indexed_chunks)} chunks for '{global_coll_name}' | "
                 f"corpus_version={corpus_version}"
             )
 

@@ -1,18 +1,17 @@
 """
-KIKI Semantic Chunker Module — Phase 17.4 Hardened
-====================================================
+KIKI Semantic Chunker Module — Phase 17.4 Hardened & Deterministic Chunk IDs
+=============================================================================
 Splits document text into semantic chunks with headings, section tracking,
-and page numbers where genuinely available.
+deterministic chunk IDs (content hash), and page numbers where genuinely available.
 
-Phase 17.4 changes:
+Phase 17.4 & Phase 19 changes:
+  - Deterministic chunk IDs using SHA-256 content hashes (prevents duplicate chunk ID generation on re-index)
   - Reads page_metadata_available from doc_data
   - When page_metadata_available=False: sets chunk page_number=None
-    (DOCX, TXT, MD, CSV, HTML cannot provide real physical page numbers)
   - When page_metadata_available=True: carries real page_num from PDF
-  - Propagates page_metadata_available flag into every chunk metadata dict
 """
 import re
-import uuid
+import hashlib
 from typing import Dict, Any, List
 
 
@@ -32,24 +31,21 @@ class SemanticChunker:
         security_level: str = "Internal"
     ) -> List[Dict[str, Any]]:
         """
-        Splits loaded document pages into semantic chunks with rich structural metadata.
-
-        Phase 17.4: page_number is None when the loader cannot determine physical pages
-        (DOCX, TXT, MD, CSV, HTML). It is only set for PDFs where pypdf provides real pages.
+        Splits loaded document pages into semantic chunks with rich structural metadata
+        and deterministic SHA-256 chunk IDs.
         """
         filename = doc_data["filename"]
         pages = doc_data.get("pages", [])
-        # Phase 17.4: propagate availability flag from loader output
         page_metadata_available = doc_data.get("page_metadata_available", False)
 
         chunks = []
         current_heading = "General Overview"
+        chunk_counter = 0
 
         for p_info in pages:
             page_num = p_info["page"]
             text = p_info["text"]
 
-            # Detect Markdown / Document Headings (# Heading or SECTION)
             lines = text.split("\n")
             paragraph_buffer = []
 
@@ -62,32 +58,38 @@ class SemanticChunker:
                 combined = "\n".join(paragraph_buffer)
 
                 if len(combined) >= self.chunk_size:
-                    chunk_id = f"chk_{doc_id[:8]}_{uuid.uuid4().hex[:8]}"
+                    chunk_counter += 1
+                    chunk_text = combined.strip()
+                    hash_input = f"{filename}_{page_num}_{chunk_counter}_{chunk_text}"
+                    content_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()[:10]
+                    chunk_id = f"chk_{doc_id[:8]}_{content_hash}"
+
                     chunks.append({
                         "chunk_id": chunk_id,
                         "document_id": doc_id,
                         "filename": filename,
-                        # Phase 17.4: None when not physically available
                         "page_number": page_num if page_metadata_available else None,
                         "page_metadata_available": page_metadata_available,
                         "section_heading": current_heading,
-                        "text": combined.strip(),
+                        "text": chunk_text,
                         "tenant_id": tenant_id,
                         "department": department,
                         "security_level": security_level,
                     })
-                    # Maintain overlap window
                     paragraph_buffer = paragraph_buffer[-2:] if len(paragraph_buffer) >= 2 else []
 
             if paragraph_buffer:
                 combined = "\n".join(paragraph_buffer).strip()
                 if combined:
-                    chunk_id = f"chk_{doc_id[:8]}_{uuid.uuid4().hex[:8]}"
+                    chunk_counter += 1
+                    hash_input = f"{filename}_{page_num}_{chunk_counter}_{combined}"
+                    content_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()[:10]
+                    chunk_id = f"chk_{doc_id[:8]}_{content_hash}"
+
                     chunks.append({
                         "chunk_id": chunk_id,
                         "document_id": doc_id,
                         "filename": filename,
-                        # Phase 17.4: None when not physically available
                         "page_number": page_num if page_metadata_available else None,
                         "page_metadata_available": page_metadata_available,
                         "section_heading": current_heading,
