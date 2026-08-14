@@ -164,6 +164,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
   const [isCreateVendorModalOpen, setIsCreateVendorModalOpen] = useState(false);
   const [vendorResolvingRow, setVendorResolvingRow] = useState<any>(null);
+  const [gstCorrectionRow, setGstCorrectionRow] = useState<any>(null);
 
   const [companyGstin, setCompanyGstin] = useState<string>('');
   const [companyName, setCompanyName] = useState<string>('');
@@ -355,10 +356,10 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
       await httpClient.post(`/api/pending-purchases/${purchaseId}/company-match-decision/`, { decision });
       if (decision === 'PROCEED') {
         showSuccess("Confirmed invoice for purchase processing.");
-        setPendingPurchases(prev => prev.map(p => p.id === purchaseId ? { ...p, company_match_decision: 'PROCEED' } : p));
+        setPurchases(prev => prev.map(p => p.id === purchaseId ? { ...p, company_match_decision: 'PROCEED' } : p));
       } else {
         showSuccess("Invoice removed from Purchase & Pending Purchase.");
-        setPendingPurchases(prev => prev.filter(p => p.id !== purchaseId));
+        setPurchases(prev => prev.filter(p => p.id !== purchaseId));
       }
     } catch (e: any) {
       showError("Failed to update company match decision.");
