@@ -1,4 +1,98 @@
-﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { NumericFormat } from 'react-number-format';
 import { httpClient, apiService } from '../../services';
 import Icon from '../../components/Icon';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -57,25 +151,25 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
   const fileRef = useRef<HTMLInputElement>(null);
   const { isLimitReached, subscriptionUsage } = useSubscriptionUsage();
 
-  const [step, setStep]               = useState<Step>('upload');
-  const [sessionId, setSessionId]     = useState<string | null>(null);
-  const [allRows, setAllRows]         = useState<StagingRow[]>([]);
+  const [step, setStep] = useState<Step>('upload');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [allRows, setAllRows] = useState<StagingRow[]>([]);
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [payFromOptions, setPayFromOptions] = useState<Ledger[]>([]);
   const [selectedType, setSelectedType] = useState<'payment' | 'receipt' | 'mixed'>(defaultType);
-  const [uploading, setUploading]     = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
-  const [posting, setPosting]         = useState(false);
+  const [posting, setPosting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [postSuccess, setPostSuccess] = useState<string | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState(180);
 
-  const [bankLedgerId, setBankLedgerId]     = useState<number | null>(null);
+  const [bankLedgerId, setBankLedgerId] = useState<number | null>(null);
   const [bankLedgerName, setBankLedgerName] = useState('');
-  
+
   // Date Range Filter State
   const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate]     = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   // ── Voucher metadata state ────────────────────────────────────────────────
   const [paymentConfigs, setPaymentConfigs] = useState<any[]>([]);
@@ -98,7 +192,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       const sizeMB = (file?.size || 0) / (1024 * 1024);
       // Rough heuristic: 60s base + 60s per MB, capped between 2-8 mins
       const estimate = Math.max(120, Math.min(480, Math.floor(60 + (sizeMB * 60))));
-      
+
       setCountdownSeconds(estimate);
       timer = setInterval(() => {
         setCountdownSeconds(prev => prev > 1 ? prev - 1 : 1);
@@ -173,7 +267,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
         bank_ledger_id: bankLedgerId,
         bank_ledger_name: bankLedgerName
       });
-      
+
       setSessionId(res.session_id);
       const rows = res.rows || [];
       setAllRows(rows);
@@ -203,7 +297,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
         const configs = row.inferred_type === 'payment' ? p : r;
         if (configs && configs.length > 0) {
           types[row.id] = configs[0].id;
-          nums[row.id]  = 'Auto';
+          nums[row.id] = 'Auto';
         }
       });
       setRowVoucherTypeIds(types);
@@ -240,7 +334,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       fd.append('bank_ledger_name', bankLedgerName);
 
       const res = await httpClient.postFormData<any>('/api/bank-upload/upload/', fd);
-      
+
       // Success: refresh list but also IMMEDIATELY process to go inside
       await fetchStagedFiles();
       if (fileRef.current) fileRef.current.value = '';
@@ -281,12 +375,12 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
 
   const handlePartyChange = useCallback(async (row: StagingRow, partyName: string) => {
     // Look up full option to get ledger_id (value is rawName, not label)
-    const opt      = allPartyOptions.find(o => o.value === partyName);
+    const opt = allPartyOptions.find(o => o.value === partyName);
     const ledgerId = opt?.ledger_id ? Number(opt.ledger_id) : null;
 
     try {
       const updated = await httpClient.patch<StagingRow>(`/api/bank-upload/rows/${row.id}/`, {
-        ledger_id:   ledgerId,
+        ledger_id: ledgerId,
         ledger_name: partyName,
         allocation_data: null, // Clear old allocation data when party changes
       });
@@ -446,34 +540,33 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
           <div className="grid grid-cols-2 gap-6 mb-8 border-t border-slate-50 pt-8">
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Extract From Date</label>
-              <input 
-                type="date" 
-                value={startDate} 
-                onChange={e => setStartDate(e.target.value)} 
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" 
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
               />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Extract To Date</label>
-              <input 
-                type="date" 
-                value={endDate} 
-                onChange={e => setEndDate(e.target.value)} 
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" 
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
               />
             </div>
           </div>
           {uploadError && <div className="p-4 mb-6 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex items-center gap-3"><Icon name="warning" className="w-5 h-5" /> {uploadError}</div>}
-          <button onClick={handleUpload} disabled={uploading || isLimitReached} className={`w-full py-4 rounded-xl text-lg shadow-xl flex items-center justify-center gap-3 ${
-            isLimitReached
+          <button onClick={handleUpload} disabled={uploading || isLimitReached} className={`w-full py-4 rounded-xl text-lg shadow-xl flex items-center justify-center gap-3 ${isLimitReached
               ? 'bg-red-100 text-red-400 cursor-not-allowed shadow-none border border-red-200'
               : 'erp-button-primary shadow-indigo-100'
-          }`} title={isLimitReached ? 'AI usage limit reached — upgrade your plan' : undefined}>
+            }`} title={isLimitReached ? 'AI usage limit reached — upgrade your plan' : undefined}>
             <Icon name={uploading ? 'spinner' : 'upload'} className={`w-6 h-6 ${uploading ? 'animate-spin' : ''}`} />
             {uploading ? (
               <div className="flex flex-col items-center">
                 <span className="font-black animate-pulse">
-                  {countdownSeconds > 1 
+                  {countdownSeconds > 1
                     ? `Analyzing Statement... ${Math.floor(countdownSeconds / 60)}:${(countdownSeconds % 60).toString().padStart(2, '0')}`
                     : "Still processing large document..."
                   }
@@ -496,24 +589,22 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                 </h3>
                 <p className="text-[10px] text-slate-400 italic">Records older than 15 days are automatically purged.</p>
               </div>
-              
+
               <div className="grid gap-4">
                 {stagedFiles.map(file => (
                   <div
                     key={file.id}
                     onClick={() => !processingId && handleProcessStaging(file)}
-                    className={`flex items-center justify-between p-5 rounded-2xl border transition-all cursor-pointer group relative ${
-                      processingId === file.id 
-                        ? 'bg-indigo-50 border-indigo-200 ring-4 ring-indigo-500/10' 
+                    className={`flex items-center justify-between p-5 rounded-2xl border transition-all cursor-pointer group relative ${processingId === file.id
+                        ? 'bg-indigo-50 border-indigo-200 ring-4 ring-indigo-500/10'
                         : 'bg-white border-slate-100 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-5">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-                        file.status === 'processed' 
-                          ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' 
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${file.status === 'processed'
+                          ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100'
                           : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
-                      }`}>
+                        }`}>
                         <Icon name={processingId === file.id ? 'spinner' : 'file-text'} className={`w-7 h-7 ${processingId === file.id ? 'animate-spin' : ''}`} />
                       </div>
                       <div>
@@ -527,21 +618,19 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                             <Icon name="file-text" className="w-3 h-3" />
                             {file.transaction_count} Rows
                           </div>
-                          <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                            file.status === 'processed' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'
-                          }`}>
+                          <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${file.status === 'processed' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'
+                            }`}>
                             {file.status}
                           </div>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
-                      <div className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${
-                        file.status === 'processed' 
-                          ? 'bg-emerald-600 text-white shadow-emerald-200' 
+                      <div className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${file.status === 'processed'
+                          ? 'bg-emerald-600 text-white shadow-emerald-200'
                           : 'bg-indigo-600 text-white shadow-indigo-200'
-                      } hover:scale-105 active:scale-95`}>
+                        } hover:scale-105 active:scale-95`}>
                         {processingId === file.id ? 'Loading...' : file.status === 'processed' ? 'Resume' : 'Process Now'}
                       </div>
                       <button
@@ -655,15 +744,14 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                       const isActive = panelRowId === row.id;
 
                       return (
-                        <tr key={row.id} className={`transition-all ${
-                          row.status === 'duplicate'
+                        <tr key={row.id} className={`transition-all ${row.status === 'duplicate'
                             ? 'bg-indigo-50/60 opacity-70'
                             : isActive
                               ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-500'
                               : row.status === 'posted'
                                 ? 'bg-slate-50'
                                 : 'hover:bg-slate-50/50'
-                        }`}>
+                          }`}>
                           <td className="p-3">
                             <input
                               type="date"
@@ -678,11 +766,10 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                                 }
                               }}
                               disabled={row.status === 'posted' || row.status === 'duplicate'}
-                              className={`w-full px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                                row.date
+                              className={`w-full px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${row.date
                                   ? 'bg-slate-50 border-slate-200 text-slate-700 font-bold'
                                   : 'bg-red-50 border-red-200 text-red-700'
-                              } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
                             />
                           </td>
                           <td className="p-3">
@@ -723,11 +810,10 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                               }}
                               placeholder="—"
                               disabled={row.status === 'posted' || row.status === 'duplicate'}
-                              className={`w-full px-2 py-1.5 rounded-lg text-xs font-mono border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                                row.ref_no
+                              className={`w-full px-2 py-1.5 rounded-lg text-xs font-mono border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${row.ref_no
                                   ? 'bg-indigo-50 border-indigo-200 text-indigo-800 font-bold'
                                   : 'bg-slate-50 border-slate-200 text-slate-400'
-                              } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
                             />
                           </td>
                           <td className="p-3">
@@ -750,9 +836,8 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                                   }
                                 }}
                                 disabled={row.status === 'posted' || row.status === 'duplicate'}
-                                className={`w-full pl-6 pr-2 py-1.5 rounded-lg text-xs font-black text-right border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
-                                  row.inferred_type === 'payment' ? 'text-indigo-600 bg-indigo-50/30 border-indigo-200' : 'text-emerald-600 bg-emerald-50/30 border-emerald-200'
-                                } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                className={`w-full pl-6 pr-2 py-1.5 rounded-lg text-xs font-black text-right border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${row.inferred_type === 'payment' ? 'text-indigo-600 bg-indigo-50/30 border-indigo-200' : 'text-emerald-600 bg-emerald-50/30 border-emerald-200'
+                                  } ${(row.status === 'posted' || row.status === 'duplicate') ? 'opacity-60 cursor-not-allowed' : ''}`}
                               />
                             </div>
                           </td>
@@ -865,13 +950,13 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
               // allocation panel can load vendor/customer transactions correctly
               const fullPartyOption = allPartyOptions.find(o => o.value === row.ledger_name);
               const partyOption = fullPartyOption ?? {
-                label:     row.ledger_name || 'Unknown',
-                value:     row.ledger_name || '',
+                label: row.ledger_name || 'Unknown',
+                value: row.ledger_name || '',
                 ledger_id: row.ledger_id,
-                id:        row.ledger_id,
-                name:      row.ledger_name || '',
-                type:      'ledger' as const,
-                category:  row.inferred_type === 'payment' ? 'vendor' : 'customer' as any,
+                id: row.ledger_id,
+                name: row.ledger_name || '',
+                type: 'ledger' as const,
+                category: row.inferred_type === 'payment' ? 'vendor' : 'customer' as any,
               };
 
               return (

@@ -492,25 +492,24 @@ def _extract_pdf_paged(file_bytes: bytes, file_name: str, metrics: ExtractionMet
 
 def _deduplicate_transactions(rows: list) -> list:
     """
-    Remove exact duplicate rows that might occur at chunk boundaries.
-    Uses a rolling window of seen transactions.
+    Remove exact duplicate rows that might occur at chunk/page boundaries.
+    Uses a robust multi-field identity hash (Date + Value Date + Amount + Balance + Reference + Narration).
     """
     seen = set()
     deduped = []
     for r in rows:
-        # Create a unique hash for the txn (Date + Amount + Side + Reference + Narration)
-        # Including 'side' (Debit vs Credit) is critical to prevent dropping 
-        # balanced entries (like interest debit/credit pairs) as duplicates.
         amt_debit = _clean_amount(r.get('debit')) or 0
         amt_credit = _clean_amount(r.get('credit')) or 0
+        amt_bal = _clean_amount(r.get('balance'))
         
-        # Use a more granular key
         txn_key = (
-            str(r.get('date')), 
-            f"D{amt_debit:.2f}", 
+            str(r.get('date')),
+            str(r.get('value_date') or r.get('date')),
+            f"D{amt_debit:.2f}",
             f"C{amt_credit:.2f}",
+            f"B{amt_bal:.2f}" if amt_bal is not None else None,
             str(r.get('ref_no')).strip().upper() if r.get('ref_no') else None,
-            str(r.get('narration', '')).strip().upper()[:50] # Include start of narration for safety
+            str(r.get('narration', '')).strip().upper()[:80]
         )
         if txn_key not in seen:
             deduped.append(r)
@@ -610,21 +609,79 @@ def _process_extracted_rows(rows: list) -> list:
     return result
 
 
-def _clean_date(value) -> str:
+MONTHS_MAP = {
+    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
+    'january': '01', 'february': '02', 'march': '03', 'april': '04', 'june': '06',
+    'july': '07', 'august': '08', 'september': '09', 'october': '10', 'november': '11', 'december': '12'
+}
+
+
+def _clean_date(value) -> str | None:
+    """
+    Robust date normalizer and validator.
+    Normalizes fused date formats (e.g. 2429-02-29 -> 2024-02-29),
+    named month formats (e.g. 10 Feb 2025, 5 May 2025, 01-Apr-2023),
+    and strictly validates real calendar dates so invalid dates never crash DB inserts.
+    """
     if not value:
-        return ''
+        return None
     s = str(value).strip()
-    # Already YYYY-MM-DD
-    if re.match(r'^\d{4}-\d{2}-\d{2}$', s):
-        return s
-    # Try common formats
-    for fmt in ('%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%d %b %Y', '%d %B %Y'):
+    
+    # 1. Fix concatenated year artifacts (e.g. 2429-02-29 -> 2024-02-29, 2304-04-05 -> 2023-04-05)
+    m_fused = re.match(r'^(?:20)?(2[3-9])(\d{2})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
+    if m_fused:
+        yy, fused_day, mm, dd = m_fused.groups()
+        s = f"20{yy}-{int(mm):02d}-{int(dd):02d}"
+        
+    # 2. Try standard ISO YYYY-MM-DD
+    m_iso = re.match(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
+    if m_iso:
+        yyyy, mm, dd = m_iso.groups()
+        if int(yyyy) > 2099 and yyyy.startswith('24'):
+            yyyy = '2024'
+        elif int(yyyy) > 2099 and yyyy.startswith('23'):
+            yyyy = '2023'
+        s = f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
         try:
             from datetime import datetime
-            return datetime.strptime(s, fmt).strftime('%Y-%m-%d')
+            datetime.strptime(s, "%Y-%m-%d")
+            return s
         except ValueError:
             pass
-    return s  # Return as-is; let DB handle it
+
+    # 3. Try named month dates (e.g. 10 Feb 2025, 5 May 2025, 10-Feb-2025)
+    m_named = re.match(r'^(\d{1,2})[-/\s]+([a-zA-Z]+)[-/\s]+(20\d{2}|\d{2})$', s)
+    if m_named:
+        day_str, mon_str, yr_str = m_named.groups()
+        mon_lower = mon_str.lower()
+        if mon_lower in MONTHS_MAP:
+            if len(yr_str) == 2:
+                yr_str = '20' + yr_str
+            s_cand = f"{yr_str}-{MONTHS_MAP[mon_lower]}-{int(day_str):02d}"
+            try:
+                from datetime import datetime
+                datetime.strptime(s_cand, "%Y-%m-%d")
+                return s_cand
+            except ValueError:
+                pass
+
+    # 4. Try common DMY / MDY formats
+    for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y', '%d.%m.%Y', '%d.%m.%y', '%Y/%m/%d', '%d %b %Y', '%d %B %Y', '%d-%b-%Y', '%d-%b-%y'):
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(s, fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+            
+    # 5. Fallback validation: if cannot be parsed into a real calendar date, return None
+    try:
+        from datetime import datetime
+        datetime.strptime(s, "%Y-%m-%d")
+        return s
+    except (ValueError, TypeError):
+        return None
 
 
 def _clean_amount(value) -> float | None:
@@ -694,10 +751,17 @@ def _fallback_parse(text: str) -> list:
 
 def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
     """
-    STEP 1-3: Rebuild transactions from parsed rows using strict boundaries.
+    STEP 1-3: Rebuild transactions from parsed rows and normalize all dates to strict ISO YYYY-MM-DD.
     """
     if not rows:
         return []
+
+    # First ensure every raw input has normalized dates
+    for r in rows:
+        if r.get('date'):
+            r['date'] = _clean_date(r.get('date'))
+        if r.get('value_date'):
+            r['value_date'] = _clean_date(r.get('value_date'))
 
     normalized = []
     current_txn = None
@@ -718,8 +782,9 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
 
         if is_new_txn:
             if current_txn:
-                # If the current_txn has NO amount but the new row HAS one, maybe they should be merged?
-                # No, usually a new date means a new transaction.
+                current_txn['date'] = _clean_date(current_txn.get('date')) or _clean_date(current_txn.get('value_date'))
+                if current_txn.get('value_date'):
+                    current_txn['value_date'] = _clean_date(current_txn.get('value_date'))
                 normalized.append(current_txn)
             
             current_txn = row.copy()
@@ -733,6 +798,10 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
                     current_txn['narration'] = f"{current_txn.get('narration', '')} {new_narration}".strip()
                 
                 # Capture missing fields if they appear in continuation lines
+                if not current_txn.get('date') and row.get('date'):
+                    current_txn['date'] = _clean_date(row.get('date'))
+                if not current_txn.get('value_date') and row.get('value_date'):
+                    current_txn['value_date'] = _clean_date(row.get('value_date'))
                 if not current_txn.get('debit') and row.get('debit'):
                     current_txn['debit'] = row.get('debit')
                 if not current_txn.get('credit') and row.get('credit'):
@@ -745,6 +814,9 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
                 current_txn = row.copy()
 
     if current_txn:
+        current_txn['date'] = _clean_date(current_txn.get('date')) or _clean_date(current_txn.get('value_date'))
+        if current_txn.get('value_date'):
+            current_txn['value_date'] = _clean_date(current_txn.get('value_date'))
         normalized.append(current_txn)
 
     return normalized

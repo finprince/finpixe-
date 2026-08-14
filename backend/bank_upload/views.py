@@ -41,7 +41,7 @@ from .serializers import (
     BankStatementStagingFileDetailSerializer,
 )
 # Extraction is the ONLY place AI extraction is called
-from .services.extraction_service import extract_transactions
+from .services.extraction_service import extract_transactions, _clean_date
 
 logger = logging.getLogger('bank_upload.views')
 
@@ -377,14 +377,15 @@ class BankStagingProcessView(APIView):
         ref_no = row.get('ref_no') or row.get('cheque_no') or row.get('reference_number')
         if ref_no: ref_no = str(ref_no).strip()[:150]
 
-        row_key = self._make_dup_key(row.get('date'), amount, ref_no)
+        clean_d = _clean_date(row.get('date'))
+        row_key = self._make_dup_key(clean_d, amount, ref_no)
         is_dup = (row_key in existing_keys) or (row_key in batch_keys)
         if not is_dup: batch_keys.add(row_key)
 
         return BankStatementTemp.objects.create(
             tenant_id        = tenant_id,
             session_id       = session_id,
-            date             = row.get('date'),
+            date             = clean_d,
             narration        = narration,
             voucher_number   = row.get('voucher_number') or row.get('cheque_no'),
             ref_no           = ref_no,
