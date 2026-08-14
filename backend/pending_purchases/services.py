@@ -230,6 +230,8 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                 obj.pending_purchase_status = dynamic_status
                 obj.extraction_payload = record.extracted_data
                 obj.review_payload = ui_row or {}
+                obj.company_match_detected = bool((record.extracted_data or {}).get('company_match_detected', False))
+                obj.company_match_decision = (record.extracted_data or {}).get('company_match_decision')
                 obj.save()
             else:
                 # Genuinely new invoice — create via upsert keyed on source_scan_row_id
@@ -254,6 +256,8 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                         'pending_purchase_status': dynamic_status,
                         'extraction_payload': record.extracted_data,
                         'review_payload': ui_row or {},
+                        'company_match_detected': bool((record.extracted_data or {}).get('company_match_detected', False)),
+                        'company_match_decision': (record.extracted_data or {}).get('company_match_decision'),
                     }
                 )
 

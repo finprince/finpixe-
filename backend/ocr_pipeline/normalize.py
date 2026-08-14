@@ -480,6 +480,57 @@ def _clean_bill_to_ocr_extract(raw: str) -> str:
     v = parts[0].strip().rstrip(' |,-')
     return v
 
+def clean_ocr_buyer_name(name_str: str) -> str:
+    if not name_str:
+        return ""
+    cand = str(name_str).strip().rstrip(' |,-')
+    cand = re.sub(r'\bACCVTURN\b', 'ACCUTURN', cand, flags=re.IGNORECASE)
+    cand = re.sub(r'\bficcvTuBN\b', 'ACCUTURN', cand, flags=re.IGNORECASE)
+    cand = re.sub(r'\bScc\.?rlrr=J\b', 'ACCUTURN', cand, flags=re.IGNORECASE)
+    return cand
+
+def is_address_token(text: str) -> bool:
+    if not text:
+        return True
+    clean = text.strip()
+    if re.match(r'^(?:PLANT|PLOT|DOOR|NO\.?|SF\.?|SITE|SURVEY|STREET|ROAD|LAYOUT|INCO|PAYMENT|BUILDING|SECTOR|PHASE|BLOCK|\d+[A-Z0-9\/-]*\b)', clean, re.IGNORECASE):
+        return True
+    if re.match(r'^\d+$', clean):
+        return True
+    return False
+
+def extract_buyer_name_from_ocr_text(raw_text: str, buyer_gstin: str = "") -> str:
+    """
+    Layout-aware extraction of buyer/customer name from raw OCR text.
+    Anchored to Receiver/Bill To section and Name: label.
+    """
+    if not raw_text:
+        return ""
+    
+    # Priority A: Search inside Receiver / Bill To / Customer block for Name:
+    m = re.search(
+        r'(?:Details\s*of\s*Receiver|Billed\s*to|Buyer\s*Details|Customer\s*Details|Bill\s*To)[^|]*?\bName\s*:\s*([A-Za-z0-9\s&.-]{3,80}?)(?=\s*Address\s*:|\s*GSTIN|\s*State|\s*\||\n|$)',
+        str(raw_text), re.IGNORECASE
+    )
+    if m:
+        cand = clean_ocr_buyer_name(m.group(1).strip())
+        cand = re.sub(r'\s*Address\s*:.*', '', cand, flags=re.IGNORECASE).strip()
+        if cand and not is_address_token(cand):
+            return cand
+
+    # Priority B: Generic Name: label preceding Address:
+    m2 = re.search(
+        r'\bName\s*:\s*([A-Za-z0-9\s&.-]{3,80}?)(?=\s*Address\s*:)',
+        str(raw_text), re.IGNORECASE
+    )
+    if m2:
+        cand = clean_ocr_buyer_name(m2.group(1).strip())
+        cand = re.sub(r'\s*Address\s*:.*', '', cand, flags=re.IGNORECASE).strip()
+        if cand and not is_address_token(cand):
+            return cand
+
+    return ""
+
 def extract_buyer_name_from_bill_to(bill_to: str) -> str:
     """
     Extracts clean buyer/customer company name from a bill_to address block.
@@ -501,10 +552,12 @@ def extract_buyer_name_from_bill_to(bill_to: str) -> str:
         cand = re.sub(r'^(?:Details\s*of\s*(?:Receiver|Buyer|Customer)(?:\s*\([^)]*\))?\s*:\s*|Billed\s*To\s*:\s*|Buyer\s*:\s*|\d{3,10}\s+|Customer\s*Code\s*:\s*\d+\s*|Vendor\s*Code\s*:\s*\d+\s*)', '', cand, flags=re.IGNORECASE).strip()
         cand = re.sub(r'\s*\((?:Billed|Ship(?:ped)?)\s*To\).*', '', cand, flags=re.IGNORECASE).strip()
         cand = re.sub(r'\s*(?:Kind\s*Attn|PLANT|ADDRESS).*', '', cand, flags=re.IGNORECASE).strip()
+        cand = re.sub(r'\s*Address\s*:.*', '', cand, flags=re.IGNORECASE).strip()
         cand = re.sub(r'((?:Pvt\.?\s*Ltd\.?|Limited|Inc\.?|Corp\.?|LLP|Co\.?|Corporation))\s+.*$', r'\1', cand, flags=re.IGNORECASE).strip()
+        cand = clean_ocr_buyer_name(cand)
         
         is_state_or_city = re.search(r'^(?:Tamil Nadu|Maharashtra|Karnataka|Gujarat|Delhi|Kerala|Andhra Pradesh|Telangana|West Bengal|Rajasthan|Punjab|Haryana|Uttar Pradesh|Madhya Pradesh|Bihar|Odisha|Assam|Jharkhand|Chhattisgarh|Uttarakhand|Goa|India)$', cand, re.IGNORECASE)
-        if cand and '|' not in cand and len(cand) >= 3 and not is_state_or_city:
+        if cand and '|' not in cand and len(cand) >= 3 and not is_state_or_city and not is_address_token(cand):
             return cand
 
     # Priority 2: Split by delimiter (comma, semicolon, newline) and analyze candidates
@@ -518,11 +571,12 @@ def extract_buyer_name_from_bill_to(bill_to: str) -> str:
         cleaned = re.sub(r'\s*\((?:Billed|Ship(?:ped)?)\s*To\).*', '', cleaned, flags=re.IGNORECASE).strip()
         cleaned = re.sub(r'\s*Kind\s*Attn\s*:.*', '', cleaned, flags=re.IGNORECASE).strip()
         cleaned = re.sub(r'((?:Pvt\.?\s*Ltd\.?|Limited|Inc\.?|Corp\.?|LLP|Co\.?|Corporation))\s+.*$', r'\1', cleaned, flags=re.IGNORECASE).strip()
+        cleaned = clean_ocr_buyer_name(cleaned)
         
         if not cleaned or re.match(r'^\d+$', cleaned):
             continue
-        # Skip lines that start with typical postal/address tokens
-        if re.match(r'^(?:PLANT|PLOT|DOOR|NO\.|STREET|ROAD|LAYOUT|INCO|PAYMENT|BUILDING|SECTOR|PHASE|BLOCK|\d+/\d+)', cleaned, re.IGNORECASE):
+        # Skip lines that start with typical postal/address tokens or door numbers (e.g. 13A, #101)
+        if is_address_token(cleaned):
             continue
         # Skip pure address lines (e.g. state names, pincodes, city) unless they contain business entity words
         if (re.search(r'\b\d{6}\b|LAYOUT|SARAVANAMPATTI|COIMBATORE|Tamil Nadu|Maharashtra|Karnataka|Gujarat|Delhi|India', cleaned, re.IGNORECASE) and 
@@ -794,25 +848,6 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_ty
         else:
             logger.info(f"[TENANT_ISOLATION_PASS] Extracted GSTIN '{gstin_val}' matches tenant GSTIN '{tenant_gstin}', preserving for PURCHASE invoice.")
 
-    company_match_detected = False
-    name_matched = False
-    gstin_matched = False
-    if tenant_name and vendor_name_clean:
-        clean_v = re.sub(r'[^a-z0-9]', '', str(vendor_name_clean).lower())
-        clean_t = re.sub(r'[^a-z0-9]', '', str(tenant_name).lower())
-        if clean_v and clean_t and (clean_v == clean_t or clean_v in clean_t or clean_t in clean_v):
-            name_matched = True
-    if tenant_gstin and gstin_val and gstin_val.strip().upper() == tenant_gstin.strip().upper():
-        gstin_matched = True
-
-    has_both_tenant = bool(tenant_name and tenant_gstin)
-    has_both_extracted = bool(vendor_name_clean and gstin_val)
-
-    if has_both_tenant and has_both_extracted:
-        company_match_detected = name_matched and gstin_matched
-    else:
-        company_match_detected = name_matched or gstin_matched
-
     # Run GSTIN Ownership Classifier
     from ocr_pipeline.gstin_classifier import GSTINOwnershipClassifier
     raw_text = ""
@@ -837,7 +872,7 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_ty
     b_gst = (classification.get("canonical_buyer_gstin") or "").strip().upper()
     c_gst = (classification.get("canonical_consignee_gstin") or "").strip().upper()
     
-    raw_buyer_val, _ = get_strict(["buyer_gstin", "bill_to_gstin"])
+    raw_buyer_val, _ = get_strict(["buyer_gstin", "bill_to_gstin", "customer_gstin"])
     raw_consignee_val, _ = get_strict(["consignee_gstin", "ship_to_gstin"])
     
     from vendors.vendor_validation_logic import canonicalize_gstin_ocr
@@ -859,26 +894,84 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_ty
 
     buyer_name_val, _ = get_strict(["buyer_name", "customer_name", "bill_to_name"])
     buyer_name_val = fix_encoding_corruption(str(buyer_name_val)) if buyer_name_val else ""
-    if not buyer_name_val:
-        # Priority 1: Use candidate saved from Qwen's pipe-table billing_address
-        if _qwen_buyer_name_candidate:
+    raw_buyer_name_input = buyer_name_val
+
+    # Check for address leakage in buyer_name_val (e.g. numeric door numbers like "13A" or street address prefixes)
+    is_address_leakage = False
+    if buyer_name_val:
+        if is_address_token(buyer_name_val):
+            is_address_leakage = True
+        elif bill_to and buyer_name_val in str(bill_to) and not any(kw in buyer_name_val.upper() for kw in ['PVT', 'LTD', 'LIMITED', 'INC', 'CORP', 'LLC', 'CO', 'COMPANY', 'MACHINERS', 'ENTERPRISES', 'SERVICES', 'INDUSTRIES', 'MOTORS', 'TECH', 'ENGINEERING', 'TOOLS']):
+            is_address_leakage = True
+
+    suspected_address_leakage = is_address_leakage
+    correction_applied = False
+    corrected_buyer_name = ""
+
+    if is_address_leakage or not buyer_name_val:
+        # Priority 1: Check Qwen candidate if valid
+        if _qwen_buyer_name_candidate and not is_address_token(_qwen_buyer_name_candidate):
             buyer_name_val = fix_encoding_corruption(_qwen_buyer_name_candidate)
             logger.info(f"[BUYER_NAME_PIPE_TABLE] value='{buyer_name_val}'")
 
-        # Priority 2: Extract clean buyer name from bill_to address block using parser
-        if not buyer_name_val and bill_to:
+        # Priority 2: Recovery from raw OCR text layout receiver block
+        raw_ocr_combined = str(invoice.get("_raw_text") or invoice.get("_pdf_ocr_text") or invoice.get("header", {}).get("_raw_text") or "")
+        if not buyer_name_val or is_address_token(buyer_name_val):
+            ocr_rec_name = extract_buyer_name_from_ocr_text(raw_ocr_combined, buyer_gstin=classification.get("buyer_gstin", ""))
+            if ocr_rec_name and not is_address_token(ocr_rec_name):
+                buyer_name_val = fix_encoding_corruption(ocr_rec_name)
+                corrected_buyer_name = buyer_name_val
+                correction_applied = True
+                logger.info(f"[BUYER_NAME_OCR_RECOVERED] value='{buyer_name_val}'")
+
+        # Priority 3: Extract clean buyer name from bill_to address block using parser
+        if (not buyer_name_val or is_address_token(buyer_name_val)) and bill_to:
             extracted_buyer = extract_buyer_name_from_bill_to(str(bill_to))
-            if extracted_buyer:
+            if extracted_buyer and not is_address_token(extracted_buyer):
                 buyer_name_val = fix_encoding_corruption(extracted_buyer)
+                corrected_buyer_name = buyer_name_val
+                correction_applied = True
                 logger.info(f"[BUYER_NAME_RECOVERED] value='{buyer_name_val}'")
+
+    buyer_name_val = clean_ocr_buyer_name(buyer_name_val)
+    canonical_customer_name = buyer_name_val.strip()
+    raw_b_gst = classification.get("buyer_gstin") or canonicalize_gstin_ocr(raw_buyer_val) or raw_buyer_val or ""
+    canonical_customer_gstin = str(raw_b_gst).strip().upper()
+
+    inv_no_log = fix_encoding_corruption(str(get_strict(["invoice_no", "invoice_number", "bill_no", "supplier_invoice_no"])[0]))
+
+    logger.info(
+        f"[BUYER_NAME_FORENSIC] invoice_no='{inv_no_log}' raw_buyer_name='{raw_buyer_name_input}' "
+        f"buyer_name='{buyer_name_val}' buyer_gstin='{canonical_customer_gstin}' buyer_address='{bill_to}' "
+        f"suspected_address_leakage={suspected_address_leakage} correction_applied={correction_applied} "
+        f"corrected_buyer_name='{corrected_buyer_name}'"
+    )
+
+    # ── OWN COMPANY / CUSTOMER VALIDATION (CUSTOMER IDENTITY VS TENANT) ──
+    from ocr_pipeline.customer_validation import validate_customer_against_tenant
+    cust_val = validate_customer_against_tenant(
+        tenant_or_id=tenant or tenant_id,
+        buyer_name=canonical_customer_name or buyer_name_val,
+        buyer_gstin=canonical_customer_gstin or raw_buyer_val,
+        record_id=inv_no_log,
+        invoice_no=inv_no_log
+    )
+    company_match_detected = cust_val["company_match_detected"]
+    company_match_decision = cust_val["company_match_decision"]
+    customer_status = cust_val["customer_status"]
 
     from vendors.vendor_validation_logic import canonicalize_gstin_ocr
     record = {
-        "invoice_no": fix_encoding_corruption(str(get_strict(["invoice_no", "invoice_number", "bill_no", "supplier_invoice_no"])[0])),
+        "invoice_no": inv_no_log,
         "invoice_date": normalize_date(get_strict(["invoice_date", "date", "bill_date", "supplier_invoice_date"])[0]),
         "vendor_name": vendor_name_val,
-        "buyer_name": buyer_name_val,
+        "buyer_name": cust_val["buyer_name"] or canonical_customer_name,
+        "customer_name": cust_val["customer_name"] or canonical_customer_name,
+        "raw_buyer_name": raw_buyer_name_input or canonical_customer_name,
+        "canonical_buyer_name": cust_val["canonical_buyer_name"] or canonical_customer_name,
+        "customer_status": customer_status,
         "company_match_detected": company_match_detected,
+        "company_match_decision": company_match_decision,
         "gstin": gstin_val,
         "raw_gstin": classification.get("raw_vendor_gstin") or gstin_val,
         "canonical_gstin": canonicalize_gstin_ocr(gstin_val),

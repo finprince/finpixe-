@@ -48,6 +48,35 @@ class PendingPurchaseSerializer(serializers.ModelSerializer):
                 if v and v not in DASH_VALUES:
                     data['vendor_gstin'] = v
                     break
+        
+        # Enrich buyer/customer identity and customer validation fields
+        ext = instance.extraction_payload or {}
+        buyer_name = ext.get('buyer_name') or ext.get('customer_name') or ''
+        buyer_gstin = ext.get('canonical_buyer_gstin') or ext.get('buyer_gstin') or ext.get('customer_gstin') or ''
+        
+        data['buyer_name'] = buyer_name or '—'
+        data['customer_name'] = buyer_name or '—'
+        data['buyer_gstin'] = buyer_gstin or '—'
+        data['customer_gstin'] = buyer_gstin or '—'
+        
+        # Perform dynamic customer validation against tenant if not stored
+        if not ext.get('customer_status'):
+            from ocr_pipeline.customer_validation import validate_customer_against_tenant
+            cust_val = validate_customer_against_tenant(
+                tenant_or_id=instance.company_id,
+                buyer_name=buyer_name,
+                buyer_gstin=buyer_gstin,
+                record_id=instance.id,
+                invoice_no=instance.invoice_number
+            )
+            data['customer_status'] = cust_val['customer_status']
+            data['company_match_detected'] = cust_val['company_match_detected']
+            data['company_match_decision'] = cust_val['company_match_decision']
+        else:
+            data['customer_status'] = ext.get('customer_status')
+            data['company_match_detected'] = instance.company_match_detected or bool(ext.get('company_match_detected'))
+            data['company_match_decision'] = instance.company_match_decision or ext.get('company_match_decision')
+
         return data
 
 

@@ -18,7 +18,7 @@ from ocr_pipeline.models import AICache
 from django.db.models import F
 logger = logging.getLogger(__name__)
 
-schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
+schema_str = """{"header":{"vendor_name":"","vendor_address":"","vendor_gstin":"","buyer_name":"","buyer_gstin":"","billing_address":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
 
 base_prompt = f"""Extract PURCHASE invoice data into this exact JSON schema:
 
@@ -27,7 +27,11 @@ base_prompt = f"""Extract PURCHASE invoice data into this exact JSON schema:
 RULES:
 1. vendor_address = "Consignee/Ship To" block; billing_address = "Buyer/Bill To" block only. Never mix them. Null if absent.
 2. invoice_no: prefer label "Invoice No"/"Bill No", near top/date, must have ≥ 1 digit, 3-25 chars.
-3. Line Item Columns:
+3. buyer_name / customer_name: Extract the legal/entity name written immediately after the Name label inside the "Details of Receiver (Billed to)", "Bill To", "Buyer", or "Customer" section.
+   - Example: Name: ACCUTURN MACHINERS PVT LTD -> buyer_name = "ACCUTURN MACHINERS PVT LTD".
+   - Do NOT extract the street address, house/door number (e.g. 13A), locality, or first token of the address as buyer_name. Address fields MUST NEVER become buyer_name.
+4. buyer_gstin: Extract the GSTIN/Unique ID of the buyer/receiver located inside the Receiver/Bill To section (e.g. 33ABACA5718R1ZD).
+5. Line Item Columns:
    Extract the columns exactly as printed on the invoice for each item:
    - 'amount': Extract from the column labeled 'Amount', 'Value', or 'Total' exactly as printed.
    - 'taxable_value': Extract from the column explicitly labeled 'Taxable Value', 'Taxable Amount', or 'Assessable Value' if and only if such a column is printed. Otherwise, leave as null. Do NOT calculate or derive it.
@@ -35,12 +39,12 @@ RULES:
    - 'discount_amount': Extract from the column explicitly labeled 'Discount' or 'Disc. Amt' if printed. Do NOT calculate or infer.
    - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
    Do NOT perform arithmetic operations, do NOT subtract GST, and do NOT attempt to reconcile layout semantics. The backend will handle calculations.
-4. HSN/SAC and UOM per item if visible.
-5. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
-6. Missing field → null. No hallucination. All numeric fields must be numbers.
-7. OCR text is the primary source of truth. Extract values exactly as they appear unless a rule above requires transformation.
-8. Do not invent or infer values that are not supported by the OCR text. If a field is ambiguous or absent, return null.
-9. Preserve line-item order exactly as it appears in the document.
+6. HSN/SAC and UOM per item if visible.
+7. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
+8. Missing field → null. No hallucination. All numeric fields must be numbers.
+9. OCR text is the primary source of truth. Extract values exactly as they appear unless a rule above requires transformation.
+10. Do not invent or infer values that are not supported by the OCR text. If a field is ambiguous or absent, return null.
+11. Preserve line-item order exactly as it appears in the document.
 Return ONLY valid JSON.
 """
 
@@ -685,7 +689,7 @@ Return a JSON object with a "pages" key containing a list of {count} results in 
     #             Redundant: JSON schema structure already enforces the split.
     #   Rule 4 — "place_of_supply: state name or code (e.g. "33-Tamil Nadu")."
     #             Redundant: model infers GST state format from schema key name.
-    schema_str = """{"header":{"vendor_name":"","vendor_address":"","billing_address":"","vendor_gstin":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
+    schema_str = """{"header":{"vendor_name":"","vendor_address":"","vendor_gstin":"","buyer_name":"","buyer_gstin":"","billing_address":"","vendor_state":"","place_of_supply":"","invoice_no":"","invoice_date":"","total_amount":0,"taxable_value":0,"cgst":0,"sgst":0,"igst":0,"gst_taxability_type":"Taxable","gst_nature_of_transaction":"","sales_order_no":"","irn":"","ack_no":"","ack_date":""},"items":[{"description":"","hsn_code":"","quantity":0,"uom":"","rate":0,"discount_percent":0,"taxable_value":0,"igst_rate":0,"igst_amount":0,"cgst_rate":0,"cgst_amount":0,"sgst_rate":0,"sgst_amount":0,"cess_rate":0,"cess_amount":0,"amount":0}]}"""
     normalized_voucher_type = (
         str(voucher_type or "PURCHASE")
         .strip()
@@ -698,7 +702,11 @@ Return a JSON object with a "pages" key containing a list of {count} results in 
 RULES:
 1. vendor_address = "Consignee/Ship To" block; billing_address = "Buyer/Bill To" block only. Never mix them. Null if absent.
 2. invoice_no: prefer label "Invoice No"/"Bill No", near top/date, must have ≥ 1 digit, 3-25 chars.
-3. Line Item Columns:
+3. buyer_name / customer_name: Extract the legal/entity name written immediately after the Name label inside the "Details of Receiver (Billed to)", "Bill To", "Buyer", or "Customer" section.
+   - Example: Name: ACCUTURN MACHINERS PVT LTD -> buyer_name = "ACCUTURN MACHINERS PVT LTD".
+   - Do NOT extract the street address, house/door number (e.g. 13A), locality, or first token of the address as buyer_name. Address fields MUST NEVER become buyer_name.
+4. buyer_gstin: Extract the GSTIN/Unique ID of the buyer/receiver located inside the Receiver/Bill To section (e.g. 33ABACA5718R1ZD).
+5. Line Item Columns:
    Extract the columns exactly as printed on the invoice for each item:
    - 'amount': Extract from the column labeled 'Amount', 'Value', or 'Total' exactly as printed.
    - 'taxable_value': Extract from the column explicitly labeled 'Taxable Value', 'Taxable Amount', or 'Assessable Value' if and only if such a column is printed. Otherwise, leave as null. Do NOT calculate or derive it.
@@ -706,12 +714,12 @@ RULES:
    - 'discount_amount': Extract from the column explicitly labeled 'Discount' or 'Disc. Amt' if printed. Do NOT calculate or infer.
    - 'rate'/'quantity'/'cgst_rate'/'sgst_rate'/'igst_rate': Extract values exactly as printed.
    Do NOT perform arithmetic operations, do NOT subtract GST, and do NOT attempt to reconcile layout semantics. The backend will handle calculations.
-4. HSN/SAC and UOM per item if visible.
-5. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
-6. Missing field → null. No hallucination. All numeric fields must be numbers.
-7. OCR text is the primary source of truth. Extract values exactly as they appear unless a rule above requires transformation.
-8. Do not invent or infer values that are not supported by the OCR text. If a field is ambiguous or absent, return null.
-9. Preserve line-item order exactly as it appears in the document.
+6. HSN/SAC and UOM per item if visible.
+7. Continuation page: extract invoice_no and vendor_name from top labels; markers: "continued","amount chargeable","authorised signatory","rounded off".
+8. Missing field → null. No hallucination. All numeric fields must be numbers.
+9. OCR text is the primary source of truth. Extract values exactly as they appear unless a rule above requires transformation.
+10. Do not invent or infer values that are not supported by the OCR text. If a field is ambiguous or absent, return null.
+11. Preserve line-item order exactly as it appears in the document.
 Return ONLY valid JSON.
 """
 
@@ -1360,6 +1368,8 @@ Return ONLY valid JSON.
                 res["vendor_confidence"] = v_conf
                 res["gstin_confidence"] = g_conf
                 res["invoice_number_confidence"] = i_conf
+                res["_raw_text"] = p_data.get("ocr_text") or ""
+                res["_pdf_ocr_text"] = p_data.get("ocr_text") or ""
                 
                 # Log low confidence events
                 for field_name, conf_val in [("vendor_name", v_conf), ("vendor_gstin", g_conf), ("invoice_no", i_conf)]:
@@ -1444,11 +1454,23 @@ Return ONLY valid JSON.
     else:
         final_result = {"status": "OCR_FAILED", "_error": "NO_PAGES_PROCESSED"}
 
-    # ── [PHASE 14: METERING] ──
+    # ── [PHASE 14: METERING & OCR TEXT ATTACHMENT] ──
     # Track total AI units (pages) for cost governance
     final_result["total_pages"] = page_count
     final_result["_ai_units_consumed"] = page_count
     final_result["_pages"] = pages_map
+    
+    all_raw_ocr = "\n\n".join([
+        str(res.get("_raw_text") or res.get("_pdf_ocr_text") or "")
+        for res in results_map.values() if isinstance(res, dict)
+    ])
+    if not all_raw_ocr.strip():
+        all_raw_ocr = "\n\n".join([
+            str(page_res.get("_raw_text") or page_res.get("_pdf_ocr_text") or "")
+            for page_res in pages_map.values() if isinstance(page_res, dict)
+        ])
+    final_result["_raw_text"] = all_raw_ocr
+    final_result["_pdf_ocr_text"] = all_raw_ocr
     
     logger.info(f"[EXTRACTION_COMPLETE] pages={page_count} session={upload_session_id} record={record_id} units={page_count}")
     logger.info(f"[PERF] Total Pipeline Time: {time.monotonic() - t_start:.2f}s for {page_count} pages")

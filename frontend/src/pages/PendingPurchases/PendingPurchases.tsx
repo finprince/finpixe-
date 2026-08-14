@@ -27,6 +27,43 @@ const VendorStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return <span className="bg-indigo-500 text-white border border-indigo-600 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE VENDOR</span>;
 };
 
+const CustomerStatusBadge: React.FC<{ status?: string; companyMatch?: boolean; decision?: string }> = ({ status, companyMatch, decision }) => {
+  const s = (status || '').toUpperCase();
+  if (companyMatch || s === 'SELF_COMPANY') {
+    return (
+      <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider shadow-sm">
+        🏢 SELF COMPANY
+      </span>
+    );
+  }
+  if (s === 'NAME_MISMATCH' || decision === 'GSTIN_MATCH_NAME_MISMATCH') {
+    return (
+      <span className="bg-orange-100 text-orange-800 border border-orange-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-bold uppercase">
+        ⚠️ NAME MISMATCH
+      </span>
+    );
+  }
+  if (s === 'NAME_ONLY_MATCH' || decision === 'NAME_ONLY_MATCH') {
+    return (
+      <span className="bg-yellow-100 text-yellow-800 border border-yellow-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-bold uppercase">
+        🔍 NAME ONLY MATCH
+      </span>
+    );
+  }
+  if (s === 'IDENTITY_UNKNOWN' || s === 'CUSTOMER_IDENTITY_MISSING' || s === 'UNKNOWN') {
+    return (
+      <span className="bg-gray-100 text-gray-600 border border-gray-300 px-2 py-1 rounded inline-block text-[10px] font-medium uppercase">
+        IDENTITY UNKNOWN
+      </span>
+    );
+  }
+  return (
+    <span className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">
+      EXTERNAL CUSTOMER
+    </span>
+  );
+};
+
 const ItemStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const isExisting = status === 'ITEM_STATUS_EXISTING' || status === 'ALREADY_EXIST' || status === 'ALREADY EXIST';
   if (isExisting) {
@@ -142,22 +179,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
   const isCompanyMatch = (purchase: any) => {
     if (purchase.company_match_decision === 'PROCEED' || purchase.company_match_decision === 'NOT_PROCEED') return false;
-    if (purchase.company_match_detected || purchase.extraction_payload?.company_match_detected) return true;
-    
-    const cleanStr = (s: string) => (s || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const ext = purchase.extraction_payload || {};
-    const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
-    const header = ext.header || {};
-    const rowName = cleanStr(purchase.vendor_name || supplier.vendor_name || supplier['Vendor Name'] || supplier.name || header.vendor_name || ext.vendor_name || '');
-    const rowGstin = cleanStr(purchase.vendor_gstin || supplier.gstin || supplier['GSTIN'] || ext.vendor_gstin || ext.gstin || '');
-    
-    const compGstin = cleanStr(companyGstin);
-    const compName = cleanStr(companyName);
-
-    const gstinMatch = compGstin && rowGstin && rowGstin !== '—' && (rowGstin === compGstin);
-    const nameMatch = compName && rowName && rowName !== '—' && (rowName === compName || rowName.includes(compName) || compName.includes(rowName));
-
-    return gstinMatch || nameMatch;
+    return !!(purchase.company_match_detected || purchase.extraction_payload?.company_match_detected);
   };
 
   // Per-row loading states
@@ -782,13 +804,35 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
                           {/* Voucher Status */}
                           <td className="px-2 py-3 text-center">
-                            <VoucherStatusBadge 
-                              status={purchase.voucher_status} 
-                              onClick={purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW'
-                                ? () => openEditModal(purchase)
-                                : undefined
-                              }
-                            />
+                            {isCompanyMatch(purchase) ? (
+                              <div className="flex flex-col items-center gap-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
+                                <span className="text-[9px] font-black text-amber-800 uppercase tracking-tight flex items-center gap-1">
+                                  🏢 Own Company
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'PROCEED')}
+                                    className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-black uppercase shadow-sm transition-all"
+                                  >
+                                    ✓ Proceed
+                                  </button>
+                                  <button
+                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'NOT_PROCEED')}
+                                    className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-[9px] font-black uppercase shadow-sm transition-all"
+                                  >
+                                    ✕ Not Proceed
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <VoucherStatusBadge 
+                                status={purchase.voucher_status} 
+                                onClick={purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW'
+                                  ? () => openEditModal(purchase)
+                                  : undefined
+                                }
+                              />
+                            )}
                           </td>
 
                           {/* Actions */}

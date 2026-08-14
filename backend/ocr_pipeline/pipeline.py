@@ -231,7 +231,7 @@ def sync_record_flattened_fields(record: InvoiceTempOCR, data: Dict[str, Any], c
         else:
             logger.debug(f"[CONTRACT_MISMATCH] Field '{field_name}' not found in {record.__class__.__name__}. Skipping flattening.")
     if isinstance(data, dict) and isinstance(canonical, dict):
-        for key in ['invoice_no', 'invoice_date', 'vendor_name', 'buyer_name', 'gstin', 'raw_gstin', 'canonical_gstin', 'branch', 'bill_from', 'bill_to', 'place_of_supply', 'total_taxable_value', 'total_igst', 'total_cgst', 'total_sgst', 'total_cess', 'round_off', 'total_invoice_value', 'buyer_gstin', 'vendor_gstin', 'consignee_gstin', 'ship_to_gstin', 'bill_to_gstin', 'cgst_rate', 'sgst_rate', 'igst_rate', 'subtotal']:
+        for key in ['invoice_no', 'invoice_date', 'vendor_name', 'buyer_name', 'customer_name', 'gstin', 'raw_gstin', 'canonical_gstin', 'branch', 'bill_from', 'bill_to', 'place_of_supply', 'total_taxable_value', 'total_igst', 'total_cgst', 'total_sgst', 'total_cess', 'round_off', 'total_invoice_value', 'buyer_gstin', 'customer_gstin', 'vendor_gstin', 'consignee_gstin', 'ship_to_gstin', 'bill_to_gstin', 'cgst_rate', 'sgst_rate', 'igst_rate', 'subtotal', 'company_match_detected']:
             if key in canonical:
                 data[key] = canonical[key]
         if 'items' in canonical:
