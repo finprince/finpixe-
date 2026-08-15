@@ -5,13 +5,13 @@ GLOBAL BANK STATEMENT COLUMN EXTRACTION ENGINE
 
 Architecture:
     Strategy 1 -- Grid/table extraction (PyMuPDF find_tables): for banks with PDF table borders (SBI)
-    Strategy 2 -- Coordinate-based column extraction: for banks with detectable header rows (HDFC, ICICI)
+    Strategy 2 -- Coordinate-based column extraction: for banks with detectable header rows (HDFC, ICICI, Canara)
     Strategy 3 -- Multi-line stream state machine: fallback for stream-format banks (Indian Bank, BOB)
 
 Column Authority Rule:
     The PDF physical column (determined by x-coordinate) is the ONLY authority for field assignment.
     Narration -> narration, Chq/Ref No. -> ref_no, Withdrawal -> debit, Deposit -> credit.
-    ref_no is NEVER inferred from narration. Narration identifiers (UPI, UTR, IMPS) stay in narration.
+    ref_no is NEVER inferred from narration identifiers. Dedicated Chq/Ref fields attach to ref_no.
 """
 import re
 import logging
@@ -72,11 +72,11 @@ COLUMN_HEADER_ALIASES = {
     'value_date': ['value dt', 'value date', 'val date', 'value dt.', 'val dt', 'effective date'],
     'debit': [
         'withdrawal amt.', 'withdrawal', 'withdrawals', 'debit', 'debit amt', 'debit amount',
-        'withdrawal amt', 'dr amount',
+        'withdrawal amt', 'dr amount', 'withdrawals(dr)', 'debit(dr)',
     ],
     'credit': [
         'deposit amt.', 'deposit', 'deposits', 'credit', 'credit amt', 'credit amount',
-        'deposit amt', 'cr amount',
+        'deposit amt', 'cr amount', 'deposits(cr)', 'credit(cr)',
     ],
     'balance': [
         'closing balance', 'balance', 'running balance', 'avl bal', 'available balance',
@@ -94,7 +94,8 @@ COORDINATE_NOISE_PATTERNS = [
     'computer generated', 'hdfc bank house', 'lower parel',
     'senapati', 'registered office', 'gstin number', 'hdfcbank.com',
     'dr count', 'cr count', 'opening bal', 'closing bal',
-    'debits', 'credits',
+    'debits', 'credits', 'disclaimer', 'unless the constituent',
+    'pass sheet shall be deemed', 'beware of phishing', 'end of statement',
 ]
 
 
@@ -154,41 +155,62 @@ def _clean_date_cell(value):
     if not value:
         return None
     s = " ".join(str(value).split()).strip()
-    m_fused = re.match(r'^(?:20)?(2[3-9])(\d{2})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
-    if m_fused:
-        yy, fused_day, mm, dd = m_fused.groups()
-        s = f"20{yy}-{int(mm):02d}-{int(dd):02d}"
-    m_iso = re.match(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
-    if m_iso:
-        yyyy, mm, dd = m_iso.groups()
-        if int(yyyy) > 2099 and yyyy.startswith('24'):
-            yyyy = '2024'
-        elif int(yyyy) > 2099 and yyyy.startswith('23'):
-            yyyy = '2023'
-        s = f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
-        try:
-            datetime.strptime(s, "%Y-%m-%d")
-            return s
-        except ValueError:
-            pass
+    # Check if multiple tokens exist (e.g. repeated dates from text overlay "29/02/24 29/02/24")
+    tokens = s.split()
+    if len(tokens) > 1:
+        for t in tokens:
+            cleaned = _clean_date_cell(t)
+            if cleaned:
+                return cleaned
+
+    # 1. Named month formats: 10-Jul-2026, 01-Apr-2023, 1 Feb 2025, 31 March 2024
     m_named = re.match(r'^(\d{1,2})[-/\s]+([a-zA-Z]+)[-/\s]+(20\d{2}|\d{2})$', s)
     if m_named:
-        day_str, mon_str, yr_str = m_named.groups()
-        mon_lower = mon_str.lower()
-        if mon_lower in MONTHS_MAP:
-            if len(yr_str) == 2:
-                yr_str = '20' + yr_str
-            s_cand = f"{yr_str}-{MONTHS_MAP[mon_lower]}-{int(day_str):02d}"
+        d, m_str, y = m_named.groups()
+        m_lower = m_str.lower()
+        if m_lower in MONTHS_MAP:
+            if len(y) == 2:
+                y = '20' + y
             try:
-                datetime.strptime(s_cand, "%Y-%m-%d")
-                return s_cand
+                date_s = f'{y}-{MONTHS_MAP[m_lower]}-{int(d):02d}'
+                dt = datetime.strptime(date_s, '%Y-%m-%d')
+                if 1900 <= dt.year <= 2100:
+                    return date_s
             except ValueError:
                 pass
+
+    # 2. Standard ISO numeric formats: YYYY-MM-DD
+    m_iso = re.match(r'^(20\d{2})[-/\.](\d{1,2})[-/\.](\d{1,2})$', s)
+    if m_iso:
+        y, mth, d = m_iso.groups()
+        try:
+            date_s = f'{y}-{int(mth):02d}-{int(d):02d}'
+            dt = datetime.strptime(date_s, '%Y-%m-%d')
+            if 1900 <= dt.year <= 2100:
+                return date_s
+        except ValueError:
+            pass
+
+    # 3. Standard numeric formats: DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY, DD/MM/YY
+    m_dmy = re.match(r'^(\d{1,2})[-/\.](\d{1,2})[-/\.](20\d{2}|\d{2})$', s)
+    if m_dmy:
+        d, mth, y = m_dmy.groups()
+        if len(y) == 2:
+            y = '20' + y
+        try:
+            date_s = f'{y}-{int(mth):02d}-{int(d):02d}'
+            dt = datetime.strptime(date_s, '%Y-%m-%d')
+            if 1900 <= dt.year <= 2100:
+                return date_s
+        except ValueError:
+            pass
+
     for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y', '%d.%m.%Y', '%d.%m.%y',
                 '%Y/%m/%d', '%d %b %Y', '%d %B %Y', '%d-%b-%Y', '%d-%b-%y'):
         try:
             dt = datetime.strptime(s, fmt)
-            return dt.strftime('%Y-%m-%d')
+            if 1900 <= dt.year <= 2100:
+                return dt.strftime('%Y-%m-%d')
         except ValueError:
             pass
     return None
@@ -289,10 +311,13 @@ def _extract_grid_tables(doc, metrics=None):
     return None
 
 
-# ── Strategy 2: Coordinate-Based Column Extraction (HDFC, ICICI, and similar) ──
+# ── Strategy 2: Coordinate-Based Column Extraction (HDFC, ICICI, Canara and similar) ──
 
 def _classify_column_header(text):
-    h = text.lower().strip().rstrip('.')
+    text_clean = text.strip()
+    if len(text_clean) > 30 or len(text_clean.split()) > 4:
+        return None
+    h = text_clean.lower().rstrip('.')
     for col, aliases in COLUMN_HEADER_ALIASES.items():
         for alias in aliases:
             if h == alias:
@@ -343,24 +368,25 @@ def _detect_column_anchors(page):
 def _assign_span_column(x0, col_anchors):
     """
     Assign a span's x0 position to a logical column.
-    Narration data often extends LEFT of the narration header label,
-    so we use date zone (x0 <= date_anchor+30) and ref_no anchor as boundaries.
     """
     if not col_anchors:
         return None
     date_anchor = col_anchors.get('date', 0)
-    ref_anchor = col_anchors.get('ref_no', 9999)
+    amount_anchors = [anc for col, anc in col_anchors.items() if col in ('ref_no', 'debit', 'credit', 'balance')]
+    first_amount_anchor = min(amount_anchors) if amount_anchors else 9999
+
     if x0 <= date_anchor + 30:
         return 'date'
-    if x0 < ref_anchor - 5:
+    if x0 < first_amount_anchor - 15:
         return 'narration'
+
     sorted_right = sorted(
         [(col, anc) for col, anc in col_anchors.items() if col not in ('date', 'narration')],
         key=lambda x: x[1]
     )
     best_col = None
     for col, anchor in sorted_right:
-        if x0 >= anchor - 5:
+        if x0 >= anchor - 20:
             best_col = col
     return best_col
 
@@ -396,14 +422,6 @@ def _parse_coord_amount(s):
 def _extract_coordinate_transactions(doc, metrics=None):
     """
     Strategy 2: Coordinate-based column extraction.
-
-    For each page:
-    1. Detect column anchor positions from header row.
-    2. Collect text spans below header, assign each to a column by x-coordinate.
-    3. Group into visual rows by Y-proximity.
-    4. Reconstruct transactions: new transaction starts on valid date in 'date' column.
-       Continuation rows extend the current transaction's narration and ref_no.
-    5. Multi-line ref_no parts are concatenated to form the complete reference.
     """
     col_anchors = None
     header_y = None
@@ -433,7 +451,7 @@ def _extract_coordinate_transactions(doc, metrics=None):
                     if not text:
                         continue
                     x0, y0, x1, y1 = span['bbox']
-                    # Only filter top area if THIS page has a detected table header row
+                    # Only filter top area if this page has a detected table header row
                     if page_header_y and y0 <= page_header_y + 2:
                         continue
                     col = _assign_span_column(x0, col_anchors)
@@ -461,6 +479,7 @@ def _extract_coordinate_transactions(doc, metrics=None):
 
     transactions = []
     current_txn = None
+    pending_leading_narr = []
 
     for row in visual_rows:
         by_col = defaultdict(list)
@@ -477,11 +496,11 @@ def _extract_coordinate_transactions(doc, metrics=None):
         bal_parts = by_col.get('balance', [])
 
         all_texts = list(date_parts) + narr_parts + ref_parts + vd_parts + deb_parts + cred_parts + bal_parts
-        # Skip noise rows (even if they contain dates like 'Statement of account From : 01/06/2025')
         if _is_coord_noise(all_texts):
             if current_txn:
                 transactions.append(current_txn)
                 current_txn = None
+            pending_leading_narr = []
             continue
 
         date_strings = []
@@ -511,9 +530,13 @@ def _extract_coordinate_transactions(doc, metrics=None):
             deb_amt = _parse_coord_amount(deb_str)
             cred_amt = _parse_coord_amount(cred_str)
             bal_amt = _parse_coord_amount(bal_str)
+
+            combined_narr = pending_leading_narr + ([narr_text] if narr_text else [])
+            pending_leading_narr = []
+
             current_txn = {
                 'date': clean_d, 'value_date': clean_vd,
-                'narration_parts': [narr_text] if narr_text else [],
+                'narration_parts': combined_narr,
                 'ref_parts': [ref_str] if ref_str else [],
                 'debit': abs(deb_amt) if deb_amt and deb_amt > 0 else None,
                 'credit': abs(cred_amt) if cred_amt and cred_amt > 0 else None,
@@ -535,6 +558,14 @@ def _extract_coordinate_transactions(doc, metrics=None):
             if bal_str and current_txn['balance'] is None:
                 current_txn['balance'] = _parse_coord_amount(bal_str)
 
+            # If the row had a dedicated "Chq: ..." label and the transaction already has amount & balance:
+            if re.search(r'^(?:chq|cheque|ref\s*no|reference\s*no|instrument\s*no)\s*:\s*', narr_text, re.IGNORECASE) and (current_txn['debit'] or current_txn['credit']) and current_txn['balance']:
+                transactions.append(current_txn)
+                current_txn = None
+        else:
+            if narr_text:
+                pending_leading_narr.append(narr_text)
+
     if current_txn:
         transactions.append(current_txn)
 
@@ -542,6 +573,13 @@ def _extract_coordinate_transactions(doc, metrics=None):
     for txn in transactions:
         narration = re.sub(r'\s+', ' ', ' '.join(p for p in txn['narration_parts'] if p)).strip()
         ref_no = ''.join(p for p in txn['ref_parts'] if p).strip() or None
+        
+        # If ref_no was not in dedicated column, check for "Chq: <num>" or "Ref No: <num>"
+        if not ref_no:
+            m_chq = re.search(r'(?:^|\s)(?:chq|cheque|ref\s*no|reference\s*no|instrument\s*no)\s*:\s*([a-zA-Z0-9]+)', narration, re.IGNORECASE)
+            if m_chq:
+                ref_no = m_chq.group(1).strip()
+
         balance = txn['balance']
         if balance is not None:
             balance = abs(balance)
@@ -806,7 +844,7 @@ def extract_digital_pdf_transactions(file_bytes, metrics=None):
 
     Tries three strategies in priority order:
     1. Grid/table extraction (for SBI and banks with PDF table borders).
-    2. Coordinate-based column extraction (for HDFC, ICICI and similar).
+    2. Coordinate-based column extraction (for HDFC, ICICI, Canara and similar).
     3. Multi-line stream state machine (fallback for Indian Bank, BOB, etc.).
 
     All strategies produce the same canonical DTO:
@@ -821,13 +859,6 @@ def extract_digital_pdf_transactions(file_bytes, metrics=None):
         "credit": null | float,
         "balance": null | float,
     }
-
-    COLUMN AUTHORITY RULE:
-    - Narration content comes ONLY from narration/description/particulars column.
-    - ref_no comes ONLY from chq/ref no. column -- never from narration.
-    - debit comes ONLY from withdrawal column.
-    - credit comes ONLY from deposit column.
-    - balance comes ONLY from closing balance column.
     """
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     total_pages = len(doc)

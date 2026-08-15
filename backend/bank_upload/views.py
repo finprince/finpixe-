@@ -111,7 +111,7 @@ class BankDetectPeriodView(APIView):
     """
     POST /api/bank-upload/detect-period/
 
-    Lightweight endpoint to detect declared statement period (start_date, end_date)
+    Lightweight endpoint to detect declared statement period (start_date, end_date, source)
     from uploaded bank statement file without running full extraction.
     """
     permission_classes = [IsAuthenticated]
@@ -125,12 +125,15 @@ class BankDetectPeriodView(APIView):
         if not file_obj:
             return Response({'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        from .services.period_detector import detect_pdf_statement_period
-        start_date, end_date = detect_pdf_statement_period(file_obj)
+        from .services.period_detector import detect_statement_range_canonical
+        res = detect_statement_range_canonical(file_obj)
 
         return Response({
-            'start_date': start_date,
-            'end_date': end_date
+            'statement_start_date': res['statement_start_date'],
+            'statement_end_date': res['statement_end_date'],
+            'statement_range_source': res['statement_range_source'],
+            'start_date': res['statement_start_date'],
+            'end_date': res['statement_end_date']
         }, status=status.HTTP_200_OK)
 
 
@@ -143,10 +146,11 @@ class BankUploadView(APIView):
     POST /api/bank-upload/upload/
 
     Accepts a bank statement file.
-    1. Passes it to extraction_service (AI).
-    2. Filters rows by optional extract_from_date / extract_to_date.
-    3. Saves result to BankStatementStagingFile (STAGING ONLY).
-    4. Enforces 15 record limit and 24h TTL.
+    1. Passes it to extraction_service (Digital / AI).
+    2. Detects declared statement period (start, end, source).
+    3. Filters rows by user-selected or default extraction date range (inclusive).
+    4. Saves result to BankStatementStagingFile (STAGING ONLY) with metadata.
+    5. Enforces 15 record limit and 24h TTL.
     """
     permission_classes = [IsAuthenticated]
 
@@ -161,42 +165,17 @@ class BankUploadView(APIView):
 
         bank_ledger_id = request.data.get('bank_ledger_id')
         
-        # ── Step 0: Read and Validate Extraction Date Range Filter ──
-        extract_from_date = request.data.get('extract_from_date') or request.data.get('start_date')
-        extract_to_date = request.data.get('extract_to_date') or request.data.get('end_date')
+        # ── Step 0: Read Extraction Date Range Filter ──
+        raw_from_date = request.data.get('extract_from_date') or request.data.get('selected_from_date') or request.data.get('start_date')
+        raw_to_date = request.data.get('extract_to_date') or request.data.get('selected_to_date') or request.data.get('end_date')
 
-        if extract_from_date:
-            extract_from_date = _clean_date(extract_from_date)
-        if extract_to_date:
-            extract_to_date = _clean_date(extract_to_date)
+        extract_from_date = _clean_date(raw_from_date) if raw_from_date else None
+        extract_to_date = _clean_date(raw_to_date) if raw_to_date else None
 
         # ── Step 0a: Duplicate Detection ──
         file_content = file_obj.read()
         file_obj.seek(0)
         file_hash = hashlib.md5(file_content).hexdigest()
-
-        # Detect original PDF declared statement period
-        from .services.period_detector import detect_pdf_statement_period
-        pdf_start_date, pdf_end_date = detect_pdf_statement_period(file_content)
-
-        # Date Range Validation: FROM cannot be after TO
-        if extract_from_date and extract_to_date and extract_from_date > extract_to_date:
-            return Response(
-                {'error': 'Extract From Date cannot be after Extract To Date.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Date Range Validation: User-selected range must be inside PDF statement period (if known)
-        if pdf_start_date and extract_from_date and extract_from_date < pdf_start_date:
-            return Response(
-                {'error': f"Extract From Date ({extract_from_date}) cannot be earlier than the statement start date ({pdf_start_date})."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if pdf_end_date and extract_to_date and extract_to_date > pdf_end_date:
-            return Response(
-                {'error': f"Extract To Date ({extract_to_date}) cannot be later than the statement end date ({pdf_end_date})."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
 
         if BankStatementStagingFile.objects.filter(
             tenant_id=tenant_id,
@@ -219,7 +198,7 @@ class BankUploadView(APIView):
                 status=status.HTTP_402_PAYMENT_REQUIRED
             )
 
-        # ── Step 1: Extract via AI / Digital Pipeline ──
+        # ── Step 1: Extract via Digital / AI Pipeline ──
         logger.info(f"📤 BankUpload (Staging): tenant={tenant_id}, file={file_obj.name}, filter=[{extract_from_date} -> {extract_to_date}]")
         try:
             rows, metrics = extract_transactions(file_obj)
@@ -236,31 +215,62 @@ class BankUploadView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
-        # ── Step 1b: Apply Extraction Date Filter (Inclusive) ──
-        if extract_from_date or extract_to_date:
+        # ── Step 2: Detect Statement Period & Resolve Active Extraction Range ──
+        from .services.period_detector import detect_statement_range_canonical
+        txn_dates = [r.get('date') for r in rows if r.get('date')]
+        period_info = detect_statement_range_canonical(file_content, transaction_dates=txn_dates)
+        statement_start = period_info['statement_start_date']
+        statement_end = period_info['statement_end_date']
+        range_source = period_info['statement_range_source']
+
+        selected_from = extract_from_date or statement_start
+        selected_to = extract_to_date or statement_end
+        is_overridden = bool(extract_from_date and extract_from_date != statement_start) or bool(extract_to_date and extract_to_date != statement_end)
+
+        # Date Range Validation: FROM cannot be after TO
+        if selected_from and selected_to and selected_from > selected_to:
+            return Response(
+                {'error': f'Extract From Date ({selected_from}) cannot be after Extract To Date ({selected_to}).'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ── Step 3: Apply Extraction Date Filter (Inclusive) ──
+        if selected_from or selected_to:
             filtered_rows = []
             for r in rows:
                 r_date = _clean_date(r.get('date'))
-                if extract_from_date and r_date and r_date < extract_from_date:
+                if selected_from and r_date and r_date < selected_from:
                     continue
-                if extract_to_date and r_date and r_date > extract_to_date:
+                if selected_to and r_date and r_date > selected_to:
                     continue
                 filtered_rows.append(r)
             rows = filtered_rows
 
         if not rows:
             return Response(
-                {'error': f'No transactions found in the selected date range ({extract_from_date or "start"} to {extract_to_date or "end"}).'},
+                {'error': f'No transactions found in the selected date range ({selected_from or "start"} to {selected_to or "end"}).'},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
-        # ── Step 2: Save to STAGING table ──
+        # ── Step 4: Save to STAGING table with Canonical Metadata ──
         try:
+            staging_data = {
+                'rows': rows,
+                'meta': {
+                    'statement_start_date': statement_start,
+                    'statement_end_date': statement_end,
+                    'selected_from_date': selected_from,
+                    'selected_to_date': selected_to,
+                    'statement_range_source': range_source,
+                    'date_range_overridden': is_overridden,
+                }
+            }
+
             staging_file = BankStatementStagingFile.objects.create(
                 tenant_id=tenant_id,
                 file_name=file_obj.name,
                 account_id=bank_ledger_id,
-                transaction_data=rows,
+                transaction_data=staging_data,
                 file_hash=file_hash,
                 status='pending',
                 expires_at=timezone.now() + timedelta(days=15)
@@ -273,10 +283,16 @@ class BankUploadView(APIView):
                 'message': 'File uploaded and staged successfully.',
                 'staging_id': staging_file.id,
                 'count': len(rows),
-                'pdf_start_date': pdf_start_date,
-                'pdf_end_date': pdf_end_date,
-                'extract_from_date': extract_from_date,
-                'extract_to_date': extract_to_date,
+                'statement_start_date': statement_start,
+                'statement_end_date': statement_end,
+                'selected_from_date': selected_from,
+                'selected_to_date': selected_to,
+                'statement_range_source': range_source,
+                'date_range_overridden': is_overridden,
+                'pdf_start_date': statement_start,
+                'pdf_end_date': statement_end,
+                'extract_from_date': selected_from,
+                'extract_to_date': selected_to,
                 'metrics': metrics
             }, status=status.HTTP_201_CREATED)
 
@@ -358,6 +374,17 @@ class BankStagingProcessView(APIView):
         except BankStatementStagingFile.DoesNotExist:
             return Response({'error': 'Staging record not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Unpack transaction rows and metadata
+        if isinstance(staging.transaction_data, dict):
+            rows = staging.transaction_data.get('rows', [])
+            meta = staging.transaction_data.get('meta', {})
+        elif isinstance(staging.transaction_data, list):
+            rows = staging.transaction_data
+            meta = {}
+        else:
+            rows = []
+            meta = {}
+
         if staging.status == 'processed' and staging.session_id:
             # RETURN EXISTING DATA — no need to re-extract or re-create rows
             existing_rows = BankStatementTemp.objects.filter(
@@ -371,6 +398,12 @@ class BankStagingProcessView(APIView):
                     'session_id': staging.session_id,
                     'count':      existing_rows.count(),
                     'rows':       serializer.data,
+                    'statement_start_date': meta.get('statement_start_date'),
+                    'statement_end_date': meta.get('statement_end_date'),
+                    'selected_from_date': meta.get('selected_from_date'),
+                    'selected_to_date': meta.get('selected_to_date'),
+                    'statement_range_source': meta.get('statement_range_source'),
+                    'date_range_overridden': meta.get('date_range_overridden'),
                     'status':     'resumed'
                 }, status=status.HTTP_200_OK)
             else:
@@ -380,12 +413,10 @@ class BankStagingProcessView(APIView):
                 staging.save()
 
         # ── Step 1: Resolve Bank Ledger ──
-        # If not stored in staging, try to get from request
         bank_ledger_id = staging.account_id or request.data.get('bank_ledger_id')
         bank_ledger_name = request.data.get('bank_ledger_name', '')
         
         if not bank_ledger_id:
-            # Fallback: look for it if we have a name
             if bank_ledger_name:
                 from accounting.models import MasterLedger
                 l = MasterLedger.objects.filter(name=bank_ledger_name, tenant_id=tenant_id).first()
@@ -393,13 +424,10 @@ class BankStagingProcessView(APIView):
 
         # ── Step 2: Push to main flow (BankStatementTemp rows) ──
         session_id = uuid.uuid4().hex
-        rows = staging.transaction_data
         staging_rows = []
 
         try:
             with db_transaction.atomic():
-                # Re-use the existing logic for row creation but adapted for the staged data
-                # Pre-load existing posted/staged rows for duplicate detection
                 existing_keys = self._get_existing_keys(tenant_id)
                 batch_keys = set()
 
@@ -422,6 +450,12 @@ class BankStagingProcessView(APIView):
                 'session_id': session_id,
                 'count':      len(staging_rows),
                 'rows':       serializer.data,
+                'statement_start_date': meta.get('statement_start_date'),
+                'statement_end_date': meta.get('statement_end_date'),
+                'selected_from_date': meta.get('selected_from_date'),
+                'selected_to_date': meta.get('selected_to_date'),
+                'statement_range_source': meta.get('statement_range_source'),
+                'date_range_overridden': meta.get('date_range_overridden'),
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:

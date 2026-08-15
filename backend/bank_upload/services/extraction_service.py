@@ -27,6 +27,7 @@ import io
 import re
 import json
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('bank_upload.extraction')
 
@@ -633,37 +634,19 @@ MONTHS_MAP = {
 def _clean_date(value) -> str | None:
     """
     Robust date normalizer and validator.
-    Normalizes fused date formats (e.g. 2429-02-29 -> 2024-02-29),
-    named month formats (e.g. 10 Feb 2025, 5 May 2025, 01-Apr-2023),
-    and strictly validates real calendar dates so invalid dates never crash DB inserts.
+    Validates real calendar dates (1900-2100) so invalid dates never crash DB inserts.
     """
     if not value:
         return None
     s = str(value).strip()
-    
-    # 1. Fix concatenated year artifacts (e.g. 2429-02-29 -> 2024-02-29, 2304-04-05 -> 2023-04-05)
-    m_fused = re.match(r'^(?:20)?(2[3-9])(\d{2})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
-    if m_fused:
-        yy, fused_day, mm, dd = m_fused.groups()
-        s = f"20{yy}-{int(mm):02d}-{int(dd):02d}"
+    tokens = s.split()
+    if len(tokens) > 1:
+        for t in tokens:
+            cleaned = _clean_date(t)
+            if cleaned:
+                return cleaned
         
-    # 2. Try standard ISO YYYY-MM-DD
-    m_iso = re.match(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
-    if m_iso:
-        yyyy, mm, dd = m_iso.groups()
-        if int(yyyy) > 2099 and yyyy.startswith('24'):
-            yyyy = '2024'
-        elif int(yyyy) > 2099 and yyyy.startswith('23'):
-            yyyy = '2023'
-        s = f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
-        try:
-            from datetime import datetime
-            datetime.strptime(s, "%Y-%m-%d")
-            return s
-        except ValueError:
-            pass
-
-    # 3. Try named month dates (e.g. 10 Feb 2025, 5 May 2025, 10-Feb-2025)
+    # 1. Named month dates (e.g. 10 Feb 2025, 5 May 2025, 10-Feb-2025, 10-Jul-2026)
     m_named = re.match(r'^(\d{1,2})[-/\s]+([a-zA-Z]+)[-/\s]+(20\d{2}|\d{2})$', s)
     if m_named:
         day_str, mon_str, yr_str = m_named.groups()
@@ -673,28 +656,48 @@ def _clean_date(value) -> str | None:
                 yr_str = '20' + yr_str
             s_cand = f"{yr_str}-{MONTHS_MAP[mon_lower]}-{int(day_str):02d}"
             try:
-                from datetime import datetime
-                datetime.strptime(s_cand, "%Y-%m-%d")
-                return s_cand
+                dt = datetime.strptime(s_cand, "%Y-%m-%d")
+                if 1900 <= dt.year <= 2100:
+                    return s_cand
             except ValueError:
                 pass
+
+    # 2. Standard ISO YYYY-MM-DD
+    m_iso = re.match(r'^(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
+    if m_iso:
+        yyyy, mm, dd = m_iso.groups()
+        s_iso = f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
+        try:
+            dt = datetime.strptime(s_iso, "%Y-%m-%d")
+            if 1900 <= dt.year <= 2100:
+                return s_iso
+        except ValueError:
+            pass
+
+    # 3. Standard DMY numeric formats: DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY, DD/MM/YY
+    m_dmy = re.match(r'^(\d{1,2})[-/\.](\d{1,2})[-/\.](20\d{2}|\d{2})$', s)
+    if m_dmy:
+        d, mth, y = m_dmy.groups()
+        if len(y) == 2:
+            y = '20' + y
+        try:
+            date_s = f'{y}-{int(mth):02d}-{int(d):02d}'
+            dt = datetime.strptime(date_s, '%Y-%m-%d')
+            if 1900 <= dt.year <= 2100:
+                return date_s
+        except ValueError:
+            pass
 
     # 4. Try common DMY / MDY formats
     for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y', '%d.%m.%Y', '%d.%m.%y', '%Y/%m/%d', '%d %b %Y', '%d %B %Y', '%d-%b-%Y', '%d-%b-%y'):
         try:
-            from datetime import datetime
             dt = datetime.strptime(s, fmt)
-            return dt.strftime('%Y-%m-%d')
+            if 1900 <= dt.year <= 2100:
+                return dt.strftime('%Y-%m-%d')
         except ValueError:
             pass
             
-    # 5. Fallback validation: if cannot be parsed into a real calendar date, return None
-    try:
-        from datetime import datetime
-        datetime.strptime(s, "%Y-%m-%d")
-        return s
-    except (ValueError, TypeError):
-        return None
+    return None
 
 
 def _clean_amount(value) -> float | None:

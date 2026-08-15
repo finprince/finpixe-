@@ -100,7 +100,6 @@ import { useBankPartyOptions } from './useBankPartyOptions';
 import BankAllocationPanel, { AllocationState } from './BankAllocationPanel';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface StagedFile {
   id: number;
   file_name: string;
@@ -109,6 +108,12 @@ interface StagedFile {
   status: string;
   expires_at: string;
   transaction_count: number;
+  statement_start_date?: string | null;
+  statement_end_date?: string | null;
+  selected_from_date?: string | null;
+  selected_to_date?: string | null;
+  statement_range_source?: string | null;
+  date_range_overridden?: boolean;
 }
 
 interface StagingRow {
@@ -263,14 +268,22 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await httpClient.postFormData<{ start_date: string | null; end_date: string | null }>(
+      const res = await httpClient.postFormData<{
+        statement_start_date?: string | null;
+        statement_end_date?: string | null;
+        statement_range_source?: string | null;
+        start_date?: string | null;
+        end_date?: string | null;
+      }>(
         '/api/bank-upload/detect-period/',
         fd
       );
-      if (res.start_date && res.end_date) {
-        setPdfStatementPeriod({ startDate: res.start_date, endDate: res.end_date });
-        setExtractStartDate(res.start_date);
-        setExtractEndDate(res.end_date);
+      const sDate = res.statement_start_date || res.start_date;
+      const eDate = res.statement_end_date || res.end_date;
+      if (sDate && eDate) {
+        setPdfStatementPeriod({ startDate: sDate, endDate: eDate });
+        setExtractStartDate(sDate);
+        setExtractEndDate(eDate);
       } else {
         setPdfStatementPeriod(null);
         setExtractStartDate('');
@@ -313,14 +326,11 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       const rows = res.rows || [];
       setAllRows(rows);
 
-      // Restore displayed Date Range in Step 3 to the original PDF statement period
-      if (restoreStart || restoreEnd) {
-        setStartDate(restoreStart || '');
-        setEndDate(restoreEnd || '');
-      } else {
-        setStartDate('');
-        setEndDate('');
-      }
+      // Restore displayed Date Range in Step 3 to the active extraction range
+      const finalStart = restoreStart || res.selected_from_date || res.statement_start_date || file.selected_from_date || file.statement_start_date || '';
+      const finalEnd = restoreEnd || res.selected_to_date || res.statement_end_date || file.selected_to_date || file.statement_end_date || '';
+      setStartDate(finalStart);
+      setEndDate(finalEnd);
 
       // Ensure bank ledger name/id are set from the data if not already present
       if (rows.length > 0) {
@@ -375,16 +385,6 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       return;
     }
 
-    if (pdfStatementPeriod?.startDate && extractStartDate && extractStartDate < pdfStatementPeriod.startDate) {
-      setUploadError(`Extract From Date (${extractStartDate}) cannot be earlier than the statement start date (${pdfStatementPeriod.startDate}).`);
-      return;
-    }
-
-    if (pdfStatementPeriod?.endDate && extractEndDate && extractEndDate > pdfStatementPeriod.endDate) {
-      setUploadError(`Extract To Date (${extractEndDate}) cannot be later than the statement end date (${pdfStatementPeriod.endDate}).`);
-      return;
-    }
-
     setUploading(true);
     setUploadError(null);
     setPostSuccess(null);
@@ -409,9 +409,9 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
         signal: controller.signal
       });
 
-      // Save PDF statement period to restore in Step 3
-      const finalPdfStart = res.pdf_start_date || pdfStatementPeriod?.startDate || '';
-      const finalPdfEnd = res.pdf_end_date || pdfStatementPeriod?.endDate || '';
+      // Resolved active extraction date range
+      const finalStart = res.selected_from_date || res.extract_from_date || extractStartDate || res.statement_start_date || '';
+      const finalEnd = res.selected_to_date || res.extract_to_date || extractEndDate || res.statement_end_date || '';
 
       // Success: refresh list but also IMMEDIATELY process to go inside
       await fetchStagedFiles();
@@ -422,7 +422,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       setExtractEndDate('');
       setPdfStatementPeriod(null);
 
-      // Auto-transition to mapping step with restored original PDF statement period
+      // Auto-transition to mapping step with active extraction period preserved
       if (res.staging_id) {
         await handleProcessStaging({
           id: res.staging_id,
@@ -431,8 +431,14 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
           uploaded_at: new Date().toISOString(),
           expires_at: new Date(Date.now() + 15 * 86400000).toISOString(),
           transaction_count: res.count || 0,
-          status: 'pending'
-        }, finalPdfStart, finalPdfEnd);
+          status: 'pending',
+          statement_start_date: res.statement_start_date,
+          statement_end_date: res.statement_end_date,
+          selected_from_date: finalStart,
+          selected_to_date: finalEnd,
+          statement_range_source: res.statement_range_source,
+          date_range_overridden: res.date_range_overridden,
+        }, finalStart, finalEnd);
       }
     } catch (err: any) {
       if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED' || err?.message === 'canceled') {
