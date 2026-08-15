@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
+import DateInput from '../components/common/DateInput';
 
 interface NetoffProcessModalProps {
     isOpen: boolean;
@@ -154,8 +155,8 @@ const NetoffProcessModal: React.FC<NetoffProcessModalProps> = ({ isOpen, onClose
                         <div>
                             <label className="block text-xs font-medium text-gray-500 mb-1">Net-off Date</label>
                             <div className="relative">
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     className="w-full text-sm bg-white border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-indigo-500 transition"
                                     value={netoffDate}
                                     max={todayStr}

@@ -69,6 +69,19 @@ class VoucherPurchaseDueDetailsSerializer(serializers.ModelSerializer):  # type:
     advance_references = serializers.JSONField(write_only=True, required=False)
     advance_links = VoucherPurchaseAdvanceLinkSerializer(many=True, read_only=True)
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            data = data.copy()
+            for key in ['to_pay', 'advance_paid', 'tds_it', 'tds_gst']:
+                val = data.get(key)
+                if isinstance(val, str):
+                    clean_val = val.replace(',', '').strip()
+                    if not clean_val:
+                        data[key] = 0.0
+                    else:
+                        data[key] = clean_val
+        return super().to_internal_value(data)
+
     class Meta:
         model = VoucherPurchaseDueDetails
         fields = ['tds_gst', 'tds_it', 'advance_paid', 'to_pay', 'posting_note', 'terms', 'advance_references', 'advance_links']
@@ -882,11 +895,26 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
                 entries.append({"ledger_id": tax_master_ledger.id, "debit": 0, "credit": tds_amt})
 
             # 3. Debit the Purchase Ledger (Taxable Value only)
+            from accounting.services.ledger_service import _resolve_or_create_ledger
             p_ledger_name = None
-            if supply_inr_data: p_ledger_name = supply_inr_data.get('purchase_ledger')
-            elif supply_foreign_data: p_ledger_name = supply_foreign_data.get('purchase_ledger')
+            if supply_inr_data and isinstance(supply_inr_data, dict):
+                p_ledger_name = supply_inr_data.get('purchase_ledger')
+            elif supply_foreign_data and isinstance(supply_foreign_data, dict):
+                p_ledger_name = supply_foreign_data.get('purchase_ledger')
 
-            p_ledger_obj = _resolve_ledger(p_ledger_name or 'Purchase', tenant_id)
+            if not p_ledger_name or not str(p_ledger_name).strip():
+                if hasattr(supplier_instance, 'supply_inr_details') and supplier_instance.supply_inr_details:
+                    p_ledger_name = supplier_instance.supply_inr_details.purchase_ledger
+                elif hasattr(supplier_instance, 'supply_foreign_details') and supplier_instance.supply_foreign_details:
+                    p_ledger_name = supplier_instance.supply_foreign_details.purchase_ledger
+
+            if not p_ledger_name or not str(p_ledger_name).strip():
+                for item in supplier_instance.line_items.all():
+                    if getattr(item, 'purchase_ledger', None):
+                        p_ledger_name = item.purchase_ledger
+                        break
+
+            p_ledger_obj = _resolve_or_create_ledger(p_ledger_name, tenant_id, default_group='Purchase Accounts', default_category='Expense') if p_ledger_name else None
             if not p_ledger_obj:
                 p_ledger_obj = get_standard_ledger(tenant_id, 'Purchase Account', 'Purchase Accounts', 'Expense')
 

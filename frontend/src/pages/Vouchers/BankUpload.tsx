@@ -5,6 +5,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { useBankPartyOptions } from './useBankPartyOptions';
 import BankAllocationPanel, { AllocationState } from './BankAllocationPanel';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
+import DateInput from '../../components/common/DateInput';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StagedFile {
@@ -446,8 +447,8 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
           <div className="grid grid-cols-2 gap-6 mb-8 border-t border-slate-50 pt-8">
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Extract From Date</label>
-              <input 
-                type="date" 
+              <DateInput 
+                 
                 value={startDate} 
                 onChange={e => setStartDate(e.target.value)} 
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" 
@@ -455,8 +456,8 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Extract To Date</label>
-              <input 
-                type="date" 
+              <DateInput 
+                 
                 value={endDate} 
                 onChange={e => setEndDate(e.target.value)} 
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" 
@@ -594,9 +595,9 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
               <div className="flex-[1.5]">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Date Range</label>
                 <div className="flex items-center gap-3">
-                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <DateInput  value={startDate} onChange={e => setStartDate(e.target.value)} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   <span className="text-slate-300 font-bold">to</span>
-                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <DateInput  value={endDate} onChange={e => setEndDate(e.target.value)} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
             </div>
@@ -665,8 +666,8 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                                 : 'hover:bg-slate-50/50'
                         }`}>
                           <td className="p-3">
-                            <input
-                              type="date"
+                            <DateInput
+                              
                               value={row.date || ''}
                               onChange={async e => {
                                 const val = e.target.value;

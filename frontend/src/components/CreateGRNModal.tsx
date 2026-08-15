@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { httpClient } from '../services/httpClient';
 import { showWarning } from '../utils/toast';
 import { ChevronDown } from 'lucide-react';
+import DateInput from '../components/common/DateInput';
 
 interface GRNItem {
     id: number;
@@ -752,8 +753,8 @@ const CreateGRNModal: React.FC<CreateGRNModalProps> = ({ onClose, onSave, initia
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">DATE</label>
-                            <input
-                                type="date"
+                            <DateInput
+                                
                                 value={date}
                                 max={new Date().toISOString().split('T')[0]}
                                 onChange={(e) => setDate(e.target.value)}
@@ -1168,8 +1169,8 @@ const CreateGRNModal: React.FC<CreateGRNModalProps> = ({ onClose, onSave, initia
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Received Date</label>
-                                    <input
-                                        type="date"
+                                    <DateInput
+                                        
                                         value={transitReceiptDate}
                                         onChange={(e) => setTransitReceiptDate(e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"

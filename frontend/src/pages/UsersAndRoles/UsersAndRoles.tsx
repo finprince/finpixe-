@@ -15,6 +15,7 @@ import Icon from '../../components/Icon';
 import { showError, showSuccess, confirm } from '../../utils/toast';
 import { handleApiError } from '../../utils/errorHandler';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
+import { formatDate } from '../../utils/formatting';
 
 
 
@@ -463,7 +464,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, roles, loading, onCreateUser
                             <td className="px-6 py-4 text-xs">
                                 {user.access_expiry ? (
                                     <span className={`font-semibold ${new Date(user.access_expiry) < new Date() ? 'text-red-500' : 'text-slate-600'}`}>
-                                        {new Date(user.access_expiry).toLocaleDateString()}
+                                        {formatDate(user.access_expiry)}
                                     </span>
                                 ) : (
                                     <span className="text-slate-400 italic">No limit</span>

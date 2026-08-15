@@ -47,6 +47,7 @@ interface BulkTransaction {
 
 
 import Icon from '../../components/Icon';
+import DateInput from '../../components/common/DateInput';
 
 interface ReceiptVoucherProps {
     prefilledData?: ExtractedInvoiceData | null;
@@ -1441,8 +1442,8 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                     <div className="grid grid-cols-4 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <input
-                                type="date"
+                            <DateInput
+                                
                                 value={date}
                                 max={getCurrentDate()}
                                 onChange={(e) => setDate(e.target.value)}
@@ -1769,8 +1770,8 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                                    <input
-                                        type="date"
+                                    <DateInput
+                                        
                                         value={date}
                                         max={getCurrentDate()}
                                         onChange={e => {

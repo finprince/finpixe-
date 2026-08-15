@@ -11,6 +11,7 @@ import { INDIA_STATE_CODES, GST_INVOICE_TYPES, EXPORT_TYPES } from '../../utils/
 import { SALES_VOUCHER_COLUMNS, SALES_VOUCHER_HEADER_LABELS } from '../../constants/salesVoucherColumns';
 
 import { ExtractedInvoiceData, CompanyDetails } from '../../types';
+import DateInput from '../../components/common/DateInput';
 
 interface ItemRow {
     id: number;
@@ -149,31 +150,65 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     }, [inventoryItems, serviceItems]);
 
     const salesLedgerOptions = useMemo(() => {
-        // Exclude customer/vendor groups — they are parties, not accounting ledgers
         const EXCLUDED_GROUPS = ['sundry debtors', 'sundry creditors'];
-        // Exclude dummy seed data
         const EXCLUDED_NAMES = ['purchase account', 'sales account'];
 
-        // 1. Get user-created ledgers
-        const userLedgers = ledgers
-            .filter(l => {
-                const group = (l.group || '').toLowerCase().trim();
-                const name = (l.name || '').toLowerCase().trim();
-                return l.name && !EXCLUDED_GROUPS.includes(group) && !EXCLUDED_NAMES.includes(name);
-            })
-            .map(l => l.name);
+        // Collect all group/subgroup names under "Revenue from operations" from hierarchy
+        const revenueOpsGroupNames = new Set<string>();
+        revenueOpsGroupNames.add('revenue from operations');
+        revenueOpsGroupNames.add('revenue from operation');
 
-        // 2. Get default ledgers from hierarchy (leaf nodes)
-        // In the hierarchy table, ledger_1 contains the actual ledger names (shown in red/italic in tree)
-        const defaultLedgers = hierarchy
+        (hierarchy || []).forEach(r => {
+            const cat = (r.major_group_1 || '').toLowerCase().trim();
+            const grp = (r.group_1 || '').toLowerCase().trim();
+            if (grp.includes('revenue from operation') || (cat === 'income' && grp.includes('revenue'))) {
+                if (r.group_1) revenueOpsGroupNames.add(r.group_1.toLowerCase().trim());
+                if (r.sub_group_1_1) revenueOpsGroupNames.add(r.sub_group_1_1.toLowerCase().trim());
+                if (r.sub_group_2_1) revenueOpsGroupNames.add(r.sub_group_2_1.toLowerCase().trim());
+                if (r.sub_group_3_1) revenueOpsGroupNames.add(r.sub_group_3_1.toLowerCase().trim());
+            }
+        });
+
+        // 1. Get default ledgers from hierarchy under Income > Revenue from operations
+        const defaultLedgers = (hierarchy || [])
+            .filter(r => {
+                const cat = (r.major_group_1 || '').toLowerCase().trim();
+                const grp = (r.group_1 || '').toLowerCase().trim();
+                return grp.includes('revenue from operation') || (cat === 'income' && grp.includes('revenue'));
+            })
             .map(r => r.ledger_1)
             .filter(name => {
                 if (!name) return false;
                 const n = name.toLowerCase().trim();
                 return !EXCLUDED_NAMES.includes(n);
-            });
+            }) as string[];
 
-        // Merge and deduplicate
+        // 2. Get user-created ledgers under Income > Revenue from operations
+        const userLedgers = (ledgers || [])
+            .filter(l => {
+                if (!l.name) return false;
+                const name = (l.name || '').toLowerCase().trim();
+                const group = (l.group || '').toLowerCase().trim();
+                const cat = (l.category || '').toLowerCase().trim();
+                const sg1 = (l.sub_group_1 || '').toLowerCase().trim();
+                const sg2 = (l.sub_group_2 || '').toLowerCase().trim();
+                const sg3 = (l.sub_group_3 || '').toLowerCase().trim();
+
+                if (EXCLUDED_GROUPS.includes(group) || EXCLUDED_NAMES.includes(name)) return false;
+
+                const isIncomeCat = !cat || cat === 'income' || cat === 'revenue';
+                const matchesRevenueGroup = 
+                    revenueOpsGroupNames.has(group) ||
+                    revenueOpsGroupNames.has(sg1) ||
+                    revenueOpsGroupNames.has(sg2) ||
+                    revenueOpsGroupNames.has(sg3) ||
+                    group.includes('revenue from operation') ||
+                    group.includes('sales');
+
+                return isIncomeCat && matchesRevenueGroup;
+            })
+            .map(l => l.name);
+
         return Array.from(new Set([...userLedgers, ...defaultLedgers])).filter(Boolean) as string[];
     }, [ledgers, hierarchy]);
 
@@ -2247,6 +2282,13 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             return;
         }
 
+        const missingSalesLedger = validItems.some(row => !row.salesLedger || !row.salesLedger.trim());
+        if (missingSalesLedger) {
+            showError("Please select a Sales Ledger for all item rows.");
+            setActiveTab(showForeignTabs ? 'item_tax_inr' : 'item_tax');
+            return;
+        }
+
         // Validate Qty match between Foreign Currency and INR tabs
         if (!validateQtyMatch()) {
             setActiveTab('item_tax_inr');
@@ -2485,6 +2527,20 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     };
 
     const handlePostAndPrint = async () => {
+        const validItems = itemRows.filter(row => row.itemCode || row.itemName);
+        if (validItems.length === 0) {
+            showError("Please add at least one item.");
+            setActiveTab(showForeignTabs ? 'item_tax_inr' : 'item_tax');
+            return;
+        }
+
+        const missingSalesLedger = validItems.some(row => !row.salesLedger || !row.salesLedger.trim());
+        if (missingSalesLedger) {
+            showError("Please select a Sales Ledger for all item rows.");
+            setActiveTab(showForeignTabs ? 'item_tax_inr' : 'item_tax');
+            return;
+        }
+
         if (isEcommerceOperator === 'Yes' && thirdPartySupplierGstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(thirdPartySupplierGstin)) {
             showError("Invalid Third-Party Supplier GSTIN format. Please enter a valid 15-character GSTIN.");
             setActiveTab('invoice');
@@ -3349,8 +3405,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Date <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={date}
                                     max={new Date().toISOString().split('T')[0]}
                                     onChange={(e) => setDate(e.target.value)}
@@ -4128,13 +4184,15 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <tr className={`border-b border-gray-200 ${rowColorClass || 'bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
                                                         <td colSpan={3} className="px-2 py-2">
                                                             <div className="flex items-center gap-2">
-                                                                <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Sales Ledger:</label>
+                                                                <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Sales Ledger: <span className="text-red-500">*</span></label>
                                                                 <div className="flex-1">
                                                                     <SearchableDropdown
+                                                                        required
                                                                         options={salesLedgerOptions}
                                                                         value={row.salesLedger}
                                                                         onChange={(val) => handleForeignItemRowChange(row.id, 'salesLedger', val)}
                                                                         placeholder="Select sales ledger"
+                                                                        error={!row.salesLedger}
                                                                     />
                                                                 </div>
                                                             </div>
@@ -4525,13 +4583,15 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <tr className={`border-b border-gray-200 ${rowColorClass || 'bg-gray-50'} ${!isSelected ? 'opacity-50' : ''}`}>
                                                         <td colSpan={4} className="px-1 py-1">
                                                             <div className="flex items-center gap-2">
-                                                                <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-1">Sales Ledger:</label>
+                                                                <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-1">Sales Ledger: <span className="text-red-500">*</span></label>
                                                                 <div className="flex-1">
                                                                     <SearchableDropdown
+                                                                        required
                                                                         options={salesLedgerOptions}
                                                                         value={row.salesLedger}
                                                                         onChange={(val) => handleItemRowChange(row.id, 'salesLedger', val)}
                                                                         placeholder="Select sales ledger"
+                                                                        error={!row.salesLedger}
                                                                     />
                                                                 </div>
                                                             </div>
@@ -5193,8 +5253,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Dispatch Date
                                         </label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={dispatchDate}
                                             max={new Date().toISOString().split('T')[0]}
                                             onChange={(e) => setDispatchDate(e.target.value)}
@@ -5487,8 +5547,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                         Shipping Bill Date
                                                     </label>
-                                                    <input
-                                                        type="date"
+                                                    <DateInput
+                                                        
                                                         value={beyondPortShippingBillDate}
                                                         onChange={(e) => setBeyondPortShippingBillDate(e.target.value)}
                                                         className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -5733,8 +5793,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                         Railway Receipt Date
                                                     </label>
-                                                    <input
-                                                        type="date"
+                                                    <DateInput
+                                                        
                                                         value={railBeyondPortRailwayReceiptDate}
                                                         onChange={(e) => setRailBeyondPortRailwayReceiptDate(e.target.value)}
                                                         className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -5909,8 +5969,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Eway Bill Date
                                                 </label>
-                                                <input
-                                                    type="date"
+                                                <DateInput
+                                                    
                                                     value={entry.date}
                                                     onChange={(e) => handleEwayEntryChange(entry.id, 'date', e.target.value)}
                                                     className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -5955,8 +6015,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Extension Date
                                                 </label>
-                                                <input
-                                                    type="date"
+                                                <DateInput
+                                                    
                                                     value={entry.extensionDate}
                                                     onChange={(e) => handleEwayEntryChange(entry.id, 'extensionDate', e.target.value)}
                                                     className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -6088,8 +6148,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Ack. Date
                                         </label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={ackDate}
                                             onChange={(e) => setAckDate(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"

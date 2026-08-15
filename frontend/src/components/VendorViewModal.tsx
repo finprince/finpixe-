@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { httpClient } from '../services/httpClient';
 import { handleApiError } from '../utils/errorHandler';
+import { formatDate } from '../utils/formatting';
 
 interface VendorViewModalProps {
     vendorId: number;
@@ -132,8 +133,8 @@ const VendorViewModal: React.FC<VendorViewModalProps> = ({ vendorId, onClose }) 
                         System Metadata
                     </h3>
                     <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-500">
-                        <div>CREATED AT: {new Date(basic.created_at).toLocaleDateString()}</div>
-                        <div>LAST UPDATED: {new Date(basic.updated_at).toLocaleDateString()}</div>
+                        <div>CREATED AT: {formatDate(basic.created_at)}</div>
+                        <div>LAST UPDATED: {formatDate(basic.updated_at)}</div>
                         <div className="col-span-2 flex items-center gap-4 pt-2">
                             <label className="flex items-center gap-2 cursor-default">
                                 <input type="checkbox" checked={basic.is_also_customer} readOnly className="rounded border-slate-300 text-indigo-600 focus:ring-0" />

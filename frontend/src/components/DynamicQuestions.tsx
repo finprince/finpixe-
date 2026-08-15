@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../services/httpClient';
+import DateInput from '../components/common/DateInput';
 
 interface Question {
     id: number;
@@ -132,8 +133,8 @@ export const DynamicQuestions: React.FC<DynamicQuestionsProps> = ({
 
             case 'date':
                 return (
-                    <input
-                        type="date"
+                    <DateInput
+                        
                         className="form-control"
                         value={value}
                         required={question.required}

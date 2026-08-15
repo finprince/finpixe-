@@ -6,6 +6,7 @@ import SearchableDropdown from '../../components/SearchableDropdown';
 import CreateIssueSlipModal from '../../components/CreateIssueSlipModal';
 import CreateNewVendorFullModal from '../../components/CreateNewVendorFullModal';
 import { ChevronDown, Search, X, Trash2 } from 'lucide-react';
+import DateInput from '../../components/common/DateInput';
 
 export interface ItemRow {
     id: number | string;
@@ -1250,8 +1251,8 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Date <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={date}
                                     max={new Date().toISOString().split('T')[0]}
                                     onChange={(e) => setDate(e.target.value)}
@@ -2150,11 +2151,11 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                 </thead>
                                 <tbody>
                                     <tr className="bg-white">
-                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalTaxable.toFixed(2)}</td>
-                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalIgst.toFixed(2)}</td>
-                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalCgst.toFixed(2)}</td>
-                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalSgst.toFixed(2)}</td>
-                                        <td className="px-4 py-3 text-center text-sm font-medium">{totalCess.toFixed(2)}</td>
+                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td className="px-4 py-3 border-r border-gray-200 text-center text-sm font-medium">{totalSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td className="px-4 py-3 text-center text-sm font-medium">{totalCess.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -2167,9 +2168,9 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                     <div>
                                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Invoice Value</label>
                                         <input
-                                            type="number" onWheel={(e) => e.currentTarget.blur()}
+                                            type="text"
                                             readOnly
-                                            value={totalInvoiceValue.toFixed(2)}
+                                            value={totalInvoiceValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] bg-gray-50 text-right font-semibold"
                                         />
                                     </div>
@@ -2319,7 +2320,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Dispatch Date</label>
-                                    <input type="date" value={dispatchDate} onChange={e => setDispatchDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500" />
+                                    <DateInput  value={dispatchDate} onChange={e => setDispatchDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Dispatch Time</label>
@@ -2389,7 +2390,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                                     </div>
                                                     <div>
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
-                                                        <input type="date" value={shippingBillDate} onChange={e => setShippingBillDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500" />
+                                                        <DateInput  value={shippingBillDate} onChange={e => setShippingBillDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500" />
                                                     </div>
                                                     <div>
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">Ship Port Code</label>
@@ -2432,7 +2433,7 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                                     </div>
                                                     <div>
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
-                                                        <input type="date" value={railwayReceiptDate} onChange={e => setRailwayReceiptDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500" />
+                                                        <DateInput  value={railwayReceiptDate} onChange={e => setRailwayReceiptDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500" />
                                                     </div>
                                                     <div>
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">FNR No.</label>
@@ -2591,8 +2592,8 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Eway Bill Date
                                             </label>
-                                            <input
-                                                type="date"
+                                            <DateInput
+                                                
                                                 value={entry.date}
                                                 onChange={(e) => handleEwayEntryChange(entry.id, 'date', e.target.value)}
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -2637,8 +2638,8 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Extension Date
                                             </label>
-                                            <input
-                                                type="date"
+                                            <DateInput
+                                                
                                                 value={entry.extensionDate}
                                                 onChange={(e) => handleEwayEntryChange(entry.id, 'extensionDate', e.target.value)}
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -2769,8 +2770,8 @@ const DebitNoteVoucher: React.FC<DebitNoteVoucherProps> = ({
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Ack. Date
                                         </label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={ackDate}
                                             onChange={(e) => setAckDate(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"

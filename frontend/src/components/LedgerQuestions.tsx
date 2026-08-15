@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../services/httpClient';
+import DateInput from '../components/common/DateInput';
 
 interface Question {
     id: number;
@@ -157,9 +158,9 @@ export const LedgerQuestions: React.FC<LedgerQuestionsProps> = ({
 
             case 'date':
                 return (
-                    <input
+                    <DateInput
                         id={inputId}
-                        type="date"
+                        
                         className="question-input"
                         value={value}
                         required={question.required}

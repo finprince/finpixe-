@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { AlertTriangle, CheckCircle, Clock, TrendingUp, X } from 'lucide-react';
+import { formatDate } from '../../utils/formatting';
 
 interface LateFeeRecord {
     period_month: string;
@@ -211,11 +212,11 @@ export default function LateFeeEngine() {
                                             {record.period_month} {record.period_year}
                                         </td>
                                         <td className="text-slate-500 text-sm">
-                                            {new Date(record.due_date).toLocaleDateString('en-IN')}
+                                            {formatDate(record.due_date)}
                                         </td>
                                         <td className="text-sm">
                                             {record.filed_date
-                                                ? new Date(record.filed_date).toLocaleDateString('en-IN')
+                                                ? formatDate(record.filed_date)
                                                 : <span className="text-indigo-600 font-semibold">Draft</span>
                                             }
                                         </td>

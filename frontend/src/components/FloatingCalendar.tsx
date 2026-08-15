@@ -611,7 +611,7 @@ const FloatingCalendar: React.FC = () => {
                 {/* Header info */}
                 <div className="flex justify-between items-center bg-white p-3 rounded-[10px] border border-slate-200 shadow-sm">
                   <span className="text-sm font-bold text-slate-800">
-                    {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatDate(selectedDate.toISOString())}
                   </span>
                   <button
                     type="button"
@@ -672,7 +672,7 @@ const FloatingCalendar: React.FC = () => {
             {viewMode === 'add-reminder' && (
               <div className="bg-white p-4 rounded-[14px] border border-slate-200 shadow-sm space-y-4">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-700 block border-b border-slate-100 pb-2">
-                  New Reminder for {selectedDate.toLocaleDateString()}
+                  New Reminder for {formatDate(selectedDate.toISOString())}
                 </span>
                 <form onSubmit={handleAddReminder} className="space-y-4">
                   <div>

@@ -590,7 +590,8 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
                 entries.append({"ledger_id": tcs_master_ledger.id, "debit": tcs_amt, "credit": 0})
 
             # Sales (Credit - Taxable Value)
-            from accounting.services.ledger_service import _resolve_ledger
+            from accounting.services.ledger_service import _resolve_or_create_ledger
+            from accounting.models import MasterLedger
             sales_ledger_map = {}
             default_sales_ledger = get_standard_ledger(tenant_id, 'Sales Account', 'Sales Accounts', 'Income')
 
@@ -600,7 +601,7 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
             for item in invoice.items.all():
                 amt = float(item.taxable_value or 0)
                 if amt > 0:
-                    l_obj = _resolve_ledger(item.sales_ledger, tenant_id) if item.sales_ledger else None
+                    l_obj = _resolve_or_create_ledger(item.sales_ledger, tenant_id, default_group='Revenue from Operations', default_category='Income') if item.sales_ledger else None
                     l_id = l_obj.id if l_obj else default_sales_ledger.id
                     sales_ledger_map[l_id] = sales_ledger_map.get(l_id, 0.0) + amt
                     total_item_taxable += amt
@@ -609,7 +610,7 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
             for f_item in invoice.foreign_items.all():
                 amt = float(f_item.amount or 0)
                 if amt > 0:
-                    l_obj = _resolve_ledger(f_item.sales_ledger, tenant_id) if f_item.sales_ledger else None
+                    l_obj = _resolve_or_create_ledger(f_item.sales_ledger, tenant_id, default_group='Revenue from Operations', default_category='Income') if f_item.sales_ledger else None
                     l_id = l_obj.id if l_obj else default_sales_ledger.id
                     sales_ledger_map[l_id] = sales_ledger_map.get(l_id, 0.0) + amt
                     total_item_taxable += amt
@@ -619,7 +620,8 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
             diff = payment_taxable - total_item_taxable
 
             if abs(diff) > 0.01:
-                sales_ledger_map[default_sales_ledger.id] = sales_ledger_map.get(default_sales_ledger.id, 0.0) + diff
+                primary_l_id = list(sales_ledger_map.keys())[0] if sales_ledger_map else default_sales_ledger.id
+                sales_ledger_map[primary_l_id] = sales_ledger_map.get(primary_l_id, 0.0) + diff
 
             for l_id, amt in sales_ledger_map.items():
                 if amt > 0:

@@ -9,6 +9,7 @@ import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check';
 import { httpClient } from '../../services/httpClient';
 import { handleApiError } from '../../utils/errorHandler';
 import Icon from '../../components/Icon';
+import { formatDate } from '../../utils/formatting';
 
 interface CustomerViewModalProps {
     customer: any;
@@ -118,8 +119,8 @@ const CustomerViewModal: React.FC<CustomerViewModalProps> = ({ customer, onClose
                         System Metadata
                     </h3>
                     <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-500">
-                        <div>CREATED AT: {displayCustomer.created_at ? new Date(displayCustomer.created_at).toLocaleDateString() : 'N/A'}</div>
-                        <div>LAST UPDATED: {displayCustomer.updated_at ? new Date(displayCustomer.updated_at).toLocaleDateString() : 'N/A'}</div>
+                        <div>CREATED AT: {displayCustomer.created_at ? formatDate(displayCustomer.created_at) : 'N/A'}</div>
+                        <div>LAST UPDATED: {displayCustomer.updated_at ? formatDate(displayCustomer.updated_at) : 'N/A'}</div>
                         <div className="col-span-2 flex items-center gap-4 pt-2">
                             <label className="flex items-center gap-2 cursor-default">
                                 <input type="checkbox" checked={displayCustomer.is_also_vendor || false} readOnly className="rounded border-slate-300 text-indigo-600 focus:ring-0" />

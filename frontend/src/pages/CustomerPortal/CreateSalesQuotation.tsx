@@ -5,6 +5,7 @@ import { showSuccess, showError } from '../../utils/toast';
 import { handleApiError } from '../../utils/errorHandler';
 import CategoryHierarchicalDropdown from '../../components/CategoryHierarchicalDropdown';
 import { CUSTOMER_CATEGORIES } from '../../constants/customerPortalConstants';
+import DateInput from '../../components/common/DateInput';
 
 interface ItemRow {
     id: number;
@@ -445,8 +446,8 @@ const CreateSalesQuotation: React.FC<CreateSalesQuotationProps> = ({ onCancel, e
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">From</label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={effectiveFrom}
                                             onChange={(e) => setEffectiveFrom(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -454,8 +455,8 @@ const CreateSalesQuotation: React.FC<CreateSalesQuotationProps> = ({ onCancel, e
                                     </div>
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">To</label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={effectiveTo}
                                             onChange={(e) => setEffectiveTo(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -766,8 +767,8 @@ const CreateSalesQuotation: React.FC<CreateSalesQuotationProps> = ({ onCancel, e
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">From</label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={validityFrom}
                                             onChange={(e) => setValidityFrom(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -775,8 +776,8 @@ const CreateSalesQuotation: React.FC<CreateSalesQuotationProps> = ({ onCancel, e
                                     </div>
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">To</label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={validityTo}
                                             onChange={(e) => setValidityTo(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -927,8 +928,8 @@ const CreateSalesQuotation: React.FC<CreateSalesQuotationProps> = ({ onCancel, e
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Tentative Delivery Date
                                         </label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={tentativeDeliveryDate}
                                             onChange={(e) => setTentativeDeliveryDate(e.target.value)}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"

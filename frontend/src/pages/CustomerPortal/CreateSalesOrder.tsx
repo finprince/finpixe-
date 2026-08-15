@@ -3,6 +3,7 @@ import { httpClient } from '../../services/httpClient';
 import { showSuccess, showError, showInfo } from '../../utils/toast';
 import { handleApiError } from '../../utils/errorHandler';
 import { Country, State, City } from 'country-state-city';
+import DateInput from '../../components/common/DateInput';
 
 interface ItemRow {
     id: number;
@@ -694,8 +695,8 @@ const CreateSalesOrder: React.FC<CreateSalesOrderProps> = ({ onCancel, editId })
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Date <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -1027,8 +1028,8 @@ const CreateSalesOrder: React.FC<CreateSalesOrderProps> = ({ onCancel, editId })
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Delivery Date
                                 </label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={deliveryDate}
                                     onChange={(e) => setDeliveryDate(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"

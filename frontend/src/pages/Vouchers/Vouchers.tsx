@@ -8,6 +8,7 @@ import type { Page, VoucherType, Ledger, StockItem, Voucher, SalesPurchaseVouche
 import Icon from '../../components/Icon';
 import { apiService, httpClient } from '../../services';
 import { showError, showSuccess, showInfo, confirm } from '../../utils/toast';
+import { formatDate } from '../../utils/formatting';
 import InvoiceScannerModal from '../../components/InvoiceScannerModal';
 import BulkInvoiceUploadModal from '../../components/SmartInvoiceUploadModal';
 import TallyMasterScannerModal from '../../components/TallyMasterScannerModal';
@@ -34,6 +35,7 @@ import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWork
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5003';
 
 import { getXLSX } from '../../utils/xlsx';
+import DateInput from '../../components/common/DateInput';
 
 interface VouchersPageProps {
   vouchers: Voucher[];
@@ -894,15 +896,61 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   }, [cnReverseIncomeTaxTcs, cnReverseIncomeTaxTds, cnSelectedSalesInvoices, cnSalesInvoicesList, cnItems]);
 
   const salesLedgerOptions = useMemo(() => {
-    // Include both user-created ledgers and default hierarchy ledgers
-    const userLedgerNames = ledgers.map(l => l.name);
-    const defaultLedgerNames = hierarchy
-      .map(r => r.ledger_1)
-      .filter(name => {
+    const EXCLUDED_GROUPS = ['sundry debtors', 'sundry creditors'];
+    const EXCLUDED_NAMES = ['purchase account', 'sales account'];
+
+    const revenueOpsGroupNames = new Set<string>();
+    revenueOpsGroupNames.add('revenue from operations');
+    revenueOpsGroupNames.add('revenue from operation');
+
+    (hierarchy || []).forEach((r: any) => {
+      const cat = (r.major_group_1 || '').toLowerCase().trim();
+      const grp = (r.group_1 || '').toLowerCase().trim();
+      if (grp.includes('revenue from operation') || (cat === 'income' && grp.includes('revenue'))) {
+        if (r.group_1) revenueOpsGroupNames.add(r.group_1.toLowerCase().trim());
+        if (r.sub_group_1_1) revenueOpsGroupNames.add(r.sub_group_1_1.toLowerCase().trim());
+        if (r.sub_group_2_1) revenueOpsGroupNames.add(r.sub_group_2_1.toLowerCase().trim());
+        if (r.sub_group_3_1) revenueOpsGroupNames.add(r.sub_group_3_1.toLowerCase().trim());
+      }
+    });
+
+    const defaultLedgerNames = (hierarchy || [])
+      .filter((r: any) => {
+        const cat = (r.major_group_1 || '').toLowerCase().trim();
+        const grp = (r.group_1 || '').toLowerCase().trim();
+        return grp.includes('revenue from operation') || (cat === 'income' && grp.includes('revenue'));
+      })
+      .map((r: any) => r.ledger_1)
+      .filter((name: string | null) => {
         if (!name) return false;
         const n = name.toLowerCase().trim();
-        return !['purchase account', 'sales account'].includes(n);
-      });
+        return !EXCLUDED_NAMES.includes(n);
+      }) as string[];
+
+    const userLedgerNames = (ledgers || [])
+      .filter((l: any) => {
+        if (!l.name) return false;
+        const name = (l.name || '').toLowerCase().trim();
+        const group = (l.group || '').toLowerCase().trim();
+        const cat = (l.category || '').toLowerCase().trim();
+        const sg1 = (l.sub_group_1 || '').toLowerCase().trim();
+        const sg2 = (l.sub_group_2 || '').toLowerCase().trim();
+        const sg3 = (l.sub_group_3 || '').toLowerCase().trim();
+
+        if (EXCLUDED_GROUPS.includes(group) || EXCLUDED_NAMES.includes(name)) return false;
+
+        const isIncomeCat = !cat || cat === 'income' || cat === 'revenue';
+        const matchesRevenueGroup =
+          revenueOpsGroupNames.has(group) ||
+          revenueOpsGroupNames.has(sg1) ||
+          revenueOpsGroupNames.has(sg2) ||
+          revenueOpsGroupNames.has(sg3) ||
+          group.includes('revenue from operation') ||
+          group.includes('sales');
+
+        return isIncomeCat && matchesRevenueGroup;
+      })
+      .map((l: any) => l.name);
 
     return Array.from(new Set([...userLedgerNames, ...defaultLedgerNames])).filter(Boolean) as string[];
   }, [ledgers, hierarchy]);
@@ -4555,6 +4603,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           return;
         }
 
+        if (!purchaseLedger || !purchaseLedger.trim()) {
+          showError("Please select a Purchase Ledger.");
+          setPurchaseActiveTab('supply');
+          console.error('🔴 [PURCHASE SAVE] BLOCKED: no purchaseLedger');
+          return;
+        }
+
         console.log('🔴 [PURCHASE SAVE] Passed validation. Proceeding to build payload...');
 
         // Construct Payload for Purchase Voucher
@@ -4579,11 +4634,11 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           due_details: {
             tds_it: purchaseTdsIt || 0,
             advance_paid: purchaseAdvancePaid || 0,
-            to_pay: (
-                          purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)
-                          + (purchaseTaxIsTcs ? (Number(purchaseTdsIt) || 0) : -(Number(purchaseTdsIt) || 0))
-                          - (Number(purchaseAdvancePaid) || 0)
-                        ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            to_pay: Number((
+              purchaseItems.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0)
+              + (purchaseTaxIsTcs ? (Number(purchaseTdsIt) || 0) : -(Number(purchaseTdsIt) || 0))
+              - (Number(purchaseAdvancePaid) || 0)
+            ).toFixed(2)),
             posting_note: purchasePostingNote,
             terms: purchaseTerms,
             advance_references: purchaseAdvanceRefs
@@ -6287,8 +6342,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     max={getTodayDate()}
@@ -6435,8 +6490,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <label className="block text-sm font-medium text-gray-700 mb-2 whitespace-nowrap">
                     Supplier Invoice Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    
                     value={supplierInvoiceDate}
                     onChange={(e) => { setSupplierInvoiceDate(e.target.value); setGstr2bExpectedDate(null); }}
                     className={`w-full px-4 py-2 border rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 ${gstr2bExpectedDate ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`}
@@ -7114,13 +7169,15 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         <div className="flex items-center gap-4 flex-wrap">
                           {/* Purchase Ledger Dropdown */}
                           <div className="flex items-center gap-2 min-w-[260px]">
-                            <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Purchase Ledger:</label>
+                            <label className="text-xs font-medium text-gray-700 whitespace-nowrap">Purchase Ledger: <span className="text-red-500">*</span></label>
                             <div className="flex-1">
                               <SearchableDropdown
+                                required
                                 options={purchaseLedgerOptions}
                                 value={purchaseLedger}
                                 onChange={(val) => setPurchaseLedger(val)}
                                 placeholder="Select purchase ledger"
+                                error={!purchaseLedger}
                               />
                             </div>
                           </div>
@@ -7484,13 +7541,15 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           <div className="flex items-center gap-4 flex-wrap">
                             {/* Purchase Ledger Dropdown */}
                             <div className="flex items-center gap-2 min-w-[260px]">
-                              <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-1">Purchase Ledger:</label>
+                              <label className="text-[11px] font-medium text-gray-700 whitespace-nowrap ml-1">Purchase Ledger: <span className="text-red-500">*</span></label>
                               <div className="flex-1">
                                 <SearchableDropdown
+                                  required
                                   options={purchaseLedgerOptions}
                                   value={purchaseLedger}
                                   onChange={(val) => setPurchaseLedger(val)}
                                   placeholder="Select purchase ledger"
+                                  error={!purchaseLedger}
                                 />
                               </div>
                             </div>
@@ -7846,8 +7905,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Received Date
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
+                        
                         value={purchaseTransitReceiptDate}
                         onChange={(e) => setPurchaseTransitReceiptDate(e.target.value)}
                         max={getTodayDate()}
@@ -8018,8 +8077,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
-                                <input
-                                  type="date"
+                                <DateInput
+                                  
                                   value={purchaseTransitUptoPortShippingBillDate}
                                   onChange={(e) => setPurchaseTransitUptoPortShippingBillDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8055,8 +8114,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <div className="space-y-4">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
-                                <input
-                                  type="date"
+                                <DateInput
+                                  
                                   value={purchaseTransitUptoPortBolDate}
                                   onChange={(e) => setPurchaseTransitUptoPortBolDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8134,8 +8193,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
-                                <input
-                                  type="date"
+                                <DateInput
+                                  
                                   value={purchaseTransitUptoPortRrDate}
                                   onChange={(e) => setPurchaseTransitUptoPortRrDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8162,8 +8221,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <div className="space-y-4">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
-                                <input
-                                  type="date"
+                                <DateInput
+                                  
                                   value={purchaseTransitUptoPortBolDate}
                                   onChange={(e) => setPurchaseTransitUptoPortBolDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8341,7 +8400,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     return (
       <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div><label className="form-label">Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
+          <div><label className="form-label">Date</label><DateInput  value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
           <div><label className="form-label">Invoice No.</label><input type="text" value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} className="form-input" /></div>
           <div><label className="form-label">Party</label><SearchableDropdown value={party} onChange={setParty} options={partyLedgers.map(l => l.name)} placeholder="Select Party" /></div>
         </div>
@@ -8434,8 +8493,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  type="date"
+                <DateInput
+                  
                   value={date}
                   max={getTodayDate()}
                   onChange={e => handleDateChange(e.target.value)}
@@ -8639,8 +8698,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input
-                    type="date"
+                  <DateInput
+                    
                     value={date}
                     onChange={e => setDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -9109,8 +9168,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <label className="block text-sm font-medium text-gray-700 mb-2 font-bold tracking-wide uppercase">
                     DATE <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    
                     value={cnDate}
                     onChange={(e) => setCnDate(e.target.value)}
                     max={getTodayDate()}
@@ -9439,8 +9498,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                   <label className="block text-sm font-medium text-gray-700 mb-2 font-bold tracking-wide uppercase">
                     CUSTOMER'S DEBIT NOTE DATE
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+                    
                     value={cnCustomerDebitNoteDate}
                     onChange={(e) => setCnCustomerDebitNoteDate(e.target.value)}
                     max={getTodayDate()}
@@ -10677,8 +10736,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Received Date
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
+                      
                       value={cnTransitReceiptDate}
                       onChange={(e) => setCnTransitReceiptDate(e.target.value)}
                       max={getTodayDate()}
@@ -10846,8 +10905,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={cnTransitUptoPortShippingBillDate}
                                 onChange={(e) => setCnTransitUptoPortShippingBillDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -10883,8 +10942,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           <div className="space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={cnTransitUptoPortBolDate}
                                 onChange={(e) => setCnTransitUptoPortBolDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -10962,8 +11021,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={cnTransitUptoPortRrDate}
                                 onChange={(e) => setCnTransitUptoPortRrDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -10990,8 +11049,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           <div className="space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={cnTransitUptoPortBolDate}
                                 onChange={(e) => setCnTransitUptoPortBolDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -11217,8 +11276,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input
-                    type="date"
+                  <DateInput
+                    
                     value={date}
                     onChange={e => setDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -11521,8 +11580,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       <tbody>
                         <tr className="border-b border-gray-100">
                           <td className="px-4 py-3">
-                            <input
-                              type="date"
+                            <DateInput
+                              
                               value={date}
                               onChange={e => setDate(e.target.value)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -11641,8 +11700,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         <tbody>
                           <tr>
                             <td className="px-2 py-2">
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={date}
                                 onChange={e => setDate(e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -11731,8 +11790,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         <tbody>
                           <tr>
                             <td className="px-2 py-2">
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={date}
                                 onChange={e => setDate(e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -11834,8 +11893,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           <div className="grid grid-cols-3 gap-4 max-w-4xl">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date" value={date}
+              <DateInput
+                 value={date}
                 onChange={e => setDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -12128,10 +12187,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               <div className="grid grid-cols-[180px_1fr] gap-3 items-center">
                 <label className="text-sm font-medium text-gray-700">Conversion Charges</label>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number" onWheel={(e) => e.currentTarget.blur()}
+                  <NumericFormat
+                    thousandSeparator={true}
                     value={contraConversionCharges}
-                    onChange={e => setContraConversionCharges(parseFloat(e.target.value) || '')}
+                    onValueChange={(values) => setContraConversionCharges(values.floatValue || '')}
                     placeholder="0.00"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                   />
@@ -12181,7 +12240,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
     return (
       <div className="max-w-md mx-auto space-y-4">
-        <div><label className="form-label">Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
+        <div><label className="form-label">Date</label><DateInput  value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
         {type !== 'Contra' && <div><label className="form-label">Account (Cash/Bank)</label><SearchableDropdown value={account} onChange={setAccount} options={accountLedgers.map(l => l.name)} placeholder="Select Account" /></div>}
         {type === 'Contra' && <>
           <div><label className="form-label">From Account</label><SearchableDropdown value={fromAccount} onChange={setFromAccount} options={accountLedgers.map(l => l.name)} placeholder="Select From Account" /></div>
@@ -12413,8 +12472,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           <label className="erp-label">
             Date <span className="text-red-500">*</span>
           </label>
-          <input
-            type="date"
+          <DateInput
+            
             value={date}
             max={getTodayDate()}
             onChange={e => setDate(e.target.value)}
@@ -12515,11 +12574,10 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 <label className="erp-label">
                   Total Amount <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number" onWheel={(e) => e.currentTarget.blur()}
+                <NumericFormat
+                  thousandSeparator={true}
                   value={row.totalAmount || ''}
-
-                  onChange={e => handleExpenseRowChange(row.id, 'totalAmount', parseFloat(e.target.value) || 0)}
+                  onValueChange={(values) => handleExpenseRowChange(row.id, 'totalAmount', values.floatValue || 0)}
                   className={`erp-input ${row.totalAmount <= 0 ? 'border-red-300' : ''}`}
                   placeholder="0.00"
                 />
@@ -12710,8 +12768,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       <div className="grid grid-cols-3 gap-6 mb-6 max-w-3xl">
         <div>
           <label className="erp-label">Date</label>
-          <input
-            type="date"
+          <DateInput
+            
             value={date}
             max={getTodayDate()}
             onChange={e => setDate(e.target.value)}
@@ -12785,21 +12843,19 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <input
-                      type="number" onWheel={(e) => e.currentTarget.blur()}
+                    <NumericFormat
+                      thousandSeparator={true}
                       value={entry.debit || ''}
-
-                      onChange={e => handleEntryChange(index, 'debit', parseFloat(e.target.value) || 0)}
+                      onValueChange={(values) => handleEntryChange(index, 'debit', values.floatValue || 0)}
                       className="erp-input h-9 text-right font-mono"
                       placeholder="0.00"
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <input
-                      type="number" onWheel={(e) => e.currentTarget.blur()}
+                    <NumericFormat
+                      thousandSeparator={true}
                       value={entry.credit || ''}
-
-                      onChange={e => handleEntryChange(index, 'credit', parseFloat(e.target.value) || 0)}
+                      onValueChange={(values) => handleEntryChange(index, 'credit', values.floatValue || 0)}
                       className="erp-input h-9 text-right font-mono"
                       placeholder="0.00"
                     />
@@ -13819,7 +13875,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       </p>
                       <div className="mt-4 bg-gray-50 p-4 rounded text-left">
                         <p className="text-sm text-gray-700"><strong>Current Usage:</strong> {subscriptionUsage?.used}</p>
-                        <p className="text-sm text-gray-700"><strong>Reset Date:</strong> {new Date(subscriptionUsage?.cycle_start).toLocaleDateString()}</p>
+                        <p className="text-sm text-gray-700"><strong>Reset Date:</strong> {formatDate(subscriptionUsage?.cycle_start)}</p>
                       </div>
                     </div>
 

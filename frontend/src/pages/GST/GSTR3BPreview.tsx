@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import FileGSTR3BModal from './FileGSTR3BModal';
 import { Wallet, CheckCircle } from 'lucide-react';
+import { formatDate } from '../../utils/formatting';
 
 export default function GSTR3BPreview() {
     const [isLoading, setIsLoading] = useState(false);
@@ -196,7 +197,7 @@ export default function GSTR3BPreview() {
                                         </span>
                                     </td>
                                     <td className="font-mono text-sm text-slate-600">{report.arn_number}</td>
-                                    <td>{new Date(report.filed_date).toLocaleDateString()}</td>
+                                    <td>{formatDate(report.filed_date)}</td>
                                     <td className="text-right">
                                         <button onClick={() => window.print()} className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm">
                                             Download PDF
