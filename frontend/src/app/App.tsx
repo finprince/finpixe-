@@ -324,7 +324,7 @@ const App: React.FC = () => {
   const handleNavigate = useCallback((page: Page, params?: any) => {
     setCurrentPage(page);
     window.history.pushState(null, '', `?page=${page.replace(/\s+/g, '')}`);
-    
+
     if (page === 'Vouchers') {
       if (params?.viewVoucher) {
         setViewVoucherData(params.viewVoucher);

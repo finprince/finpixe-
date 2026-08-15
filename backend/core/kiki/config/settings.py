@@ -37,6 +37,7 @@ class KikiSettings:
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "models", "rag"))
     )
 
+
     OLLAMA_GPU_REQUIRED: bool = os.getenv("KIKI_OLLAMA_GPU_REQUIRED", "true").lower() == "true"
 
     # Model Execution Timeouts (Seconds)
@@ -119,3 +120,11 @@ class KikiSettings:
     RESPONSE_CACHE_TTL_SECONDS: int = int(os.getenv("KIKI_RESPONSE_CACHE_TTL", "3600"))
 
 kiki_settings = KikiSettings()
+
+if kiki_settings.HF_HUB_OFFLINE:
+    os.environ["HF_HUB_OFFLINE"] = "1"
+if kiki_settings.TRANSFORMERS_OFFLINE:
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+if kiki_settings.HF_LOCAL_ONLY:
+    os.environ["HF_LOCAL_ONLY"] = "1"
+

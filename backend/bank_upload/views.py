@@ -41,7 +41,7 @@ from .serializers import (
     BankStatementStagingFileDetailSerializer,
 )
 # Extraction is the ONLY place AI extraction is called
-from .services.extraction_service import extract_transactions
+from .services.extraction_service import extract_transactions, _clean_date
 
 logger = logging.getLogger('bank_upload.views')
 
@@ -104,6 +104,40 @@ def _cleanup_staging(tenant_id):
 
 
 # ---------------------------------------------------------------------------
+# View 0 — Detect Statement Period
+# ---------------------------------------------------------------------------
+
+class BankDetectPeriodView(APIView):
+    """
+    POST /api/bank-upload/detect-period/
+
+    Lightweight endpoint to detect declared statement period (start_date, end_date, source)
+    from uploaded bank statement file without running full extraction.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        tenant_id, err = _require_tenant(request)
+        if err:
+            return err
+
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .services.period_detector import detect_statement_range_canonical
+        res = detect_statement_range_canonical(file_obj)
+
+        return Response({
+            'statement_start_date': res['statement_start_date'],
+            'statement_end_date': res['statement_end_date'],
+            'statement_range_source': res['statement_range_source'],
+            'start_date': res['statement_start_date'],
+            'end_date': res['statement_end_date']
+        }, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
 # View 1 — Upload & Extract
 # ---------------------------------------------------------------------------
 
@@ -112,9 +146,11 @@ class BankUploadView(APIView):
     POST /api/bank-upload/upload/
 
     Accepts a bank statement file.
-    1. Passes it to extraction_service (AI).
-    2. Saves result to BankStatementStagingFile (STAGING ONLY).
-    3. Enforces 15 record limit and 24h TTL.
+    1. Passes it to extraction_service (Digital / AI).
+    2. Detects declared statement period (start, end, source).
+    3. Filters rows by user-selected or default extraction date range (inclusive).
+    4. Saves result to BankStatementStagingFile (STAGING ONLY) with metadata.
+    5. Enforces 15 record limit and 24h TTL.
     """
     permission_classes = [IsAuthenticated]
 
@@ -129,7 +165,14 @@ class BankUploadView(APIView):
 
         bank_ledger_id = request.data.get('bank_ledger_id')
         
-        # ── Step 0: Duplicate Detection ──
+        # ── Step 0: Read Extraction Date Range Filter ──
+        raw_from_date = request.data.get('extract_from_date') or request.data.get('selected_from_date') or request.data.get('start_date')
+        raw_to_date = request.data.get('extract_to_date') or request.data.get('selected_to_date') or request.data.get('end_date')
+
+        extract_from_date = _clean_date(raw_from_date) if raw_from_date else None
+        extract_to_date = _clean_date(raw_to_date) if raw_to_date else None
+
+        # ── Step 0a: Duplicate Detection ──
         file_content = file_obj.read()
         file_obj.seek(0)
         file_hash = hashlib.md5(file_content).hexdigest()
@@ -155,8 +198,8 @@ class BankUploadView(APIView):
                 status=status.HTTP_402_PAYMENT_REQUIRED
             )
 
-        # ── Step 1: Extract via AI ──
-        logger.info(f"📤 BankUpload (Staging): tenant={tenant_id}, file={file_obj.name}")
+        # ── Step 1: Extract via Digital / AI Pipeline ──
+        logger.info(f"📤 BankUpload (Staging): tenant={tenant_id}, file={file_obj.name}, filter=[{extract_from_date} -> {extract_to_date}]")
         try:
             rows, metrics = extract_transactions(file_obj)
         except Exception as e:
@@ -172,13 +215,62 @@ class BankUploadView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
-        # ── Step 2: Save to STAGING table ──
+        # ── Step 2: Detect Statement Period & Resolve Active Extraction Range ──
+        from .services.period_detector import detect_statement_range_canonical
+        txn_dates = [r.get('date') for r in rows if r.get('date')]
+        period_info = detect_statement_range_canonical(file_content, transaction_dates=txn_dates)
+        statement_start = period_info['statement_start_date']
+        statement_end = period_info['statement_end_date']
+        range_source = period_info['statement_range_source']
+
+        selected_from = extract_from_date or statement_start
+        selected_to = extract_to_date or statement_end
+        is_overridden = bool(extract_from_date and extract_from_date != statement_start) or bool(extract_to_date and extract_to_date != statement_end)
+
+        # Date Range Validation: FROM cannot be after TO
+        if selected_from and selected_to and selected_from > selected_to:
+            return Response(
+                {'error': f'Extract From Date ({selected_from}) cannot be after Extract To Date ({selected_to}).'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ── Step 3: Apply Extraction Date Filter (Inclusive) ──
+        if selected_from or selected_to:
+            filtered_rows = []
+            for r in rows:
+                r_date = _clean_date(r.get('date'))
+                if selected_from and r_date and r_date < selected_from:
+                    continue
+                if selected_to and r_date and r_date > selected_to:
+                    continue
+                filtered_rows.append(r)
+            rows = filtered_rows
+
+        if not rows:
+            return Response(
+                {'error': f'No transactions found in the selected date range ({selected_from or "start"} to {selected_to or "end"}).'},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+
+        # ── Step 4: Save to STAGING table with Canonical Metadata ──
         try:
+            staging_data = {
+                'rows': rows,
+                'meta': {
+                    'statement_start_date': statement_start,
+                    'statement_end_date': statement_end,
+                    'selected_from_date': selected_from,
+                    'selected_to_date': selected_to,
+                    'statement_range_source': range_source,
+                    'date_range_overridden': is_overridden,
+                }
+            }
+
             staging_file = BankStatementStagingFile.objects.create(
                 tenant_id=tenant_id,
                 file_name=file_obj.name,
                 account_id=bank_ledger_id,
-                transaction_data=rows,
+                transaction_data=staging_data,
                 file_hash=file_hash,
                 status='pending',
                 expires_at=timezone.now() + timedelta(days=15)
@@ -191,6 +283,16 @@ class BankUploadView(APIView):
                 'message': 'File uploaded and staged successfully.',
                 'staging_id': staging_file.id,
                 'count': len(rows),
+                'statement_start_date': statement_start,
+                'statement_end_date': statement_end,
+                'selected_from_date': selected_from,
+                'selected_to_date': selected_to,
+                'statement_range_source': range_source,
+                'date_range_overridden': is_overridden,
+                'pdf_start_date': statement_start,
+                'pdf_end_date': statement_end,
+                'extract_from_date': selected_from,
+                'extract_to_date': selected_to,
                 'metrics': metrics
             }, status=status.HTTP_201_CREATED)
 
@@ -272,6 +374,17 @@ class BankStagingProcessView(APIView):
         except BankStatementStagingFile.DoesNotExist:
             return Response({'error': 'Staging record not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Unpack transaction rows and metadata
+        if isinstance(staging.transaction_data, dict):
+            rows = staging.transaction_data.get('rows', [])
+            meta = staging.transaction_data.get('meta', {})
+        elif isinstance(staging.transaction_data, list):
+            rows = staging.transaction_data
+            meta = {}
+        else:
+            rows = []
+            meta = {}
+
         if staging.status == 'processed' and staging.session_id:
             # RETURN EXISTING DATA — no need to re-extract or re-create rows
             existing_rows = BankStatementTemp.objects.filter(
@@ -285,6 +398,12 @@ class BankStagingProcessView(APIView):
                     'session_id': staging.session_id,
                     'count':      existing_rows.count(),
                     'rows':       serializer.data,
+                    'statement_start_date': meta.get('statement_start_date'),
+                    'statement_end_date': meta.get('statement_end_date'),
+                    'selected_from_date': meta.get('selected_from_date'),
+                    'selected_to_date': meta.get('selected_to_date'),
+                    'statement_range_source': meta.get('statement_range_source'),
+                    'date_range_overridden': meta.get('date_range_overridden'),
                     'status':     'resumed'
                 }, status=status.HTTP_200_OK)
             else:
@@ -294,12 +413,10 @@ class BankStagingProcessView(APIView):
                 staging.save()
 
         # ── Step 1: Resolve Bank Ledger ──
-        # If not stored in staging, try to get from request
         bank_ledger_id = staging.account_id or request.data.get('bank_ledger_id')
         bank_ledger_name = request.data.get('bank_ledger_name', '')
         
         if not bank_ledger_id:
-            # Fallback: look for it if we have a name
             if bank_ledger_name:
                 from accounting.models import MasterLedger
                 l = MasterLedger.objects.filter(name=bank_ledger_name, tenant_id=tenant_id).first()
@@ -307,13 +424,10 @@ class BankStagingProcessView(APIView):
 
         # ── Step 2: Push to main flow (BankStatementTemp rows) ──
         session_id = uuid.uuid4().hex
-        rows = staging.transaction_data
         staging_rows = []
 
         try:
             with db_transaction.atomic():
-                # Re-use the existing logic for row creation but adapted for the staged data
-                # Pre-load existing posted/staged rows for duplicate detection
                 existing_keys = self._get_existing_keys(tenant_id)
                 batch_keys = set()
 
@@ -336,6 +450,12 @@ class BankStagingProcessView(APIView):
                 'session_id': session_id,
                 'count':      len(staging_rows),
                 'rows':       serializer.data,
+                'statement_start_date': meta.get('statement_start_date'),
+                'statement_end_date': meta.get('statement_end_date'),
+                'selected_from_date': meta.get('selected_from_date'),
+                'selected_to_date': meta.get('selected_to_date'),
+                'statement_range_source': meta.get('statement_range_source'),
+                'date_range_overridden': meta.get('date_range_overridden'),
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -345,19 +465,30 @@ class BankStagingProcessView(APIView):
     def _get_existing_keys(self, tenant_id):
         existing_qs = BankStatementTemp.objects.filter(
             tenant_id=tenant_id,
-        ).exclude(status__in=['draft', 'failed']
-        ).values('date', 'amount', 'ref_no')
+        ).filter(status='posted'
+        ).values('date', 'inferred_type', 'amount', 'ref_no', 'narration')
 
         keys = set()
         for ex in existing_qs:
-            keys.add(self._make_dup_key(ex['date'], ex['amount'], ex['ref_no']))
+            keys.add(self._make_dup_key(
+                ex['date'],
+                ex['inferred_type'],
+                ex['amount'],
+                ex['ref_no'],
+                ex['narration']
+            ))
         return keys
 
-    def _make_dup_key(self, date_val, amount_val, ref_no_val):
-        date_s  = str(date_val) if date_val else ''
+    def _make_dup_key(self, date_val, inferred_type, amount_val, ref_no_val, narration_val):
+        date_s = str(date_val) if date_val else ''
+        type_s = str(inferred_type) if inferred_type else 'payment'
         amount_s = f"{float(amount_val):.2f}" if amount_val else '0.00'
-        ref_s = str(ref_no_val).strip().upper() if ref_no_val else 'NOREFERENCE'
-        return (date_s, amount_s, ref_s)
+        if ref_no_val and str(ref_no_val).strip() not in ('', 'None', 'null', 'NULL', '—', '-', 'N/A', 'NA'):
+            ref_s = str(ref_no_val).strip().upper()
+            return ('REF', date_s, type_s, amount_s, ref_s)
+        else:
+            narr_s = ' '.join(str(narration_val or '').strip().lower().split())
+            return ('NARR', date_s, type_s, amount_s, narr_s)
 
     def _create_row_from_staged_data(self, tenant_id, session_id, row, bank_ledger_id, bank_ledger_name, existing_keys, batch_keys):
         debit  = row.get('debit')
@@ -375,18 +506,34 @@ class BankStagingProcessView(APIView):
 
         narration = row.get('narration', '')
         ref_no = row.get('ref_no') or row.get('cheque_no') or row.get('reference_number')
-        if ref_no: ref_no = str(ref_no).strip()[:150]
+        if ref_no:
+            ref_no = str(ref_no).strip()[:150]
+            if ref_no in ('', 'None', 'null', 'NULL', '—', '-', 'N/A', 'NA'):
+                ref_no = None
+        else:
+            ref_no = None
 
-        row_key = self._make_dup_key(row.get('date'), amount, ref_no)
-        is_dup = (row_key in existing_keys) or (row_key in batch_keys)
-        if not is_dup: batch_keys.add(row_key)
+        clean_d = _clean_date(row.get('date'))
+        balance = row.get('balance')
+
+        # Check against previously posted records in the database
+        cross_session_key = self._make_dup_key(clean_d, inferred_type, amount, ref_no, narration)
+        is_posted_dup = cross_session_key in existing_keys
+
+        # Check for literal identical duplicated rows within the same uploaded statement file
+        intra_batch_key = (clean_d, inferred_type, f"{float(amount):.2f}", narration.strip(), str(balance).strip() if balance else '')
+        is_intra_dup = intra_batch_key in batch_keys
+        if not is_intra_dup:
+            batch_keys.add(intra_batch_key)
+
+        is_dup = is_posted_dup or is_intra_dup
 
         return BankStatementTemp.objects.create(
             tenant_id        = tenant_id,
             session_id       = session_id,
-            date             = row.get('date'),
+            date             = clean_d,
             narration        = narration,
-            voucher_number   = row.get('voucher_number') or row.get('cheque_no'),
+            voucher_number   = row.get('voucher_number'),
             ref_no           = ref_no,
             debit            = Decimal(str(debit))  if debit  else None,
             credit           = Decimal(str(credit)) if credit else None,

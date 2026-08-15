@@ -84,6 +84,30 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
     print(trace_msg)
     logger.critical(trace_msg)
 
+    # Helper: resolve vendor_name from all available sources
+    def _resolve_vendor_name(ui_row_data, ocr_record):
+        """Resolve vendor name from ui_row, then from extracted_data nested paths."""
+        DASH_VALUES = {'—', '-', '', 'None', 'none', 'null', 'NULL', 'N/A', 'NA'}
+        # 1. Try ui_row first
+        if ui_row_data:
+            v = str(ui_row_data.get('vendor_name') or '').strip()
+            if v and v not in DASH_VALUES:
+                return v
+        # 2. Try extracted_data paths
+        ext = getattr(ocr_record, 'extracted_data', None) or {}
+        sections = ext.get('sections', {})
+        supplier = sections.get('supplier_details', {})
+        header = ext.get('header', {})
+        for candidate in [
+            supplier.get('vendor_name'), supplier.get('Vendor Name'), supplier.get('name'),
+            header.get('vendor_name'), header.get('Vendor Name'),
+            ext.get('vendor_name'), ext.get('Vendor Name'),
+        ]:
+            v = str(candidate or '').strip()
+            if v and v not in DASH_VALUES:
+                return v
+        return ''
+
     # 1. Canonicalize/extract business keys from record and/or ui_row
     inv_no = (
         ui_row.get('invoice_no') if ui_row
@@ -154,10 +178,7 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                 ui_row.get('invoice_date') if ui_row
                 else getattr(record, 'invoice_date', '')
             )
-            obj.vendor_name = (
-                ui_row.get('vendor_name') if ui_row
-                else getattr(record, 'vendor_name', '')
-            )
+            obj.vendor_name = _resolve_vendor_name(ui_row, record)
             obj.vendor_gstin = gstin_val
             obj.amount = ui_row.get('total_amount') if ui_row else getattr(record, 'total_amount', None)
             obj.vendor_status = vendor_status
@@ -200,10 +221,7 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                     ui_row.get('invoice_date') if ui_row
                     else getattr(record, 'invoice_date', '')
                 )
-                obj.vendor_name = (
-                    ui_row.get('vendor_name') if ui_row
-                    else getattr(record, 'vendor_name', '')
-                )
+                obj.vendor_name = _resolve_vendor_name(ui_row, record)
                 obj.vendor_gstin = gstin_val
                 obj.amount = ui_row.get('total_amount') if ui_row else getattr(record, 'total_amount', None)
                 obj.vendor_status = vendor_status
@@ -212,6 +230,8 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                 obj.pending_purchase_status = dynamic_status
                 obj.extraction_payload = record.extracted_data
                 obj.review_payload = ui_row or {}
+                obj.company_match_detected = bool((record.extracted_data or {}).get('company_match_detected', False))
+                obj.company_match_decision = (record.extracted_data or {}).get('company_match_decision')
                 obj.save()
             else:
                 # Genuinely new invoice — create via upsert keyed on source_scan_row_id
@@ -227,10 +247,7 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                             ui_row.get('invoice_date') if ui_row
                             else getattr(record, 'invoice_date', '')
                         ),
-                        'vendor_name': (
-                            ui_row.get('vendor_name') if ui_row
-                            else getattr(record, 'vendor_name', '')
-                        ),
+                        'vendor_name': _resolve_vendor_name(ui_row, record),
                         'vendor_gstin': gstin_val,
                         'amount': ui_row.get('total_amount') if ui_row else getattr(record, 'total_amount', None),
                         'vendor_status': vendor_status,
@@ -239,6 +256,8 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
                         'pending_purchase_status': dynamic_status,
                         'extraction_payload': record.extracted_data,
                         'review_payload': ui_row or {},
+                        'company_match_detected': bool((record.extracted_data or {}).get('company_match_detected', False)),
+                        'company_match_decision': (record.extracted_data or {}).get('company_match_decision'),
                     }
                 )
 

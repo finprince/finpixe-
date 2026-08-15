@@ -27,6 +27,7 @@ import io
 import re
 import json
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('bank_upload.extraction')
 
@@ -207,7 +208,7 @@ _PROMPT_TEMPLATE = r"""
 - **ISOLATION**: Create one row for every amount found. DO NOT merge multiple amounts.
 
 #### STEP 2: STICKINESS STATE MACHINE (FOR NARRATION)
-For each line processed, maintain a internal state `last_line_was_amount`:
+For each line processed, maintain an internal state `last_line_was_amount`:
 1.  **IF line has an AMOUNT**:
     - Start new transaction.
     - Set `last_line_was_amount = True`.
@@ -225,12 +226,11 @@ For each line processed, maintain a internal state `last_line_was_amount`:
 
 ### FIELD RULES:
 - **date**: "YYYY-MM-DD"
-- **narration**: Merged string (Anchor + following lines). Clean extra spaces.
-- **debit / credit**: From the anchor row.
-- **ref_no**: 
-  - **PRIORITY 1**: Colon numeric (`:(\d{{6,}})`).
-  - **PRIORITY 2**: Longest alphanumeric (10-20 chars).
-  - **STRICT**: Only extract from the final corrected narration.
+- **value_date**: "YYYY-MM-DD" (if present, else same as date)
+- **narration**: Full transaction details/description/particulars from the Details/Description/Narration column. ALL text, numbers, UPI IDs, UTRs, ATM seq numbers, account numbers, etc. in the Details column MUST remain inside narration.
+- **debit / credit**: From the withdrawal/deposit or debit/credit column.
+- **balance**: Running balance if present in the row.
+- **ref_no**: ONLY populated from the actual dedicated "Chq.No." / "Cheque No." / "Ref No." / "Reference No." / "Instrument No." column when present in the table. If the reference column is empty, absent, or contains no dedicated cheque/instrument number, ref_no MUST be null. NEVER infer or extract ref_no from narration.
 
 #### STEP 4: STABILITY & COMPLETENESS
 - **STOP CONDITIONS**: Do not stop extracting until you see "END OF REPORT", "Total", or the end of the content.
@@ -241,10 +241,12 @@ Return an array of objects:
 [
   {{
     "date": "YYYY-MM-DD",
-    "narration": "Cleaned narration string",
+    "value_date": "YYYY-MM-DD",
+    "narration": "Full narration string",
     "debit": 123.45,
     "credit": null,
-    "ref_no": "REF12345678"
+    "balance": 1500.00,
+    "ref_no": null
   }}
 ]
 
@@ -262,19 +264,20 @@ _PROMPT_BINARY = r"""
 
 ### DATA SEARCH RULES:
 - Ignore cover letters, marketing text, and general summaries.
-- Search specifically for the Transaction Table (might use headers like Date, Description, Withdrawal, Deposit, Debit, Credit, or Amount).
-- This may be a LOAN STATEMENT or a BANK STATEMENT; extract all financial movements.
-- If you see a date, a description, and an amount, EXTRACT IT.
+- Search specifically for the Transaction Table (headers like Date, Description, Particulars, Details, Chq No, Withdrawal, Deposit, Debit, Credit, Balance).
+- Extract all financial movements.
 
 ### FIELD RULES:
 - **date**: "YYYY-MM-DD"
-- **narration**: Correctly merged via stickiness flag.
-- **debit / credit**: From the anchor row.
-- **ref_no**: Colon numeric or longest alphanumeric (10-20 chars).
+- **value_date**: "YYYY-MM-DD" (if present, else same as date)
+- **narration**: Full description/particulars exactly as written in the Details/Description column. Keep all identifiers (UPI, UTR, etc.) in narration.
+- **debit / credit**: From the anchor row amounts.
+- **balance**: Running balance if present.
+- **ref_no**: ONLY from the dedicated Cheque No. / Ref No. column. If the reference column is empty or missing, set ref_no to null. NEVER infer or extract ref_no from narration.
 
 Return an array of objects:
 [
-  { "date": "YYYY-MM-DD", "narration": "...", "debit": ..., "credit": ..., "ref_no": "..." }
+  { "date": "YYYY-MM-DD", "value_date": "YYYY-MM-DD", "narration": "...", "debit": ..., "credit": ..., "balance": ..., "ref_no": null }
 ]
 """
 
@@ -492,25 +495,24 @@ def _extract_pdf_paged(file_bytes: bytes, file_name: str, metrics: ExtractionMet
 
 def _deduplicate_transactions(rows: list) -> list:
     """
-    Remove exact duplicate rows that might occur at chunk boundaries.
-    Uses a rolling window of seen transactions.
+    Remove exact duplicate rows that might occur at chunk/page boundaries.
+    Uses a robust multi-field identity hash (Date + Value Date + Amount + Balance + Reference + Narration).
     """
     seen = set()
     deduped = []
     for r in rows:
-        # Create a unique hash for the txn (Date + Amount + Side + Reference + Narration)
-        # Including 'side' (Debit vs Credit) is critical to prevent dropping 
-        # balanced entries (like interest debit/credit pairs) as duplicates.
         amt_debit = _clean_amount(r.get('debit')) or 0
         amt_credit = _clean_amount(r.get('credit')) or 0
+        amt_bal = _clean_amount(r.get('balance'))
         
-        # Use a more granular key
         txn_key = (
-            str(r.get('date')), 
-            f"D{amt_debit:.2f}", 
+            str(r.get('date')),
+            str(r.get('value_date') or r.get('date')),
+            f"D{amt_debit:.2f}",
             f"C{amt_credit:.2f}",
+            f"B{amt_bal:.2f}" if amt_bal is not None else None,
             str(r.get('ref_no')).strip().upper() if r.get('ref_no') else None,
-            str(r.get('narration', '')).strip().upper()[:50] # Include start of narration for safety
+            str(r.get('narration', '')).strip().upper()[:80]
         )
         if txn_key not in seen:
             deduped.append(r)
@@ -586,7 +588,7 @@ def _parse_response(raw: str) -> list:
 
 
 def _process_extracted_rows(rows: list) -> list:
-    """Standardize and clean extracted rows."""
+    """Standardize and clean extracted rows according to the Global Bank Statement rules."""
     result = []
     for row in rows:
         if not isinstance(row, dict):
@@ -595,36 +597,107 @@ def _process_extracted_rows(rows: list) -> list:
         if not row.get('narration') and not row.get('debit') and not row.get('credit'):
             continue
             
-        # Clean narration: remove line breaks and extra spaces
+        # Clean narration: remove line breaks and extra spaces, but keep all text and identifiers
         narration = str(row.get('narration', '')).replace('\n', ' ').replace('\r', ' ')
-        narration = ' '.join(narration.split()) # Clean multiple spaces
+        narration = ' '.join(narration.split()).strip()
+
+        raw_ref = row.get('ref_no') or row.get('cheque_no') or row.get('reference_number')
+        clean_ref = ' '.join(str(raw_ref).split()).strip() if raw_ref else None
+        if clean_ref in ('', 'None', 'null', 'NULL', '—', '-', 'N/A', 'NA'):
+            clean_ref = None
+
+        d_val = _clean_date(row.get('date', ''))
+        vd_val = _clean_date(row.get('value_date', '')) or d_val
 
         result.append({
-            'date':      _clean_date(row.get('date', '')),
-            'narration': narration.strip(),
-            'debit':     _clean_amount(row.get('debit')),
-            'credit':    _clean_amount(row.get('credit')),
-            'balance':   _clean_amount(row.get('balance')),
-            'ref_no':    str(row.get('ref_no', '')).strip() if row.get('ref_no') else None
+            'date':             d_val,
+            'value_date':       vd_val,
+            'narration':        narration,
+            'debit':            _clean_amount(row.get('debit')),
+            'credit':           _clean_amount(row.get('credit')),
+            'balance':          _clean_amount(row.get('balance')),
+            'ref_no':           clean_ref,
+            'ref_source':       'REFERENCE_COLUMN' if clean_ref else 'NONE',
+            'narration_source': 'DETAILS_COLUMN'
         })
     return result
 
 
-def _clean_date(value) -> str:
+MONTHS_MAP = {
+    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
+    'january': '01', 'february': '02', 'march': '03', 'april': '04', 'june': '06',
+    'july': '07', 'august': '08', 'september': '09', 'october': '10', 'november': '11', 'december': '12'
+}
+
+
+def _clean_date(value) -> str | None:
+    """
+    Robust date normalizer and validator.
+    Validates real calendar dates (1900-2100) so invalid dates never crash DB inserts.
+    """
     if not value:
-        return ''
+        return None
     s = str(value).strip()
-    # Already YYYY-MM-DD
-    if re.match(r'^\d{4}-\d{2}-\d{2}$', s):
-        return s
-    # Try common formats
-    for fmt in ('%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%d %b %Y', '%d %B %Y'):
+    tokens = s.split()
+    if len(tokens) > 1:
+        for t in tokens:
+            cleaned = _clean_date(t)
+            if cleaned:
+                return cleaned
+        
+    # 1. Named month dates (e.g. 10 Feb 2025, 5 May 2025, 10-Feb-2025, 10-Jul-2026)
+    m_named = re.match(r'^(\d{1,2})[-/\s]+([a-zA-Z]+)[-/\s]+(20\d{2}|\d{2})$', s)
+    if m_named:
+        day_str, mon_str, yr_str = m_named.groups()
+        mon_lower = mon_str.lower()
+        if mon_lower in MONTHS_MAP:
+            if len(yr_str) == 2:
+                yr_str = '20' + yr_str
+            s_cand = f"{yr_str}-{MONTHS_MAP[mon_lower]}-{int(day_str):02d}"
+            try:
+                dt = datetime.strptime(s_cand, "%Y-%m-%d")
+                if 1900 <= dt.year <= 2100:
+                    return s_cand
+            except ValueError:
+                pass
+
+    # 2. Standard ISO YYYY-MM-DD
+    m_iso = re.match(r'^(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})$', s)
+    if m_iso:
+        yyyy, mm, dd = m_iso.groups()
+        s_iso = f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
         try:
-            from datetime import datetime
-            return datetime.strptime(s, fmt).strftime('%Y-%m-%d')
+            dt = datetime.strptime(s_iso, "%Y-%m-%d")
+            if 1900 <= dt.year <= 2100:
+                return s_iso
         except ValueError:
             pass
-    return s  # Return as-is; let DB handle it
+
+    # 3. Standard DMY numeric formats: DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY, DD/MM/YY
+    m_dmy = re.match(r'^(\d{1,2})[-/\.](\d{1,2})[-/\.](20\d{2}|\d{2})$', s)
+    if m_dmy:
+        d, mth, y = m_dmy.groups()
+        if len(y) == 2:
+            y = '20' + y
+        try:
+            date_s = f'{y}-{int(mth):02d}-{int(d):02d}'
+            dt = datetime.strptime(date_s, '%Y-%m-%d')
+            if 1900 <= dt.year <= 2100:
+                return date_s
+        except ValueError:
+            pass
+
+    # 4. Try common DMY / MDY formats
+    for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y', '%d.%m.%Y', '%d.%m.%y', '%Y/%m/%d', '%d %b %Y', '%d %B %Y', '%d-%b-%Y', '%d-%b-%y'):
+        try:
+            dt = datetime.strptime(s, fmt)
+            if 1900 <= dt.year <= 2100:
+                return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+            
+    return None
 
 
 def _clean_amount(value) -> float | None:
@@ -694,10 +767,17 @@ def _fallback_parse(text: str) -> list:
 
 def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
     """
-    STEP 1-3: Rebuild transactions from parsed rows using strict boundaries.
+    STEP 1-3: Rebuild transactions from parsed rows and normalize all dates to strict ISO YYYY-MM-DD.
     """
     if not rows:
         return []
+
+    # First ensure every raw input has normalized dates
+    for r in rows:
+        if r.get('date'):
+            r['date'] = _clean_date(r.get('date'))
+        if r.get('value_date'):
+            r['value_date'] = _clean_date(r.get('value_date'))
 
     normalized = []
     current_txn = None
@@ -718,8 +798,9 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
 
         if is_new_txn:
             if current_txn:
-                # If the current_txn has NO amount but the new row HAS one, maybe they should be merged?
-                # No, usually a new date means a new transaction.
+                current_txn['date'] = _clean_date(current_txn.get('date')) or _clean_date(current_txn.get('value_date'))
+                if current_txn.get('value_date'):
+                    current_txn['value_date'] = _clean_date(current_txn.get('value_date'))
                 normalized.append(current_txn)
             
             current_txn = row.copy()
@@ -733,6 +814,10 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
                     current_txn['narration'] = f"{current_txn.get('narration', '')} {new_narration}".strip()
                 
                 # Capture missing fields if they appear in continuation lines
+                if not current_txn.get('date') and row.get('date'):
+                    current_txn['date'] = _clean_date(row.get('date'))
+                if not current_txn.get('value_date') and row.get('value_date'):
+                    current_txn['value_date'] = _clean_date(row.get('value_date'))
                 if not current_txn.get('debit') and row.get('debit'):
                     current_txn['debit'] = row.get('debit')
                 if not current_txn.get('credit') and row.get('credit'):
@@ -741,10 +826,15 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
                     current_txn['balance'] = row.get('balance')
                 if not current_txn.get('ref_no') and row.get('ref_no'):
                     current_txn['ref_no'] = row.get('ref_no')
+                elif current_txn.get('ref_no') and row.get('ref_no') and row.get('ref_no') != current_txn.get('ref_no'):
+                    current_txn['ref_no'] = f"{current_txn['ref_no']} {row['ref_no']}".strip()
             else:
                 current_txn = row.copy()
 
     if current_txn:
+        current_txn['date'] = _clean_date(current_txn.get('date')) or _clean_date(current_txn.get('value_date'))
+        if current_txn.get('value_date'):
+            current_txn['value_date'] = _clean_date(current_txn.get('value_date'))
         normalized.append(current_txn)
 
     return normalized

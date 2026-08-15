@@ -82,11 +82,12 @@ class MistralStructuredInvoiceSchema(BaseModel):
 
 class MistralBankTransactionSchema(BaseModel):
     date: Optional[str] = Field(default="", description="The transaction date in YYYY-MM-DD format")
-    narration: Optional[str] = Field(default="", description="Description/narration/particulars of the transaction")
+    value_date: Optional[str] = Field(default="", description="The value date in YYYY-MM-DD format if available")
+    narration: Optional[str] = Field(default="", description="Full description/narration/particulars of the transaction from the Details column")
     debit: Optional[float] = Field(default=None, description="Debit amount (money withdrawn/outflow)")
     credit: Optional[float] = Field(default=None, description="Credit amount (money deposited/inflow)")
     balance: Optional[float] = Field(default=None, description="Running balance amount")
-    ref_no: Optional[str] = Field(default=None, description="Cheque/Reference/UTR number")
+    ref_no: Optional[str] = Field(default=None, description="Value strictly from the dedicated Cheque No. / Ref No. / Instrument No. column ONLY. Must be null/empty if the dedicated reference column is empty or absent. NEVER infer or extract from narration/description.")
 
 class MistralStructuredBankStatementSchema(BaseModel):
     transactions: List[MistralBankTransactionSchema]

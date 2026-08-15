@@ -241,7 +241,7 @@ def resolve_vendor_for_gstin_branch(tenant_id, gstin, branch, record_id=None, ve
         result = {
             "status": "CREATE_VENDOR",
             "vendor_id": None,
-            "vendor_name": None,
+            "vendor_name": vendor_name or None,
             "matched_by": None,
             "message": "Vendor not found in master records."
         }
@@ -336,10 +336,17 @@ def build_session_vendor_map(tenant_id, records):
 
         branch_norm = normalize_branch(branch_raw or "Main Branch")
 
+        v_name = (
+            header.get('vendor_name') or
+            supplier.get('vendor_name') or
+            norm.get('vendor_name') or
+            getattr(r, 'vendor_name', None) or ""
+        )
+
         if not gstin_clean or gstin_clean in ("", "—", "NONE", "NULL"):
             continue
 
-        unique_pairs.add((gstin_clean, branch_norm))
+        unique_pairs.add((gstin_clean, branch_norm, str(v_name).strip()))
 
     logger.info(
         f"[SESSION_VENDOR_MAP_BUILD] tenant_id={tenant_id} "
@@ -349,9 +356,9 @@ def build_session_vendor_map(tenant_id, records):
 
     # ── STEP 2: Resolve each unique GSTIN+branch combination dynamically ──
     resolution_map = {}
-    for (gstin_upper, norm_branch) in unique_pairs:
+    for (gstin_upper, norm_branch, v_name_extracted) in unique_pairs:
         key = (gstin_upper, norm_branch)
-        res = resolve_vendor_for_gstin_branch(tenant_id, gstin_upper, norm_branch)
+        res = resolve_vendor_for_gstin_branch(tenant_id, gstin_upper, norm_branch, vendor_name=v_name_extracted)
         resolution_map[key] = res
 
     logger.info(

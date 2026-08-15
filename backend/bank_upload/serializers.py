@@ -10,20 +10,54 @@ from .models import BankStatementTemp, BankStatementStagingFile
 
 
 class BankStatementStagingFileSerializer(serializers.ModelSerializer):
-    """Metadata-only serializer for list view."""
+    """Metadata serializer for list view."""
     transaction_count = serializers.SerializerMethodField()
+    statement_start_date = serializers.SerializerMethodField()
+    statement_end_date = serializers.SerializerMethodField()
+    selected_from_date = serializers.SerializerMethodField()
+    selected_to_date = serializers.SerializerMethodField()
+    statement_range_source = serializers.SerializerMethodField()
+    date_range_overridden = serializers.SerializerMethodField()
 
     class Meta:
         model = BankStatementStagingFile
         fields = [
             'id', 'file_name', 'account_id', 'uploaded_at', 
-            'status', 'expires_at', 'transaction_count'
+            'status', 'expires_at', 'transaction_count',
+            'statement_start_date', 'statement_end_date',
+            'selected_from_date', 'selected_to_date',
+            'statement_range_source', 'date_range_overridden'
         ]
+
+    def _get_meta(self, obj):
+        if isinstance(obj.transaction_data, dict):
+            return obj.transaction_data.get('meta', {})
+        return {}
 
     def get_transaction_count(self, obj):
         if isinstance(obj.transaction_data, list):
             return len(obj.transaction_data)
+        elif isinstance(obj.transaction_data, dict):
+            return len(obj.transaction_data.get('rows', []))
         return 0
+
+    def get_statement_start_date(self, obj):
+        return self._get_meta(obj).get('statement_start_date')
+
+    def get_statement_end_date(self, obj):
+        return self._get_meta(obj).get('statement_end_date')
+
+    def get_selected_from_date(self, obj):
+        return self._get_meta(obj).get('selected_from_date')
+
+    def get_selected_to_date(self, obj):
+        return self._get_meta(obj).get('selected_to_date')
+
+    def get_statement_range_source(self, obj):
+        return self._get_meta(obj).get('statement_range_source')
+
+    def get_date_range_overridden(self, obj):
+        return self._get_meta(obj).get('date_range_overridden')
 
 
 class BankStatementStagingFileDetailSerializer(serializers.ModelSerializer):

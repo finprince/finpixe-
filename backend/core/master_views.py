@@ -217,8 +217,14 @@ class MasterBranchListCreateView(APIView):
         branches = Branch.objects.filter(master=request.user)
         data = [{
             'id': b.id,
-            'name': b.branch_name or b.name,  # Use branch_name for display
+            'name': b.branch_name or b.name,  # Use branch_name (company name) for display
+            'company_name': b.branch_name or b.name,
             'gstin': b.gstin,
+            'address_line1': b.address_line1,
+            'address_line2': b.address_line2,
+            'city': b.city,
+            'state': b.state,
+            'country': b.country,
             'created_at': b.created_at
         } for b in branches]
         return Response(data)
@@ -237,6 +243,9 @@ class MasterBranchListCreateView(APIView):
         
         if not all([branch_name, business_type, branch_gstin, owner_data.get('username'), owner_data.get('password'), owner_data.get('name')]):
             return Response({'error': 'Missing required fields for branch provisioning (Business Name, Type of Business, GSTIN, Admin Name, Username, Password).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # company_name alias (frontend sends either 'name' or 'company_name')
+        company_name = data.get('company_name') or branch_name
 
         # Conflict Checks
         if branch_gstin:
@@ -267,7 +276,7 @@ class MasterBranchListCreateView(APIView):
                 branch = Branch.objects.create(
                     id=tenant_id,
                     name=unique_tenant_name,
-                    branch_name=branch_name,
+                    branch_name=company_name,
                     business_type=business_type,
                     gstin=branch_gstin,
                     email=email,
@@ -290,7 +299,7 @@ class MasterBranchListCreateView(APIView):
                     full_name=owner_data.get('name'),
                     email=owner_data.get('email', email),
                     password=make_password(owner_data['password']),
-                    company_name=branch_name,
+                    company_name=company_name,
                     phone=phone,
                     tenant_id=tenant_id,
                     role='COMPANY_ADMIN',
@@ -634,11 +643,13 @@ class MasterBranchSettingsView(APIView):
             branch = Branch.objects.get(id=tenant_id, master=request.user)
             
             return Response({
-                'name': branch.name,
+                'name': branch.branch_name or branch.name,
+                'company_name': branch.branch_name or branch.name,
                 'address': branch.address_line1,
                 'email': branch.email,
                 'phone': branch.phone,
                 'website': branch.website,
+                'gstin': branch.gstin,
                 'pan': branch.pan_number,
                 'cin': branch.cin,
                 'city': branch.city,
@@ -655,7 +666,12 @@ class MasterBranchSettingsView(APIView):
             branch = Branch.objects.get(id=tenant_id, master=request.user)
             
             data = request.data
-            branch.name = data.get('name', branch.name)
+            # Update company_name / display name
+            new_name = data.get('name') or data.get('company_name')
+            if new_name:
+                branch.branch_name = new_name
+                # Also keep user company_name in sync
+                User.objects.filter(tenant_id=branch.id).update(company_name=new_name)
             branch.address_line1 = data.get('address', branch.address_line1)
             branch.email = data.get('email', branch.email)
             branch.phone = data.get('phone', branch.phone)

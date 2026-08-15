@@ -321,12 +321,18 @@ class DocumentIdentityCanonicalizer:
             inv['vendor'] = orig_vendor
         
         orig_buyer = str(inv.get('buyer_name') or inv.get('customer_name') or inv.get('buyer') or '').strip()
-        if not orig_buyer and inv.get('bill_to'):
-            from ocr_pipeline.normalize import extract_buyer_name_from_bill_to
-            orig_buyer = extract_buyer_name_from_bill_to(inv.get('bill_to'))
+        from ocr_pipeline.normalize import extract_buyer_name_from_ocr_text, extract_buyer_name_from_bill_to, is_address_token
+        if not orig_buyer or is_address_token(orig_buyer):
+            raw_ocr = str(inv.get('_raw_text') or inv.get('_pdf_ocr_text') or '')
+            rec_name = extract_buyer_name_from_ocr_text(raw_ocr)
+            if not rec_name and inv.get('bill_to'):
+                rec_name = extract_buyer_name_from_bill_to(str(inv.get('bill_to')))
+            if rec_name and not is_address_token(rec_name):
+                orig_buyer = rec_name
+
         canon_buyer, conf_by, rule_by = cls.canonicalize_buyer_name(orig_buyer)
         inv['raw_buyer_name'] = orig_buyer
-        inv['canonical_buyer_name'] = canon_buyer
+        inv['canonical_buyer_name'] = canon_buyer or orig_buyer
         if enabled and conf_by >= 0.95 and canon_buyer:
             inv['buyer_name'] = canon_buyer
             inv['customer_name'] = canon_buyer
