@@ -207,7 +207,7 @@ _PROMPT_TEMPLATE = r"""
 - **ISOLATION**: Create one row for every amount found. DO NOT merge multiple amounts.
 
 #### STEP 2: STICKINESS STATE MACHINE (FOR NARRATION)
-For each line processed, maintain a internal state `last_line_was_amount`:
+For each line processed, maintain an internal state `last_line_was_amount`:
 1.  **IF line has an AMOUNT**:
     - Start new transaction.
     - Set `last_line_was_amount = True`.
@@ -225,12 +225,11 @@ For each line processed, maintain a internal state `last_line_was_amount`:
 
 ### FIELD RULES:
 - **date**: "YYYY-MM-DD"
-- **narration**: Merged string (Anchor + following lines). Clean extra spaces.
-- **debit / credit**: From the anchor row.
-- **ref_no**: 
-  - **PRIORITY 1**: Colon numeric (`:(\d{{6,}})`).
-  - **PRIORITY 2**: Longest alphanumeric (10-20 chars).
-  - **STRICT**: Only extract from the final corrected narration.
+- **value_date**: "YYYY-MM-DD" (if present, else same as date)
+- **narration**: Full transaction details/description/particulars from the Details/Description/Narration column. ALL text, numbers, UPI IDs, UTRs, ATM seq numbers, account numbers, etc. in the Details column MUST remain inside narration.
+- **debit / credit**: From the withdrawal/deposit or debit/credit column.
+- **balance**: Running balance if present in the row.
+- **ref_no**: ONLY populated from the actual dedicated "Chq.No." / "Cheque No." / "Ref No." / "Reference No." / "Instrument No." column when present in the table. If the reference column is empty, absent, or contains no dedicated cheque/instrument number, ref_no MUST be null. NEVER infer or extract ref_no from narration.
 
 #### STEP 4: STABILITY & COMPLETENESS
 - **STOP CONDITIONS**: Do not stop extracting until you see "END OF REPORT", "Total", or the end of the content.
@@ -241,10 +240,12 @@ Return an array of objects:
 [
   {{
     "date": "YYYY-MM-DD",
-    "narration": "Cleaned narration string",
+    "value_date": "YYYY-MM-DD",
+    "narration": "Full narration string",
     "debit": 123.45,
     "credit": null,
-    "ref_no": "REF12345678"
+    "balance": 1500.00,
+    "ref_no": null
   }}
 ]
 
@@ -262,19 +263,20 @@ _PROMPT_BINARY = r"""
 
 ### DATA SEARCH RULES:
 - Ignore cover letters, marketing text, and general summaries.
-- Search specifically for the Transaction Table (might use headers like Date, Description, Withdrawal, Deposit, Debit, Credit, or Amount).
-- This may be a LOAN STATEMENT or a BANK STATEMENT; extract all financial movements.
-- If you see a date, a description, and an amount, EXTRACT IT.
+- Search specifically for the Transaction Table (headers like Date, Description, Particulars, Details, Chq No, Withdrawal, Deposit, Debit, Credit, Balance).
+- Extract all financial movements.
 
 ### FIELD RULES:
 - **date**: "YYYY-MM-DD"
-- **narration**: Correctly merged via stickiness flag.
-- **debit / credit**: From the anchor row.
-- **ref_no**: Colon numeric or longest alphanumeric (10-20 chars).
+- **value_date**: "YYYY-MM-DD" (if present, else same as date)
+- **narration**: Full description/particulars exactly as written in the Details/Description column. Keep all identifiers (UPI, UTR, etc.) in narration.
+- **debit / credit**: From the anchor row amounts.
+- **balance**: Running balance if present.
+- **ref_no**: ONLY from the dedicated Cheque No. / Ref No. column. If the reference column is empty or missing, set ref_no to null. NEVER infer or extract ref_no from narration.
 
 Return an array of objects:
 [
-  { "date": "YYYY-MM-DD", "narration": "...", "debit": ..., "credit": ..., "ref_no": "..." }
+  { "date": "YYYY-MM-DD", "value_date": "YYYY-MM-DD", "narration": "...", "debit": ..., "credit": ..., "balance": ..., "ref_no": null }
 ]
 """
 
@@ -585,7 +587,7 @@ def _parse_response(raw: str) -> list:
 
 
 def _process_extracted_rows(rows: list) -> list:
-    """Standardize and clean extracted rows."""
+    """Standardize and clean extracted rows according to the Global Bank Statement rules."""
     result = []
     for row in rows:
         if not isinstance(row, dict):
@@ -594,17 +596,28 @@ def _process_extracted_rows(rows: list) -> list:
         if not row.get('narration') and not row.get('debit') and not row.get('credit'):
             continue
             
-        # Clean narration: remove line breaks and extra spaces
+        # Clean narration: remove line breaks and extra spaces, but keep all text and identifiers
         narration = str(row.get('narration', '')).replace('\n', ' ').replace('\r', ' ')
-        narration = ' '.join(narration.split()) # Clean multiple spaces
+        narration = ' '.join(narration.split()).strip()
+
+        raw_ref = row.get('ref_no') or row.get('cheque_no') or row.get('reference_number')
+        clean_ref = ' '.join(str(raw_ref).split()).strip() if raw_ref else None
+        if clean_ref in ('', 'None', 'null', 'NULL', '—', '-', 'N/A', 'NA'):
+            clean_ref = None
+
+        d_val = _clean_date(row.get('date', ''))
+        vd_val = _clean_date(row.get('value_date', '')) or d_val
 
         result.append({
-            'date':      _clean_date(row.get('date', '')),
-            'narration': narration.strip(),
-            'debit':     _clean_amount(row.get('debit')),
-            'credit':    _clean_amount(row.get('credit')),
-            'balance':   _clean_amount(row.get('balance')),
-            'ref_no':    str(row.get('ref_no', '')).strip() if row.get('ref_no') else None
+            'date':             d_val,
+            'value_date':       vd_val,
+            'narration':        narration,
+            'debit':            _clean_amount(row.get('debit')),
+            'credit':           _clean_amount(row.get('credit')),
+            'balance':          _clean_amount(row.get('balance')),
+            'ref_no':           clean_ref,
+            'ref_source':       'REFERENCE_COLUMN' if clean_ref else 'NONE',
+            'narration_source': 'DETAILS_COLUMN'
         })
     return result
 
@@ -810,6 +823,8 @@ def _normalize_parsed_rows(rows: list[dict]) -> list[dict]:
                     current_txn['balance'] = row.get('balance')
                 if not current_txn.get('ref_no') and row.get('ref_no'):
                     current_txn['ref_no'] = row.get('ref_no')
+                elif current_txn.get('ref_no') and row.get('ref_no') and row.get('ref_no') != current_txn.get('ref_no'):
+                    current_txn['ref_no'] = f"{current_txn['ref_no']} {row['ref_no']}".strip()
             else:
                 current_txn = row.copy()
 

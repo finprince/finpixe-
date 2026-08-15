@@ -2,6 +2,7 @@
 
 from django.urls import path
 from .views import (
+    BankDetectPeriodView,
     BankUploadView,
     BankSessionView,
     BankRowUpdateView,
@@ -12,6 +13,9 @@ from .views import (
 )
 
 urlpatterns = [
+    # ── Statement Period Detection ──
+    path('detect-period/',                   BankDetectPeriodView.as_view(),   name='bank-detect-period'),
+
     # ── New Staging Layer (Deferred Processing) ──
     path('staging/',                         BankStagingListView.as_view(),    name='bank-staging-list'),
     path('staging/<int:pk>/',                BankStagingDetailView.as_view(),  name='bank-staging-detail'),

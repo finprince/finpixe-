@@ -149,6 +149,7 @@ interface BankUploadProps {
 
 const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mixed', onClose }) => {
   const fileRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { isLimitReached, subscriptionUsage } = useSubscriptionUsage();
 
   const [step, setStep] = useState<Step>('upload');
@@ -167,9 +168,15 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
   const [bankLedgerId, setBankLedgerId] = useState<number | null>(null);
   const [bankLedgerName, setBankLedgerName] = useState('');
 
-  // Date Range Filter State
+  // Date Range Filter State (Step 3 Table Filter & Restored PDF Statement Period)
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // PDF Statement Period & Extract Filter State (Step 1 Upload Screen)
+  const [pdfStatementPeriod, setPdfStatementPeriod] = useState<{ startDate: string; endDate: string } | null>(null);
+  const [extractStartDate, setExtractStartDate] = useState<string>('');
+  const [extractEndDate, setExtractEndDate] = useState<string>('');
+  const [detectingPeriod, setDetectingPeriod] = useState<boolean>(false);
 
   // ── Voucher metadata state ────────────────────────────────────────────────
   const [paymentConfigs, setPaymentConfigs] = useState<any[]>([]);
@@ -242,6 +249,40 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
     }
   }, [step, fetchStagedFiles]);
 
+  // Handle file select and automatically detect PDF declared statement period
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setPdfStatementPeriod(null);
+      setExtractStartDate('');
+      setExtractEndDate('');
+      return;
+    }
+    setUploadError(null);
+    setDetectingPeriod(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await httpClient.postFormData<{ start_date: string | null; end_date: string | null }>(
+        '/api/bank-upload/detect-period/',
+        fd
+      );
+      if (res.start_date && res.end_date) {
+        setPdfStatementPeriod({ startDate: res.start_date, endDate: res.end_date });
+        setExtractStartDate(res.start_date);
+        setExtractEndDate(res.end_date);
+      } else {
+        setPdfStatementPeriod(null);
+        setExtractStartDate('');
+        setExtractEndDate('');
+      }
+    } catch (err) {
+      console.error('Failed to detect statement period:', err);
+    } finally {
+      setDetectingPeriod(false);
+    }
+  };
+
   // Rows filtered by type AND date range (duplicates always included in allRows but
   // shown as disabled — hidden only when the user toggles them off)
   const filteredRows = allRows.filter(r => {
@@ -259,7 +300,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
   }).length;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleProcessStaging = async (file: StagedFile) => {
+  const handleProcessStaging = async (file: StagedFile, restoreStart?: string, restoreEnd?: string) => {
     setProcessingId(file.id);
     setUploadError(null);
     try {
@@ -271,6 +312,15 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       setSessionId(res.session_id);
       const rows = res.rows || [];
       setAllRows(rows);
+
+      // Restore displayed Date Range in Step 3 to the original PDF statement period
+      if (restoreStart || restoreEnd) {
+        setStartDate(restoreStart || '');
+        setEndDate(restoreEnd || '');
+      } else {
+        setStartDate('');
+        setEndDate('');
+      }
 
       // Ensure bank ledger name/id are set from the data if not already present
       if (rows.length > 0) {
@@ -319,6 +369,22 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       return;
     }
 
+    // ── Date Range Validations ──
+    if (extractStartDate && extractEndDate && extractStartDate > extractEndDate) {
+      setUploadError('Extract From Date cannot be after Extract To Date.');
+      return;
+    }
+
+    if (pdfStatementPeriod?.startDate && extractStartDate && extractStartDate < pdfStatementPeriod.startDate) {
+      setUploadError(`Extract From Date (${extractStartDate}) cannot be earlier than the statement start date (${pdfStatementPeriod.startDate}).`);
+      return;
+    }
+
+    if (pdfStatementPeriod?.endDate && extractEndDate && extractEndDate > pdfStatementPeriod.endDate) {
+      setUploadError(`Extract To Date (${extractEndDate}) cannot be later than the statement end date (${pdfStatementPeriod.endDate}).`);
+      return;
+    }
+
     setUploading(true);
     setUploadError(null);
     setPostSuccess(null);
@@ -327,21 +393,38 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       setUploading(false);
       return;
     }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('bank_ledger_id', String(bankLedgerId));
       fd.append('bank_ledger_name', bankLedgerName);
+      if (extractStartDate) fd.append('extract_from_date', extractStartDate);
+      if (extractEndDate) fd.append('extract_to_date', extractEndDate);
 
-      const res = await httpClient.postFormData<any>('/api/bank-upload/upload/', fd);
+      const res = await httpClient.postFormData<any>('/api/bank-upload/upload/', fd, {
+        signal: controller.signal
+      });
+
+      // Save PDF statement period to restore in Step 3
+      const finalPdfStart = res.pdf_start_date || pdfStatementPeriod?.startDate || '';
+      const finalPdfEnd = res.pdf_end_date || pdfStatementPeriod?.endDate || '';
 
       // Success: refresh list but also IMMEDIATELY process to go inside
       await fetchStagedFiles();
       if (fileRef.current) fileRef.current.value = '';
 
-      // Auto-transition to mapping step
+      // Reset extract inputs for next upload
+      setExtractStartDate('');
+      setExtractEndDate('');
+      setPdfStatementPeriod(null);
+
+      // Auto-transition to mapping step with restored original PDF statement period
       if (res.staging_id) {
-        handleProcessStaging({
+        await handleProcessStaging({
           id: res.staging_id,
           file_name: file.name,
           account_id: bankLedgerId,
@@ -349,14 +432,36 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
           expires_at: new Date(Date.now() + 15 * 86400000).toISOString(),
           transaction_count: res.count || 0,
           status: 'pending'
-        });
+        }, finalPdfStart, finalPdfEnd);
       }
     } catch (err: any) {
-      setUploadError(err?.data?.error || 'Upload failed.');
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED' || err?.message === 'canceled') {
+        setUploadError('Upload cancelled.');
+      } else {
+        setUploadError(err?.data?.error || err?.message || 'Upload failed.');
+      }
     } finally {
+      abortControllerRef.current = null;
       setUploading(false);
     }
-  }, [bankLedgerId, bankLedgerName, fetchStagedFiles, handleProcessStaging]);
+  }, [bankLedgerId, bankLedgerName, extractStartDate, extractEndDate, pdfStatementPeriod, fetchStagedFiles, isLimitReached]);
+
+  const handleCancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setUploading(false);
+    setUploadError('Upload cancelled.');
+  };
+
+  const handleClearSelection = () => {
+    if (fileRef.current) fileRef.current.value = '';
+    setExtractStartDate('');
+    setExtractEndDate('');
+    setPdfStatementPeriod(null);
+    setUploadError(null);
+  };
 
   const handleDeleteStaging = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this pending upload?')) return;
@@ -531,52 +636,88 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
               <input
                 ref={fileRef}
                 type="file"
+                onChange={handleFileChange}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
               />
             </div>
           </div>
 
-          {/* New Date Range Row */}
+          {/* Date Range Row */}
           <div className="grid grid-cols-2 gap-6 mb-8 border-t border-slate-50 pt-8">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Extract From Date</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Extract From Date
+                {detectingPeriod && <span className="ml-2 text-indigo-500 font-normal lowercase text-[9px] animate-pulse">detecting statement period...</span>}
+              </label>
               <input
                 type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                value={extractStartDate}
+                onChange={e => setExtractStartDate(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Extract To Date</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Extract To Date
+                {detectingPeriod && <span className="ml-2 text-indigo-500 font-normal lowercase text-[9px] animate-pulse">detecting statement period...</span>}
+              </label>
               <input
                 type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                value={extractEndDate}
+                onChange={e => setExtractEndDate(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
               />
             </div>
           </div>
           {uploadError && <div className="p-4 mb-6 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex items-center gap-3"><Icon name="warning" className="w-5 h-5" /> {uploadError}</div>}
-          <button onClick={handleUpload} disabled={uploading || isLimitReached} className={`w-full py-4 rounded-xl text-lg shadow-xl flex items-center justify-center gap-3 ${isLimitReached
-              ? 'bg-red-100 text-red-400 cursor-not-allowed shadow-none border border-red-200'
-              : 'erp-button-primary shadow-indigo-100'
-            }`} title={isLimitReached ? 'AI usage limit reached — upgrade your plan' : undefined}>
-            <Icon name={uploading ? 'spinner' : 'upload'} className={`w-6 h-6 ${uploading ? 'animate-spin' : ''}`} />
-            {uploading ? (
-              <div className="flex flex-col items-center">
-                <span className="font-black animate-pulse">
-                  {countdownSeconds > 1
-                    ? `Analyzing Statement... ${Math.floor(countdownSeconds / 60)}:${(countdownSeconds % 60).toString().padStart(2, '0')}`
-                    : "Still processing large document..."
-                  }
-                </span>
-                <span className="text-[10px] opacity-70 font-bold uppercase tracking-wider mt-0.5">
-                  {countdownSeconds > 30 ? 'Estimated time remaining' : 'Finalizing extraction results...'}
-                </span>
-              </div>
-            ) : 'Upload & Extract'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleUpload}
+              disabled={uploading || isLimitReached}
+              className={`flex-1 py-4 rounded-xl text-lg shadow-xl flex items-center justify-center gap-3 ${
+                isLimitReached
+                  ? 'bg-red-100 text-red-400 cursor-not-allowed shadow-none border border-red-200'
+                  : 'erp-button-primary shadow-indigo-100'
+              }`}
+              title={isLimitReached ? 'AI usage limit reached — upgrade your plan' : undefined}
+            >
+              <Icon name={uploading ? 'spinner' : 'upload'} className={`w-6 h-6 ${uploading ? 'animate-spin' : ''}`} />
+              {uploading ? (
+                <div className="flex flex-col items-center">
+                  <span className="font-black animate-pulse">
+                    {countdownSeconds > 1
+                      ? `Analyzing Statement... ${Math.floor(countdownSeconds / 60)}:${(countdownSeconds % 60).toString().padStart(2, '0')}`
+                      : "Still processing large document..."
+                    }
+                  </span>
+                  <span className="text-[10px] opacity-70 font-bold uppercase tracking-wider mt-0.5">
+                    {countdownSeconds > 30 ? 'Estimated time remaining' : 'Finalizing extraction results...'}
+                  </span>
+                </div>
+              ) : 'Upload & Extract'}
+            </button>
+
+            {uploading && (
+              <button
+                type="button"
+                onClick={handleCancelUpload}
+                className="px-6 py-4 rounded-xl text-sm font-black uppercase tracking-wider bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:text-red-700 transition-all flex items-center gap-2 shadow-sm"
+              >
+                <Icon name="close" className="w-5 h-5" />
+                Cancel
+              </button>
+            )}
+
+            {!uploading && (fileRef.current?.files?.[0] || extractStartDate || extractEndDate) && (
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="px-6 py-4 rounded-xl text-sm font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all shadow-sm"
+              >
+                Clear
+              </button>
+            )}
+          </div>
 
           {/* ── Pending Uploads Section ── */}
           {stagedFiles.length > 0 && (

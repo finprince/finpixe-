@@ -29,10 +29,10 @@ const VendorStatusBadge: React.FC<{ status: string }> = ({ status }) => {
 
 const CustomerStatusBadge: React.FC<{ status?: string; companyMatch?: boolean; decision?: string }> = ({ status, companyMatch, decision }) => {
   const s = (status || '').toUpperCase();
-  if (companyMatch || s === 'SELF_COMPANY') {
+  if (s === 'SELF_COMPANY' || s === 'MATCHED') {
     return (
-      <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider shadow-sm">
-        🏢 SELF COMPANY
+      <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider shadow-sm">
+        🏢 MATCHED
       </span>
     );
   }
@@ -808,7 +808,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                             {isCompanyMatch(purchase) ? (
                               <div className="flex flex-col items-center gap-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
                                 <span className="text-[9px] font-black text-amber-800 uppercase tracking-tight flex items-center gap-1">
-                                  🏢 Own Company
+                                  ⚠️ Not Your Company Invoice
                                 </span>
                                 <div className="flex items-center gap-1">
                                   <button

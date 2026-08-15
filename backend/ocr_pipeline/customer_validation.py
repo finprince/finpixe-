@@ -101,39 +101,49 @@ def validate_customer_against_tenant(
     customer_status = "IDENTITY_UNKNOWN"
 
     if not has_tenant_gstin and not has_tenant_name:
+        company_match_detected = False
         company_match_decision = "TENANT_IDENTITY_MISSING"
         customer_status = "IDENTITY_UNKNOWN"
     elif not has_buyer_gstin and not has_buyer_name:
+        company_match_detected = False
         company_match_decision = "CUSTOMER_IDENTITY_MISSING"
         customer_status = "IDENTITY_UNKNOWN"
     elif has_buyer_gstin and has_tenant_gstin:
         if gstin_matched:
-            if name_matched:
-                # CASE 1: Both GSTIN and Name Match
-                company_match_detected = True
+            if name_matched or not has_buyer_name:
+                # CASE 1: Both GSTIN and Name Match (or Name not extracted but GSTIN matches)
+                # Invoice belongs to own company -> Valid purchase, DO NOT ask proceed/not proceed
+                company_match_detected = False
                 company_match_decision = "SELF_COMPANY"
                 customer_status = "SELF_COMPANY"
             else:
-                # CASE 3: Same GSTIN, Different Name
+                # CASE 2: Same GSTIN, Different Name -> Name Mismatch -> ASK proceed/not proceed
                 company_match_detected = True
                 company_match_decision = "GSTIN_MATCH_NAME_MISMATCH"
                 customer_status = "NAME_MISMATCH"
         else:
-            # CASE 2: Different GSTIN (GSTIN is authoritative key)
-            company_match_detected = False
+            # CASE 3: Different GSTIN -> Company Mismatch / External Customer -> ASK proceed/not proceed
+            company_match_detected = True
             company_match_decision = "EXTERNAL_CUSTOMER"
             customer_status = "EXTERNAL_CUSTOMER"
     elif has_buyer_name and not has_buyer_gstin:
-        if name_matched:
-            # CASE 4: Missing buyer GSTIN, Name matches
-            company_match_detected = False
-            company_match_decision = "NAME_ONLY_MATCH"
-            customer_status = "NAME_ONLY_MATCH"
+        if has_tenant_name:
+            if name_matched:
+                # CASE 4: Missing buyer GSTIN, Name matches tenant -> Valid purchase, DO NOT ask
+                company_match_detected = False
+                company_match_decision = "NAME_ONLY_MATCH"
+                customer_status = "SELF_COMPANY"
+            else:
+                # CASE 5: Missing buyer GSTIN, Name differs -> Mismatch -> ASK proceed/not proceed
+                company_match_detected = True
+                company_match_decision = "EXTERNAL_CUSTOMER"
+                customer_status = "EXTERNAL_CUSTOMER"
         else:
             company_match_detected = False
-            company_match_decision = "EXTERNAL_CUSTOMER"
-            customer_status = "EXTERNAL_CUSTOMER"
+            company_match_decision = "TENANT_IDENTITY_MISSING"
+            customer_status = "IDENTITY_UNKNOWN"
     elif has_buyer_gstin and not has_tenant_gstin:
+        company_match_detected = False
         company_match_decision = "TENANT_GSTIN_MISSING"
         customer_status = "IDENTITY_UNKNOWN"
 

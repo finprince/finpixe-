@@ -638,9 +638,12 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_ty
     import time
     t_start_norm = time.time()
     v_type = (voucher_type or (invoice.get('voucher_type') if isinstance(invoice, dict) else None) or 'PURCHASE').upper()
+    tenant = None
     tenant_gstin = None
     tenant_name = None
     tenant_address_keywords = set()
+    if not tenant_id and isinstance(invoice, dict):
+        tenant_id = invoice.get('tenant_id')
     if tenant_id:
         try:
             from asgiref.sync import async_to_sync, sync_to_async

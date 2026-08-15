@@ -2914,7 +2914,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         {isOwnCompanyRow ? (
                                                                             <div className="flex flex-col items-center gap-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
                                                                                 <span className="text-[9px] font-black text-amber-800 uppercase tracking-tight flex items-center gap-1">
-                                                                                    🏢 Own Company
+                                                                                    ⚠️ Not Your Company Invoice
                                                                                 </span>
                                                                                 <div className="flex items-center gap-1">
                                                                                     <button
