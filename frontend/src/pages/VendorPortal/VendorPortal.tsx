@@ -19,6 +19,7 @@ import VendorViewModal from '../../components/VendorViewModal';
 import NetoffProcessModal from '../../components/NetoffProcessModal';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
+import DateInput from '../../components/common/DateInput';
 
 
 type VendorTab = 'Master' | 'Transaction';
@@ -6514,8 +6515,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                                         <div className="space-y-4">
                                                                                             <div>
                                                                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">From Date</label>
-                                                                                                <input
-                                                                                                    type="date"
+                                                                                                <DateInput
+                                                                                                    
                                                                                                     value={ledgerFilters.dateFrom}
                                                                                                     onChange={(e) => setLedgerFilters({ ...ledgerFilters, dateFrom: e.target.value })}
                                                                                                     className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-sm"
@@ -6523,8 +6524,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                                             </div>
                                                                                             <div>
                                                                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">To Date</label>
-                                                                                                <input
-                                                                                                    type="date"
+                                                                                                <DateInput
+                                                                                                    
                                                                                                     value={ledgerFilters.dateTo}
                                                                                                     onChange={(e) => setLedgerFilters({ ...ledgerFilters, dateTo: e.target.value })}
                                                                                                     className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-sm"
@@ -7886,7 +7887,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                                 <button
                                                                                     onClick={() => {
                                                                                         const now = new Date();
-                                                                                        const formattedDate = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                                                                        const formattedDate = formatDate(now.toISOString()) + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                                                                         const newStatus = bill.status === 'Approved' ? 'Pending' : 'Approved';
                                                                                         const actionType = newStatus === 'Approved' ? 'Approved' : 'Unapproved';
                                                                                         setPaymentBills(paymentBills.map(b =>
@@ -8026,8 +8027,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
 
                                                         <div>
                                                             <label className="label-text">PO Date</label>
-                                                            <input
-                                                                type="date"
+                                                            <DateInput
+                                                                
                                                                 value={createPOForm.poDate}
                                                                 max={new Date().toISOString().split('T')[0]} // Restrict future date
                                                                 onChange={(e) => handleCreatePOFormChange('poDate', e.target.value)}
@@ -8478,8 +8479,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                                                         <div>
                                                             <label className="label-text">Receive By</label>
-                                                            <input
-                                                                type="date"
+                                                            <DateInput
+                                                                
                                                                 value={createPOForm.receiveBy || ''}
                                                                 onChange={(e) => handleCreatePOFormChange('receiveBy', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-slate-200 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -8649,8 +8650,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                 <div className="grid grid-cols-2 gap-6">
                                                     <div>
                                                         <label className="label-text">Receive by</label>
-                                                        <input
-                                                            type="date"
+                                                        <DateInput
+                                                            
                                                             value={createPOForm.receiveBy}
                                                             onChange={(e) => handleCreatePOFormChange('receiveBy', e.target.value)}
                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -8750,8 +8751,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                     <div>
                                                         <label className="label-text">Receive By</label>
                                                         {isEditingPO ? (
-                                                            <input
-                                                                type="date"
+                                                            <DateInput
+                                                                
                                                                 value={selectedPO.receiveBy || ''}
                                                                 onChange={(e) => setSelectedPO({ ...selectedPO, receiveBy: e.target.value })}
                                                                 className="w-full px-3 py-2 border border-blue-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -8947,8 +8948,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                     <label className="label-text">
                                                         Date of payment
                                                     </label>
-                                                    <input
-                                                        type="date"
+                                                    <DateInput
+                                                        
                                                         value={postPaymentForm.dateOfPayment}
                                                         onChange={(e) => setPostPaymentForm({ ...postPaymentForm, dateOfPayment: e.target.value })}
                                                         className="block w-full px-3 py-2 border border-slate-200 rounded-[4px] shadow-none border border-slate-200 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"

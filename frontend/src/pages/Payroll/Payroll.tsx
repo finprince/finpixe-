@@ -4,6 +4,7 @@ import Icon from '../../components/Icon';
 import { httpClient } from '../../services/httpClient';
 import { usePermissions } from '../../hooks/usePermissions';
 import { showSuccess, showError } from '../../utils/toast';
+import DateInput from '../../components/common/DateInput';
 
 type PayrollTab = 'EMPLOYEES' | 'PAY RUNS' | 'SALARY TEMPLATES' | 'STATUTORY' | 'REPORTS';
 
@@ -498,8 +499,8 @@ const AddEmployeeModal: React.FC<{ onClose: () => void; onSuccess: () => void }>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={formData.date_of_birth}
                                     onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -552,8 +553,8 @@ const AddEmployeeModal: React.FC<{ onClose: () => void; onSuccess: () => void }>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Date of Joining</label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={formData.date_of_joining}
                                     onChange={(e) => setFormData({ ...formData, date_of_joining: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -779,8 +780,8 @@ const ProcessPayRunModal: React.FC<{ onClose: () => void; onSuccess: () => void 
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Start Date <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={formData.start_date}
                                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -790,8 +791,8 @@ const ProcessPayRunModal: React.FC<{ onClose: () => void; onSuccess: () => void 
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     End Date <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="date"
+                                <DateInput
+                                    
                                     value={formData.end_date}
                                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"

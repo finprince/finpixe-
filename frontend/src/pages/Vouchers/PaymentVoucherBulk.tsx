@@ -2,6 +2,7 @@ import { NumericFormat } from 'react-number-format';
 import React, { useState, useEffect, useMemo } from 'react';
 import { showError, showSuccess } from '../../utils/toast';
 import { httpClient } from '../../services/httpClient';
+import DateInput from '../../components/common/DateInput';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5003';
 
@@ -310,8 +311,8 @@ const PaymentVoucherBulk: React.FC = () => {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
+              <DateInput
+                
                 value={date}
                 max={getTodayDate()}
                 onChange={e => setDate(e.target.value)}

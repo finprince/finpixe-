@@ -32,6 +32,40 @@ def _resolve_ledger(value, tenant_id=None):
                     value = vend.ledger_id
             except Exception:
                 pass
+        elif val_str.startswith('hierarchy-'):
+            try:
+                from accounting.models import MasterHierarchyRaw
+                hier_id = int(val_str.replace('hierarchy-', ''))
+                hier = MasterHierarchyRaw.objects.filter(id=hier_id).first()
+                if hier and tenant_id:
+                    name = (hier.ledger_1 or hier.sub_group_3_1 or hier.sub_group_2_1 or hier.group_1 or '').strip()
+                    if name:
+                        existing = MasterLedger.objects.filter(tenant_id=tenant_id, name__iexact=name).first()
+                        if existing:
+                            return existing
+                        # Create ledger from hierarchy blueprint with correct field names
+                        try:
+                            new_ledger, _ = MasterLedger.objects.get_or_create(
+                                tenant_id=tenant_id,
+                                name=name,
+                                defaults=dict(
+                                    group=hier.group_1,
+                                    sub_group_1=hier.sub_group_1_1,
+                                    sub_group_2=hier.sub_group_2_1,
+                                    sub_group_3=hier.sub_group_3_1,
+                                    major_group=hier.major_group_1,
+                                    financial_reporting=hier.financial_reporting_1,
+                                    type_of_business=hier.type_of_business_1,
+                                    code=hier.code,
+                                    category=hier.major_group_1 or 'Other',
+                                )
+                            )
+                        except Exception:
+                            new_ledger = MasterLedger.objects.filter(tenant_id=tenant_id, name__iexact=name).first()
+                        return new_ledger
+            except Exception:
+                pass
+            return None  # hierarchy- prefix but couldn't resolve — don't fall through to int()
 
     # Already an integer ID
     try:
@@ -54,6 +88,35 @@ def _resolve_ledger(value, tenant_id=None):
     if hasattr(value, 'id'):
         return value
 
+    return None
+
+def _resolve_or_create_ledger(value, tenant_id=None, default_group='Other', default_category='Other'):
+    """
+    Resolves a ledger, and if it does not exist in MasterLedger for tenant_id,
+    creates it automatically so double-entry journal postings use the exact chosen ledger.
+    """
+    if not value or (isinstance(value, str) and not value.strip()):
+        return None
+    l_obj = _resolve_ledger(value, tenant_id)
+    if l_obj:
+        return l_obj
+    if isinstance(value, str) and value.strip() and tenant_id:
+        name_clean = value.strip()
+        if name_clean.startswith(('portal-cust-', 'portal-vend-', 'hierarchy-')):
+            return None
+        try:
+            l_obj, _ = MasterLedger.objects.get_or_create(
+                tenant_id=tenant_id,
+                name=name_clean,
+                defaults={
+                    'group': default_group,
+                    'category': default_category,
+                    'major_group': default_category
+                }
+            )
+            return l_obj
+        except Exception:
+            return MasterLedger.objects.filter(tenant_id=tenant_id, name__iexact=name_clean).first()
     return None
 
 def post_transaction(voucher_type, voucher_id, tenant_id, entries, transaction_date=None, voucher_number=None):

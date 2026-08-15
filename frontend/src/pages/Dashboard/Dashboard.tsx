@@ -9,6 +9,7 @@ import { formatCurrency } from '../../utils/formatting';
 import WidgetRenderer from '../DashboardBuilder/WidgetRenderer';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
 import { ChevronRight, ArrowUpRight, ArrowDownLeft, Sparkles, TrendingUp, ShoppingCart, Activity } from 'lucide-react';
+import { formatDate } from '../../utils/formatting';
 import {
     PieChart, Pie, Cell, Tooltip as ReTooltip, Legend, ResponsiveContainer,
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -196,7 +197,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, companyName, 
     return (
         <UniversalWorkspaceLayout
             title={`${greeting()}, ${companyName}`}
-            subtitle={`Executive overview and financial intelligence for ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`}
+            subtitle={`Executive overview and financial intelligence for ${formatDate(new Date().toISOString())}.`}
             badgeText="FINPIXE ENTERPRISE OS"
             inspectorState={inspectorState}
             onCloseInspector={() => setInspectorState(prev => ({ ...prev, isOpen: false }))}

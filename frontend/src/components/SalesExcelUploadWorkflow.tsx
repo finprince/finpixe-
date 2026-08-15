@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { apiService } from '../services';
 import { showError, showSuccess, showInfo } from '../utils/toast';
 import AddNewCustomerModal from './AddNewCustomerModal';
@@ -7,6 +7,7 @@ import SearchableDropdown from './SearchableDropdown';
 
 import { SALES_VOUCHER_COLUMNS_BY_TAB, SalesVoucherTab, SALES_VOUCHER_KEY_MAP, SalesVoucherColumn, SALES_VOUCHER_COLUMNS } from '../constants/salesVoucherColumns';
 import { INDIA_STATE_CODES, GST_INVOICE_TYPES, EXPORT_TYPES } from '../utils/gstConstants';
+import DateInput from '../components/common/DateInput';
 
 const TDS_RATE_MAP: Record<string, number> = {
     // Common Sections
@@ -588,17 +589,30 @@ const SalesEditModal: React.FC<SalesEditModalProps> = ({ invoice, index, onClose
         };
     }).filter(o => o.label && o.label !== 'No Name'), [stockItems]);
     const ledgerOptions = useMemo(() => {
-        // Exclude customer/vendor groups — they are parties, not accounting ledgers
         const EXCLUDED_GROUPS = ['sundry debtors', 'sundry creditors'];
-        // Exclude dummy seed data
         const EXCLUDED_NAMES = ['purchase account', 'sales account'];
-        // Only pull from Masters > Ledgers (user-created + default red-text ledgers)
         return Array.from(new Set(
             ledgers
                 .filter(l => {
-                    const group = (l.group || '').toLowerCase().trim();
+                    if (!l.name) return false;
                     const name = (l.name || '').toLowerCase().trim();
-                    return l.name && !EXCLUDED_GROUPS.includes(group) && !EXCLUDED_NAMES.includes(name);
+                    const group = (l.group || '').toLowerCase().trim();
+                    const cat = (l.category || '').toLowerCase().trim();
+                    const sg1 = (l.sub_group_1 || '').toLowerCase().trim();
+                    const sg2 = (l.sub_group_2 || '').toLowerCase().trim();
+                    const sg3 = (l.sub_group_3 || '').toLowerCase().trim();
+
+                    if (EXCLUDED_GROUPS.includes(group) || EXCLUDED_NAMES.includes(name)) return false;
+
+                    const isIncomeCat = !cat || cat === 'income' || cat === 'revenue';
+                    const matchesRevenueGroup = 
+                        group.includes('revenue from operation') ||
+                        group.includes('sales') ||
+                        sg1.includes('sale') ||
+                        sg2.includes('sale') ||
+                        sg3.includes('sale');
+
+                    return isIncomeCat && matchesRevenueGroup;
                 })
                 .map(l => l.name)
         )).filter(Boolean) as string[];
@@ -664,8 +678,8 @@ const SalesEditModal: React.FC<SalesEditModalProps> = ({ invoice, index, onClose
                         disabled={isFieldDisabled}
                     />
                 ) : col.type === 'date' ? (
-                    <input
-                        type="date"
+                    <DateInput
+                        
                         value={draft.header[col.key] || ''}
                         max={['dispatch_date', 'upto_port_shipping_bill_date', 'beyond_port_shipping_bill_date', 'rail_beyond_port_receipt_date'].includes(col.key) ? new Date().toISOString().split('T')[0] : undefined}
                         onChange={e => updateHeader(col.key, e.target.value)}

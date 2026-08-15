@@ -25,6 +25,7 @@ import { formatDate } from '../../utils/formatting';
 import { BulkImportFeedbackModal } from '../../components/BulkImportFeedbackModal';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
+import DateInput from '../../components/common/DateInput';
 
 type MainTab = 'Master' | 'Transaction';
 type MasterSubTab = 'Category' | 'Sales Quotation & Order' | 'Customer' | 'Long-term Contracts';
@@ -4357,8 +4358,8 @@ const LongTermContractsContent: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Contract Validity From <span className="text-red-500">*</span></label>
-                                            <input
-                                                type="date"
+                                            <DateInput
+                                                
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#6366F1] focus:border-[#6366F1] text-sm placeholder-gray-400"
                                                 value={basicDetails.validityFrom}
                                                 onChange={(e) => setBasicDetails({ ...basicDetails, validityFrom: e.target.value })}
@@ -4435,8 +4436,8 @@ const LongTermContractsContent: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 mb-1">Contract Validity To <span className="text-red-500">*</span></label>
-                                            <input
-                                                type="date"
+                                            <DateInput
+                                                
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#6366F1] focus:border-[#6366F1] text-sm placeholder-gray-400"
                                                 value={basicDetails.validityTo}
                                                 onChange={(e) => setBasicDetails({ ...basicDetails, validityTo: e.target.value })}
@@ -4498,8 +4499,8 @@ const LongTermContractsContent: React.FC = () => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
                                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Bill Start Date <span className="text-red-500">*</span></label>
-                                                    <input
-                                                        type="date"
+                                                    <DateInput
+                                                        
                                                         className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#6366F1] focus:border-[#6366F1] text-sm bg-white"
                                                         value={billingConfig.billStartDate}
                                                         onChange={(e) => setBillingConfig({ ...billingConfig, billStartDate: e.target.value })}
@@ -4525,8 +4526,8 @@ const LongTermContractsContent: React.FC = () => {
                                                     <div className="flex items-center gap-4">
                                                         <div className="flex-1">
                                                             <span className="text-xs text-gray-500 mb-1 block">From</span>
-                                                            <input
-                                                                type="date"
+                                                            <DateInput
+                                                                
                                                                 className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#6366F1] focus:border-[#6366F1] text-sm bg-white ${basicDetails.validityFrom && billingConfig.billPeriodFrom && billingConfig.billPeriodFrom < basicDetails.validityFrom ? 'border-red-500' : ''}`}
                                                                 value={billingConfig.billPeriodFrom}
                                                                 min={basicDetails.validityFrom}
@@ -4536,8 +4537,8 @@ const LongTermContractsContent: React.FC = () => {
                                                         <span className="mt-5 text-gray-400">to</span>
                                                         <div className="flex-1">
                                                             <span className="text-xs text-gray-500 mb-1 block">To</span>
-                                                            <input
-                                                                type="date"
+                                                            <DateInput
+                                                                
                                                                 className={`w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-[#6366F1] focus:border-[#6366F1] text-sm bg-white ${basicDetails.validityTo && billingConfig.billPeriodTo && billingConfig.billPeriodTo > basicDetails.validityTo ? 'border-red-500' : ''}`}
                                                                 value={billingConfig.billPeriodTo}
                                                                 max={basicDetails.validityTo}
@@ -5206,11 +5207,11 @@ function ReceiptContent() {
                                                             <div className="space-y-2">
                                                                 <div>
                                                                     <label className="text-[10px] text-gray-500 block mb-1">Start Date</label>
-                                                                    <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#6366F1]" />
+                                                                    <DateInput  value={dateFilter.start} onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#6366F1]" />
                                                                 </div>
                                                                 <div>
                                                                     <label className="text-[10px] text-gray-500 block mb-1">End Date</label>
-                                                                    <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#6366F1]" />
+                                                                    <DateInput  value={dateFilter.end} onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-[#6366F1]" />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -5344,8 +5345,8 @@ function ReceiptContent() {
                                     <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                                         Date of Receipt <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="date"
+                                    <DateInput
+                                        
                                         value={postFormData.dateOfReceipt}
                                         onChange={(e) => handleFormChange('dateOfReceipt', e.target.value)}
                                         max={new Date().toISOString().split('T')[0]}
@@ -5892,8 +5893,8 @@ const NetOffModal: React.FC<NetOffModalProps> = ({ isOpen, onClose, customerName
                             <div>
                                 <div className="text-xs text-gray-500 mb-1">Net-off Date:</div>
                                 <div className="flex items-center gap-2">
-                                    <input
-                                        type="date"
+                                    <DateInput
+                                        
                                         value={netOffDate}
                                         onChange={(e) => setNetOffDate(e.target.value)}
                                         className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"

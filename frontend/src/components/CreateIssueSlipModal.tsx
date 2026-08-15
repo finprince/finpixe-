@@ -4,6 +4,7 @@ import { httpClient } from '../services/httpClient';
 import { showWarning } from '../utils/toast';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import SearchableDropdown from './SearchableDropdown';
+import DateInput from '../components/common/DateInput';
 
 interface IssueSlipItem {
     id: number;
@@ -710,8 +711,8 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                            <input
-                                type="date"
+                            <DateInput
+                                
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
                                 max={todayStr}
@@ -1071,8 +1072,8 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Dispatch Date</label>
-                                        <input
-                                            type="date"
+                                        <DateInput
+                                            
                                             value={dispatchDate || todayStr}
                                             onChange={(e) => setDispatchDate(e.target.value)}
                                             max={todayStr}
@@ -1216,7 +1217,7 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
-                                                <input type="date" value={uptoPortShippingBillDate} onChange={(e) => setUptoPortShippingBillDate(e.target.value)} max={todayStr} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                                <DateInput  value={uptoPortShippingBillDate} onChange={(e) => setUptoPortShippingBillDate(e.target.value)} max={todayStr} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Origin</label>
@@ -1255,7 +1256,7 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
-                                                <input type="date" value={beyondPortShippingBillDate} onChange={(e) => setBeyondPortShippingBillDate(e.target.value)} max={todayStr} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                                <DateInput  value={beyondPortShippingBillDate} onChange={(e) => setBeyondPortShippingBillDate(e.target.value)} max={todayStr} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Vessel/Flight No.</label>
@@ -1329,7 +1330,7 @@ const CreateIssueSlipModal: React.FC<CreateIssueSlipModalProps> = ({ onClose, on
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
-                                                <input type="date" value={railBeyondPortRailwayReceiptDate} onChange={(e) => setRailBeyondPortRailwayReceiptDate(e.target.value)} max={todayStr} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                                <DateInput  value={railBeyondPortRailwayReceiptDate} onChange={(e) => setRailBeyondPortRailwayReceiptDate(e.target.value)} max={todayStr} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Origin Country</label>

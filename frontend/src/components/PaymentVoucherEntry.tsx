@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Icon from './Icon';
+import DateInput from '../components/common/DateInput';
+import { formatDate } from '../utils/formatting';
 
 interface VoucherType {
     id: number;
@@ -227,8 +229,8 @@ export const PaymentVoucherEntry: React.FC<PaymentVoucherEntryProps> = ({ onCanc
                 {/* Date Field */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                    <input
-                        type="date"
+                    <DateInput
+                        
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -357,7 +359,7 @@ export const PaymentVoucherEntry: React.FC<PaymentVoucherEntryProps> = ({ onCanc
                                     transactions.map(transaction => (
                                         <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
                                             <td className="px-4 py-3 text-sm text-gray-700">
-                                                {new Date(transaction.date).toLocaleDateString()}
+                                                {formatDate(transaction.date)}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-700">
                                                 {transaction.reference_number}

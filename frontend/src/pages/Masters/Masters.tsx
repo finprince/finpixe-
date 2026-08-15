@@ -10,6 +10,7 @@ import { HierarchicalDropdown } from '../../components/HierarchicalDropdown';
 import { LedgerCreationWizard } from '../../components/LedgerCreationWizard.tsx';
 import { apiService, httpClient } from '../../services';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
+import DateInput from '../../components/common/DateInput';
 
 
 
@@ -1407,8 +1408,8 @@ const MastersPage: React.FC<MastersPageProps> = ({
                 <label htmlFor="debentureBondMaturityDate" className="block text-sm font-medium text-gray-500 mb-1">
                   Maturity Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DateInput
+                  
                   id="debentureBondMaturityDate"
                   value={debentureBondMaturityDate}
                   onChange={(e) => setDebentureBondMaturityDate(e.target.value)}

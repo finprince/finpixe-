@@ -35,21 +35,7 @@ def generate_trial_balance_data(user, start_date=None, end_date=None):
     tenant_id = get_user_tenant_id(user)
     if not tenant_id:
         raise PermissionError('User has no associated tenant')
-    ledger_balances = db.get_trial_balance_data(tenant_id, start_date, end_date)
-    result = []
-    for item in ledger_balances:
-        debit = item['total_debit'] or 0
-        credit = item['total_credit'] or 0
-        net_debit = 0
-        net_credit = 0
-        if debit > credit:
-            net_debit = debit - credit
-        elif credit > debit:
-            net_credit = credit - debit
-        if net_debit == 0 and net_credit == 0:
-            continue
-        result.append({'ledger': item['ledger__name'], 'debit': float(net_debit), 'credit': float(net_credit)})
-    return result
+    return db.get_trial_balance_data(tenant_id, start_date, end_date)
 
 def generate_balance_sheet_data(user, end_date=None):
     """

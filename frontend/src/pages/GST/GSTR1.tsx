@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
 import { apiService } from '../../services/api';
+import DateInput from '../../components/common/DateInput';
 
 let savedPeriod: { year: string; month: string } | null = null;
 let savedSubTab: string = 'B2B';
@@ -2789,7 +2790,7 @@ useEffect(() => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1 text-gray-700">Revised Invoice Date <span className="text-red-500">*</span></label>
-                                <input type="date" className="w-full border rounded p-2 outline-none" value={amendmentForm.revised_invoice_date || ''} onChange={(e) => setAmendmentForm({ ...amendmentForm, revised_invoice_date: e.target.value })} />
+                                <DateInput  className="w-full border rounded p-2 outline-none" value={amendmentForm.revised_invoice_date || ''} onChange={(e) => setAmendmentForm({ ...amendmentForm, revised_invoice_date: e.target.value })} />
                             </div>
 
                             <div>

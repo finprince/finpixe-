@@ -7,6 +7,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { apiService } from '../../services/api';
 import { httpClient } from '../../services/httpClient';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
+import DateInput from '../../components/common/DateInput';
+import { formatDate } from '../../utils/formatting';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5003';
 
@@ -322,6 +324,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   // ─── Backend-backed API state for reports (presentation-only) ───────────
   const [tbData, setTbData] = useState<{ results: any[]; total_debit: number; total_credit: number; is_balanced: boolean } | null>(null);
   const [tbLoading, setTbLoading] = useState(false);
+  const [trialBalanceType, setTrialBalanceType] = useState<'opening' | 'closing' | 'with_transactions'>('closing');
+  const [expandedTbNodes, setExpandedTbNodes] = useState<Set<string>>(new Set());
+  const [hasInitializedTbTree, setHasInitializedTbTree] = useState(false);
   const [bsData, setBsData] = useState<any | null>(null);
   const [bsLoading, setBsLoading] = useState(false);
   const [daybookData, setDaybookData] = useState<{ results: any[]; count: number } | null>(null);
@@ -331,11 +336,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   useEffect(() => {
     if (reportType !== 'TrialBalance') return;
     setTbLoading(true);
+    setHasInitializedTbTree(false);
     apiService.getTrialBalanceReport(startDate || undefined, endDate || undefined)
       .then(res => setTbData(res?.data || res))
       .catch(err => console.error('Trial Balance API error:', err))
       .finally(() => setTbLoading(false));
-  }, [reportType, startDate, endDate]);
+  }, [reportType, startDate, endDate, trialBalanceType]);
 
   // Fetch Balance Sheet from backend when report type changes or end date changes
   useEffect(() => {
@@ -557,7 +563,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
         // Show individual transaction details
         const tableData = salesVouchers.map((v, idx) => ({
           '#': String(idx + 1),
-          'Date': new Date(v.date).toLocaleDateString('en-IN'),
+          'Date': formatDate(v.date),
           'Invoice No': v.invoiceNo || '-',
           'Customer': v.party,
           'Taxable Amount (₹)': `₹${(Number(v.totalTaxableAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -570,7 +576,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
         const chartData = salesVouchers
           .slice(0, 10)
           .map((v, idx) => ({
-            name: `${new Date(v.date).toLocaleDateString('en-IN')} - ${v.party.substring(0, 15)}`,
+            name: `${formatDate(v.date)} - ${v.party.substring(0, 15)}`,
             value: Number(v.total) || 0,
             color: CHART_COLORS[idx % CHART_COLORS.length]
           }));
@@ -667,8 +673,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             'CGST (₹)': `₹${details.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             'SGST (₹)': `₹${details.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             'IGST (₹)': `₹${details.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            'First Transaction': firstDate.toLocaleDateString('en-IN'),
-            'Last Transaction': lastDate.toLocaleDateString('en-IN'),
+            'First Transaction': formatDate(firstDate.toISOString()),
+            'Last Transaction': formatDate(lastDate.toISOString()),
             'Share (%)': totalSales > 0 ? `${((item.value / totalSales) * 100).toFixed(1)}%` : '0%'
           };
         });
@@ -770,8 +776,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           'CGST (₹)': `₹${details.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           'SGST (₹)': `₹${details.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           'IGST (₹)': `₹${details.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          'First Transaction': firstDate.toLocaleDateString('en-IN'),
-          'Last Transaction': lastDate.toLocaleDateString('en-IN'),
+          'First Transaction': formatDate(firstDate.toISOString()),
+          'Last Transaction': formatDate(lastDate.toISOString()),
           'Share (%)': totalPurchases > 0 ? `${((item.value / totalPurchases) * 100).toFixed(1)}%` : '0%'
         };
       });
@@ -914,8 +920,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             'Net Balance (₹)': `₹${netBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             'Total Tax (₹)': `₹${details.totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             'Transactions': String(totalTransactions),
-            'First Transaction': firstDate ? firstDate.toLocaleDateString('en-IN') : '-',
-            'Last Transaction': lastDate ? lastDate.toLocaleDateString('en-IN') : '-'
+            'First Transaction': firstDate ? formatDate(firstDate.toISOString()) : '-',
+            'Last Transaction': lastDate ? formatDate(lastDate.toISOString()) : '-'
           };
         });
 
@@ -2120,7 +2126,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                   }
                 }}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{new Date(v.date).toLocaleDateString('en-IN')}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDate(v.date)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{v.type}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-600">{v.voucher_number || '-'}</td>
                 <td
@@ -2234,7 +2240,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   // ═══ LEVEL 2: Detail view — full transactions for a specific ledger ═════════
   const renderLedgerDetail = () => {
     const last = drillDownEntries[drillDownEntries.length - 1];
-    const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-IN') : '-';
+    const fmtDate = (d: string) => d ? formatDate(d) : '-';
     const totalDr = filteredDrillData.reduce((s, e) => s + (e.debit || 0), 0);
     const totalCr = filteredDrillData.reduce((s, e) => s + (e.credit || 0), 0);
 
@@ -2769,7 +2775,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                       {row.isFirstInSource && (
                         <>
-                          <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 align-top">{row.date ? new Date(row.date).toLocaleDateString('en-IN') : '-'}</td>
+                          <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 align-top">{row.date ? formatDate(row.date) : '-'}</td>
                           <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100 align-top">
                             <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.postedFrom === 'Purchase' ? 'bg-blue-50 text-blue-600 border border-blue-100' : row.postedFrom === 'Sales' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-100'}`}>{normalizeVoucherType(row.postedFrom)}</span>
                           </td>
@@ -2777,7 +2783,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           <td rowSpan={row.rowSpan} className="px-6 py-4 text-sm text-right font-medium text-slate-900 border-r border-slate-100 align-top">{row.netAmount !== '-' ? `₹${Number(row.netAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
                         </>
                       )}
-                      <td className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100">{row.appliedDate !== '-' ? new Date(row.appliedDate).toLocaleDateString('en-IN') : '-'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600 border-r border-slate-100">{row.appliedDate !== '-' ? formatDate(row.appliedDate) : '-'}</td>
                       <td className="px-6 py-4 text-sm font-medium text-slate-700 border-r border-slate-100">{row.appliedRefNo}</td>
                       <td className="px-6 py-4 text-sm text-right font-bold text-emerald-600 border-r border-slate-100">{row.appliedAmount !== '-' ? `₹${Number(row.appliedAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
                       <td className="px-6 py-4 text-sm text-right font-bold text-slate-900 border-r border-slate-100">{row.pendingBalance !== '-' ? `₹${Number(row.pendingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
@@ -2851,7 +2857,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                     if (!isPmt) return false;
                     const isAdv = e.is_advance || e.rawVoucher?.is_advance || (e.referenceNo === '-' || !e.referenceNo || e.referenceNo.trim() === '');
                     if (!isAdv) return false;
-                    
+
                     // If the voucher is already linked to a specific invoice, do not show it as available
                     if (e.referenceNo && !['ADVANCE', '', '-', 'N/A'].includes(e.referenceNo.toUpperCase().trim())) return false;
                     if (e.allocation_status === 'Utilized' || e.allocationStatus === 'Utilized') return false;
@@ -2900,7 +2906,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                     />
                                   </td>
                                   <td className="px-4 py-3 font-medium text-gray-900">{adv.voucherNo || '-'}</td>
-                                  <td className="px-4 py-3 text-gray-500">{adv.date ? new Date(adv.date).toLocaleDateString('en-IN') : '-'}</td>
+                                  <td className="px-4 py-3 text-gray-500">{adv.date ? formatDate(adv.date) : '-'}</td>
                                   <td className="px-4 py-3 text-right text-gray-900 font-bold">
                                     {adv.credit > 0 ? `₹${adv.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : adv.debit > 0 ? `₹${adv.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
                                   </td>
@@ -3064,8 +3070,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           <div className="grid grid-cols-2 gap-6" style={{ animation: 'fadeIn 0.15s ease' }}>
                             <div>
                               <label className="label-text">DATE *</label>
-                              <input
-                                type="date"
+                              <DateInput
+
                                 value={editedVoucher?.date || ''}
                                 disabled={!isEditingVoucher}
                                 onChange={(e) => handleFieldChange('date', e.target.value)}
@@ -3250,8 +3256,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                           />
                                         </td>
                                         <td className="px-4 py-3">
-                                          <input
-                                            type="date"
+                                          <DateInput
+
                                             value={alloc.date || alloc.invoice_date || ''}
                                             disabled={!isEditingVoucher}
                                             onChange={(e) => {
@@ -3289,8 +3295,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           <div className="grid grid-cols-2 gap-6" style={{ animation: 'fadeIn 0.15s ease' }}>
                             <div>
                               <label className="label-text">DATE *</label>
-                              <input
-                                type="date"
+                              <DateInput
+
                                 value={editedVoucher?.date || ''}
                                 disabled={!isEditingVoucher}
                                 onChange={(e) => handleFieldChange('date', e.target.value)}
@@ -3368,8 +3374,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                             {selectedTransaction?.voucherType?.toLowerCase() === 'purchase' && (
                               <div>
                                 <label className="label-text">SUPPLIER INVOICE DATE</label>
-                                <input
-                                  type="date"
+                                <DateInput
+
                                   value={editedVoucher?.supplier_invoice_date || editedVoucher?.date || ''}
                                   disabled={!isEditingVoucher}
                                   onChange={(e) => handleFieldChange('supplier_invoice_date', e.target.value)}
@@ -3930,8 +3936,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <label className="label-text">
                                   {selectedTransaction?.voucherType?.toLowerCase() === 'purchase' ? 'RECEIPT DATE' : 'DISPATCH DATE'}
                                 </label>
-                                <input
-                                  type="date"
+                                <DateInput
+
                                   value={td?.receipt_date || td?.dispatch_date || ''}
                                   disabled={!isEditingVoucher}
                                   onChange={(e) => handleFieldChange('transit_details.receipt_date', e.target.value)}
@@ -4112,44 +4118,530 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     );
   };
 
-  const renderTrialBalance = () => (
-    <div className="erp-table-container">
-      <table className="erp-table">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ledger</th>
-            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Debit</th>
-            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Credit</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {tbLoading && (
-            <tr><td colSpan={3} className="text-center py-8 text-gray-400">Loading trial balance…</td></tr>
-          )}
-          {!tbLoading && tbData?.results.map(item => (
-            <tr key={item.ledger} className="hover:bg-gray-50 transition-colors">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{item.ledger}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.debit > 0 ? `₹${Number(item.debit).toFixed(2)}` : ''}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{item.credit > 0 ? `₹${Number(item.credit).toFixed(2)}` : ''}</td>
+  const renderTrialBalance = () => {
+    const showOpeningBalance = trialBalanceType === 'opening';
+    const showTransactions = trialBalanceType === 'with_transactions';
+    const showClosingBalance = trialBalanceType === 'closing';
+    const typeLabel = trialBalanceType === 'opening' ? 'Opening Trial Balance'
+      : trialBalanceType === 'with_transactions' ? 'Trial Balance with Transactions'
+        : 'Closing Trial Balance';
+
+    // Filter results based on report type to ONLY show ledgers that have values for that report type
+    const itemsToDisplay = (tbData?.results || []).filter(item => {
+      const openingDr = Number(item.opening_debit || item.opening_balance_dr || 0);
+      const openingCr = Number(item.opening_credit || item.opening_balance_cr || 0);
+      const txDr = Number(item.period_debit || 0);
+      const txCr = Number(item.period_credit || 0);
+      const closingDr = Number(item.closing_debit || (item.debit > 0 ? item.debit : 0));
+      const closingCr = Number(item.closing_credit || (item.credit > 0 ? item.credit : 0));
+
+      if (showOpeningBalance) {
+        return openingDr > 0 || openingCr > 0;
+      }
+      if (showClosingBalance) {
+        return closingDr > 0 || closingCr > 0;
+      }
+      return openingDr > 0 || openingCr > 0 || txDr > 0 || txCr > 0 || closingDr > 0 || closingCr > 0;
+    });
+
+    // Calculate totals for displayed items
+    let totDisplayDr = 0, totDisplayCr = 0;
+    let totOpDr = 0, totOpCr = 0;
+    let totTxDr = 0, totTxCr = 0;
+    let totClDr = 0, totClCr = 0;
+
+    itemsToDisplay.forEach(item => {
+      const openingDr = Number(item.opening_debit || item.opening_balance_dr || 0);
+      const openingCr = Number(item.opening_credit || item.opening_balance_cr || 0);
+      const txDr = Number(item.period_debit || 0);
+      const txCr = Number(item.period_credit || 0);
+      const closingDr = Number(item.closing_debit || (item.debit > 0 ? item.debit : 0));
+      const closingCr = Number(item.closing_credit || (item.credit > 0 ? item.credit : 0));
+
+      totOpDr += openingDr;
+      totOpCr += openingCr;
+      totTxDr += txDr;
+      totTxCr += txCr;
+      totClDr += closingDr;
+      totClCr += closingCr;
+
+      if (showOpeningBalance) {
+        totDisplayDr += openingDr;
+        totDisplayCr += openingCr;
+      } else {
+        totDisplayDr += closingDr;
+        totDisplayCr += closingCr;
+      }
+    });
+
+    interface TBTreeNode {
+      id: string;
+      name: string;
+      type: 'category' | 'group' | 'subgroup' | 'ledger';
+      level: number;
+      openingDr: number;
+      openingCr: number;
+      txDr: number;
+      txCr: number;
+      closingDr: number;
+      closingCr: number;
+      displayDr: number;
+      displayCr: number;
+      children: TBTreeNode[];
+      ledgerName?: string;
+      isEndpoint?: boolean;
+    }
+
+    const buildTBTree = (): TBTreeNode[] => {
+      const rootCategories = [
+        "OWNERS' FUNDS",
+        "LIABILITY",
+        "ASSET",
+        "INCOME",
+        "EXPENDITURE"
+      ];
+
+      const categoryMap = new Map<string, TBTreeNode>();
+      rootCategories.forEach(cat => {
+        categoryMap.set(cat, {
+          id: `cat:${cat}`,
+          name: cat,
+          type: 'category',
+          level: 0,
+          openingDr: 0, openingCr: 0, txDr: 0, txCr: 0, closingDr: 0, closingCr: 0, displayDr: 0, displayCr: 0,
+          children: []
+        });
+      });
+
+      const resolveCategory = (item: any): string => {
+        const catStr = String(item.category || item.major_group || '').toLowerCase().trim();
+        if (catStr.includes('capital') || catStr.includes('owner') || catStr.includes('equity')) return "OWNERS' FUNDS";
+        if (catStr.includes('liab')) return "LIABILITY";
+        if (catStr.includes('asset')) return "ASSET";
+        if (catStr.includes('inc') || catStr.includes('rev')) return "INCOME";
+        if (catStr.includes('exp')) return "EXPENDITURE";
+
+        const grpStr = String(item.group || '').toLowerCase().trim();
+        if (grpStr.includes('sales') || grpStr.includes('revenue') || grpStr.includes('income')) return "INCOME";
+        if (grpStr.includes('purchase') || grpStr.includes('cost') || grpStr.includes('expense') || grpStr.includes('direct') || grpStr.includes('indirect')) return "EXPENDITURE";
+        if (grpStr.includes('bank') || grpStr.includes('cash') || grpStr.includes('debtor') || grpStr.includes('asset') || grpStr.includes('inventory')) return "ASSET";
+        if (grpStr.includes('creditor') || grpStr.includes('liab') || grpStr.includes('tax') || grpStr.includes('duty') || grpStr.includes('provision')) return "LIABILITY";
+        if (grpStr.includes('capital') || grpStr.includes('fund') || grpStr.includes('reserve') || grpStr.includes('share')) return "OWNERS' FUNDS";
+
+        const lStr = String(item.ledger || '').toLowerCase().trim();
+        if (lStr.includes('sale')) return "INCOME";
+        if (lStr.includes('purchase') || lStr.includes('expense') || lStr.includes('fee') || lStr.includes('rent')) return "EXPENDITURE";
+        if (lStr.includes('bank') || lStr.includes('cash') || lStr.includes('asset')) return "ASSET";
+        if (lStr.includes('capital') || lStr.includes('reserve') || lStr.includes('fund')) return "OWNERS' FUNDS";
+        return "EXPENDITURE";
+      };
+
+      itemsToDisplay.forEach(item => {
+        const openingDr = Number(item.opening_debit || item.opening_balance_dr || 0);
+        const openingCr = Number(item.opening_credit || item.opening_balance_cr || 0);
+        const txDr = Number(item.period_debit || 0);
+        const txCr = Number(item.period_credit || 0);
+        const closingDr = Number(item.closing_debit || (item.debit > 0 ? item.debit : 0));
+        const closingCr = Number(item.closing_credit || (item.credit > 0 ? item.credit : 0));
+        const displayDr = showOpeningBalance ? openingDr : closingDr;
+        const displayCr = showOpeningBalance ? openingCr : closingCr;
+
+        const catName = resolveCategory(item);
+        const parentCatNode = categoryMap.get(catName)!;
+
+        const pathParts: string[] = [];
+        const g = item.group && item.group !== '-' && item.group !== catName ? String(item.group).trim() : '';
+        const sg1 = item.sub_group_1 && item.sub_group_1 !== '-' ? String(item.sub_group_1).trim() : '';
+        const sg2 = item.sub_group_2 && item.sub_group_2 !== '-' ? String(item.sub_group_2).trim() : '';
+        const sg3 = item.sub_group_3 && item.sub_group_3 !== '-' ? String(item.sub_group_3).trim() : '';
+
+        if (g) pathParts.push(g);
+        if (sg1) pathParts.push(sg1);
+        if (sg2) pathParts.push(sg2);
+        if (sg3) pathParts.push(sg3);
+
+        let currChildren = parentCatNode.children;
+        let currPath = parentCatNode.id;
+        let currLevel = 1;
+
+        pathParts.forEach((pName, pIdx) => {
+          currPath += `>${pName}`;
+          let groupNode = currChildren.find(c => c.name === pName);
+          if (!groupNode) {
+            groupNode = {
+              id: currPath,
+              name: pName,
+              type: pIdx === 0 ? 'group' : 'subgroup',
+              level: currLevel,
+              openingDr: 0, openingCr: 0, txDr: 0, txCr: 0, closingDr: 0, closingCr: 0, displayDr: 0, displayCr: 0,
+              children: []
+            };
+            currChildren.push(groupNode);
+          }
+          currChildren = groupNode.children;
+          currLevel++;
+        });
+
+        const ledgerNode: TBTreeNode = {
+          id: `${currPath}>${item.ledger}`,
+          name: item.ledger,
+          ledgerName: item.ledger,
+          type: 'ledger',
+          level: currLevel,
+          openingDr, openingCr, txDr, txCr, closingDr, closingCr, displayDr, displayCr,
+          children: [],
+          isEndpoint: true
+        };
+        currChildren.push(ledgerNode);
+      });
+
+      const aggregateSums = (node: TBTreeNode) => {
+        if (node.children.length > 0) {
+          node.openingDr = 0; node.openingCr = 0;
+          node.txDr = 0; node.txCr = 0;
+          node.closingDr = 0; node.closingCr = 0;
+          node.displayDr = 0; node.displayCr = 0;
+          node.children.forEach(child => {
+            aggregateSums(child);
+            node.openingDr += child.openingDr;
+            node.openingCr += child.openingCr;
+            node.txDr += child.txDr;
+            node.txCr += child.txCr;
+            node.closingDr += child.closingDr;
+            node.closingCr += child.closingCr;
+            node.displayDr += child.displayDr;
+            node.displayCr += child.displayCr;
+          });
+        }
+      };
+
+      const finalRoots: TBTreeNode[] = [];
+      categoryMap.forEach(catNode => {
+        aggregateSums(catNode);
+        if (catNode.children.length > 0 || catNode.openingDr > 0 || catNode.openingCr > 0 || catNode.closingDr > 0 || catNode.closingCr > 0) {
+          finalRoots.push(catNode);
+        }
+      });
+
+      return finalRoots;
+    };
+
+    const treeRoots = buildTBTree();
+
+    // Auto-populate default expanded nodes ONCE on initial load
+    if (!hasInitializedTbTree && treeRoots.length > 0) {
+      const initialSet = new Set<string>();
+      const walkInitial = (nodes: TBTreeNode[]) => {
+        nodes.forEach(n => {
+          if (n.children.length > 0) {
+            initialSet.add(n.id);
+            if (n.level < 2) walkInitial(n.children);
+          }
+        });
+      };
+      walkInitial(treeRoots);
+      setExpandedTbNodes(initialSet);
+      setHasInitializedTbTree(true);
+    }
+
+    const visibleRows: TBTreeNode[] = [];
+    const walkVisible = (nodes: TBTreeNode[]) => {
+      nodes.forEach(n => {
+        visibleRows.push(n);
+        if (n.children.length > 0 && expandedTbNodes.has(n.id)) {
+          walkVisible(n.children);
+        }
+      });
+    };
+    walkVisible(treeRoots);
+
+    const formatInr = (val: number) => val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const toggleNode = (nodeId: string) => {
+      setExpandedTbNodes(prev => {
+        const next = new Set(prev);
+        if (next.has(nodeId)) next.delete(nodeId);
+        else next.add(nodeId);
+        return next;
+      });
+    };
+
+    return (
+      <div className="erp-table-container">
+        <div className="p-3 text-center text-sm font-semibold text-indigo-700 bg-indigo-50 border-b border-indigo-100">{typeLabel}</div>
+        <table className="erp-table table-fixed w-full">
+          <colgroup>
+            <col />
+            {showTransactions ? (
+              <>
+                <col className="w-48" />
+                <col className="w-44" />
+                <col className="w-44" />
+                <col className="w-48" />
+              </>
+            ) : (
+              <>
+                <col className="w-60" />
+                <col className="w-60" />
+              </>
+            )}
+          </colgroup>
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Group / Ledger Hierarchy
+              </th>
+              {showTransactions && (
+                <>
+                  <th className="w-48 px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Opening Balance</th>
+                  <th className="w-44 px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Transactions Debit</th>
+                  <th className="w-44 px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Transactions Credit</th>
+                  <th className="w-48 px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Closing Balance</th>
+                </>
+              )}
+              {!showTransactions && (
+                <>
+                  <th className="w-60 px-8 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Debit</th>
+                  <th className="w-60 px-8 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Credit</th>
+                </>
+              )}
             </tr>
-          ))}
-          {!tbLoading && !tbData?.results?.length && (
-            <tr><td colSpan={3} className="text-center py-8 text-gray-400">No data available for selected period.</td></tr>
-          )}
-        </tbody>
-        <tfoot className="bg-gray-100">
-          <tr>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right text-gray-900">Total</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{Number(tbData?.total_debit || 0).toFixed(2)}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{Number(tbData?.total_credit || 0).toFixed(2)}</td>
-          </tr>
-          {tbData && !tbData.is_balanced && (
-            <tr><td colSpan={3} className="text-center text-xs text-indigo-600 py-1">⚠ Trial Balance difference: ₹{Math.abs(Number(tbData.total_debit) - Number(tbData.total_credit)).toFixed(2)}</td></tr>
-          )}
-        </tfoot>
-      </table>
-    </div>
-  );
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            {tbLoading && (
+              <tr><td colSpan={showTransactions ? 5 : 3} className="text-center py-8 text-gray-400">Loading trial balance…</td></tr>
+            )}
+
+            {/* TREE VIEW RENDERING */}
+            {!tbLoading && visibleRows.map(node => {
+              const isCat = node.type === 'category';
+              const isGroupNode = node.children.length > 0;
+              const isExpanded = expandedTbNodes.has(node.id);
+
+              const opVal = node.openingDr > 0 ? `₹${formatInr(node.openingDr)} Dr` : node.openingCr > 0 ? `₹${formatInr(node.openingCr)} Cr` : '-';
+              const clVal = node.closingDr > 0 ? `₹${formatInr(node.closingDr)} Dr` : node.closingCr > 0 ? `₹${formatInr(node.closingCr)} Cr` : '-';
+
+              const paddingLeft = isCat ? 'pl-4' : node.level === 1 ? 'pl-8' : node.level === 2 ? 'pl-12' : node.level === 3 ? 'pl-16' : 'pl-20';
+
+              const bgClass = isCat
+                ? 'bg-gray-100/90 font-bold text-gray-900 hover:bg-gray-200/90'
+                : isGroupNode
+                  ? 'bg-indigo-50/40 font-semibold text-indigo-950 hover:bg-indigo-100/50'
+                  : 'hover:bg-indigo-50/70 cursor-pointer text-indigo-600 group';
+
+              return (
+                <tr
+                  key={node.id}
+                  onClick={() => {
+                    if (isGroupNode) {
+                      toggleNode(node.id);
+                    } else if (node.ledgerName) {
+                      setDrillDownLedger(node.ledgerName);
+                    }
+                  }}
+                  className={`transition-colors ${bgClass}`}
+                  title={node.isEndpoint ? `Click to view transactions for ${node.name}` : `Click to ${isExpanded ? 'collapse' : 'expand'} group`}
+                >
+                  <td className={`px-4 py-3 whitespace-nowrap text-sm ${paddingLeft}`}>
+                    <div className="flex items-center">
+                      {isGroupNode ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleNode(node.id); }}
+                          className="w-5 h-5 flex items-center justify-center rounded text-indigo-600 hover:bg-indigo-200 font-bold text-xs mr-2 transition-transform select-none"
+                        >
+                          {isExpanded ? '−' : '+'}
+                        </button>
+                      ) : (
+                        <span className="w-5 h-5 inline-block mr-2 select-none" />
+                      )}
+
+                      <span className={node.isEndpoint ? 'italic font-medium text-indigo-600 group-hover:underline' : isCat ? 'font-extrabold text-gray-900 tracking-wide uppercase' : 'font-semibold text-gray-800'}>
+                        {node.name}
+                      </span>
+                    </div>
+                  </td>
+                  {showTransactions && (
+                    <>
+                      <td className="w-48 px-6 py-3 whitespace-nowrap text-sm font-mono text-right text-gray-700">{opVal}</td>
+                      <td className="w-44 px-6 py-3 whitespace-nowrap text-sm font-mono text-right text-blue-700 font-medium">{node.txDr > 0 ? `₹${formatInr(node.txDr)}` : '-'}</td>
+                      <td className="w-44 px-6 py-3 whitespace-nowrap text-sm font-mono text-right text-blue-700 font-medium">{node.txCr > 0 ? `₹${formatInr(node.txCr)}` : '-'}</td>
+                      <td className="w-48 px-6 py-3 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">{clVal}</td>
+                    </>
+                  )}
+                  {!showTransactions && (
+                    <>
+                      <td className="w-60 px-8 py-3 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{node.displayDr > 0 ? `₹${formatInr(node.displayDr)}` : '-'}</td>
+                      <td className="w-60 px-8 py-3 whitespace-nowrap text-sm font-mono text-right font-semibold text-gray-900">{node.displayCr > 0 ? `₹${formatInr(node.displayCr)}` : '-'}</td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+            {!tbLoading && !itemsToDisplay.length && (
+              <tr><td colSpan={showTransactions ? 5 : 3} className="text-center py-8 text-gray-400">No ledgers with balances for selected view.</td></tr>
+            )}
+          </tbody>
+          <tfoot className="bg-gray-100">
+            <tr>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right text-gray-900">Total</td>
+              {showTransactions && (
+                <>
+                  <td className="w-48 px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">
+                    {totOpDr >= totOpCr ? `₹${(totOpDr - totOpCr).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Dr` : `₹${(totOpCr - totOpDr).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr`}
+                  </td>
+                  <td className="w-44 px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-blue-800">₹{totTxDr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="w-44 px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-blue-800">₹{totTxCr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="w-48 px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">
+                    {totClDr >= totClCr ? `₹${(totClDr - totClCr).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Dr` : `₹${(totClCr - totClDr).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr`}
+                  </td>
+                </>
+              )}
+              {!showTransactions && (
+                <>
+                  <td className="w-60 px-8 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{totDisplayDr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="w-60 px-8 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">₹{totDisplayCr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </>
+              )}
+            </tr>
+            {tbData && Math.abs(totDisplayDr - totDisplayCr) >= 0.01 && (
+              <tr><td colSpan={showTransactions ? 5 : 3} className="text-center text-xs text-indigo-600 py-1">⚠ Trial Balance difference: ₹{Math.abs(totDisplayDr - totDisplayCr).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>
+            )}
+          </tfoot>
+        </table>
+      </div>
+    );
+  };
+
+  const renderTrialBalanceLedgerDetail = () => {
+    const totalDr = drillDownData.reduce((sum, item) => sum + Number(item.debit || 0), 0);
+    const totalCr = drillDownData.reduce((sum, item) => sum + Number(item.credit || 0), 0);
+    const last = drillDownData.length > 0 ? drillDownData[drillDownData.length - 1] : null;
+
+    const formatInr = (val: number) => val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    return (
+      <div className="space-y-6">
+        {/* Breadcrumb & Navigation */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 text-sm">
+            <button
+              onClick={() => { setDrillDownLedger(null); setDrillDownSourceType(null); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Trial Balance
+            </button>
+            <span className="text-gray-300">/</span>
+            <span className="font-bold text-gray-800">{drillDownLedger}</span>
+          </div>
+        </div>
+
+        {/* Ledger Summary Bar */}
+        <div className="bg-gradient-to-r from-slate-900 to-indigo-900 text-white rounded-xl p-6 shadow-md flex flex-wrap items-center justify-between gap-6">
+          <div>
+            <div className="text-xs uppercase font-bold text-indigo-300 tracking-wider mb-1">Ledger Account</div>
+            <h2 className="text-2xl font-extrabold text-white">{drillDownLedger}</h2>
+            {startDate || endDate ? (
+              <p className="text-xs text-slate-300 mt-1">Period: {startDate || 'Start'} to {endDate || 'Today'}</p>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-8 bg-white/10 backdrop-blur-md px-6 py-3 rounded-lg border border-white/10">
+            <div className="text-right">
+              <div className="text-xs text-slate-300 uppercase font-semibold">Total Debit</div>
+              <div className="text-lg font-mono font-bold text-emerald-400">₹{formatInr(totalDr)}</div>
+            </div>
+            <div className="w-px h-8 bg-white/20"></div>
+            <div className="text-right">
+              <div className="text-xs text-slate-300 uppercase font-semibold">Total Credit</div>
+              <div className="text-lg font-mono font-bold text-rose-400">₹{formatInr(totalCr)}</div>
+            </div>
+            {last && (
+              <>
+                <div className="w-px h-8 bg-white/20"></div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-300 uppercase font-semibold">Closing Balance</div>
+                  <div className="text-lg font-mono font-bold text-white flex items-center gap-1">
+                    ₹{formatInr(Number(last.balance || 0))}
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-500/40 text-indigo-200 font-sans">{last.balanceType || 'Dr'}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Clean Ledger Transactions Table (Trial Balance Table Style) */}
+        <div className="erp-table-container">
+          <div className="p-3 text-center text-sm font-semibold text-indigo-700 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between px-6">
+            <span>Ledger Transaction Register — {drillDownLedger}</span>
+            <span className="text-xs font-normal text-slate-500">{drillDownData.length} Transactions</span>
+          </div>
+
+          <table className="erp-table">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Particulars</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Voucher Type</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Voucher No</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Debit (₹)</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Credit (₹)</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Running Balance</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {isDrillDownLoading && (
+                <tr><td colSpan={7} className="text-center py-12 text-gray-400">Loading ledger transactions…</td></tr>
+              )}
+              {!isDrillDownLoading && drillDownData.map((item, idx) => (
+                <tr
+                  key={item.id || idx}
+                  onClick={() => handleViewTransaction(item)}
+                  className="hover:bg-indigo-50/60 transition-colors cursor-pointer"
+                  title="Click to view voucher detail"
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(item.date)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-900">{item.particulars || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                      {normalizeVoucherType(item.voucherType)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">{item.voucherNo || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right text-emerald-600 font-semibold">
+                    {item.debit > 0 ? `₹${formatInr(Number(item.debit))}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right text-rose-600 font-semibold">
+                    {item.credit > 0 ? `₹${formatInr(Number(item.credit))}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-bold text-gray-900">
+                    ₹{formatInr(Number(item.balance || 0))} <span className="text-xs text-gray-500 font-sans">{item.balanceType || 'Dr'}</span>
+                  </td>
+                </tr>
+              ))}
+              {!isDrillDownLoading && !drillDownData.length && (
+                <tr><td colSpan={7} className="text-center py-12 text-gray-400">No transactions recorded for <strong>{drillDownLedger}</strong> in this period.</td></tr>
+              )}
+            </tbody>
+            <tfoot className="bg-gray-100 font-bold text-sm">
+              <tr>
+                <td colSpan={4} className="px-6 py-4 text-right text-gray-900">Total</td>
+                <td className="px-6 py-4 text-right font-mono text-emerald-700">₹{formatInr(totalDr)}</td>
+                <td className="px-6 py-4 text-right font-mono text-rose-700">₹{formatInr(totalCr)}</td>
+                <td className="px-6 py-4 text-right font-mono text-indigo-900">
+                  {last ? `₹${formatInr(Number(last.balance || 0))} ${last.balanceType || 'Dr'}` : '-'}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
   const renderStockSummary = () => (
     <div className="erp-table-container">
@@ -4425,572 +4917,648 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
 
 
 
-      <div className="hidden print:block border-b border-slate-350 pb-4 mb-6">
-        <h1 className="text-2xl font-bold text-slate-950 uppercase tracking-wide">{allReports.find(r => r.id === reportType)?.label}</h1>
-        <p className="text-xs text-slate-500 font-semibold mt-1">Generated on {new Date().toLocaleDateString()}</p>
-      </div>
+        <div className="hidden print:block border-b border-slate-350 pb-4 mb-6">
+          <h1 className="text-2xl font-bold text-slate-950 uppercase tracking-wide">{allReports.find(r => r.id === reportType)?.label}</h1>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Generated on {formatDate(new Date().toISOString())}</p>
+        </div>
 
-      {/* Main Tabs */}
-      <div className="erp-tab-container">
-        {availableReports.map(({ id, label }) => (
-          <button
-            key={`report-tab-${id}`}
-            onClick={() => setReportType(id as ReportType)}
-            className={`erp-tab ${reportType === id ? 'active' : ''}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        {/* Main Tabs */}
+        <div className="erp-tab-container">
+          {availableReports.map(({ id, label }) => (
+            <button
+              key={`report-tab-${id}`}
+              onClick={() => setReportType(id as ReportType)}
+              className={`erp-tab ${reportType === id ? 'active' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-      <div className="erp-container">
-        {reportType === 'DayBook' && (
-          <>
-            <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-              <div className="min-w-[200px]">
-                <label htmlFor="startDate" className="label-text">Start Date</label>
-                <input
-                  type="date"
-                  id="startDate"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="erp-input"
-                />
+        <div className="erp-container">
+          {reportType === 'DayBook' && (
+            <>
+              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="min-w-[200px]">
+                  <label htmlFor="startDate" className="label-text">Start Date</label>
+                  <DateInput
+
+                    id="startDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+                <div className="min-w-[200px]">
+                  <label htmlFor="endDate" className="label-text">End Date</label>
+                  <DateInput
+
+                    id="endDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <button
+                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    className="erp-button-secondary"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
-              <div className="min-w-[200px]">
-                <label htmlFor="endDate" className="label-text">End Date</label>
-                <input
-                  type="date"
-                  id="endDate"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-              {(startDate || endDate) && (
+
+              <div className="flex justify-end mb-4">
                 <button
-                  onClick={() => { setStartDate(''); setEndDate(''); }}
-                  className="erp-button-secondary"
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
                 >
-                  Clear
+                  Create PDF
                 </button>
-              )}
-            </div>
-
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => window.print()}
-                className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                title="Create PDF"
-              >
-                Create PDF
-              </button>
-            </div>
-          </>
-        )}
-        {reportType === 'LedgerReport' && (
-          <>
-            <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-              <div className="min-w-[250px]">
-                <label className="label-text">Select Ledger/Group</label>
-                <LedgerSelector
-                  selectedValue={selectedLedger}
-                  onChange={(val) => {
-                    setSelectedLedger(val);
-                    if (val && val !== 'all') {
-                      const [prefix, name] = val.split(':');
-                      if (prefix === 'ledger') {
-                        setDrillDownLedger(name);
+              </div>
+            </>
+          )}
+          {reportType === 'LedgerReport' && (
+            <>
+              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="min-w-[250px]">
+                  <label className="label-text">Select Ledger/Group</label>
+                  <LedgerSelector
+                    selectedValue={selectedLedger}
+                    onChange={(val) => {
+                      setSelectedLedger(val);
+                      if (val && val !== 'all') {
+                        const [prefix, name] = val.split(':');
+                        if (prefix === 'ledger') {
+                          setDrillDownLedger(name);
+                        } else {
+                          setDrillDownLedger(null);
+                        }
                       } else {
                         setDrillDownLedger(null);
                       }
-                    } else {
-                      setDrillDownLedger(null);
-                    }
-                  }}
-                  groups={ledgerGroups}
-                  ledgers={ledgers}
-                />
-              </div>
-              {isTdsTcsLedger && (
-                <div className="min-w-[180px]">
-                  <label htmlFor="sessionFilter" className="label-text">Select Session</label>
-                  <select
-                    id="sessionFilter"
-                    value={selectedSession}
-                    onChange={(e) => setSelectedSession(e.target.value)}
-                    className="erp-select"
-                  >
-                    <option value="all">All Sessions</option>
-                    <option value="2024-2025">2024-2025</option>
-                    <option value="2025-2026">2025-2026</option>
-                    <option value="2026-2027">2026-2027</option>
-                  </select>
+                    }}
+                    groups={ledgerGroups}
+                    ledgers={ledgers}
+                  />
                 </div>
-              )}
-              {isTdsTcsLedger && (
-                <div className="min-w-[180px]">
-                  <label htmlFor="sectionFilter" className="label-text">Select Section</label>
-                  <select
-                    id="sectionFilter"
-                    value={selectedSection}
-                    onChange={(e) => setSelectedSection(e.target.value)}
-                    className="erp-select"
-                  >
-                    <option value="all">All Sections</option>
-                    {availableSections.map((sec) => (
-                      <option key={sec} value={sec}>
-                        {sec}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-            </div>
-
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => window.print()}
-                className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                title="Create PDF"
-              >
-                Create PDF
-              </button>
-            </div>
-          </>
-        )}
-        {reportType === 'TrialBalance' && (
-          <>
-            <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-              <div className="min-w-[200px]">
-                <label htmlFor="trialStartDate" className="label-text">Start Date</label>
-                <input
-                  type="date"
-                  id="trialStartDate"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-              <div className="min-w-[200px]">
-                <label htmlFor="trialEndDate" className="label-text">End Date</label>
-                <input
-                  type="date"
-                  id="trialEndDate"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => window.print()}
-                className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                title="Create PDF"
-              >
-                Create PDF
-              </button>
-            </div>
-          </>
-        )}
-        {reportType === 'BalanceSheet' && (
-          <>
-            <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-              <div className="min-w-[200px]">
-                <label className="label-text">As of Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => window.print()}
-                className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                title="Create PDF"
-              >
-                Create PDF
-              </button>
-            </div>
-
-            <div className="bg-white border rounded-[4px] overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b font-bold text-center text-gray-800">Balance Sheet</div>
-              {bsLoading && (
-                <div className="p-8 text-center text-gray-400">Loading balance sheet…</div>
-              )}
-              {!bsLoading && !bsData && (
-                <div className="p-8 text-center text-gray-400">No data available. Select a date or ensure journal entries exist.</div>
-              )}
-              {!bsLoading && bsData && (
-                <>
-                  {bsData.is_balanced === false && (
-                    <div className="p-2 text-center text-xs bg-indigo-50 text-indigo-700 border-b border-indigo-200">
-                      ⚠ Balance Sheet does not balance. Difference: ₹{Math.abs(Number(bsData.assets?.total || 0) - Number((bsData.liabilities?.total || 0) + (bsData.capital?.total || 0))).toFixed(2)}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 divide-x divide-gray-200">
-                    {/* LEFT — Assets */}
-                    <div className="p-4">
-                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Assets</h3>
-                      {/* Fixed Assets */}
-                      {(bsData.assets?.fixed_assets?.length > 0) && (
-                        <>
-                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Fixed Assets</p>
-                          {bsData.assets.fixed_assets.map((item: any) => (
-                            <div key={item.name} className="flex justify-between py-1 text-sm">
-                              <span className="text-gray-700">{item.name}</span>
-                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                            <span className="text-gray-600">Total Fixed Assets</span>
-                            <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_fixed_assets).toFixed(2)}</span>
-                          </div>
-                        </>
-                      )}
-                      {/* Current Assets */}
-                      {(bsData.assets?.current_assets?.length > 0) && (
-                        <>
-                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Assets</p>
-                          {bsData.assets.current_assets.map((item: any) => (
-                            <div key={item.name} className="flex justify-between py-1 text-sm">
-                              <span className="text-gray-700">{item.name}</span>
-                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                            <span className="text-gray-600">Total Current Assets</span>
-                            <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_current_assets).toFixed(2)}</span>
-                          </div>
-                        </>
-                      )}
-                      <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
-                        <span>Total Assets</span>
-                        <span className="font-mono">₹{Number(bsData.assets?.total || 0).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    {/* RIGHT — Liabilities + Capital */}
-                    <div className="p-4">
-                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Liabilities & Capital</h3>
-                      {/* Capital */}
-                      {(bsData.capital?.capital_account?.length > 0) && (
-                        <>
-                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Capital</p>
-                          {bsData.capital.capital_account.map((item: any) => (
-                            <div key={item.name} className="flex justify-between py-1 text-sm">
-                              <span className="text-gray-700">{item.name}</span>
-                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                            </div>
-                          ))}
-                          {bsData.capital.retained_earnings !== 0 && (
-                            <div className="flex justify-between py-1 text-sm">
-                              <span className="text-gray-700">Retained Earnings</span>
-                              <span className={`font-mono font-semibold ${Number(bsData.capital.retained_earnings) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                                ₹{Number(bsData.capital.retained_earnings).toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                            <span className="text-gray-600">Total Capital</span>
-                            <span className="font-mono text-gray-900">₹{Number(bsData.capital.total).toFixed(2)}</span>
-                          </div>
-                        </>
-                      )}
-                      {/* Long-term Liabilities */}
-                      {(bsData.liabilities?.long_term_liabilities?.length > 0) && (
-                        <>
-                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Long-term Liabilities</p>
-                          {bsData.liabilities.long_term_liabilities.map((item: any) => (
-                            <div key={item.name} className="flex justify-between py-1 text-sm">
-                              <span className="text-gray-700">{item.name}</span>
-                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </>
-                      )}
-                      {/* Current Liabilities */}
-                      {(bsData.liabilities?.current_liabilities?.length > 0) && (
-                        <>
-                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Liabilities</p>
-                          {bsData.liabilities.current_liabilities.map((item: any) => (
-                            <div key={item.name} className="flex justify-between py-1 text-sm">
-                              <span className="text-gray-700">{item.name}</span>
-                              <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </>
-                      )}
-                      {(bsData.liabilities?.total > 0) && (
-                        <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                          <span className="text-gray-600">Total Liabilities</span>
-                          <span className="font-mono text-gray-900">₹{Number(bsData.liabilities.total).toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
-                        <span>Total Liabilities + Capital</span>
-                        <span className="font-mono">₹{(Number(bsData.liabilities?.total || 0) + Number(bsData.capital?.total || 0)).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-          </>
-        )}
-        {reportType === 'StockSummary' && (
-          <>
-            <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-              <div className="min-w-[200px]">
-                <label htmlFor="stockStartDate" className="label-text">Start Date</label>
-                <input
-                  type="date"
-                  id="stockStartDate"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-              <div className="min-w-[200px]">
-                <label htmlFor="stockEndDate" className="label-text">End Date</label>
-                <input
-                  type="date"
-                  id="stockEndDate"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => window.print()}
-                className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                title="Create PDF"
-              >
-                Create PDF
-              </button>
-            </div>
-          </>
-        )}
-        {reportType === 'GSTReports' && (
-          <>
-            {/* Filter Section Row */}
-            <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-              <div className="min-w-[200px]">
-                <label className="label-text">GST Return</label>
-                <select
-                  value={gstForm}
-                  onChange={(e) => setGstForm(e.target.value as GSTForm)}
-                  className="block w-full pl-4 pr-10 py-3 text-base border border-gray-300 rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                >
-                  <option value="GSTR-1">GSTR-1</option>
-                  <option value="GSTR-2">GSTR-2</option>
-                  <option value="GSTR-2A">GSTR-2A</option>
-                  <option value="GSTR-2B">GSTR-2B</option>
-                  <option value="GSTR-3B">GSTR-3B</option>
-                  <option value="GSTR-4">GSTR-4</option>
-                  <option value="GSTR-5">GSTR-5</option>
-                  <option value="GSTR-5A">GSTR-5A</option>
-                  <option value="GSTR-6">GSTR-6</option>
-                  <option value="GSTR-7">GSTR-7</option>
-                  <option value="GSTR-8">GSTR-8</option>
-                  <option value="GSTR-9">GSTR-9</option>
-                  <option value="GSTR-9A">GSTR-9A</option>
-                  <option value="GSTR-9C">GSTR-9C</option>
-                  <option value="GSTR-10">GSTR-10</option>
-                </select>
-              </div>
-              <div className="min-w-[200px]">
-                <label htmlFor="gstStartDate" className="label-text">Start Date</label>
-                <input
-                  type="date"
-                  id="gstStartDate"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-              <div className="min-w-[200px]">
-                <label htmlFor="gstEndDate" className="label-text">End Date</label>
-                <input
-                  type="date"
-                  id="gstEndDate"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="erp-input"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => window.print()}
-                className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                title="Create PDF"
-              >
-                Create PDF
-              </button>
-            </div>
-
-            {/* Dynamic GST Report Content */}
-            <div className="mb-8">
-              {renderGSTReport()}
-            </div>
-          </>
-        )}
-        {reportType === 'AIReport' && (
-          <div className="space-y-6">
-            {/* Simple Heading */}
-            <h2 className="section-title mb-4">AI Report</h2>
-
-            {/* Simple Input Interface */}
-            <div className="bg-white rounded-[4px] border border-gray-200 shadow-none border border-slate-200-none border border-slate-200 p-6">
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyDown={handleAiKeyPress}
-                  placeholder="What would you like to know? (e.g., 'Show sales report', 'GST summary', 'Expense analysis')"
-                  disabled={aiLoading}
-                  className="flex-1 px-5 py-4 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:bg-gray-100 text-base"
-                />
-                <button
-                  onClick={handleAiSend}
-                  disabled={aiLoading || !aiInput.trim()}
-                  className="px-8 py-4 bg-indigo-600 text-white font-semibold rounded-[4px] hover:bg-indigo-700 transition-colors shadow-none border border-slate-200-none border border-slate-200 flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  {aiLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-[4px] animate-spin"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                        <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                      </svg>
-                      Generate
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Report Output Section - Professional Tableau-Style Dashboard */}
-            {currentReport && (
-              <div className="space-y-5">
-                {/* Clean Professional Header */}
-                <div className="bg-indigo-600 rounded-[4px] p-5 shadow-none border border-slate-200">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div>
-                      <h4 className="text-xl font-semibold text-white">{currentReport.title}</h4>
-                      <p className="text-blue-100 text-sm mt-1">{currentReport.summary}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => downloadReportExcel(currentReport)} className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded hover:bg-white/20 transition-colors border border-white/20">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Excel
-                      </button>
-                      <button onClick={() => downloadReportPDF(currentReport)} className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded hover:bg-white/20 transition-colors border border-white/20">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        PDF
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* View Toggle Buttons */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 bg-gray-100 rounded-[4px] p-1">
-                    <button
-                      onClick={() => setReportView('table')}
-                      className={`px-4 py-2 rounded-[4px] text-sm font-medium transition-colors ${reportView === 'table'
-                        ? 'bg-white text-indigo-600 shadow-none border border-slate-200'
-                        : 'text-gray-600 hover:text-gray-900'
-                        }`}
+                {isTdsTcsLedger && (
+                  <div className="min-w-[180px]">
+                    <label htmlFor="sessionFilter" className="label-text">Select Session</label>
+                    <select
+                      id="sessionFilter"
+                      value={selectedSession}
+                      onChange={(e) => setSelectedSession(e.target.value)}
+                      className="erp-select"
                     >
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Table View
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setReportView('chart')}
-                      className={`px-4 py-2 rounded-[4px] text-sm font-medium transition-colors ${reportView === 'chart'
-                        ? 'bg-white text-indigo-600 shadow-none border border-slate-200'
-                        : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        Chart View
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Conditional View Rendering */}
-                {reportView === 'table' ? (
-                  /* Table View */
-                  <div className="bg-white border border-gray-200 rounded-[4px] overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h5 className="text-sm font-semibold text-gray-700">Data Table</h5>
-                    </div>
-                    <div className="overflow-auto max-h-[500px]">
-                      <table className="w-full">
-                        <thead className="bg-indigo-600 sticky top-0">
-                          <tr>{Object.keys(currentReport.tableData[0] || {}).map((h, i) => (<th key={i} className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase">{h}</th>))}</tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">{currentReport.tableData.map((row, ri) => (<tr key={ri} className="hover:bg-gray-50">{Object.values(row).map((c, ci) => (<td key={ci} className="px-4 py-3 text-sm text-gray-700">{c as any}</td>))}</tr>))}</tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : (
-                  /* Chart View */
-                  <div className="bg-white border border-gray-200 rounded-[4px] overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h5 className="text-sm font-semibold text-gray-700">Chart</h5>
-                    </div>
-                    <div className="p-6">
-                      <div className="h-[400px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          {currentReport.chartType === 'pie' ? (
-                            <PieChart><Pie data={currentReport.chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={120} dataKey="value" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>{currentReport.chartData.map((_, index) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#6366F1' : index === 1 ? '#4F46E5' : index === 2 ? '#818CF8' : index === 3 ? '#A5B4FC' : '#C7D2FE'} />))}</Pie><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /></PieChart>
-                          ) : currentReport.chartType === 'area' ? (
-                            <AreaChart data={currentReport.chartData}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /><Area type="monotone" dataKey="value" stroke="#6366F1" fill="#6366F1" fillOpacity={0.2} strokeWidth={2} /></AreaChart>
-                          ) : (
-                            <BarChart data={currentReport.chartData} barSize={50}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} /><Bar dataKey="value" fill="#6366F1" radius={[4, 4, 0, 0]} /></BarChart>
-                          )}
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
+                      <option value="all">All Sessions</option>
+                      <option value="2024-2025">2024-2025</option>
+                      <option value="2025-2026">2025-2026</option>
+                      <option value="2026-2027">2026-2027</option>
+                    </select>
                   </div>
                 )}
+                {isTdsTcsLedger && (
+                  <div className="min-w-[180px]">
+                    <label htmlFor="sectionFilter" className="label-text">Select Section</label>
+                    <select
+                      id="sectionFilter"
+                      value={selectedSection}
+                      onChange={(e) => setSelectedSection(e.target.value)}
+                      className="erp-select"
+                    >
+                      <option value="all">All Sections</option>
+                      {availableSections.map((sec) => (
+                        <option key={sec} value={sec}>
+                          {sec}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
               </div>
-            )}
+
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
+                >
+                  Create PDF
+                </button>
+              </div>
+            </>
+          )}
+          {reportType === 'TrialBalance' && (
+            <>
+              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="min-w-[200px]">
+                  <label htmlFor="trialStartDate" className="label-text">Start Date</label>
+                  <DateInput
+
+                    id="trialStartDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+                <div className="min-w-[200px]">
+                  <label htmlFor="trialEndDate" className="label-text">End Date</label>
+                  <DateInput
+
+                    id="trialEndDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+                <div className="min-w-[240px]">
+                  <label htmlFor="trialBalanceType" className="label-text">Report Type</label>
+                  <select
+                    id="trialBalanceType"
+                    value={trialBalanceType}
+                    onChange={(e) => setTrialBalanceType(e.target.value as 'opening' | 'closing' | 'with_transactions')}
+                    className="erp-select"
+                  >
+                    <option value="opening">Opening Trial Balance</option>
+                    <option value="closing">Closing Trial Balance</option>
+                    <option value="with_transactions">Trial Balance with Transactions</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center mb-4">
+                {!drillDownLedger ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (expandedTbNodes.size > 0) {
+                        setExpandedTbNodes(new Set());
+                      } else {
+                        const rootCategories = ["OWNERS' FUNDS", "LIABILITY", "ASSET", "INCOME", "EXPENDITURE"];
+                        const resolveCategory = (item: any): string => {
+                          const catStr = String(item.category || item.major_group || '').toLowerCase().trim();
+                          if (catStr.includes('capital') || catStr.includes('owner') || catStr.includes('equity')) return "OWNERS' FUNDS";
+                          if (catStr.includes('liab')) return "LIABILITY";
+                          if (catStr.includes('asset')) return "ASSET";
+                          if (catStr.includes('inc') || catStr.includes('rev')) return "INCOME";
+                          if (catStr.includes('exp')) return "EXPENDITURE";
+
+                          const grpStr = String(item.group || '').toLowerCase().trim();
+                          if (grpStr.includes('sales') || grpStr.includes('revenue') || grpStr.includes('income')) return "INCOME";
+                          if (grpStr.includes('purchase') || grpStr.includes('cost') || grpStr.includes('expense') || grpStr.includes('direct') || grpStr.includes('indirect')) return "EXPENDITURE";
+                          if (grpStr.includes('bank') || grpStr.includes('cash') || grpStr.includes('debtor') || grpStr.includes('asset') || grpStr.includes('inventory')) return "ASSET";
+                          if (grpStr.includes('creditor') || grpStr.includes('liab') || grpStr.includes('tax') || grpStr.includes('duty') || grpStr.includes('provision')) return "LIABILITY";
+                          if (grpStr.includes('capital') || grpStr.includes('fund') || grpStr.includes('reserve') || grpStr.includes('share')) return "OWNERS' FUNDS";
+
+                          const lStr = String(item.ledger || '').toLowerCase().trim();
+                          if (lStr.includes('sale')) return "INCOME";
+                          if (lStr.includes('purchase') || lStr.includes('expense') || lStr.includes('fee') || lStr.includes('rent')) return "EXPENDITURE";
+                          if (lStr.includes('bank') || lStr.includes('cash') || lStr.includes('asset')) return "ASSET";
+                          if (lStr.includes('capital') || lStr.includes('reserve') || lStr.includes('fund')) return "OWNERS' FUNDS";
+                          return "EXPENDITURE";
+                        };
+
+                        const allIds = new Set<string>();
+                        rootCategories.forEach(cat => allIds.add(`cat:${cat}`));
+
+                        const results = tbData?.results || [];
+                        results.forEach((item: any) => {
+                          const catName = resolveCategory(item);
+                          let path = `cat:${catName}`;
+                          const pathParts: string[] = [];
+                          const g = item.group && item.group !== '-' && item.group !== catName ? String(item.group).trim() : '';
+                          const sg1 = item.sub_group_1 && item.sub_group_1 !== '-' ? String(item.sub_group_1).trim() : '';
+                          const sg2 = item.sub_group_2 && item.sub_group_2 !== '-' ? String(item.sub_group_2).trim() : '';
+                          const sg3 = item.sub_group_3 && item.sub_group_3 !== '-' ? String(item.sub_group_3).trim() : '';
+
+                          if (g) pathParts.push(g);
+                          if (sg1) pathParts.push(sg1);
+                          if (sg2) pathParts.push(sg2);
+                          if (sg3) pathParts.push(sg3);
+
+                          pathParts.forEach(pName => {
+                            path += `>${pName}`;
+                            allIds.add(path);
+                          });
+                        });
+
+                        setExpandedTbNodes(allIds);
+                      }
+                    }}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors shadow-sm"
+                  >
+                    {expandedTbNodes.size > 0 ? '− Collapse All Groups' : '+ Expand All Groups'}
+                  </button>
+                ) : <div />}
+                <button
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
+                >
+                  Create PDF
+                </button>
+              </div>
+            </>
+          )}
+          {reportType === 'BalanceSheet' && (
+            <>
+              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="min-w-[200px]">
+                  <label className="label-text">As of Date</label>
+                  <DateInput
+
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
+                >
+                  Create PDF
+                </button>
+              </div>
+
+              <div className="bg-white border rounded-[4px] overflow-hidden">
+                <div className="p-4 bg-gray-50 border-b font-bold text-center text-gray-800">Balance Sheet</div>
+                {bsLoading && (
+                  <div className="p-8 text-center text-gray-400">Loading balance sheet…</div>
+                )}
+                {!bsLoading && !bsData && (
+                  <div className="p-8 text-center text-gray-400">No data available. Select a date or ensure journal entries exist.</div>
+                )}
+                {!bsLoading && bsData && (
+                  <>
+                    {bsData.is_balanced === false && (
+                      <div className="p-2 text-center text-xs bg-indigo-50 text-indigo-700 border-b border-indigo-200">
+                        ⚠ Balance Sheet does not balance. Difference: ₹{Math.abs(Number(bsData.assets?.total || 0) - Number((bsData.liabilities?.total || 0) + (bsData.capital?.total || 0))).toFixed(2)}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 divide-x divide-gray-200">
+                      {/* LEFT — Assets */}
+                      <div className="p-4">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Assets</h3>
+                        {/* Fixed Assets */}
+                        {(bsData.assets?.fixed_assets?.length > 0) && (
+                          <>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Fixed Assets</p>
+                            {bsData.assets.fixed_assets.map((item: any) => (
+                              <div key={item.name} className="flex justify-between py-1 text-sm">
+                                <span className="text-gray-700">{item.name}</span>
+                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                              <span className="text-gray-600">Total Fixed Assets</span>
+                              <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_fixed_assets).toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
+                        {/* Current Assets */}
+                        {(bsData.assets?.current_assets?.length > 0) && (
+                          <>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Assets</p>
+                            {bsData.assets.current_assets.map((item: any) => (
+                              <div key={item.name} className="flex justify-between py-1 text-sm">
+                                <span className="text-gray-700">{item.name}</span>
+                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                              <span className="text-gray-600">Total Current Assets</span>
+                              <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_current_assets).toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
+                          <span>Total Assets</span>
+                          <span className="font-mono">₹{Number(bsData.assets?.total || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      {/* RIGHT — Liabilities + Capital */}
+                      <div className="p-4">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Liabilities & Capital</h3>
+                        {/* Capital */}
+                        {(bsData.capital?.capital_account?.length > 0) && (
+                          <>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Capital</p>
+                            {bsData.capital.capital_account.map((item: any) => (
+                              <div key={item.name} className="flex justify-between py-1 text-sm">
+                                <span className="text-gray-700">{item.name}</span>
+                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            {bsData.capital.retained_earnings !== 0 && (
+                              <div className="flex justify-between py-1 text-sm">
+                                <span className="text-gray-700">Retained Earnings</span>
+                                <span className={`font-mono font-semibold ${Number(bsData.capital.retained_earnings) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                  ₹{Number(bsData.capital.retained_earnings).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                              <span className="text-gray-600">Total Capital</span>
+                              <span className="font-mono text-gray-900">₹{Number(bsData.capital.total).toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
+                        {/* Long-term Liabilities */}
+                        {(bsData.liabilities?.long_term_liabilities?.length > 0) && (
+                          <>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Long-term Liabilities</p>
+                            {bsData.liabilities.long_term_liabilities.map((item: any) => (
+                              <div key={item.name} className="flex justify-between py-1 text-sm">
+                                <span className="text-gray-700">{item.name}</span>
+                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                        {/* Current Liabilities */}
+                        {(bsData.liabilities?.current_liabilities?.length > 0) && (
+                          <>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Liabilities</p>
+                            {bsData.liabilities.current_liabilities.map((item: any) => (
+                              <div key={item.name} className="flex justify-between py-1 text-sm">
+                                <span className="text-gray-700">{item.name}</span>
+                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                        {(bsData.liabilities?.total > 0) && (
+                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                            <span className="text-gray-600">Total Liabilities</span>
+                            <span className="font-mono text-gray-900">₹{Number(bsData.liabilities.total).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
+                          <span>Total Liabilities + Capital</span>
+                          <span className="font-mono">₹{(Number(bsData.liabilities?.total || 0) + Number(bsData.capital?.total || 0)).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+            </>
+          )}
+          {reportType === 'StockSummary' && (
+            <>
+              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="min-w-[200px]">
+                  <label htmlFor="stockStartDate" className="label-text">Start Date</label>
+                  <DateInput
+
+                    id="stockStartDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+                <div className="min-w-[200px]">
+                  <label htmlFor="stockEndDate" className="label-text">End Date</label>
+                  <DateInput
+
+                    id="stockEndDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
+                >
+                  Create PDF
+                </button>
+              </div>
+            </>
+          )}
+          {reportType === 'GSTReports' && (
+            <>
+              {/* Filter Section Row */}
+              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="min-w-[200px]">
+                  <label className="label-text">GST Return</label>
+                  <select
+                    value={gstForm}
+                    onChange={(e) => setGstForm(e.target.value as GSTForm)}
+                    className="block w-full pl-4 pr-10 py-3 text-base border border-gray-300 rounded-[4px] shadow-none border border-slate-200-none border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                  >
+                    <option value="GSTR-1">GSTR-1</option>
+                    <option value="GSTR-2">GSTR-2</option>
+                    <option value="GSTR-2A">GSTR-2A</option>
+                    <option value="GSTR-2B">GSTR-2B</option>
+                    <option value="GSTR-3B">GSTR-3B</option>
+                    <option value="GSTR-4">GSTR-4</option>
+                    <option value="GSTR-5">GSTR-5</option>
+                    <option value="GSTR-5A">GSTR-5A</option>
+                    <option value="GSTR-6">GSTR-6</option>
+                    <option value="GSTR-7">GSTR-7</option>
+                    <option value="GSTR-8">GSTR-8</option>
+                    <option value="GSTR-9">GSTR-9</option>
+                    <option value="GSTR-9A">GSTR-9A</option>
+                    <option value="GSTR-9C">GSTR-9C</option>
+                    <option value="GSTR-10">GSTR-10</option>
+                  </select>
+                </div>
+                <div className="min-w-[200px]">
+                  <label htmlFor="gstStartDate" className="label-text">Start Date</label>
+                  <DateInput
+
+                    id="gstStartDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+                <div className="min-w-[200px]">
+                  <label htmlFor="gstEndDate" className="label-text">End Date</label>
+                  <DateInput
+
+                    id="gstEndDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="erp-input"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
+                >
+                  Create PDF
+                </button>
+              </div>
+
+              {/* Dynamic GST Report Content */}
+              <div className="mb-8">
+                {renderGSTReport()}
+              </div>
+            </>
+          )}
+          {reportType === 'AIReport' && (
+            <div className="space-y-6">
+              {/* Simple Heading */}
+              <h2 className="section-title mb-4">AI Report</h2>
+
+              {/* Simple Input Interface */}
+              <div className="bg-white rounded-[4px] border border-gray-200 shadow-none border border-slate-200-none border border-slate-200 p-6">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyDown={handleAiKeyPress}
+                    placeholder="What would you like to know? (e.g., 'Show sales report', 'GST summary', 'Expense analysis')"
+                    disabled={aiLoading}
+                    className="flex-1 px-5 py-4 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:bg-gray-100 text-base"
+                  />
+                  <button
+                    onClick={handleAiSend}
+                    disabled={aiLoading || !aiInput.trim()}
+                    className="px-8 py-4 bg-indigo-600 text-white font-semibold rounded-[4px] hover:bg-indigo-700 transition-colors shadow-none border border-slate-200-none border border-slate-200 flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-[4px] animate-spin"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                        </svg>
+                        Generate
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Report Output Section - Professional Tableau-Style Dashboard */}
+              {currentReport && (
+                <div className="space-y-5">
+                  {/* Clean Professional Header */}
+                  <div className="bg-indigo-600 rounded-[4px] p-5 shadow-none border border-slate-200">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div>
+                        <h4 className="text-xl font-semibold text-white">{currentReport.title}</h4>
+                        <p className="text-blue-100 text-sm mt-1">{currentReport.summary}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => downloadReportExcel(currentReport)} className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded hover:bg-white/20 transition-colors border border-white/20">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                          Excel
+                        </button>
+                        <button onClick={() => downloadReportPDF(currentReport)} className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded hover:bg-white/20 transition-colors border border-white/20">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                          PDF
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* View Toggle Buttons */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 bg-gray-100 rounded-[4px] p-1">
+                      <button
+                        onClick={() => setReportView('table')}
+                        className={`px-4 py-2 rounded-[4px] text-sm font-medium transition-colors ${reportView === 'table'
+                          ? 'bg-white text-indigo-600 shadow-none border border-slate-200'
+                          : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Table View
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setReportView('chart')}
+                        className={`px-4 py-2 rounded-[4px] text-sm font-medium transition-colors ${reportView === 'chart'
+                          ? 'bg-white text-indigo-600 shadow-none border border-slate-200'
+                          : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                          Chart View
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Conditional View Rendering */}
+                  {reportView === 'table' ? (
+                    /* Table View */
+                    <div className="bg-white border border-gray-200 rounded-[4px] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <h5 className="text-sm font-semibold text-gray-700">Data Table</h5>
+                      </div>
+                      <div className="overflow-auto max-h-[500px]">
+                        <table className="w-full">
+                          <thead className="bg-indigo-600 sticky top-0">
+                            <tr>{Object.keys(currentReport.tableData[0] || {}).map((h, i) => (<th key={i} className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase">{h}</th>))}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">{currentReport.tableData.map((row, ri) => (<tr key={ri} className="hover:bg-gray-50">{Object.values(row).map((c, ci) => (<td key={ci} className="px-4 py-3 text-sm text-gray-700">{c as any}</td>))}</tr>))}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Chart View */
+                    <div className="bg-white border border-gray-200 rounded-[4px] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <h5 className="text-sm font-semibold text-gray-700">Chart</h5>
+                      </div>
+                      <div className="p-6">
+                        <div className="h-[400px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            {currentReport.chartType === 'pie' ? (
+                              <PieChart><Pie data={currentReport.chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={120} dataKey="value" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>{currentReport.chartData.map((_, index) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#6366F1' : index === 1 ? '#4F46E5' : index === 2 ? '#818CF8' : index === 3 ? '#A5B4FC' : '#C7D2FE'} />))}</Pie><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /></PieChart>
+                            ) : currentReport.chartType === 'area' ? (
+                              <AreaChart data={currentReport.chartData}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} /><Area type="monotone" dataKey="value" stroke="#6366F1" fill="#6366F1" fillOpacity={0.2} strokeWidth={2} /></AreaChart>
+                            ) : (
+                              <BarChart data={currentReport.chartData} barSize={50}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} /><Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} /><Bar dataKey="value" fill="#6366F1" radius={[4, 4, 0, 0]} /></BarChart>
+                            )}
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            {reportType === 'DayBook' && renderDayBook()}
+            {reportType === 'LedgerReport' && (drillDownLedger ? renderLedgerDetail() : renderLedgerSummary())}
+            {reportType === 'TrialBalance' && (drillDownLedger ? renderTrialBalanceLedgerDetail() : renderTrialBalance())}
+            {reportType === 'StockSummary' && renderStockSummary()}
           </div>
-        )}
-        <div className="overflow-x-auto">
-          {reportType === 'DayBook' && renderDayBook()}
-          {reportType === 'LedgerReport' && (drillDownLedger ? renderLedgerDetail() : renderLedgerSummary())}
-          {reportType === 'TrialBalance' && renderTrialBalance()}
-          {reportType === 'StockSummary' && renderStockSummary()}
         </div>
-      </div>
       </div>
     </UniversalWorkspaceLayout>
   );

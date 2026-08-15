@@ -160,23 +160,36 @@ class BaseExcelView(APIView):
             })
         
         # Fetch Journal vouchers
-        journal_qs = VoucherJournal.objects.filter(tenant_id=tenant_id)
+        journal_qs = VoucherJournal.objects.filter(tenant_id=tenant_id).prefetch_related('entry_lines')
         if start_date:
             journal_qs = journal_qs.filter(date__gte=start_date)
         if end_date:
             journal_qs = journal_qs.filter(date__lte=end_date)
         for v in journal_qs:
+            ledger_names = []
+            entries_list = []
+            for entry in v.entry_lines.all():
+                if entry.ledger_name and entry.ledger_name not in ledger_names:
+                    ledger_names.append(entry.ledger_name)
+                entries_list.append({
+                    'ledger': entry.ledger_name,
+                    'debit': float(entry.debit_amount),
+                    'credit': float(entry.credit_amount)
+                })
+            party_str = ", ".join(ledger_names)
+            
             vouchers.append({
                 'date': v.date,
                 'type': 'Journal',
                 'voucher_number': v.voucher_number,
                 'invoice_no': v.voucher_number,
-                'party': '',
+                'party': party_str,
                 'account': '',
                 'total': float(v.total_debit),
                 'amount': float(v.total_debit),
                 'narration': v.narration or '',
                 'id': v.id,
+                'entries': entries_list,
             })
 
         # Fetch Debit Note vouchers from the generic Voucher table

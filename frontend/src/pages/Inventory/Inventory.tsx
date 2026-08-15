@@ -14,6 +14,7 @@ import MultiSelectDropdown from '../../components/MultiSelectDropdown';
 import { BulkImportFeedbackModal } from '../../components/BulkImportFeedbackModal';
 import Icon from '../../components/Icon';
 import { UniversalWorkspaceLayout } from '../../components/layouts/UniversalWorkspaceLayout';
+import DateInput from '../../components/common/DateInput';
 
 
 
@@ -3690,8 +3691,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Dispatch Date
                 </label>
-                <input
-                  type="date"
+                <DateInput
+                  
                   value={dispatchDate}
                   onChange={(e) => setDispatchDate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -3861,7 +3862,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
-                  <input type="date" value={beyondPortShippingBillDate} onChange={(e) => setBeyondPortShippingBillDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <DateInput  value={beyondPortShippingBillDate} onChange={(e) => setBeyondPortShippingBillDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Vessel/Flight No.</label>
@@ -3917,7 +3918,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
-                  <input type="date" value={railBeyondPortRailwayReceiptDate} onChange={(e) => setRailBeyondPortRailwayReceiptDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <DateInput  value={railBeyondPortRailwayReceiptDate} onChange={(e) => setRailBeyondPortRailwayReceiptDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle No. (Rail No.)</label>
@@ -4283,8 +4284,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       <div className="grid grid-cols-4 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -4570,8 +4571,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   Dispatch Date
                                 </label>
-                                <input
-                                  type="date"
+                                <DateInput
+                                  
                                   value={dispatchDate}
                                   onChange={(e) => setDispatchDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -4746,8 +4747,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                                       <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Shipping Bill Date
                                       </label>
-                                      <input
-                                        type="date"
+                                      <DateInput
+                                        
                                         value={uptoPortShippingBillDate}
                                         onChange={(e) => setUptoPortShippingBillDate(e.target.value)}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -4847,8 +4848,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       <div className="grid grid-cols-4 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -5302,8 +5303,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                         </div>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             max={todayStr}
@@ -5601,8 +5602,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                         </div>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             max={todayStr}
@@ -5913,8 +5914,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       <div className="grid grid-cols-4 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             max={todayStr}
@@ -6245,8 +6246,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       <div className="grid grid-cols-4 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -6635,8 +6636,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       <div className="grid grid-cols-4 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             max={todayStr}
@@ -7134,8 +7135,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                             <label className="block text-[11px] font-bold text-slate-600 mb-2 uppercase">
                               DATE
                             </label>
-                            <input
-                              type="date"
+                            <DateInput
+                              
                               value={issueSlipDate}
                               onChange={(e) => setIssueSlipDate(e.target.value)}
                               max={todayStr}
@@ -7388,8 +7389,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                         </div>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={issueSlipDate}
                             onChange={(e) => setIssueSlipDate(e.target.value)}
                             max={todayStr}
@@ -7668,8 +7669,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                           <div className="grid grid-cols-4 gap-5">
                             <div>
                               <label className="block text-[11px] font-bold text-slate-600 mb-2 uppercase">Date</label>
-                              <input
-                                type="date"
+                              <DateInput
+                                
                                 value={scrapProdDate}
                                 onChange={(e) => setScrapProdDate(e.target.value)}
                                 max={todayStr}
@@ -7873,7 +7874,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                           <div className="grid grid-cols-4 gap-5">
                             <div>
                               <label className="block text-[11px] font-bold text-slate-600 mb-2 uppercase">Date</label>
-                              <input type="date" value={scrapOtherDate} onChange={(e) => setScrapOtherDate(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white" />
+                              <DateInput  value={scrapOtherDate} onChange={(e) => setScrapOtherDate(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white" />
                             </div>
                             <div>
                               <label className="block text-[11px] font-bold text-slate-600 mb-2 uppercase">Time</label>
@@ -8146,7 +8147,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                           <div className="grid grid-cols-4 gap-5">
                             <div>
                               <label className="block text-[11px] font-bold text-slate-600 mb-2 uppercase">Date</label>
-                              <input type="date" value={scrapDispDate} onChange={(e) => setScrapDispDate(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white" />
+                              <DateInput  value={scrapDispDate} onChange={(e) => setScrapDispDate(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white" />
                             </div>
                             <div>
                               <label className="block text-[11px] font-bold text-slate-600 mb-2 uppercase">Time</label>
@@ -8360,7 +8361,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                   <div className="grid grid-cols-3 gap-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                      <input type="date" value={grnDate} onChange={(e) => setGrnDate(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <DateInput  value={grnDate} onChange={(e) => setGrnDate(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Time</label>
@@ -8882,8 +8883,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Received Date</label>
-                          <input
-                            type="date"
+                          <DateInput
+                            
                             value={grnTransitReceiptDate}
                             onChange={(e) => setGrnTransitReceiptDate(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -9068,7 +9069,7 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                             <div className="space-y-4">
                               <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Bill of Lading Date</label>
-                                <input type="date" value={grnTransitBolDate} onChange={(e) => setGrnTransitBolDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                <DateInput  value={grnTransitBolDate} onChange={(e) => setGrnTransitBolDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                               </div>
                               <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Port of Loading</label>
@@ -9527,8 +9528,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Date
                             </label>
-                            <input
-                              type="date"
+                            <DateInput
+                              
                               value={entry.date}
                               onChange={(e) => handleEwayEntryChange(entry.id, 'date', e.target.value)}
                               className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -9573,8 +9574,8 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Extension Date
                             </label>
-                            <input
-                              type="date"
+                            <DateInput
+                              
                               value={entry.extensionDate}
                               onChange={(e) => handleEwayEntryChange(entry.id, 'extensionDate', e.target.value)}
                               className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
