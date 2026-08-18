@@ -588,7 +588,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
             </span>
             Bank Statement Upload
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Extract and reconcile transactions with AI-powered mapping</p>
+          <p className="text-slate-500 text-sm mt-1">Extract transactions with AI-powered mapping</p>
         </div>
 
         <button
@@ -808,7 +808,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm"><Icon name="check-circle" className="w-8 h-8" /></div>
               <div>
                 <h3 className="text-2xl font-black">Processing Complete</h3>
-                <p className="text-indigo-100 text-sm font-medium opacity-80">{filteredRows.length} transactions imported and ready for reconciliation</p>
+                <p className="text-indigo-100 text-sm font-medium opacity-80">{filteredRows.length} transactions extracted</p>
               </div>
             </div>
             <button onClick={handleReset} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Icon name="close" className="w-6 h-6" /></button>
