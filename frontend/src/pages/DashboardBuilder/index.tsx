@@ -277,7 +277,7 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
                         [actualYField]: value,
                         value
                     };
-                }).sort((a, b) => a.name.localeCompare(b.name));
+                }).sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
 
                 if (result.length > 0) return result;
             }

@@ -147,7 +147,7 @@ export function useBankPartyOptions(_type?: 'payment' | 'receipt') {
 
         // 4. All tenant ledgers (excluding hierarchy headings)
         const ledgerOptions: PartyOption[] = ledgers
-          .filter((l: any) => l.code && l.code !== '00')
+          .filter((l: any) => l.code !== '00')
           .map((l: any) => {
           const rawName = l.name || 'Unknown Ledger';
           return {

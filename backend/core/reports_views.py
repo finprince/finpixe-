@@ -646,6 +646,23 @@ class BalanceSheetReportView(APIView):
             return Response({'error': str(e)}, status=500)
 
 
+class ProfitAndLossReportView(APIView):
+    """JSON API for Statement of Profit and Loss — supports Schedule III Non-Corporate format."""
+    permission_classes = [IsAuthenticated, IsBranchMember]
+
+    def get(self, request):
+        from reports.flow import generate_profit_and_loss_data
+        start_date = request.query_params.get('startDate')
+        end_date = request.query_params.get('endDate')
+        try:
+            pnl = generate_profit_and_loss_data(request.user, start_date, end_date)
+            return Response(pnl)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=500)
+
+
 class StockSummaryReportView(APIView):
     """JSON API for Stock Summary — uses inventory stock movement data."""
     permission_classes = [IsAuthenticated, IsBranchMember]

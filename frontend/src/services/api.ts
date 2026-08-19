@@ -419,6 +419,13 @@ class ApiService {
         return httpClient.get<any>(`/api/reports/balancesheet/json/?${params.toString()}`);
     }
 
+    async getProfitAndLossReport(startDate?: string, endDate?: string) {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return httpClient.get<any>(`/api/reports/pnl/json/?${params.toString()}`);
+    }
+
     async getStockSummaryReport(startDate?: string, endDate?: string) {
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);

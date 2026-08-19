@@ -836,14 +836,14 @@ const App: React.FC = () => {
       const response = await apiService.saveLedgerGroup(group);
       if (response && response.id) {
 
-        setLedgerGroups(prev => [...prev, response].sort((a, b) => a.name.localeCompare(b.name)));
+        setLedgerGroups(prev => [...prev, response].sort((a, b) => (a?.name || '').localeCompare(b?.name || '')));
       } else {
         console.error(`Failed to save ledger group ${group.name}`);
-        setLedgerGroups(prev => [...prev, group].sort((a, b) => a.name.localeCompare(b.name)));
+        setLedgerGroups(prev => [...prev, group].sort((a, b) => (a?.name || '').localeCompare(b?.name || '')));
       }
     } catch (err) {
       console.error(`Error saving ledger group ${group.name}:`);
-      setLedgerGroups(prev => [...prev, group].sort((a, b) => a.name.localeCompare(b.name)));
+      setLedgerGroups(prev => [...prev, group].sort((a, b) => (a?.name || '').localeCompare(b?.name || '')));
     }
   }, []);
 
@@ -855,11 +855,11 @@ const App: React.FC = () => {
         const response = await apiService.updateLedgerGroup(groupId, group);
         if (response.success) {
 
-          setLedgerGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...group } : g).sort((a, b) => a.name.localeCompare(b.name)));
+          setLedgerGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...group } : g).sort((a, b) => (a?.name || '').localeCompare(b?.name || '')));
         }
       } else {
 
-        setLedgerGroups(prev => prev.map(g => g.name === idOrName ? { ...g, ...group } : g).sort((a, b) => a.name.localeCompare(b.name)));
+        setLedgerGroups(prev => prev.map(g => g.name === idOrName ? { ...g, ...group } : g).sort((a, b) => (a?.name || '').localeCompare(b?.name || '')));
       }
     } catch (err) {
       console.error(`Error updating ledger group ${idOrName}:`);
