@@ -56,49 +56,115 @@ def get_vouchers_for_ledger(tenant_id, ledger_name, start_date=None, end_date=No
     journal_vouchers = JournalEntry.objects.filter(Q(ledger_name=ledger_name) | Q(ledger__name=ledger_name), tenant_id=tenant_id, voucher_id=OuterRef('id'))
     return vouchers.filter(q_party | q_account | q_contra | Exists(journal_vouchers)).distinct().order_by('date', 'id')
 
+_last_posted_cache = {}
+
 def _ensure_vouchers_posted(tenant_id):
     """
-    Auto-resyncs journal postings for Sales and Purchase vouchers for tenant_id 
-    so that selected sales/purchase ledgers reflect accurately in reports.
+    Fast, targeted auto-resync for tenant_id:
+    1. Patches MasterLedger category/group from MasterHierarchyRaw if generic/missing.
+    2. Resolves unlinked JournalVoucherEntry records and posts missing JournalEntry rows.
+    3. Resolves unlinked ExpenseLineItem records.
+    Runs efficiently without looping over existing posted sales/purchase vouchers.
     """
+    import time
+    now = time.time()
+    if tenant_id in _last_posted_cache and (now - _last_posted_cache[tenant_id]) < 60:
+        return
+    _last_posted_cache[tenant_id] = now
+
+    # 1. Patch MasterLedger categories from MasterHierarchyRaw if generic or missing
     try:
-        from accounting.models_voucher_sales import VoucherSalesInvoiceDetails
-        from accounting.serializers_voucher_sales import VoucherSalesInvoiceDetailsSerializer
-        from accounting.models_voucher_purchase import VoucherPurchaseSupplierDetails
-        from accounting.serializers_voucher_purchase import VoucherPurchaseSupplierDetailsSerializer
+        from accounting.models import MasterLedger, MasterHierarchyRaw
+        ledgers_to_patch = MasterLedger.objects.filter(
+            tenant_id=tenant_id,
+            category__in=['Other', 'Expense', 'Liability', 'Asset', '', None]
+        )
+        for l in ledgers_to_patch:
+            if not l.name:
+                continue
+            hier = MasterHierarchyRaw.objects.filter(ledger_1__iexact=l.name.strip()).first()
+            if hier and hier.major_group_1 and hier.major_group_1.strip().lower() not in ('other', ''):
+                update_fields = []
+                if l.category != hier.major_group_1:
+                    l.category = hier.major_group_1
+                    l.major_group = hier.major_group_1
+                    update_fields += ['category', 'major_group']
+                if hier.group_1 and l.group != hier.group_1:
+                    l.group = hier.group_1
+                    update_fields.append('group')
+                if hier.sub_group_1_1 and not l.sub_group_1:
+                    l.sub_group_1 = hier.sub_group_1_1
+                    update_fields.append('sub_group_1')
+                if hier.sub_group_2_1 and not l.sub_group_2:
+                    l.sub_group_2 = hier.sub_group_2_1
+                    update_fields.append('sub_group_2')
+                if hier.sub_group_3_1 and not l.sub_group_3:
+                    l.sub_group_3 = hier.sub_group_3_1
+                    update_fields.append('sub_group_3')
+                if update_fields:
+                    l.save(update_fields=update_fields)
+    except Exception as patch_err:
+        logger.error(f"Error patching master ledger categories: {patch_err}")
 
-        # 1. Sync Sales Vouchers
-        sales_vouchers = VoucherSalesInvoiceDetails.objects.filter(tenant_id=tenant_id)
-        s_serializer = VoucherSalesInvoiceDetailsSerializer()
-        for inv in sales_vouchers:
-            try:
-                if inv.items.exists() or inv.foreign_items.exists():
-                    s_serializer._post_journal_entries(inv)
-            except Exception:
-                pass
+    # 2. Resync Journal Vouchers with missing/unresolved ledger_ids
+    try:
+        from accounting.models_voucher_journal import VoucherJournal, JournalVoucherEntry
+        from accounting.models import Voucher
+        from accounting.services.ledger_service import _resolve_ledger, post_transaction
 
-        # 2. Sync Purchase Vouchers
-        purch_vouchers = VoucherPurchaseSupplierDetails.objects.filter(tenant_id=tenant_id)
-        p_serializer = VoucherPurchaseSupplierDetailsSerializer()
-        for pur in purch_vouchers:
+        orphan_entries = list(JournalVoucherEntry.objects.filter(
+            tenant_id=tenant_id,
+            ledger_id__isnull=True
+        ).exclude(ledger_name='').exclude(ledger_name__isnull=True))
+
+        touched_vouchers = set()
+        for entry in orphan_entries:
+            if not entry.ledger_name:
+                continue
+            ledger_obj = _resolve_ledger(entry.ledger_name, tenant_id)
+            if ledger_obj:
+                try:
+                    JournalVoucherEntry.objects.filter(pk=entry.pk).update(ledger_id=ledger_obj.id)
+                    touched_vouchers.add(entry.voucher_id)
+                except Exception as upd_err:
+                    logger.error(f"Error updating JournalVoucherEntry {entry.pk}: {upd_err}")
+
+        for jv_id in touched_vouchers:
             try:
-                v_id = pur.voucher_id
-                if not v_id:
-                    from accounting.models import Voucher
-                    v_obj = Voucher.objects.filter(tenant_id=tenant_id, type='purchase', reference_id=pur.id).first()
-                    if v_obj:
-                        v_id = v_obj.id
-                if v_id:
-                    due_data = None
-                    if hasattr(pur, 'due_details') and pur.due_details:
-                        due_data = {'tds_it': pur.due_details.tds_it, 'advance_paid': pur.due_details.advance_paid, 'to_pay': pur.due_details.to_pay}
-                    net_val = float(pur.due_details.to_pay or 0) if hasattr(pur, 'due_details') and pur.due_details else 0.0
-                    adv_val = float(pur.due_details.advance_paid or 0) if hasattr(pur, 'due_details') and pur.due_details else 0.0
-                    p_serializer._post_journal_entries(pur, v_id, net_val + adv_val, None, None, due_data)
-            except Exception:
-                pass
+                jv_entries = list(JournalVoucherEntry.objects.filter(voucher_id=jv_id, tenant_id=tenant_id))
+                entries_to_post = []
+                for e in jv_entries:
+                    l_id = e.ledger_id
+                    if not l_id and e.ledger_name:
+                        lo = _resolve_ledger(e.ledger_name, tenant_id)
+                        if lo:
+                            l_id = lo.id
+                    if not l_id:
+                        continue
+                    dr = float(e.debit_amount or 0)
+                    cr = float(e.credit_amount or 0)
+                    if dr > 0:
+                        entries_to_post.append({"ledger_id": l_id, "debit": dr, "credit": 0.0})
+                    if cr > 0:
+                        entries_to_post.append({"ledger_id": l_id, "debit": 0.0, "credit": cr})
+
+                if len(entries_to_post) >= 2:
+                    generic_v = Voucher.objects.filter(source='journal_voucher', reference_id=jv_id).first()
+                    jv = VoucherJournal.objects.filter(pk=jv_id).first()
+                    if jv:
+                        v_id_to_use = generic_v.id if generic_v else jv.id
+                        post_transaction(
+                            voucher_type="JOURNAL",
+                            voucher_id=v_id_to_use,
+                            tenant_id=tenant_id,
+                            entries=entries_to_post,
+                            transaction_date=jv.date,
+                            voucher_number=jv.voucher_number,
+                        )
+            except Exception as post_err:
+                logger.error(f"Error reposting journal voucher {jv_id}: {post_err}")
     except Exception as e:
-        logger.error(f"Error ensuring vouchers posted: {e}")
+        logger.error(f"Error resyncing journal vouchers: {e}")
 
 def get_trial_balance_data(tenant_id, start_date=None, end_date=None):
     """Get aggregated ledger balances for trial balance with date filtering.
@@ -162,9 +228,12 @@ def get_trial_balance_data(tenant_id, start_date=None, end_date=None):
     
     for entry in all_entries:
         l_name = None
-        if entry.ledger and entry.ledger.name:
-            l_name = entry.ledger.name.strip()
-        elif entry.ledger_name:
+        try:
+            if entry.ledger and entry.ledger.name:
+                l_name = entry.ledger.name.strip()
+        except Exception:
+            pass
+        if not l_name and entry.ledger_name:
             l_name = entry.ledger_name.strip()
             
         if not l_name:

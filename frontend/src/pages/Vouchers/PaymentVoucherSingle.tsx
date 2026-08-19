@@ -222,7 +222,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
 
                 const ledgerOptions = (ledgersData || [])
                     .filter((l: any) => {
-                        return !isHierarchyHeadingName(l.name, sets) && l.code && l.code !== '00';
+                        return !isHierarchyHeadingName(l.name, sets) && l.code !== '00';
                     })
                     .map((l: any) => ({
                         ...l,
@@ -255,7 +255,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 // Portal entities use their unique ID as key so duplicates are preserved
                 portalEntities.forEach((o: any) => masterMap.set(o.id, o));
 
-                setPayToOptions(Array.from(masterMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+                setPayToOptions(Array.from(masterMap.values()).sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))));
             } catch (error) {
                 console.error('Error fetching data:', error);
                 showError('Failed to fetch master data');
@@ -777,7 +777,11 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 if (isPayTo) {
                     const found = payToOptions.find(opt => (opt.name || '').trim().toLowerCase() === normalized);
                     if (found) {
+                        // portal-vend-X / portal-cust-X → send as-is for backend resolution
                         if (found.id && typeof found.id === 'string' && found.id.startsWith('portal-')) return found.id;
+                        // hierarchy-X → send prefixed string so backend _resolve_ledger can resolve it
+                        if (found.id && typeof found.id === 'string' && found.id.startsWith('hierarchy-')) return found.id;
+                        // Real MasterLedger ID → send numeric ledger_id
                         return found.ledger_id || found.id;
                     }
                 }
@@ -1140,7 +1144,11 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 if (isPayTo) {
                     const found = payToOptions.find(opt => (opt.name || '').trim().toLowerCase() === normalized);
                     if (found) {
+                        // portal-vend-X / portal-cust-X → send as-is for backend resolution
                         if (found.id && typeof found.id === 'string' && found.id.startsWith('portal-')) return found.id;
+                        // hierarchy-X → send prefixed string so backend _resolve_ledger can resolve it
+                        if (found.id && typeof found.id === 'string' && found.id.startsWith('hierarchy-')) return found.id;
+                        // Real MasterLedger ID → send numeric ledger_id
                         return found.ledger_id || found.id;
                     }
                 }

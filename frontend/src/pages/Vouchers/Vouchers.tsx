@@ -946,7 +946,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           revenueOpsGroupNames.has(sg2) ||
           revenueOpsGroupNames.has(sg3) ||
           group.includes('revenue from operation') ||
-          group.includes('sales');
+          group.includes('sales') ||
+          group.includes('income');
 
         return isIncomeCat && matchesRevenueGroup;
       })
@@ -12820,7 +12821,17 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     <SearchableDropdown
                       value={entry.ledger}
                       onChange={(val) => handleEntryChange(index, 'ledger', val)}
-                      options={allLedgerOptions}
+                      options={allLedgerOptions.filter(opt => {
+                        const lowerOpt = opt.toLowerCase();
+                        const hiddenLedgers = [
+                          'sales account', 'output tax liability ledger', 'purchase account', 'input tax credit ledger',
+                          'sales return account', 'purchase return account', 'input cgst', 'input sgst/utgst', 'input igst',
+                          'input compensation cess', 'output cgst', 'output sgst/utgst', 'output igst', 'output compensation cess',
+                          'output gst', 'deffered tax liability', 'deferred tax liability', 'tds payable', 'tds receivable',
+                          'tcs payable', 'tcs receivable'
+                        ];
+                        return !hiddenLedgers.includes(lowerOpt) && !lowerOpt.includes('sale of services');
+                      })}
                       placeholder="Select Ledger"
                     />
                   </td>

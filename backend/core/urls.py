@@ -18,7 +18,7 @@ from .reports_views import (
     DayBookExcelView, LedgerExcelView, TrialBalanceExcelView, 
     StockSummaryExcelView, GSTReportExcelView,
     DaybookReportView, TrialBalanceReportView, BalanceSheetReportView,
-    StockSummaryReportView,
+    ProfitAndLossReportView, StockSummaryReportView,
 )
 
 from .tools_api import NoteReminderViewSet
@@ -48,6 +48,7 @@ urlpatterns = [
     # Phase 5: Additive JSON report endpoints
     path('reports/daybook/json/', DaybookReportView.as_view(), name='report-daybook-json'),
     path('reports/trialbalance/json/', TrialBalanceReportView.as_view(), name='report-trialbalance-json'),
+    path('reports/pnl/json/', ProfitAndLossReportView.as_view(), name='report-pnl-json'),
     path('reports/balancesheet/json/', BalanceSheetReportView.as_view(), name='report-balancesheet-json'),
     path('reports/stocksummary/json/', StockSummaryReportView.as_view(), name='report-stocksummary-json'),
 

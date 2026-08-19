@@ -6923,7 +6923,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                                                         <td className="px-6 py-1.5 border-r border-gray-50"></td>
                                                                                                         <td className="px-6 py-1.5 text-xs text-gray-700 font-medium pl-8 border-r border-gray-50">
                                                                                                             <div className="flex justify-between items-center w-full">
-                                                                                                                <span>Purchase Ledger</span>
+                                                                                                                <span>{supplyInrDetails?.purchase_ledger || 'Purchase Ledger'}</span>
                                                                                                                 <div className="flex items-center gap-1">
                                                                                                                     <span className="text-gray-900 font-bold ml-4">₹{totalTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                                                                                                     <span className="text-gray-500 text-[10px] font-normal">Dr</span>

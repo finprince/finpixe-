@@ -7334,7 +7334,7 @@ function CustomerLedgerView({ customer, onBack, onNavigate, setPrefilledVoucherD
                                                     <td className="px-6 py-1.5 border-r border-gray-50"></td>
                                                     <td className="px-6 py-1.5 text-xs text-gray-700 font-medium pl-14 border-r border-gray-50">
                                                         <div className="flex justify-between items-center w-full">
-                                                            <span>Sales Ledger</span>
+                                                            <span>{entry.originalInv?.items?.[0]?.sales_ledger || 'Sales Ledger'}</span>
                                                             <div className="flex items-center gap-1">
                                                                 <span className="text-gray-900 font-bold ml-4">₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                                                 <span className="text-gray-500 text-[10px] font-normal">Cr</span>

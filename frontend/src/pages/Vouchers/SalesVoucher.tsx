@@ -203,7 +203,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                     revenueOpsGroupNames.has(sg2) ||
                     revenueOpsGroupNames.has(sg3) ||
                     group.includes('revenue from operation') ||
-                    group.includes('sales');
+                    group.includes('sales') ||
+                    group.includes('income');
 
                 return isIncomeCat && matchesRevenueGroup;
             })

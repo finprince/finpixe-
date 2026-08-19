@@ -56,7 +56,7 @@ interface ReportsPageProps {
 }
 
 
-type ReportType = 'DayBook' | 'LedgerReport' | 'TrialBalance' | 'BalanceSheet' | 'StockSummary' | 'GSTReports' | 'AIReport' | 'GSTR1';
+type ReportType = 'DayBook' | 'LedgerReport' | 'TrialBalance' | 'ProfitAndLoss' | 'BalanceSheet' | 'StockSummary' | 'GSTReports' | 'AIReport' | 'GSTR1';
 
 type GSTForm = 'GSTR-1' | 'GSTR-2' | 'GSTR-2A' | 'GSTR-2B' | 'GSTR-3B' | 'GSTR-4' | 'GSTR-5' | 'GSTR-5A' | 'GSTR-6' | 'GSTR-7' | 'GSTR-8' | 'GSTR-9' | 'GSTR-9A' | 'GSTR-9C' | 'GSTR-10';
 
@@ -115,6 +115,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     { id: 'DayBook', label: 'DAY BOOK' },
     { id: 'LedgerReport', label: 'LEDGER REPORT' },
     { id: 'TrialBalance', label: 'TRIAL BALANCE' },
+    { id: 'ProfitAndLoss', label: 'PROFIT & LOSS' },
     { id: 'BalanceSheet', label: 'BALANCE SHEET' },
     { id: 'StockSummary', label: 'STOCK SUMMARY' },
     { id: 'GSTReports', label: 'GST REPORTS' },
@@ -126,6 +127,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     'DayBook': 'DayBook',
     'LedgerReport': 'LedgerReport',
     'TrialBalance': 'TrialBalance',
+    'ProfitAndLoss': 'TrialBalance',
     'BalanceSheet': 'BalanceSheet',
     'StockSummary': 'StockSummary',
     'GSTReports': 'GSTReports',
@@ -329,6 +331,13 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   const [hasInitializedTbTree, setHasInitializedTbTree] = useState(false);
   const [bsData, setBsData] = useState<any | null>(null);
   const [bsLoading, setBsLoading] = useState(false);
+  const [balanceSheetFormat, setBalanceSheetFormat] = useState<'auto' | 'vertical' | 'horizontal'>('auto');
+  const [expandedBsCategories, setExpandedBsCategories] = useState<Set<string>>(new Set());
+  const [pnlData, setPnlData] = useState<any | null>(null);
+  const [pnlLoading, setPnlLoading] = useState(false);
+  const [pnlFormat, setPnlFormat] = useState<'auto' | 'vertical' | 'standard'>('auto');
+  const [expandedPnlCategories, setExpandedPnlCategories] = useState<Set<string>>(new Set());
+  const [expandedPnlSubCategories, setExpandedPnlSubCategories] = useState<Set<string>>(new Set());
   const [daybookData, setDaybookData] = useState<{ results: any[]; count: number } | null>(null);
   const [daybookLoading, setDaybookLoading] = useState(false);
 
@@ -342,6 +351,16 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       .catch(err => console.error('Trial Balance API error:', err))
       .finally(() => setTbLoading(false));
   }, [reportType, startDate, endDate, trialBalanceType]);
+
+  // Fetch Profit & Loss from backend when report type changes or dates change
+  useEffect(() => {
+    if (reportType !== 'ProfitAndLoss') return;
+    setPnlLoading(true);
+    apiService.getProfitAndLossReport(startDate || undefined, endDate || undefined)
+      .then(res => setPnlData(res?.data || res))
+      .catch(err => console.error('Profit & Loss API error:', err))
+      .finally(() => setPnlLoading(false));
+  }, [reportType, startDate, endDate]);
 
   // Fetch Balance Sheet from backend when report type changes or end date changes
   useEffect(() => {
@@ -438,6 +457,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     DayBook: { endpoint: '/api/reports/daybook/excel', filename: 'DayBook.xlsx' },
     LedgerReport: { endpoint: '/api/reports/ledger/excel', filename: 'Ledger.xlsx' },
     TrialBalance: { endpoint: '/api/reports/trialbalance/excel', filename: 'TrialBalance.xlsx' },
+    ProfitAndLoss: { endpoint: '/api/reports/pnl/excel', filename: 'ProfitAndLoss.xlsx' },
     StockSummary: { endpoint: '/api/reports/stocksummary/excel', filename: 'StockSummary.xlsx' },
     GSTReports: { endpoint: '/api/reports/gst/excel', filename: 'GstReport.xlsx' },
     AIReport: { endpoint: '/api/reports/ai/excel', filename: 'AIReport.xlsx' },
@@ -1705,7 +1725,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
         }
         return { name, category, balance: Math.abs(net), balanceType: net > 0 ? 'Dr' : net < 0 ? 'Cr' : '' };
       })
-      .filter(r => r.balance > 0).sort((a, b) => a.name.localeCompare(b.name));
+      .filter(r => r.balance > 0).sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
 
     if (reportType === 'LedgerReport' && selectedLedger && selectedLedger !== 'all') {
       const [prefix, name] = selectedLedger.split(':');
@@ -4905,6 +4925,174 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
 
 
 
+  const safeFormatDate = (dateStr?: string, options?: Intl.DateTimeFormatOptions) => {
+    if (!dateStr) return '';
+    const str = String(dateStr).trim();
+    if (!str || str === '-') return '';
+
+    let d: Date | null = null;
+    if (str.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      d = new Date(str);
+    } else {
+      const parts = str.split(/[\/\-]/);
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          d = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+        } else if (parts[0].length === 4) {
+          d = new Date(str);
+        }
+      }
+    }
+
+    if (!d || isNaN(d.getTime())) {
+      return str;
+    }
+
+    return d.toLocaleDateString('en-GB', options || { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const safeGetYear = (dateStr?: string) => {
+    if (!dateStr) return new Date().getFullYear();
+    const str = String(dateStr).trim();
+    const parts = str.split(/[\/\-]/);
+    if (parts.length === 3) {
+      if (parts[2].length === 4) return parseInt(parts[2]);
+      if (parts[0].length === 4) return parseInt(parts[0]);
+    }
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return d.getFullYear();
+    return new Date().getFullYear();
+  };
+
+  const isNonCorporateBusinessType = (bType?: string) => {
+    if (!bType) return true;
+    const lower = bType.trim().toLowerCase();
+    return (
+      lower.includes('all other entities') ||
+      lower.includes('llp') ||
+      lower.includes('partnership') ||
+      lower.includes('other') ||
+      lower.includes('proprietorship') ||
+      !lower.includes('company')
+    );
+  };
+
+  const formatNcAmount = (val?: number) => {
+    const num = Number(val || 0);
+    if (num === 0) return '-';
+    return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const renderNcRowItem = (
+    label: string,
+    items: any[] | undefined,
+    indentClass: string = "pl-10",
+    expandedSet: Set<string>,
+    setExpandedSet: React.Dispatch<React.SetStateAction<Set<string>>>
+  ) => {
+    const itemList = items || [];
+    const total = itemList.reduce((sum: number, x: any) => sum + Number(x.balance || 0), 0);
+    const prevTotal = itemList.reduce((sum: number, x: any) => sum + Number(x.prev_balance || 0), 0);
+    const isExpanded = expandedSet.has(label);
+
+    const toggleExpand = () => {
+      setExpandedSet((prev) => {
+        const next = new Set(prev);
+        if (next.has(label)) {
+          next.delete(label);
+        } else {
+          next.add(label);
+        }
+        return next;
+      });
+    };
+
+    return (
+      <React.Fragment key={label}>
+        <tr className="hover:bg-indigo-50/30 transition-colors border-b border-slate-100 text-sm">
+          <td className={`py-3 px-4 ${indentClass} font-medium text-slate-700`}>
+            <div className="flex items-center justify-between pr-2">
+              <span>{label}</span>
+              {itemList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleExpand}
+                  className="text-xs text-indigo-600 font-bold uppercase tracking-wider hover:text-indigo-800 ml-3 print:hidden"
+                >
+                  {isExpanded ? 'Hide Details' : `${itemList.length} item${itemList.length > 1 ? 's' : ''}`}
+                </button>
+              )}
+            </div>
+          </td>
+          <td className="py-3 px-6 text-right font-mono font-semibold text-slate-900 text-sm">
+            {total !== 0 ? `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+          </td>
+          <td className="py-3 px-6 text-right font-mono font-semibold text-slate-700 text-sm">
+            {prevTotal !== 0 ? `₹${prevTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+          </td>
+        </tr>
+        {isExpanded && itemList.length > 0 && (
+          itemList.map((it: any, idx: number) => {
+            const hasSubItems = it.sub_items && it.sub_items.length > 0;
+            const subId = `${label}-${it.name}`;
+            const isSubExpanded = expandedPnlSubCategories.has(subId);
+            
+            const toggleSub = () => {
+              setExpandedPnlSubCategories(prev => {
+                const next = new Set(prev);
+                if (next.has(subId)) next.delete(subId);
+                else next.add(subId);
+                return next;
+              });
+            };
+
+            return (
+              <React.Fragment key={`detail-${label}-${idx}`}>
+                <tr className="bg-slate-50/90 border-b border-slate-200/70 text-xs">
+                  <td className="py-2.5 pl-14 pr-4 font-sans font-medium text-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className={hasSubItems ? "cursor-pointer hover:text-indigo-600 transition-colors" : ""} onClick={hasSubItems ? toggleSub : undefined}>
+                        • {it.name}
+                      </span>
+                      {hasSubItems && (
+                        <button
+                          type="button"
+                          onClick={toggleSub}
+                          className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider hover:text-indigo-800 print:hidden"
+                        >
+                          {isSubExpanded ? 'Hide' : 'Show'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2.5 px-6 text-right font-mono font-semibold text-slate-900">
+                    {Number(it.balance || 0) !== 0 ? `₹${Number(it.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  </td>
+                  <td className="py-2.5 px-6 text-right font-mono font-semibold text-slate-600">
+                    {Number(it.prev_balance || 0) !== 0 ? `₹${Number(it.prev_balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  </td>
+                </tr>
+                {hasSubItems && isSubExpanded && it.sub_items.map((subIt: any, subIdx: number) => (
+                  <tr key={`subdetail-${subId}-${subIdx}`} className="bg-slate-100/50 border-b border-slate-200/40 text-[11px]">
+                    <td className="py-2 pl-20 pr-4 font-sans text-slate-600 italic">
+                      - {subIt.name}
+                    </td>
+                    <td className="py-2 px-6 text-right font-mono font-medium text-slate-700">
+                      {Number(subIt.balance || 0) !== 0 ? `₹${Number(subIt.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                    </td>
+                    <td className="py-2 px-6 text-right font-mono font-medium text-slate-500">
+                      {Number(subIt.prev_balance || 0) !== 0 ? `₹${Number(subIt.prev_balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            );
+          })
+        )}
+      </React.Fragment>
+    );
+  };
+
   return (
     <UniversalWorkspaceLayout
       title="Financial Reports Command Center"
@@ -5030,7 +5218,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                       className="erp-select"
                     >
                       <option value="all">All Sections</option>
-                      {availableSections.map((sec) => (
+                      {(availableSections || []).map((sec) => (
                         <option key={sec} value={sec}>
                           {sec}
                         </option>
@@ -5164,21 +5352,65 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
               </div>
             </>
           )}
-          {reportType === 'BalanceSheet' && (
+          {reportType === 'ProfitAndLoss' && (
             <>
-              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div className="min-w-[200px]">
-                  <label className="label-text">As of Date</label>
-                  <DateInput
+              <div className="mb-8 flex flex-wrap items-end justify-between gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="flex flex-wrap items-end gap-6">
+                  <div className="min-w-[200px]">
+                    <label className="label-text">Start Date</label>
+                    <DateInput
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="erp-input"
+                    />
+                  </div>
+                  <div className="min-w-[200px]">
+                    <label className="label-text">End Date</label>
+                    <DateInput
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="erp-input"
+                    />
+                  </div>
 
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="erp-input"
-                  />
                 </div>
+                {pnlData?.business_type && (
+                  <div className="text-xs text-slate-500 font-medium">
+                    Business Type: <span className="font-bold text-slate-800">{pnlData.business_type}</span>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (expandedPnlCategories.size > 0) {
+                      setExpandedPnlCategories(new Set());
+                    } else {
+                      const allCats = new Set([
+                        "I. Revenue from operations",
+                        "II. Other Income",
+                        "Cost of goods sold",
+                        "Employee benefits expense",
+                        "Finance costs",
+                        "Depreciation and amortization expense",
+                        "Other expenses",
+                        "VI. Exceptional items",
+                        "VIII. Extraordinary Items",
+                        "Current tax",
+                        "Excess/ Short provision of tax relating to earlier years",
+                        "Deferred tax charge/ (benefit)",
+                        "XII. Profit/(loss) from discontinuing operations",
+                        "XIII. Tax expense of discontinuing operations"
+                      ]);
+                      setExpandedPnlCategories(allCats);
+                    }
+                  }}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors shadow-sm"
+                >
+                  {expandedPnlCategories.size > 0 ? '− Collapse All Groups' : '+ Expand All Groups'}
+                </button>
                 <button
                   onClick={() => window.print()}
                   className="erp-button-primary bg-rose-600 hover:bg-rose-700"
@@ -5188,129 +5420,566 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                 </button>
               </div>
 
-              <div className="bg-white border rounded-[4px] overflow-hidden">
-                <div className="p-4 bg-gray-50 border-b font-bold text-center text-gray-800">Balance Sheet</div>
+              <div className="bg-white border rounded-[4px] overflow-hidden shadow-sm">
+                {pnlLoading && (
+                  <div className="p-12 text-center text-gray-400">Loading Profit & Loss statement…</div>
+                )}
+                {!pnlLoading && !pnlData && (
+                  <div className="p-12 text-center text-gray-400">No data available. Select dates or ensure journal entries exist.</div>
+                )}
+                {!pnlLoading && pnlData && (
+                  <div className="p-6 md:p-8 font-sans w-full">
+                    {/* Executive Info Header Card */}
+                    <div className="mb-6 p-6 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 text-base text-slate-800 font-medium">
+                          <span>Name of the Non-Corporate Entity:</span>
+                          <span className="px-3.5 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg border border-indigo-200 text-sm uppercase tracking-wider">
+                            {pnlData.company_name || 'Buds Tech Consultancy'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-base text-slate-800 font-medium">
+                          <span>Statement of Profit and Loss for the year ended:</span>
+                          <span className="font-bold text-slate-900 text-base">
+                            {endDate ? safeFormatDate(endDate, { day: 'numeric', month: 'long', year: 'numeric' }) : '31 March 2026'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Schedule III Non-Corporate Statement of Profit and Loss Table */}
+                    <div className="erp-table-container border border-slate-200 rounded-xl overflow-hidden shadow-sm w-full">
+                      <table className="w-full text-left border-collapse min-w-full">
+                        <thead>
+                          <tr className="bg-slate-100/90 border-b border-slate-200 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                            <th className="py-4 px-6 border-r border-slate-200 w-7/12">Particulars</th>
+                            <th className="py-4 px-6 border-r border-slate-200 text-right w-2.5/12">
+                              {endDate ? safeFormatDate(endDate, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Current Year'}
+                            </th>
+                            <th className="py-4 px-6 text-right w-2.5/12">
+                              {endDate ? `31 March ${safeGetYear(endDate) - 1}` : 'Previous Year'}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm text-slate-900">
+                          {/* I. Revenue from operations */}
+                          {renderNcRowItem("I. Revenue from operations", pnlData.non_corporate?.revenue_from_operations?.items, "pl-6 font-bold text-slate-900", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* II. Other Income */}
+                          {renderNcRowItem("II. Other Income", pnlData.non_corporate?.other_income?.items, "pl-6 font-bold text-slate-900", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* III. Total Income (I+II) */}
+                          <tr className="bg-indigo-50/70 border-t-2 border-b-2 border-indigo-200 font-bold text-slate-950 text-sm">
+                            <td className="py-3.5 px-6">III. Total Income (I+II)</td>
+                            <td className="py-3.5 px-6 text-right font-mono font-bold text-indigo-950">
+                              {formatNcAmount(pnlData.non_corporate?.total_income)}
+                            </td>
+                            <td className="py-3.5 px-6 text-right font-mono font-bold text-indigo-950">
+                              {formatNcAmount(pnlData.non_corporate?.prev_total_income)}
+                            </td>
+                          </tr>
+
+                          {/* IV. Expenses Header */}
+                          <tr className="bg-slate-100/80 font-bold text-sm text-slate-900">
+                            <td colSpan={3} className="py-3 px-6">
+                              IV. Expenses:
+                            </td>
+                          </tr>
+                          {renderNcRowItem("Cost of goods sold", pnlData.non_corporate?.expenses?.cost_of_goods_sold?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("Employee benefits expense", pnlData.non_corporate?.expenses?.employee_benefits_expense?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("Finance costs", pnlData.non_corporate?.expenses?.finance_costs?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("Depreciation and amortization expense", pnlData.non_corporate?.expenses?.depreciation_amortization?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("Other expenses", pnlData.non_corporate?.expenses?.other_expenses?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* Total Expenses */}
+                          <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
+                            <td className="py-3 px-6">Total Expenses (IV)</td>
+                            <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                              {formatNcAmount(pnlData.non_corporate?.expenses?.total)}
+                            </td>
+                            <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                              {formatNcAmount(pnlData.non_corporate?.expenses?.prev_total)}
+                            </td>
+                          </tr>
+
+                          {/* V. Profit/(loss) before exceptional and extraordinary items and tax (III-IV) */}
+                          <tr className="bg-slate-100/90 font-bold text-sm text-slate-900 border-t border-b border-slate-300">
+                            <td className="py-3.5 px-6">V. Profit/(loss) before exceptional and extraordinary items and tax (III - IV)</td>
+                            <td className="py-3.5 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.profit_before_exceptional_extraordinary)}
+                            </td>
+                            <td className="py-3.5 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.prev_profit_before_exceptional_extraordinary)}
+                            </td>
+                          </tr>
+
+                          {/* VI. Exceptional items */}
+                          {renderNcRowItem("VI. Exceptional items", pnlData.non_corporate?.exceptional_items?.items, "pl-6 font-medium text-slate-800", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* VII. Profit/(loss) before extraordinary items and tax (V-VI) */}
+                          <tr className="font-bold text-sm text-slate-900 border-t border-b border-slate-200 bg-slate-50">
+                            <td className="py-3 px-6">VII. Profit/(loss) before extraordinary items and tax (V - VI)</td>
+                            <td className="py-3 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.profit_before_extraordinary)}
+                            </td>
+                            <td className="py-3 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.prev_profit_before_extraordinary)}
+                            </td>
+                          </tr>
+
+                          {/* VIII. Extraordinary Items */}
+                          {renderNcRowItem("VIII. Extraordinary Items", pnlData.non_corporate?.extraordinary_items?.items, "pl-6 font-medium text-slate-800", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* IX. Profit before tax (VII-VIII) */}
+                          <tr className="font-bold text-sm text-slate-900 border-t border-b border-slate-300 bg-slate-100/70">
+                            <td className="py-3.5 px-6">IX. Profit before tax (VII - VIII)</td>
+                            <td className="py-3.5 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.profit_before_tax)}
+                            </td>
+                            <td className="py-3.5 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.prev_profit_before_tax)}
+                            </td>
+                          </tr>
+
+                          {/* X. Tax expense */}
+                          <tr className="font-bold text-slate-900 bg-slate-50/50 text-sm">
+                            <td colSpan={3} className="py-3 px-6">
+                              X. Tax expense:
+                            </td>
+                          </tr>
+                          {renderNcRowItem("Current tax", pnlData.non_corporate?.tax_expense?.current_tax?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("Excess/ Short provision of tax relating to earlier years", pnlData.non_corporate?.tax_expense?.prior_period_tax?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("Deferred tax charge/ (benefit)", pnlData.non_corporate?.tax_expense?.deferred_tax?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* XI. Profit/(Loss) for the period from continuing operations (IX-X) */}
+                          <tr className="font-bold text-sm text-slate-900 border-t border-b border-slate-200 bg-slate-50">
+                            <td className="py-3 px-6">XI. Profit/(Loss) for the period from continuing operations (IX - X)</td>
+                            <td className="py-3 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.profit_continuing_operations)}
+                            </td>
+                            <td className="py-3 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.prev_profit_continuing_operations)}
+                            </td>
+                          </tr>
+
+                          {/* XII. Discontinuing operations */}
+                          {renderNcRowItem("XII. Profit/(loss) from discontinuing operations", pnlData.non_corporate?.discontinuing_operations?.profit_loss?.items, "pl-6 font-medium text-slate-800", expandedPnlCategories, setExpandedPnlCategories)}
+                          {renderNcRowItem("XIII. Tax expense of discontinuing operations", pnlData.non_corporate?.discontinuing_operations?.tax_expense?.items, "pl-6 font-medium text-slate-800", expandedPnlCategories, setExpandedPnlCategories)}
+
+                          {/* XIV. Profit/(loss) from discontinuing operations (after tax) (XII-XIII) */}
+                          <tr className="font-bold text-sm text-slate-900 border-t border-b border-slate-200 bg-slate-50">
+                            <td className="py-3 px-6">XIV. Profit/(loss) from discontinuing operations (after tax) (XII - XIII)</td>
+                            <td className="py-3 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.discontinuing_operations?.total_after_tax)}
+                            </td>
+                            <td className="py-3 px-6 text-right font-mono font-bold">
+                              {formatNcAmount(pnlData.non_corporate?.discontinuing_operations?.prev_total_after_tax)}
+                            </td>
+                          </tr>
+
+                          {/* XV. Profit/(Loss) for the year (XI+XIV) */}
+                          <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
+                            <td className="py-4 px-6">XV. Profit/(Loss) for the year (XI + XIV)</td>
+                            <td className="py-4 px-6 text-right font-mono text-white">
+                              {formatNcAmount(pnlData.non_corporate?.net_profit_for_year)}
+                            </td>
+                            <td className="py-4 px-6 text-right font-mono text-slate-300">
+                              {formatNcAmount(pnlData.non_corporate?.prev_net_profit_for_year)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {reportType === 'BalanceSheet' && (
+            <>
+              <div className="mb-8 flex flex-wrap items-end justify-between gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="flex flex-wrap items-end gap-6">
+                  <div className="min-w-[200px]">
+                    <label className="label-text">As of Date</label>
+                    <DateInput
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="erp-input"
+                    />
+                  </div>
+                  <div className="min-w-[240px]">
+                    <label className="label-text">Balance Sheet Format</label>
+                    <select
+                      value={balanceSheetFormat}
+                      onChange={(e) => setBalanceSheetFormat(e.target.value as any)}
+                      className="erp-select"
+                    >
+                      <option value="auto">Auto ({isNonCorporateBusinessType(bsData?.business_type) ? 'Non-Corporate Vertical' : 'Standard Horizontal'})</option>
+                      <option value="vertical">Non-Corporate Vertical (Schedule III)</option>
+                      <option value="horizontal">Standard Horizontal (T-Shape)</option>
+                    </select>
+                  </div>
+                </div>
+                {bsData?.business_type && (
+                  <div className="text-xs text-slate-500 font-medium">
+                    Business Type: <span className="font-bold text-slate-800">{bsData.business_type}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mb-4">
+                {((balanceSheetFormat === 'auto' && isNonCorporateBusinessType(bsData?.business_type)) || balanceSheetFormat === 'vertical') ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (expandedBsCategories.size > 0) {
+                        setExpandedBsCategories(new Set());
+                      } else {
+                        const allCats = new Set([
+                          "Owners' Capital Account",
+                          "Reserves and surplus",
+                          "Long-term borrowings",
+                          "Deferred tax liabilities (Net)",
+                          "Other long-term liabilities",
+                          "Long-term provisions",
+                          "Short-term borrowings",
+                          "Total outstanding dues of micro, small and medium enterprises",
+                          "Total outstanding dues of creditors other than micro, small and medium enterprises",
+                          "Other current liabilities",
+                          "Short-term provisions",
+                          "Property, Plant and Equipment",
+                          "Intangible assets",
+                          "Capital work in progress",
+                          "Intangible asset under development",
+                          "Non-current investments",
+                          "Deferred tax assets (Net)",
+                          "Long Term Loans and Advances",
+                          "Other non-current assets",
+                          "Current investments",
+                          "Inventories",
+                          "Trade receivables",
+                          "Cash and bank balances",
+                          "Short Term Loans and Advances",
+                          "Other current assets"
+                        ]);
+                        setExpandedBsCategories(allCats);
+                      }
+                    }}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors shadow-sm"
+                  >
+                    {expandedBsCategories.size > 0 ? '− Collapse All Groups' : '+ Expand All Groups'}
+                  </button>
+                ) : <div />}
+                <button
+                  onClick={() => window.print()}
+                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
+                  title="Create PDF"
+                >
+                  Create PDF
+                </button>
+              </div>
+
+              <div className="bg-white border rounded-[4px] overflow-hidden shadow-sm">
                 {bsLoading && (
-                  <div className="p-8 text-center text-gray-400">Loading balance sheet…</div>
+                  <div className="p-12 text-center text-gray-400">Loading balance sheet…</div>
                 )}
                 {!bsLoading && !bsData && (
-                  <div className="p-8 text-center text-gray-400">No data available. Select a date or ensure journal entries exist.</div>
+                  <div className="p-12 text-center text-gray-400">No data available. Select a date or ensure journal entries exist.</div>
                 )}
                 {!bsLoading && bsData && (
                   <>
                     {bsData.is_balanced === false && (
-                      <div className="p-2 text-center text-xs bg-indigo-50 text-indigo-700 border-b border-indigo-200">
+                      <div className="p-2.5 text-center text-xs font-semibold bg-rose-50 text-rose-700 border-b border-rose-200">
                         ⚠ Balance Sheet does not balance. Difference: ₹{Math.abs(Number(bsData.assets?.total || 0) - Number((bsData.liabilities?.total || 0) + (bsData.capital?.total || 0))).toFixed(2)}
                       </div>
                     )}
-                    <div className="grid grid-cols-2 divide-x divide-gray-200">
-                      {/* LEFT — Assets */}
-                      <div className="p-4">
-                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Assets</h3>
-                        {/* Fixed Assets */}
-                        {(bsData.assets?.fixed_assets?.length > 0) && (
-                          <>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Fixed Assets</p>
-                            {bsData.assets.fixed_assets.map((item: any) => (
-                              <div key={item.name} className="flex justify-between py-1 text-sm">
-                                <span className="text-gray-700">{item.name}</span>
-                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                              </div>
-                            ))}
-                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                              <span className="text-gray-600">Total Fixed Assets</span>
-                              <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_fixed_assets).toFixed(2)}</span>
+
+                    {((balanceSheetFormat === 'auto' && isNonCorporateBusinessType(bsData.business_type)) || balanceSheetFormat === 'vertical') ? (
+                      /* VERTICAL FORMAT FOR NON-CORPORATE ENTITY (IMAGE 2 FORMAT WITH FULL WIDTH) */
+                      <div className="p-6 md:p-8 font-sans w-full">
+                        {/* Executive Info Header Card */}
+                        <div className="mb-6 p-6 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 text-base text-slate-800 font-medium">
+                              <span>Name of the Non-Corporate Entity:</span>
+                              <span className="px-3.5 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg border border-indigo-200 text-sm uppercase tracking-wider">
+                                {bsData.company_name || 'Buds Tech Consultancy'}
+                              </span>
                             </div>
-                          </>
-                        )}
-                        {/* Current Assets */}
-                        {(bsData.assets?.current_assets?.length > 0) && (
-                          <>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Assets</p>
-                            {bsData.assets.current_assets.map((item: any) => (
-                              <div key={item.name} className="flex justify-between py-1 text-sm">
-                                <span className="text-gray-700">{item.name}</span>
-                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                              </div>
-                            ))}
-                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                              <span className="text-gray-600">Total Current Assets</span>
-                              <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_current_assets).toFixed(2)}</span>
+                            <div className="flex items-center gap-3 text-base text-slate-800 font-medium">
+                              <span>Balance Sheet as at:</span>
+                              <span className="font-bold text-slate-900 text-base">
+                                {endDate ? safeFormatDate(endDate, { day: 'numeric', month: 'long', year: 'numeric' }) : '31 March 2026'}
+                              </span>
                             </div>
-                          </>
-                        )}
-                        <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
-                          <span>Total Assets</span>
-                          <span className="font-mono">₹{Number(bsData.assets?.total || 0).toFixed(2)}</span>
-                        </div>
-                      </div>
-                      {/* RIGHT — Liabilities + Capital */}
-                      <div className="p-4">
-                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Liabilities & Capital</h3>
-                        {/* Capital */}
-                        {(bsData.capital?.capital_account?.length > 0) && (
-                          <>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Capital</p>
-                            {bsData.capital.capital_account.map((item: any) => (
-                              <div key={item.name} className="flex justify-between py-1 text-sm">
-                                <span className="text-gray-700">{item.name}</span>
-                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                              </div>
-                            ))}
-                            {bsData.capital.retained_earnings !== 0 && (
-                              <div className="flex justify-between py-1 text-sm">
-                                <span className="text-gray-700">Retained Earnings</span>
-                                <span className={`font-mono font-semibold ${Number(bsData.capital.retained_earnings) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                                  ₹{Number(bsData.capital.retained_earnings).toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                              <span className="text-gray-600">Total Capital</span>
-                              <span className="font-mono text-gray-900">₹{Number(bsData.capital.total).toFixed(2)}</span>
-                            </div>
-                          </>
-                        )}
-                        {/* Long-term Liabilities */}
-                        {(bsData.liabilities?.long_term_liabilities?.length > 0) && (
-                          <>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Long-term Liabilities</p>
-                            {bsData.liabilities.long_term_liabilities.map((item: any) => (
-                              <div key={item.name} className="flex justify-between py-1 text-sm">
-                                <span className="text-gray-700">{item.name}</span>
-                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                        {/* Current Liabilities */}
-                        {(bsData.liabilities?.current_liabilities?.length > 0) && (
-                          <>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Liabilities</p>
-                            {bsData.liabilities.current_liabilities.map((item: any) => (
-                              <div key={item.name} className="flex justify-between py-1 text-sm">
-                                <span className="text-gray-700">{item.name}</span>
-                                <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                        {(bsData.liabilities?.total > 0) && (
-                          <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
-                            <span className="text-gray-600">Total Liabilities</span>
-                            <span className="font-mono text-gray-900">₹{Number(bsData.liabilities.total).toFixed(2)}</span>
                           </div>
-                        )}
-                        <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
-                          <span>Total Liabilities + Capital</span>
-                          <span className="font-mono">₹{(Number(bsData.liabilities?.total || 0) + Number(bsData.capital?.total || 0)).toFixed(2)}</span>
+                        </div>
+
+                        {/* Modern Enterprise Schedule III Non-Corporate Full Width Table */}
+                        <div className="erp-table-container border border-slate-200 rounded-xl overflow-hidden shadow-sm w-full">
+                          <table className="w-full text-left border-collapse min-w-full">
+                            <thead>
+                              <tr className="bg-slate-100/90 border-b border-slate-200 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                                <th className="py-4 px-6 border-r border-slate-200 w-7/12">Particulars</th>
+                                <th className="py-4 px-6 border-r border-slate-200 text-right w-2.5/12">
+                                  {endDate ? safeFormatDate(endDate, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Current Year'}
+                                </th>
+                                <th className="py-4 px-6 text-right w-2.5/12">
+                                  {endDate ? `31 March ${safeGetYear(endDate) - 1}` : 'Previous Year'}
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-sm text-slate-900">
+                              {/* EQUITY AND LIABILITIES */}
+                              <tr className="bg-indigo-50/80 font-bold text-sm text-indigo-950 uppercase tracking-wider">
+                                <td colSpan={3} className="py-3.5 px-6 border-y border-indigo-100">
+                                  EQUITY AND LIABILITIES
+                                </td>
+                              </tr>
+
+                              {/* 1. Owners' Funds */}
+                              <tr className="font-bold text-slate-900 bg-slate-50/50 text-sm">
+                                <td colSpan={3} className="py-3 px-6">
+                                  Owners' Funds
+                                </td>
+                              </tr>
+                              {renderNcRowItem("Owners' Capital Account", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.capital_account, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Reserves and surplus", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.reserves_and_surplus, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
+                                <td className="py-3 px-10">Subtotal - Owners' Funds</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.owners_funds?.total)}
+                                </td>
+                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+
+                              {/* 2. Non-current liabilities */}
+                              <tr className="font-bold text-slate-900 bg-slate-50/50 text-sm">
+                                <td colSpan={3} className="py-3 px-6">
+                                  Non-current liabilities
+                                </td>
+                              </tr>
+                              {renderNcRowItem("Long-term borrowings", bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.long_term_borrowings, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Deferred tax liabilities (Net)", bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.deferred_tax_liabilities, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Other long-term liabilities", bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.other_long_term_liabilities, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Long-term provisions", bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.long_term_provisions, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
+                                <td className="py-3 px-10">Subtotal - Non-current liabilities</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.total)}
+                                </td>
+                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+
+                              {/* 3. Current liabilities */}
+                              <tr className="font-bold text-slate-900 bg-slate-50/50 text-sm">
+                                <td colSpan={3} className="py-3 px-6">
+                                  Current liabilities
+                                </td>
+                              </tr>
+                              {renderNcRowItem("Short-term borrowings", bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.short_term_borrowings, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              <tr className="font-semibold text-slate-800 text-sm">
+                                <td colSpan={3} className="py-2.5 px-10">
+                                  Trade payables
+                                </td>
+                              </tr>
+                              {renderNcRowItem("Total outstanding dues of micro, small and medium enterprises", bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.trade_payables?.msme_dues, "pl-14", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Total outstanding dues of creditors other than micro, small and medium enterprises", bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.trade_payables?.other_creditors_dues, "pl-14", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Other current liabilities", bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.other_current_liabilities, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Short-term provisions", bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.short_term_provisions, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
+                                <td className="py-3 px-10">Subtotal - Current liabilities</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.total)}
+                                </td>
+                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+
+                              {/* TOTAL EQUITY AND LIABILITIES */}
+                              <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
+                                <td className="py-4 px-6">Total</td>
+                                <td className="py-4 px-6 text-right font-mono text-white">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.total)}
+                                </td>
+                                <td className="py-4 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+
+                              {/* ASSETS */}
+                              <tr className="bg-indigo-50/80 font-bold text-sm text-indigo-950 uppercase tracking-wider">
+                                <td colSpan={3} className="py-3.5 px-6 border-y border-indigo-100">
+                                  ASSETS
+                                </td>
+                              </tr>
+
+                              {/* 1. Non-current assets */}
+                              <tr className="font-bold text-slate-900 bg-slate-50/50 text-sm">
+                                <td colSpan={3} className="py-3 px-6">
+                                  Non-current assets
+                                </td>
+                              </tr>
+                              <tr className="font-semibold text-slate-800 text-sm">
+                                <td colSpan={3} className="py-2.5 px-10">
+                                  Property, Plant and Equipment and Intangible assets
+                                </td>
+                              </tr>
+                              {renderNcRowItem("Property, Plant and Equipment", bsData.non_corporate?.assets?.non_current_assets?.ppe_and_intangibles?.property_plant_equipment, "pl-14", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Intangible assets", bsData.non_corporate?.assets?.non_current_assets?.ppe_and_intangibles?.intangible_assets, "pl-14", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Capital work in progress", bsData.non_corporate?.assets?.non_current_assets?.ppe_and_intangibles?.capital_wip, "pl-14", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Intangible asset under development", bsData.non_corporate?.assets?.non_current_assets?.ppe_and_intangibles?.intangible_under_development, "pl-14", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Non-current investments", bsData.non_corporate?.assets?.non_current_assets?.non_current_investments, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Deferred tax assets (Net)", bsData.non_corporate?.assets?.non_current_assets?.deferred_tax_assets, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Long Term Loans and Advances", bsData.non_corporate?.assets?.non_current_assets?.long_term_loans_advances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Other non-current assets", bsData.non_corporate?.assets?.non_current_assets?.other_non_current_assets, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
+                                <td className="py-3 px-10">Subtotal - Non-current assets</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                                  {formatNcAmount(bsData.non_corporate?.assets?.non_current_assets?.total)}
+                                </td>
+                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+
+                              {/* 2. Current assets */}
+                              <tr className="font-bold text-slate-900 bg-slate-50/50 text-sm">
+                                <td colSpan={3} className="py-3 px-6">
+                                  Current assets
+                                </td>
+                              </tr>
+                              {renderNcRowItem("Current investments", bsData.non_corporate?.assets?.current_assets?.current_investments, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Inventories", bsData.non_corporate?.assets?.current_assets?.inventories, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Trade receivables", bsData.non_corporate?.assets?.current_assets?.trade_receivables, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Cash and bank balances", bsData.non_corporate?.assets?.current_assets?.cash_and_bank_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Short Term Loans and Advances", bsData.non_corporate?.assets?.current_assets?.short_term_loans_advances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Other current assets", bsData.non_corporate?.assets?.current_assets?.other_current_assets, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
+                                <td className="py-3 px-10">Subtotal - Current assets</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
+                                  {formatNcAmount(bsData.non_corporate?.assets?.current_assets?.total)}
+                                </td>
+                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+
+                              {/* TOTAL ASSETS */}
+                              <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
+                                <td className="py-4 px-6">Total</td>
+                                <td className="py-4 px-6 text-right font-mono text-white">
+                                  {formatNcAmount(bsData.non_corporate?.assets?.total)}
+                                </td>
+                                <td className="py-4 px-6 text-right font-mono text-slate-400">-</td>
+                              </tr>
+                            </tbody>
+                          </table>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* HORIZONTAL FORMAT FOR CORPORATE ENTITY / STANDARD T-SHAPE */
+                      <div className="grid grid-cols-2 divide-x divide-gray-200">
+                        {/* LEFT — Assets */}
+                        <div className="p-4">
+                          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Assets</h3>
+                          {/* Fixed Assets */}
+                          {(bsData.assets?.fixed_assets?.length > 0) && (
+                            <>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Fixed Assets</p>
+                              {bsData.assets.fixed_assets.map((item: any) => (
+                                <div key={item.name} className="flex justify-between py-1 text-sm">
+                                  <span className="text-gray-700">{item.name}</span>
+                                  <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                                <span className="text-gray-600">Total Fixed Assets</span>
+                                <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_fixed_assets).toFixed(2)}</span>
+                              </div>
+                            </>
+                          )}
+                          {/* Current Assets */}
+                          {(bsData.assets?.current_assets?.length > 0) && (
+                            <>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Assets</p>
+                              {bsData.assets.current_assets.map((item: any) => (
+                                <div key={item.name} className="flex justify-between py-1 text-sm">
+                                  <span className="text-gray-700">{item.name}</span>
+                                  <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                                <span className="text-gray-600">Total Current Assets</span>
+                                <span className="font-mono text-gray-900">₹{Number(bsData.assets.total_current_assets).toFixed(2)}</span>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
+                            <span>Total Assets</span>
+                            <span className="font-mono">₹{Number(bsData.assets?.total || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                        {/* RIGHT — Liabilities + Capital */}
+                        <div className="p-4">
+                          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-2">Liabilities & Capital</h3>
+                          {/* Capital */}
+                          {(bsData.capital?.capital_account?.length > 0) && (
+                            <>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-2">Capital</p>
+                              {bsData.capital.capital_account.map((item: any) => (
+                                <div key={item.name} className="flex justify-between py-1 text-sm">
+                                  <span className="text-gray-700">{item.name}</span>
+                                  <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              {bsData.capital.retained_earnings !== 0 && (
+                                <div className="flex justify-between py-1 text-sm">
+                                  <span className="text-gray-700">Retained Earnings</span>
+                                  <span className={`font-mono font-semibold ${Number(bsData.capital.retained_earnings) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                    ₹{Number(bsData.capital.retained_earnings).toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                                <span className="text-gray-600">Total Capital</span>
+                                <span className="font-mono text-gray-900">₹{Number(bsData.capital.total).toFixed(2)}</span>
+                              </div>
+                            </>
+                          )}
+                          {/* Long-term Liabilities */}
+                          {(bsData.liabilities?.long_term_liabilities?.length > 0) && (
+                            <>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Long-term Liabilities</p>
+                              {bsData.liabilities.long_term_liabilities.map((item: any) => (
+                                <div key={item.name} className="flex justify-between py-1 text-sm">
+                                  <span className="text-gray-700">{item.name}</span>
+                                  <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                          {/* Current Liabilities */}
+                          {(bsData.liabilities?.current_liabilities?.length > 0) && (
+                            <>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1 mt-3">Current Liabilities</p>
+                              {bsData.liabilities.current_liabilities.map((item: any) => (
+                                <div key={item.name} className="flex justify-between py-1 text-sm">
+                                  <span className="text-gray-700">{item.name}</span>
+                                  <span className="font-mono font-semibold text-gray-900">₹{Number(item.balance).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                          {(bsData.liabilities?.total > 0) && (
+                            <div className="flex justify-between py-1 text-sm font-semibold border-t mt-1">
+                              <span className="text-gray-600">Total Liabilities</span>
+                              <span className="font-mono text-gray-900">₹{Number(bsData.liabilities.total).toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between py-2 text-sm font-bold bg-gray-50 rounded mt-3 px-2 border">
+                            <span>Total Liabilities + Capital</span>
+                            <span className="font-mono">₹{(Number(bsData.liabilities?.total || 0) + Number(bsData.capital?.total || 0)).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
-
             </>
           )}
           {reportType === 'StockSummary' && (

@@ -285,7 +285,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
 
         const ledgerOptions = allLedgers
             .filter(l => {
-                return !isHierarchyHeadingName(l.name, sets) && l.code && l.code !== '00';
+                return !isHierarchyHeadingName(l.name, sets) && l.code !== '00';
             })
             .map(l => ({
                 ...l,
