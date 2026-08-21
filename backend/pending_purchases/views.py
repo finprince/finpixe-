@@ -68,9 +68,15 @@ class PendingPurchaseSerializer(serializers.ModelSerializer):
             record_id=instance.id,
             invoice_no=instance.invoice_number
         )
-        data['customer_status'] = cust_val['customer_status']
-        data['company_match_detected'] = cust_val['company_match_detected']
-        data['company_match_decision'] = instance.company_match_decision or ext.get('company_match_decision') or cust_val['company_match_decision']
+        user_dec = instance.company_match_decision or ext.get('company_match_decision')
+        if user_dec in ('PROCEED', 'NOT_PROCEED'):
+            data['company_match_decision'] = user_dec
+            data['company_match_detected'] = (user_dec != 'PROCEED')
+            data['customer_status'] = 'SELF_COMPANY' if user_dec == 'PROCEED' else cust_val['customer_status']
+        else:
+            data['customer_status'] = cust_val['customer_status']
+            data['company_match_detected'] = cust_val['company_match_detected']
+            data['company_match_decision'] = cust_val['company_match_decision']
 
         return data
 
@@ -166,15 +172,17 @@ class PendingPurchaseViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Invalid decision. Must be PROCEED or NOT_PROCEED'}, status=status.HTTP_400_BAD_REQUEST)
         
         pp.company_match_decision = decision
+        pp.company_match_detected = (decision != 'PROCEED')
         if decision == 'NOT_PROCEED':
             pp.pending_purchase_status = 'REJECTED'
-        pp.save(update_fields=['company_match_decision', 'pending_purchase_status', 'updated_at'])
+        pp.save(update_fields=['company_match_decision', 'company_match_detected', 'pending_purchase_status', 'updated_at'])
 
         staging = self._get_and_verify_staging_record(pp)
         if staging:
             if not isinstance(staging.extracted_data, dict):
                 staging.extracted_data = {}
             staging.extracted_data['company_match_decision'] = decision
+            staging.extracted_data['company_match_detected'] = (decision != 'PROCEED')
             if decision == 'NOT_PROCEED':
                 staging.validation_status = 'REJECTED'
             staging.save(update_fields=['extracted_data', 'validation_status'])

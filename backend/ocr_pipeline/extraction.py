@@ -111,20 +111,13 @@ def log_forensic_page_dto(result, upload_session_id, physical_file_id, page_numb
     header = result.get('header', {}) or {}
     items = result.get('items', []) or []
     
-    # Heuristics
-    generic_keywords = [
-        "services", "total", "subtotal", "sub-total", "summary",
-        "carried forward", "brought forward",
-        "rounded off", "round off", "rounding", "adjustment",
-        "output cgst", "output sgst", "output igst",
-        "input cgst", "input sgst", "input igst",
-        "cgst @", "sgst @", "igst @",
-        "tax summary", "amount chargeable", "declaration",
-        "less round", "add round", "bank charges", "net amount",
-        "e & o.e", "balance",
-    ]
-    has_summary_rows = any(any(kw in str(itm.get("description") or itm.get("item_name") or "").lower() for kw in generic_keywords) for itm in items)
-    has_real_items = any(not any(kw in str(itm.get("description") or itm.get("item_name") or "").lower() for kw in generic_keywords) for itm in items)
+    pure_summary_exact = {
+        'rounded off', 'round off', 'rounding adjustment', 'rounding off',
+        'round_off', 'adjustment', 'carried forward', 'brought forward',
+        'c/f', 'b/f', 'total', 'grand total', 'subtotal', 'sub-total', 'summary'
+    }
+    has_summary_rows = any(str(itm.get("description") or itm.get("item_name") or "").strip().lower() in pure_summary_exact for itm in items)
+    has_real_items = any(str(itm.get("description") or itm.get("item_name") or "").strip().lower() not in pure_summary_exact for itm in items)
     
     total_amount = header.get('total_amount') or header.get('total_invoice_value')
     has_final_total = False

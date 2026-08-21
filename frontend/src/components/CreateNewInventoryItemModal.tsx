@@ -8,7 +8,7 @@ import SearchableDropdown from './SearchableDropdown';
 
 interface CreateNewInventoryItemModalProps {
     onClose: () => void;
-    onItemCreated: (itemName: string, itemCode: string, itemId: number) => void;
+    onItemCreated: (itemName: string, itemCode: string, itemId: number, itemData?: any) => void;
     prefilledData?: {
         item_code?: string;
         item_name?: string;
@@ -23,6 +23,7 @@ interface CreateNewInventoryItemModalProps {
         cess_rate?: string | number;
         computed_gst_rate?: string | number;
         taxable_value?: string | number;
+        vendor_name?: string;
     };
 }
 
@@ -234,7 +235,7 @@ export const CreateNewInventoryItemModal: React.FC<CreateNewInventoryItemModalPr
 
             const response: any = await httpClient.post('/api/inventory/items/', data);
             showSuccess('Item saved successfully');
-            onItemCreated(response.item_name || response.name, response.item_code, response.id);
+            onItemCreated(response.item_name || response.name, response.item_code, response.id, response);
         } catch (error: any) {
             handleApiError(error, 'Save Item');
         } finally {
@@ -246,7 +247,7 @@ export const CreateNewInventoryItemModal: React.FC<CreateNewInventoryItemModalPr
     const showReorderLevel = categoryPath && ['raw material', 'stock-in-trade', 'stock in trade', 'stores & spares', 'stores and spares', 'packing material'].some(cat => categoryPath.toLowerCase().includes(cat));
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
             <div className="bg-white rounded-lg shadow-2xl border border-gray-300 w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden">
                 {/* Header matching Inventory.tsx styling */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-slate-50 flex-shrink-0">

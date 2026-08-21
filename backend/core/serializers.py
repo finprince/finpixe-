@@ -128,6 +128,12 @@ class BranchSettingsSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'logo']
 
+    def validate_gstin(self, value):
+        if not value:
+            return value
+        from ocr_pipeline.customer_validation import normalize_gstin_exact
+        return normalize_gstin_exact(value)
+
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)
 
@@ -197,3 +203,9 @@ class TenantSerializer(serializers.ModelSerializer):
         model = Branch
         fields = ['id', 'name', 'gstin', 'pan_number', 'email', 'phone', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+    def validate_gstin(self, value):
+        if not value:
+            return value
+        from ocr_pipeline.customer_validation import normalize_gstin_exact
+        return normalize_gstin_exact(value)

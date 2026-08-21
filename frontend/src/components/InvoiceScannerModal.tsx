@@ -403,6 +403,14 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                 supplierItemCode: String(pi['Item Code'] || pi['item_code'] || pi['Part No'] || ''),
                 supplierItemName: String(pi['Item Name'] || pi['item_name'] || pi['Description'] || pi['description'] || pi['Item'] || ''),
                 hsnSac: String(pi['HSN/SAC'] || pi['hsn_sac'] || pi['HSN Code'] || pi['hsnSac'] || ''),
+                rate: pi['rate'] || pi['Rate'] || pi['Unit Price'] || pi['unit_price'] || pi['Price'] || pi['price'] || '',
+                uom: pi['uom'] || pi['UOM'] || pi['unit'] || pi['Unit'] || 'nos',
+                gst_rate: pi['gst_rate'] || pi['GST Rate'] || pi['Tax Rate'] || pi['tax_rate'] || pi['igst_rate'] || '',
+                cgst_rate: pi['cgst_rate'] || pi['CGST Rate'] || '',
+                sgst_rate: pi['sgst_rate'] || pi['SGST Rate'] || '',
+                igst_rate: pi['igst_rate'] || pi['IGST Rate'] || '',
+                cess_rate: pi['cess_rate'] || pi['Cess Rate'] || '',
+                description: pi['Description'] || pi['description'] || pi['Item Name'] || pi['item_name'] || '',
             }));
 
         const prefData = {
@@ -500,6 +508,14 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                         supplierItemCode: String(pi['Item Code'] || pi['item_code'] || pi['Part No'] || ''),
                         supplierItemName: String(pi['Item Name'] || pi['item_name'] || pi['Description'] || pi['description'] || pi['Item'] || ''),
                         hsnSac: String(pi['HSN/SAC'] || pi['hsn_sac'] || pi['HSN Code'] || pi['hsnSac'] || ''),
+                        rate: pi['rate'] || pi['Rate'] || pi['Unit Price'] || pi['unit_price'] || pi['Price'] || pi['price'] || '',
+                        uom: pi['uom'] || pi['UOM'] || pi['unit'] || pi['Unit'] || 'nos',
+                        gst_rate: pi['gst_rate'] || pi['GST Rate'] || pi['Tax Rate'] || pi['tax_rate'] || pi['igst_rate'] || '',
+                        cgst_rate: pi['cgst_rate'] || pi['CGST Rate'] || '',
+                        sgst_rate: pi['sgst_rate'] || pi['SGST Rate'] || '',
+                        igst_rate: pi['igst_rate'] || pi['IGST Rate'] || '',
+                        cess_rate: pi['cess_rate'] || pi['Cess Rate'] || '',
+                        description: pi['Description'] || pi['description'] || pi['Item Name'] || pi['item_name'] || '',
                     }));
 
                 if (res?.status === 'FOUND') {

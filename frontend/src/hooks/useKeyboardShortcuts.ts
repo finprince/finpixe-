@@ -7,7 +7,10 @@ export const useKeyboardShortcuts = (shortcuts: ShortcutConfig[]) => {
       const target = event.target as HTMLElement | null;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
+      if (!event.key) return;
+
       for (const config of shortcuts) {
+        if (!config || !config.key) continue;
         const keyMatch = event.key.toLowerCase() === config.key.toLowerCase();
         const ctrlMatch = config.ctrlKey ? (event.ctrlKey || event.metaKey) : true;
         const altMatch = config.altKey ? event.altKey : true;

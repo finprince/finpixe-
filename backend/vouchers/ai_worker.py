@@ -817,23 +817,17 @@ class AIWorker(BaseWorker):
 
         # Semantic DTO validation: allow continuation / summary / footer pages for staging, log as allowed.
         items = payload.get('items') or []
-        generic_keywords = [
-            "services", "total", "subtotal", "sub-total", "summary",
-            "carried forward", "brought forward",
-            "rounded off", "round off", "rounding", "adjustment",
-            "output cgst", "output sgst", "output igst",
-            "input cgst", "input sgst", "input igst",
-            "cgst @", "sgst @", "igst @",
-            "tax summary", "amount chargeable", "declaration",
-            "less round", "add round", "bank charges", "net amount",
-            "e & o.e", "balance",
-        ]
+        pure_summary_exact = {
+            'rounded off', 'round off', 'rounding adjustment', 'rounding off',
+            'round_off', 'adjustment', 'carried forward', 'brought forward',
+            'c/f', 'b/f', 'total', 'grand total', 'subtotal', 'sub-total', 'summary'
+        }
         
         has_summary_rows = False
         has_real_items = False
         for itm in items:
-            desc = str(itm.get("description") or itm.get("item_name") or "").lower()
-            is_summary = any(kw in desc for kw in generic_keywords)
+            desc = str(itm.get("description") or itm.get("item_name") or "").strip().lower()
+            is_summary = desc in pure_summary_exact
             if is_summary:
                 has_summary_rows = True
             else:

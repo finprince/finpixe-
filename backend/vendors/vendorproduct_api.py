@@ -6,6 +6,7 @@ New design: one-record-per-vendor with a JSON items array.
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
 import logging
 
 from .vendorproduct_serializers import (
@@ -85,6 +86,82 @@ class VendorProductServiceViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.error(f"Error saving product services: {e}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='match-existing')
+    def match_existing(self, request):
+        """
+        POST /api/vendors/product-services/match-existing/
+        Matches selected Item Code + Item Name against Inventory Item Master and creates vendor-product link.
+        """
+        data = request.data
+        item_code = str(data.get('item_code') or '').strip()
+        item_name = str(data.get('item_name') or '').strip()
+        hsn_sac_code = str(data.get('hsn_sac_code') or data.get('hsn_code') or '').strip()
+        supplier_item_code = str(data.get('supplier_item_code') or '').strip()
+        supplier_item_name = str(data.get('supplier_item_name') or '').strip()
+        vendor_id = data.get('vendor_basic_detail') or data.get('vendor_id')
+
+        if not item_code or not item_name:
+            return Response(
+                {"error": "Both Item Code and Item Name are required to match an existing item."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from inventory.models import InventoryItem
+        tenant_id = self._tenant_id()
+
+        # Query existing item from InventoryItem with normalized comparison
+        matched_item = None
+        qs = InventoryItem.objects.filter(
+            item_code__iexact=item_code,
+            item_name__iexact=item_name,
+            is_active=True
+        )
+        if tenant_id and tenant_id != 'default_tenant':
+            matched_item = qs.filter(tenant_id=tenant_id).first()
+        if not matched_item:
+            matched_item = qs.first()
+
+        if not matched_item:
+            return Response(
+                {
+                    "error": f"No matching existing item found in Item Master with Item Code '{item_code}' and Item Name '{item_name}'."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        vendor_mapped = False
+        if vendor_id:
+            try:
+                VendorProductServiceDatabase.link_single_item(
+                    tenant_id=tenant_id,
+                    vendor_basic_detail_id=int(vendor_id),
+                    item_code=matched_item.item_code,
+                    item_name=matched_item.item_name,
+                    hsn_sac_code=matched_item.hsn_code or hsn_sac_code,
+                    supplier_item_code=supplier_item_code,
+                    supplier_item_name=supplier_item_name,
+                    created_by=request.user.username if request.user and hasattr(request.user, 'username') else 'system'
+                )
+                vendor_mapped = True
+            except Exception as e:
+                logger.error(f"Error mapping vendor product: {e}", exc_info=True)
+
+        return Response({
+            "success": True,
+            "matched": True,
+            "vendor_mapped": vendor_mapped,
+            "item": {
+                "id": matched_item.id,
+                "item_code": matched_item.item_code,
+                "item_name": matched_item.item_name,
+                "hsn_code": matched_item.hsn_code or hsn_sac_code,
+                "uom": matched_item.uom,
+                "rate": str(matched_item.rate),
+                "gst_rate": str(matched_item.gst_rate) if matched_item.gst_rate is not None else None,
+            },
+            "message": f"Successfully matched with Item Master: \"{matched_item.item_name}\" ({matched_item.item_code})."
+        }, status=status.HTTP_200_OK)
 
     # ── LIST / RETRIEVE ────────────────────────────────────────────────────────
 

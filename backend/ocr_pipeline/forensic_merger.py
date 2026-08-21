@@ -448,9 +448,10 @@ class ForensicMerger:
         logger.info(f'[COUNTERFACTUAL_SUMMARY] total_rejections={total_rejections} role_only_resolved={count_role_only_merged} gstin_only_resolved={count_gstin_only_merged} invoice_only_resolved={count_invoice_only_merged} combined_resolved={count_combined_merged}')
         validated_groups = {}
         for i, group in enumerate(final_groups):
+            has_any_valid_inv = any((bool(str(p.get('invoice_no') or p.get('supplier_invoice_no') or '').strip() not in ('', 'MISSING', '—', 'UNKNOWN', 'NONE', 'NULL')) for p in group))
             is_group_cont_summary = all((self.is_continuation_summary_page(p) for p in group))
-            if is_group_cont_summary:
-                logger.info(f'[CONTINUATION_PAGE_REJECTED] Group {i} consisting of pages {[p.get('_page_no') for p in group]} rejected: all pages are continuation-summary-only.')
+            if is_group_cont_summary and not has_any_valid_inv:
+                logger.info(f"[CONTINUATION_PAGE_REJECTED] Group {i} consisting of pages {[p.get('_page_no') for p in group]} rejected: all pages are continuation-summary-only.")
                 logger.info(f'[RECORD_CREATION_BLOCKED] reason=continuation_page group_key={i}')
                 for p in group:
                     logger.info(f"[SUMMARY_ROW_DROPPED] page={p.get('_page_no')} reason='isolated continuation summary page' items={[itm.get('description') or itm.get('item_name') for itm in p.get('items', [])]}")
@@ -542,30 +543,42 @@ class ForensicMerger:
         """
         [FORENSIC] Lightweight page-role heuristic to identify isolated continuation summary pages.
         Targets mathematically redundant continuation-summary-only footer pages.
-        Covers:
-          - Rounded Off / Round Off rows
-          - Tax ledger rows: Output CGST @9%, Output SGST @9%, Output IGST @18%
-          - Services / Amount Chargeable / Declaration / Authorised Signatory pages
         """
+        invoice_no = str(inv.get('invoice_no') or inv.get('supplier_invoice_no') or '').strip().upper()
+        if invoice_no and invoice_no not in ('', 'MISSING', '—', 'UNKNOWN', 'NONE', 'NULL'):
+            return False
+
+        page_role = str(inv.get('_page_role') or '').upper()
+        if page_role == 'PAGE_ROLE_PRIMARY':
+            return False
+
         items = inv.get('items', [])
         if not items:
             return True
-        generic_keywords = ['services', 'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward', 'rounded off', 'round off', 'rounding', 'adjustment', 'output cgst', 'output sgst', 'output igst', 'input cgst', 'input sgst', 'input igst', 'cgst @', 'sgst @', 'igst @', 'tax summary', 'amount chargeable', 'declaration', 'less round', 'add round', 'bank charges', 'net amount', 'e & o.e', 'balance']
+
+        pure_summary_exact = {
+            'rounded off', 'round off', 'rounding adjustment', 'rounding off',
+            'round_off', 'adjustment', 'carried forward', 'brought forward',
+            'c/f', 'b/f', 'total', 'grand total', 'subtotal', 'sub-total', 'summary',
+            'tax summary', 'amount chargeable in words'
+        }
         all_generic = True
         for itm in items:
             desc = str(itm.get('description') or itm.get('item_name') or '').strip().lower()
-            is_generic = any((kw in desc for kw in generic_keywords))
+            is_generic = desc in pure_summary_exact or any(desc.startswith(p) for p in ['total:', 'subtotal:', 'carried forward:', 'brought forward:'])
             if not is_generic:
                 all_generic = False
                 break
-        invoice_no = str(inv.get('invoice_no') or '').strip().upper()
-        lacks_metadata = not invoice_no or invoice_no in ('', 'MISSING', '—')
+
+        if not all_generic:
+            return False
+
         raw_text = str(inv.get('_pdf_ocr_text') or inv.get('_raw_text') or '').lower()
-        continuation_keywords = ['continued to page', 'rounded off', 'tax summary', 'output cgst', 'output sgst', 'authorised signatory', 'carried forward', 'brought forward', 'round off', 'rounding adjustment', 'amount chargeable in words', 'e & o.e', 'declaration']
+        continuation_keywords = ['continued to page', 'carried forward', 'brought forward', 'rounding adjustment']
         has_continuation_keywords = any((kw in raw_text for kw in continuation_keywords))
-        is_cont = all_generic and (has_continuation_keywords or lacks_metadata)
+        is_cont = all_generic and (has_continuation_keywords or not invoice_no)
         if is_cont:
-            logger.info(f'[CONTINUATION_PAGE_HEURISTIC] page={inv.get('_page_no')} all_generic={all_generic} lacks_metadata={lacks_metadata} has_keywords={has_continuation_keywords} -> CLASSIFIED AS CONTINUATION_SUMMARY_PAGE')
+            logger.info(f"[CONTINUATION_PAGE_HEURISTIC] page={inv.get('_page_no')} all_generic={all_generic} -> CLASSIFIED AS CONTINUATION_SUMMARY_PAGE")
         return is_cont
 
     def deduplicate_items(self, items: List[Dict[str, Any]], invoice_no: str=None, group_id: str=None) -> List[Dict[str, Any]]:
@@ -576,7 +589,7 @@ class ForensicMerger:
         """
         if not items:
             return []
-        logger.info(f'[FORENSIC_PRE_DEDUPE] item_count={len(items)} descriptions={[itm.get('description') or itm.get('item_name') for itm in items]}')
+        logger.info(f"[FORENSIC_PRE_DEDUPE] item_count={len(items)} descriptions={[itm.get('description') or itm.get('item_name') for itm in items]}")
         seen_keys = set()
         unique_items = []
         for itm in items:
@@ -605,7 +618,7 @@ class ForensicMerger:
         final_items = []
         for idx, itm in enumerate(non_roundoff_items):
             desc = str(itm.get('description') or itm.get('item_name') or '').strip().lower()
-            if desc in {'services', 'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward'}:
+            if desc in {'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward'}:
                 other_items = [x for i, x in enumerate(non_roundoff_items) if i != idx]
                 if other_items:
                     sum_taxable = sum((self._to_float(x.get('taxable_value') or x.get('amount')) for x in other_items))
@@ -622,20 +635,20 @@ class ForensicMerger:
         has_real_item = False
         for itm in final_items:
             desc = str(itm.get('description') or itm.get('item_name') or '').strip().lower()
-            if desc not in ['services', 'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward']:
+            if desc not in ['total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward', 'rounded off', 'round off']:
                 has_real_item = True
                 break
         explicitly_dropped = False
         if not has_real_item and final_items:
-            logger.info(f'[CONTINUATION_PAGE_REJECTED] Dropping item set because it only contains generic summary rows: {[itm.get('description') or itm.get('item_name') for itm in final_items]}')
+            logger.info(f"[CONTINUATION_PAGE_REJECTED] Dropping item set because it only contains generic summary rows: {[itm.get('description') or itm.get('item_name') for itm in final_items]}")
             for itm in final_items:
                 logger.info(f"[SUMMARY_ROW_DROPPED] item={itm.get('description') or itm.get('item_name')} reason='standalone generic summary item without real items'")
                 logger.info(f"[CLEANUP_DECISION] description='{itm.get('description') or itm.get('item_name')}' reason='standalone generic summary item without real items (double-layer safety net)' invoice_no={invoice_no} group_id={group_id}")
             final_items = []
             explicitly_dropped = True
         ret_items = final_items if final_items or explicitly_dropped else unique_items
-        logger.info(f'[FORENSIC_POST_DEDUPE] item_count={len(ret_items)} descriptions={[itm.get('description') or itm.get('item_name') for itm in ret_items]}')
-        logger.info(f'[FINAL_INVENTORY_ITEMS] item_count={len(ret_items)} descriptions={[itm.get('description') or itm.get('item_name') for itm in ret_items]}')
+        logger.info(f"[FORENSIC_POST_DEDUPE] item_count={len(ret_items)} descriptions={[itm.get('description') or itm.get('item_name') for itm in ret_items]}")
+        logger.info(f"[FINAL_INVENTORY_ITEMS] item_count={len(ret_items)} descriptions={[itm.get('description') or itm.get('item_name') for itm in ret_items]}")
         return ret_items
 
     def merge_group(self, group: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -756,8 +769,8 @@ class ForensicMerger:
             for item in all_raw_items:
                 if not any((item is x or item == x for x in after_cleanup)):
                     removed_items.append(item)
-            generic_keywords = ['services', 'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward', 'rounded off', 'round off', 'rounding', 'adjustment', 'output cgst', 'output sgst', 'output igst', 'input cgst', 'input sgst', 'input igst', 'cgst @', 'sgst @', 'igst @', 'tax summary', 'amount chargeable', 'declaration', 'less round', 'add round', 'bank charges', 'net amount', 'e & o.e', 'balance']
-            contains_only_summary_rows = len(after_cleanup) > 0 and all((any((kw in str(itm.get('description') or itm.get('item_name') or '').lower() for kw in generic_keywords)) for itm in after_cleanup))
+            pure_summary_exact = {'rounded off', 'round off', 'rounding adjustment', 'rounding off', 'round_off', 'adjustment', 'carried forward', 'brought forward', 'c/f', 'b/f', 'total', 'grand total', 'subtotal', 'sub-total', 'summary'}
+            contains_only_summary_rows = len(after_cleanup) > 0 and all((str(itm.get('description') or itm.get('item_name') or '').strip().lower() in pure_summary_exact for itm in after_cleanup))
             post_merge_info = {'invoice_no': str(merged_invoice.get('invoice_no') or merged_invoice.get('supplier_invoice_no') or ''), 'canonical_items_before_cleanup': all_raw_items, 'canonical_items_after_cleanup': after_cleanup, 'removed_items': removed_items, 'contains_only_summary_rows': contains_only_summary_rows, 'dto_memory_id': str(id(merged_invoice))}
             logger.info(f'[FORENSIC_CANONICAL_DTO]\n{json.dumps(post_merge_info, indent=2, default=str)}')
         except Exception as le:

@@ -86,6 +86,49 @@ class VendorProductServiceDatabase:
             raise
 
     @staticmethod
+    def link_single_item(tenant_id, vendor_basic_detail_id, item_code, item_name, hsn_sac_code='', supplier_item_code='', supplier_item_name='', created_by=None):
+        """
+        Link a single item to a vendor without dropping other vendor items.
+        Idempotent: if already exists, leaves it as is.
+        """
+        username = created_by or 'system'
+        check_query = """
+            SELECT 1 FROM vendor_master_vendorcreation_productservices_items
+            WHERE vendor_basic_detail_id = %s AND LOWER(TRIM(item_code)) = %s AND LOWER(TRIM(item_name)) = %s
+            LIMIT 1
+        """
+        insert_query = """
+            INSERT INTO vendor_master_vendorcreation_productservices_items
+                (tenant_id, vendor_basic_detail_id, hsn_sac_code, item_code, item_name, 
+                 supplier_item_code, supplier_item_name, is_active, created_at, updated_at, created_by, updated_by)
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, 1, NOW(6), NOW(6), %s, %s)
+        """
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(check_query, [vendor_basic_detail_id, item_code.strip().lower(), item_name.strip().lower()])
+                row = cursor.fetchone()
+                if not row:
+                    cursor.execute(insert_query, [
+                        tenant_id,
+                        vendor_basic_detail_id,
+                        hsn_sac_code or '',
+                        item_code.strip(),
+                        item_name.strip(),
+                        supplier_item_code or '',
+                        supplier_item_name or '',
+                        username,
+                        username
+                    ])
+            return True
+        except Exception as e:
+            logger.error(
+                f"Error linking single item {item_code}/{item_name} for vendor {vendor_basic_detail_id}: {e}",
+                exc_info=True
+            )
+            raise
+
+    @staticmethod
     def get_by_vendor(vendor_basic_detail_id):
         """
         Fetch the product services record for a specific vendor.

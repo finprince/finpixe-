@@ -344,6 +344,9 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
 
     const liveTotalGst = cgstVal + sgstVal + igstVal;
 
+    // The actual current GST amount as extracted from the invoice (not live-edited)
+    const actualCurrentGst = initialCgst + initialSgst + initialIgst;
+
     // Dynamically compute expected total, taxable total, and gst rates
     let expectedTotalGst = 0;
     let taxableValue = 0;
@@ -422,10 +425,10 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                         </div>
                         <div>
                             <h3 className="font-extrabold text-lg tracking-wide text-gray-800">
-                                Correct GST Mismatch
+                                GST Calculation Incorrect
                             </h3>
                             <p className="text-xs text-gray-500 font-medium">
-                                Adjust tax values to resolve invoice validation discrepancy
+                                Review and correct the GST calculation for this invoice
                             </p>
                         </div>
                     </div>
@@ -452,7 +455,7 @@ export const GstCorrectionModal: React.FC<GstCorrectionModalProps> = ({
                         </div>
                         <div>
                             <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Current Tax</span>
-                            <span className="text-sm font-extrabold text-gray-700">₹{liveTotalGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <span className="text-sm font-extrabold text-gray-700">₹{actualCurrentGst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                     </div>
 
