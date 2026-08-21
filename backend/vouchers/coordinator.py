@@ -133,7 +133,7 @@ def check_and_trigger_assembly(record_id, tenant_id, session_id, correlation_id,
                     )
                     if not _is_valid_int:
                         from vouchers.models import InvoiceProcessingItem
-                        _item = InvoiceProcessingItem.objects.filter(record_id=record_id).select_related('job').first()
+                        _item = InvoiceProcessingItem.objects.filter(staging_record_id=record_id).select_related('job').first()
                         if _item and _item.job_id:
                             resolved_job_id = _item.job_id
                             logger.info(f"[JOB_ID_RESOLVED_FROM_DB] record={record_id} job_id={resolved_job_id} via=InvoiceProcessingItem")

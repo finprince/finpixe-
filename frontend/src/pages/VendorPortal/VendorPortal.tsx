@@ -3003,10 +3003,10 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             console.log('Saving products/services... items state:', JSON.stringify(items));
             try {
                 const cleanItems = items
-                    .filter(i => i.itemName && i.itemName.trim() !== '')
+                    .filter(item => item.itemCode?.trim() && item.itemName?.trim())
                     .map(item => ({
                         hsn_sac_code: item.hsnSacCode || '',
-                        item_code: item.itemCode || '',
+                        item_code: item.itemCode.trim(),
                         item_name: item.itemName.trim(),
                         supplier_item_code: item.supplierItemCode || '',
                         supplier_item_name: item.supplierItemName || '',
@@ -5278,6 +5278,9 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                     onChange={(e) => handleItemChange(item.id, 'itemCode', e.target.value)}
                                                                 >
                                                                     <option value="">Select Item Code</option>
+                                                                    {item.itemCode && !inventoryItems.some(i => i.item_code === item.itemCode) && (
+                                                                        <option value={item.itemCode}>{item.itemCode}</option>
+                                                                    )}
                                                                     {inventoryItems.map(i => (
                                                                         <option key={i.id} value={i.item_code}>
                                                                             {i.item_code}
@@ -5292,6 +5295,9 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                                                     onChange={(e) => handleItemChange(item.id, 'itemName', e.target.value)}
                                                                 >
                                                                     <option value="">Select Item Name</option>
+                                                                    {item.itemName && !inventoryItems.some(i => i.item_name === item.itemName) && (
+                                                                        <option value={item.itemName}>{item.itemName}</option>
+                                                                    )}
                                                                     {inventoryItems.map(i => (
                                                                         <option key={i.id} value={i.item_name}>
                                                                             {i.item_name}

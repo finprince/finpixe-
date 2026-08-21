@@ -22,8 +22,8 @@ import Icon from './Icon';
 
 export interface MatchExistingItemModalProps {
     onClose: () => void;
-    /** Staging record identifier — either numeric id or file_hash string */
-    stagingId: string | number;
+    /** Staging record identifier — optional when matching directly in a form */
+    stagingId?: string | number;
     /** 0-based line item index within extracted_data.items[] */
     lineIndex?: number;
     extractedItem: {
@@ -39,7 +39,11 @@ export interface MatchExistingItemModalProps {
      * Called on successful match — receives the updated row object
      * so callers can update UI without a full page refresh.
      */
-    onItemMatched: (updatedRow?: any) => void;
+    onItemMatched?: (updatedRow?: any) => void;
+    /**
+     * Direct stock item selection callback when matching directly in form/modal
+     */
+    onSelectStockItem?: (stockItem: any) => void;
     // Legacy props — accepted but ignored. Vendor is no longer required.
     vendorId?: number | null;
     vendorName?: string;
@@ -51,6 +55,7 @@ export const MatchExistingItemModal: React.FC<MatchExistingItemModalProps> = ({
     lineIndex = 0,
     extractedItem,
     onItemMatched,
+    onSelectStockItem,
     // vendorId and vendorName are accepted for backward-compat but not used
 }) => {
     const [stockItems, setStockItems] = useState<any[]>([]);
@@ -81,6 +86,14 @@ export const MatchExistingItemModal: React.FC<MatchExistingItemModalProps> = ({
             showError('Please select an inventory item to match.');
             return;
         }
+
+        if (onSelectStockItem) {
+            const canonicalName = selectedStockItem.item_name || selectedStockItem.name || '';
+            showSuccess(`Matched to "${canonicalName}" — status set to ALREADY EXIST.`);
+            onSelectStockItem(selectedStockItem);
+            return;
+        }
+
         if (!stagingId) {
             showError('No staging record identified. Cannot save match.');
             return;
@@ -100,7 +113,7 @@ export const MatchExistingItemModal: React.FC<MatchExistingItemModalProps> = ({
             );
 
             showSuccess(`Matched to "${canonicalName}" — status set to ALREADY EXIST.`);
-            onItemMatched(result?.row);
+            if (onItemMatched) onItemMatched(result?.row);
         } catch (err: any) {
             console.error('[MATCH_ITEM_MODAL] Match failed:', err);
             showError(err?.response?.data?.error || 'Failed to save inventory match.');
@@ -117,7 +130,7 @@ export const MatchExistingItemModal: React.FC<MatchExistingItemModalProps> = ({
     return (
         <div
             id="match-existing-item-modal-overlay"
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300 animate-in fade-in duration-150"
         >
             <div className="bg-white border border-gray-200 text-gray-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col transform transition-all duration-300 scale-100 max-h-[90vh]">
 

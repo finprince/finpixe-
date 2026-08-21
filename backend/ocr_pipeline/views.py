@@ -341,6 +341,21 @@ class CleanOCRStagingView(views.APIView):
             _ae = norm.get('assembled_exports') or []
             if _ae and isinstance(_ae, list) and _ae[0]:
                 items_val = _ae[0].get('items') or []
+
+        # Dynamic check against master inventory items
+        if items_val:
+            try:
+                from ocr_pipeline.inventory_validation import InventoryItemValidationService
+                _tenant = tenant_id or getattr(r, 'tenant_id', None)
+                if _tenant:
+                    _val_res = InventoryItemValidationService.validate_inventory_items(_tenant, items_val)
+                    if _val_res and _val_res.get('item_status'):
+                        item_status = _val_res.get('item_status')
+                        items_val = _val_res.get('items', items_val)
+                        missing_items = _val_res.get('missing_items', missing_items)
+            except Exception as _ite:
+                logger.warning(f'[ITEM_DYNAMIC_VALIDATION_FAILED] error={_ite}')
+
         if not item_status and items_val:
             child_statuses = [itm.get('item_status') or itm.get('validation_status') for itm in items_val if isinstance(itm, dict)]
             child_statuses = [s for s in child_statuses if s]
@@ -350,7 +365,7 @@ class CleanOCRStagingView(views.APIView):
                     item_status = 'CREATE ITEM'
                 else:
                     item_status = 'ALREADY EXIST'
-                logger.info(f'[ITEM_AGGREGATE_DERIVED] record_id={getattr(r, 'id', None)} child_count={len(child_statuses)} child_statuses={child_statuses} derived_aggregate={item_status}')
+                logger.info(f'[ITEM_AGGREGATE_DERIVED] record_id={getattr(r, "id", None)} child_count={len(child_statuses)} child_statuses={child_statuses} derived_aggregate={item_status}')
         if ui_status == 'DUPLICATE':
             item_status = 'ALREADY EXIST'
         logger.critical('[FORENSIC_ITEMS_STRUCTURE]\n%s', json.dumps(items_val, indent=2, default=str))
@@ -419,7 +434,8 @@ class CleanOCRStagingView(views.APIView):
             buyer_name=buyer_name,
             buyer_gstin=buyer_gstin_val,
             record_id=getattr(r, 'id', None),
-            invoice_no=inv_no
+            invoice_no=inv_no,
+            bill_to=bill_to
         )
 
         res = {'id': getattr(r, 'id', None), 'file_hash': getattr(r, 'file_hash', None) or norm.get('file_hash', None), 'buyer_name': cust_val['buyer_name'] or buyer_name, 'customer_name': cust_val['customer_name'] or buyer_name, 'raw_buyer_name': norm.get('raw_buyer_name') or buyer_name, 'canonical_buyer_name': cust_val['canonical_buyer_name'] or buyer_name, 'file_path': getattr(r, 'file_path', None) or norm.get('file_path', None), 'tenant_id': getattr(r, 'tenant_id', None), 'invoice_no': inv_no, 'page_no': norm.get('_page_no') or norm.get('page_no') or getattr(r, 'page_no', None), 'invoice_status': norm.get('invoice_status') or ('MISSING' if not inv_no else 'FOUND'), 'invoice_date': norm.get('invoice_date') or header.get('invoice_date') or supplier.get('invoice_date') or '—', 'total_amount': norm.get('total_invoice_value') or norm.get('invoice_total') or header.get('total_amount') or header.get('invoice_total') or norm.get('total_amount') or '0.00', 'totals': norm.get('total_invoice_value') or norm.get('invoice_total') or header.get('total_amount') or header.get('invoice_total') or norm.get('total_amount') or '0.00', 'branch': branch, 'vendor_name': vendor_name_val, 'vendor_gstin': norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None) or header.get('vendor_gstin') or norm.get('gstin') or supplier.get('gstin') or '—', 'gstin': norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None) or header.get('gstin') or norm.get('gstin') or supplier.get('gstin') or '—', 'buyer_gstin': cust_val['buyer_gstin'] or buyer_gstin_val or '—', 'customer_gstin': cust_val['customer_gstin'] or buyer_gstin_val or '—', 'consignee_gstin': norm.get('consignee_gstin') or norm.get('ship_to_gstin') or '—', 'ship_to_gstin': norm.get('ship_to_gstin') or norm.get('consignee_gstin') or '—', 'bill_to_gstin': norm.get('bill_to_gstin') or buyer_gstin_val or '—', 'raw_vendor_gstin': norm.get('raw_vendor_gstin') or getattr(r, 'gstin', None) or norm.get('gstin') or '—', 'raw_buyer_gstin': norm.get('raw_buyer_gstin') or '—', 'raw_consignee_gstin': norm.get('raw_consignee_gstin') or '—', 'raw_bill_to_gstin': norm.get('raw_bill_to_gstin') or '—', 'raw_ship_to_gstin': norm.get('raw_ship_to_gstin') or '—', 'canonical_vendor_gstin': norm.get('canonical_vendor_gstin') or getattr(r, 'gstin', None) or norm.get('gstin') or '—', 'canonical_buyer_gstin': cust_val['canonical_buyer_gstin'] or buyer_gstin_val or '—', 'customer_status': cust_val['customer_status'], 'company_match_detected': cust_val['company_match_detected'], 'company_match_decision': cust_val['company_match_decision'], 'vendor_id': v_id, 'status': final_status, 'validationStatus': ui_status, 'validation_status': ui_status, 'vendor_status': 'EXISTS' if v_id or db_vendor_status in ('EXISTS', 'FOUND', 'MATCHED', 'RESOLVED') else 'NEW', 'item_status': item_status, 'missing_items': missing_items, 'processed': getattr(r, 'processed', False), 'bill_from': bill_from, 'bill_to': bill_to, 'items': items_val, 'line_items': items_val, 'irn': getattr(r, 'irn', None) or norm.get('irn'), 'ack_no': getattr(r, 'ack_no', None) or norm.get('ack_no'), 'ack_date': getattr(r, 'ack_date', None) or norm.get('ack_date'), 'hsn_sac': norm.get('hsn_sac', ''), 'place_of_supply': norm.get('place_of_supply') or supplier.get('place_of_supply') or '—', 'total_taxable_value': norm.get('total_taxable_value') or supplier.get('total_taxable_value') or norm.get('taxable_value') or '0.00', 'total_igst': norm.get('total_igst') or supplier.get('total_igst') or norm.get('igst') or '0.00', 'total_cgst': norm.get('total_cgst') or supplier.get('total_cgst') or norm.get('cgst') or '0.00', 'total_sgst': norm.get('total_sgst') or supplier.get('total_sgst') or norm.get('sgst') or '0.00', 'total_cess': norm.get('total_cess') or supplier.get('total_cess') or norm.get('cess') or '0.00', 'round_off': norm.get('round_off') or supplier.get('round_off') or '0.00', 'total_invoice_value': norm.get('total_invoice_value') or norm.get('invoice_total') or supplier.get('total_invoice_value') or '0.00'}
@@ -434,11 +450,24 @@ class CleanOCRStagingView(views.APIView):
             res['status'] = final_status
             res['vendor_status'] = 'EXISTS' if v_id or db_vendor_status in ('EXISTS', 'FOUND', 'MATCHED', 'RESOLVED') else 'NEW'
             ui_status = 'Needs Review'
-        res['extracted_data'] = {'sections': sections, 'bill_from': bill_from, 'billing_address': bill_to, 'items': items_val, 'line_items': items_val, 'item_status': item_status, 'missing_items': missing_items, **norm}
         ext_dict = getattr(r, 'extracted_data', {}) if isinstance(getattr(r, 'extracted_data', None), dict) else {}
-        res['company_match_detected'] = cust_val['company_match_detected']
-        res['company_match_decision'] = cust_val['company_match_decision']
-        res['customer_status'] = cust_val['customer_status']
+        user_saved_decision = ext_dict.get('company_match_decision')
+
+        if user_saved_decision in ('PROCEED', 'NOT_PROCEED'):
+            final_company_decision = user_saved_decision
+            final_company_detected = (user_saved_decision != 'PROCEED')
+            final_customer_status = 'SELF_COMPANY' if user_saved_decision == 'PROCEED' else cust_val['customer_status']
+        else:
+            final_company_decision = cust_val['company_match_decision']
+            final_company_detected = cust_val['company_match_detected']
+            final_customer_status = cust_val['customer_status']
+
+        res['company_match_detected'] = final_company_detected
+        res['company_match_decision'] = final_company_decision
+        res['customer_status'] = final_customer_status
+        res['extracted_data'] = {'sections': sections, 'bill_from': bill_from, 'billing_address': bill_to, 'items': items_val, 'line_items': items_val, 'item_status': item_status, 'missing_items': missing_items, **norm, **ext_dict}
+        res['extracted_data']['company_match_decision'] = final_company_decision
+        res['extracted_data']['company_match_detected'] = final_company_detected
         res['created_at'] = getattr(r, 'created_at', None)
         res['voucher_type'] = getattr(r, 'voucher_type', 'PURCHASE')
         is_vendor_exists = res['vendor_status'] == 'EXISTS'
@@ -692,15 +721,17 @@ class CleanOCRStagingView(views.APIView):
             if not isinstance(record.extracted_data, dict):
                 record.extracted_data = {}
             record.extracted_data['company_match_decision'] = company_match_decision
+            record.extracted_data['company_match_detected'] = (company_match_decision != 'PROCEED')
             if company_match_decision == 'NOT_PROCEED':
                 record.validation_status = 'REJECTED'
             record.save(update_fields=['extracted_data', 'validation_status'])
             from pending_purchases.models import PendingPurchase
             PendingPurchase.objects.filter(source_scan_row_id=record.id).update(
                 company_match_decision=company_match_decision,
+                company_match_detected=(company_match_decision != 'PROCEED'),
                 pending_purchase_status='REJECTED' if company_match_decision == 'NOT_PROCEED' else 'PENDING'
             )
-            return Response({'status': 'SUCCESS', 'id': record.id, 'company_match_decision': company_match_decision})
+            return Response({'status': 'SUCCESS', 'id': record.id, 'company_match_decision': company_match_decision, 'company_match_detected': (company_match_decision != 'PROCEED')})
 
         updated_data = request.data.get('extracted_data')
         if not updated_data:

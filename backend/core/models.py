@@ -168,6 +168,17 @@ class User(AbstractBaseUser):
     selected_plan = models.CharField(max_length=50, null=True, blank=True)
     logo_path = models.CharField(max_length=500, blank=True, null=True)
     tenant_id = models.CharField(max_length=36, null=True, blank=True)
+
+    # Branch Provisioning & Location Details
+    business_type = models.CharField(max_length=200, null=True, blank=True)
+    gstin = models.CharField(max_length=15, null=True, blank=True)
+    address_line1 = models.CharField(max_length=255, blank=True, null=True)
+    address_line2 = models.CharField(max_length=255, blank=True, null=True)
+    address_line3 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    district = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True, default='India')
+    pincode = models.CharField(max_length=10, blank=True, null=True)
     
     # OTP verification fields
     phone = models.CharField(max_length=15, blank=True, null=True)

@@ -22,9 +22,9 @@ interface PendingPurchasesProps {
 const VendorStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const isExisting = status === 'VENDOR_STATUS_EXISTING' || status === 'ALREADY_EXIST' || status === 'EXISTS';
   if (isExisting) {
-    return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">ALREADY EXIST</span>;
+    return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Already added</span>;
   }
-  return <span className="bg-indigo-500 text-white border border-indigo-600 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE VENDOR</span>;
+  return <span className="bg-indigo-500 text-white border border-indigo-600 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Add vendor</span>;
 };
 
 const CustomerStatusBadge: React.FC<{ status?: string; companyMatch?: boolean; decision?: string }> = ({ status, companyMatch, decision }) => {
@@ -32,34 +32,34 @@ const CustomerStatusBadge: React.FC<{ status?: string; companyMatch?: boolean; d
   if (s === 'SELF_COMPANY' || s === 'MATCHED') {
     return (
       <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider shadow-sm">
-        🏢 MATCHED
+        🏢 Company matched
       </span>
     );
   }
   if (s === 'NAME_MISMATCH' || decision === 'GSTIN_MATCH_NAME_MISMATCH') {
     return (
       <span className="bg-orange-100 text-orange-800 border border-orange-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-bold uppercase">
-        ⚠️ NAME MISMATCH
+        ⚠️ Company name mismatch
       </span>
     );
   }
   if (s === 'NAME_ONLY_MATCH' || decision === 'NAME_ONLY_MATCH') {
     return (
       <span className="bg-yellow-100 text-yellow-800 border border-yellow-300 px-2 py-1 rounded inline-flex items-center gap-1 text-[10px] font-bold uppercase">
-        🔍 NAME ONLY MATCH
+        🔍 Name match only
       </span>
     );
   }
   if (s === 'IDENTITY_UNKNOWN' || s === 'CUSTOMER_IDENTITY_MISSING' || s === 'UNKNOWN') {
     return (
       <span className="bg-gray-100 text-gray-600 border border-gray-300 px-2 py-1 rounded inline-block text-[10px] font-medium uppercase">
-        IDENTITY UNKNOWN
+        Customer unverified
       </span>
     );
   }
   return (
     <span className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">
-      EXTERNAL CUSTOMER
+      External customer
     </span>
   );
 };
@@ -67,9 +67,9 @@ const CustomerStatusBadge: React.FC<{ status?: string; companyMatch?: boolean; d
 const ItemStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const isExisting = status === 'ITEM_STATUS_EXISTING' || status === 'ALREADY_EXIST' || status === 'ALREADY EXIST';
   if (isExisting) {
-    return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">ALREADY EXIST</span>;
+    return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Already added</span>;
   }
-  return <span className="bg-indigo-100 text-indigo-800 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">CREATE ITEM</span>;
+  return <span className="bg-indigo-100 text-indigo-800 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Stock item not found</span>;
 };
 
 const VoucherStatusBadge: React.FC<{ status: string; onClick?: () => void }> = ({ status, onClick }) => {
@@ -93,14 +93,14 @@ const VoucherStatusBadge: React.FC<{ status: string; onClick?: () => void }> = (
             : ''
         }`}
       >
-        NEED TO SAVE
+        Need to save
       </span>
     );
   }
   if (isExisting) {
-    return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">ALREADY EXIST</span>;
+    return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Already added</span>;
   }
-  return <span className="bg-gray-100 text-gray-500 border border-gray-200 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">PENDING</span>;
+  return <span className="bg-gray-100 text-gray-500 border border-gray-200 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Pending</span>;
 };
 
 const getGstStatus = (purchase: any): 'GST_VALID' | 'GST_MISMATCH' => {
@@ -109,7 +109,7 @@ const getGstStatus = (purchase: any): 'GST_VALID' | 'GST_MISMATCH' => {
   if (res === 'CORRECTED' || res === 'SUPPLIER_VALUES_ACCEPTED') return 'GST_VALID';
 
   // Duplicate invoices: voucher already exists in ERP, GST was validated at first posting.
-  // Show GST VALID instead of NOT CHECKED.
+  // Show Calculation verified instead of NOT CHECKED.
   if (purchase.voucher_status === 'VOUCHER_STATUS_EXISTING') {
     const extAudit = ext.gst_audit_trail;
     // Only shortcut to GST_VALID if there is no explicit FAIL audit trail
@@ -129,10 +129,10 @@ const getGstStatus = (purchase: any): 'GST_VALID' | 'GST_MISMATCH' => {
 const renderGstStatusBadge = (status: 'GST_VALID' | 'GST_MISMATCH') => {
   switch (status) {
     case 'GST_VALID':
-      return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap">GST VALID</span>;
+      return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap">Calculation verified</span>;
     case 'GST_MISMATCH':
     default:
-      return <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap animate-pulse">GST MISMATCH</span>;
+      return <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase whitespace-nowrap animate-pulse">GST needs review</span>;
   }
 };
 
@@ -318,10 +318,12 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
     });
   };
 
-  const openCreateItemModal = (purchase: any, item: any) => {
-    setExtractedItemData(item);
-    setItemResolvingRow(purchase);
-    setIsCreateItemModalOpen(true);
+  const [vendorModalInitialTab, setVendorModalInitialTab] = useState<'basic' | 'products'>('basic');
+
+  const openCreateItemModal = (purchase: any, item?: any) => {
+    setVendorResolvingRow(purchase);
+    setVendorModalInitialTab('products');
+    setIsCreateVendorModalOpen(true);
   };
 
   const openMatchItemModal = (purchase: any, item: any, lineIdx: number = 0) => {
@@ -346,8 +348,9 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
     setIsMatchItemModalOpen(true);
   };
 
-  const openCreateVendorModal = (purchase: any) => {
+  const openCreateVendorModal = (purchase: any, initialTab: 'basic' | 'products' = 'basic') => {
     setVendorResolvingRow(purchase);
+    setVendorModalInitialTab(initialTab);
     setIsCreateVendorModalOpen(true);
   };
 
@@ -442,6 +445,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
       {/* Create Vendor Modal */}
       {isCreateVendorModalOpen && vendorResolvingRow && (
         <CreateNewVendorFullModal
+          initialTab={vendorModalInitialTab}
           prefilledData={(() => {
             const ext = vendorResolvingRow.extraction_payload || {};
             const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
@@ -457,11 +461,19 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
             const rawItems = getLineItems(vendorResolvingRow) || [];
             const supplierItems = rawItems.map((itm: any) => ({
-              hsnSacCode: itm.hsn_code || itm.hsn || itm.hsn_sac || itm.hsnSacCode || '',
+              hsnSacCode: itm.hsn_code || itm.hsn || itm.hsn_sac || itm.hsnSacCode || itm.hsnSac || '',
               itemName: itm.item_name || itm.name || itm.description || '',
               supplierItemName: itm.supplierItemName || itm.item_name || itm.name || itm.description || '',
               supplierItemCode: itm.supplierItemCode || itm.item_code || itm.code || itm.itemCode || '',
               itemCode: itm.item_code || itm.code || itm.itemCode || '',
+              rate: itm.rate || itm.unit_price || itm.price || '',
+              uom: itm.uom || itm.unit || 'nos',
+              gst_rate: itm.gst_rate || itm.igst_rate || '',
+              cgst_rate: itm.cgst_rate || '',
+              sgst_rate: itm.sgst_rate || '',
+              igst_rate: itm.igst_rate || '',
+              cess_rate: itm.cess_rate || '',
+              description: itm.description || itm.item_name || '',
             }));
 
             return {
@@ -475,9 +487,24 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
               state: state,
               contact_person: supplier.contact_person || ext.contact_person || '',
               supplier_items: supplierItems,
+              vendor_id: vendorResolvingRow.vendor_id || vendorResolvingRow.vendor_basic_detail_id || (vendorResolvingRow.vendor_details?.id),
             };
           })()}
-          onClose={() => { setIsCreateVendorModalOpen(false); setVendorResolvingRow(null); }}
+          onClose={async () => {
+            const rowToRevalidate = vendorResolvingRow;
+            setIsCreateVendorModalOpen(false);
+            setVendorResolvingRow(null);
+            if (rowToRevalidate) {
+              await revalidatePurchase(rowToRevalidate);
+            } else {
+              await fetchPurchases();
+            }
+          }}
+          onItemCreatedOrUpdated={async () => {
+            if (vendorResolvingRow) {
+              await revalidatePurchase(vendorResolvingRow);
+            }
+          }}
           onVendorCreated={async () => {
             const rowToRevalidate = vendorResolvingRow;
             setIsCreateVendorModalOpen(false);
@@ -604,7 +631,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                 Pending Purchases
               </h1>
               <p className="text-sm text-slate-500 mt-1">
-                Resolve unmatched invoices — create vendors/items, then finalize to post vouchers, journals and GRNs.
+                Review and complete pending invoices — add missing vendors or items, then save vouchers to your books.
               </p>
             </div>
           </div>
@@ -618,10 +645,10 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
           <button
             onClick={openBulkConfirm}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg shadow-sm text-sm font-bold hover:from-emerald-700 hover:to-teal-700 transition-all"
-            title="Finalize all eligible records (vendor + item resolved, voucher not yet saved)"
+            title="Save all invoices where vendor and items are resolved"
           >
             <Zap className="w-4 h-4" />
-            Finalize &amp; Save All Eligible
+            Save All Ready Invoices
           </button>
         </div>
 
@@ -637,13 +664,13 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                   <th className="px-3 py-3 text-left">Inv No</th>
                   <th className="px-3 py-3 text-left">Date</th>
                   <th className="px-3 py-3 text-left">Vendor</th>
-                  <th className="px-3 py-3 text-left">GSTIN</th>
+                  <th className="px-3 py-3 text-left">Vendor GSTIN</th>
                   <th className="px-3 py-3 text-left">Branch</th>
                   <th className="px-3 py-3 text-right">Amount</th>
+                  <th className="px-3 py-3 text-center">Voucher Status</th>
                   <th className="px-3 py-3 text-center">Vendor Status</th>
                   <th className="px-3 py-3 text-center">Item Status</th>
-                  <th className="px-3 py-3 text-center">GST Status</th>
-                  <th className="px-3 py-3 text-center">Voucher Status</th>
+                  <th className="px-3 py-3 text-center">GST Calculation in Invoice</th>
                   <th className="px-3 py-3 text-center">Action</th>
                 </tr>
               </thead>
@@ -662,7 +689,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                         <CheckCircle className="w-8 h-8 text-emerald-500" />
                       </div>
                       <p className="text-slate-600 font-medium">No pending purchases</p>
-                      <p className="text-slate-400 text-sm mt-1">All invoices have been resolved.</p>
+                      <p className="text-slate-400 text-sm mt-1">All purchase invoices have been saved to your books.</p>
                     </td>
                   </tr>
                 ) : (
@@ -672,32 +699,6 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                     const isResolving = resolving.has(purchase.id);
                     return (
                       <React.Fragment key={purchase.id}>
-                        {isCompanyMatch(purchase) && (
-                          <tr key={`comp_match_${purchase.id}`} className="bg-amber-50 border-b border-amber-200">
-                            <td colSpan={13} className="px-4 py-2.5">
-                              <div className="flex items-center justify-between gap-3 text-amber-900 text-xs font-semibold">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-amber-600 font-bold">⚠️ Self-Company Invoice Detected:</span>
-                                  <span>This invoice matches your company name/GSTIN. Is this intended for purchase?</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'PROCEED')}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-3 py-1 rounded shadow-sm transition-colors cursor-pointer"
-                                  >
-                                    Proceed
-                                  </button>
-                                  <button
-                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'NOT_PROCEED')}
-                                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded shadow-sm transition-colors cursor-pointer"
-                                  >
-                                    Not Proceed
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
                         <tr className="group hover:bg-indigo-50/40 transition-colors">
                           <td className="px-3 py-3 text-center text-xs font-bold text-gray-500">{idx + 1}</td>
 
@@ -725,7 +726,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                             })()}
                           </td>
 
-                          {/* GSTIN */}
+                          {/* Vendor GSTIN */}
                           <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{(() => {
                             const ext = purchase.extraction_payload || {};
                             const supplier = ext.sections?.supplier_details || ext.supplier_details || {};
@@ -758,16 +759,30 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                             })()}
                           </td>
 
+                          {/* Voucher Status */}
+                          <td className="px-2 py-3 text-center">
+                            <VoucherStatusBadge 
+                              status={purchase.voucher_status} 
+                              onClick={purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW'
+                                ? () => openEditModal(purchase)
+                                : undefined
+                              }
+                            />
+                          </td>
+
                           {/* Vendor Status */}
                           <td className="px-2 py-3 text-center">
                             <div className="flex flex-col items-center gap-1">
-                              <VendorStatusBadge status={purchase.vendor_status} />
-                              {(purchase.vendor_status === 'VENDOR_STATUS_CREATE' || purchase.vendor_status === 'CREATE_VENDOR') && (
+                              {purchase.vendor_status === 'VENDOR_STATUS_EXISTING' || purchase.vendor_status === 'ALREADY_EXIST' || purchase.vendor_status === 'ALREADY EXIST' ? (
+                                <VendorStatusBadge status={purchase.vendor_status} />
+                              ) : (
                                 <button
+                                  type="button"
                                   onClick={() => openCreateVendorModal(purchase)}
-                                  className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline focus:outline-none"
+                                  className="bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white border border-indigo-600 px-2 py-1 rounded cursor-pointer transition-colors shadow-sm font-bold text-[10px] uppercase whitespace-nowrap"
+                                  title="Add Vendor"
                                 >
-                                  + Create Vendor
+                                  Add vendor
                                 </button>
                               )}
                             </div>
@@ -776,13 +791,16 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                           {/* Item Status */}
                           <td className="px-2 py-3 text-center">
                             <div className="flex flex-col items-center gap-1">
-                              <ItemStatusBadge status={purchase.item_status} />
-                              {(purchase.item_status === 'ITEM_STATUS_CREATE' || purchase.item_status === 'CREATE ITEM') && (
+                              {purchase.item_status === 'ITEM_STATUS_EXISTING' || purchase.item_status === 'ALREADY_EXIST' || purchase.item_status === 'ALREADY EXIST' ? (
+                                <ItemStatusBadge status={purchase.item_status} />
+                              ) : (
                                 <button
-                                  onClick={() => toggleExpandRow(purchase.id)}
-                                  className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold underline focus:outline-none"
+                                  type="button"
+                                  onClick={() => openCreateItemModal(purchase)}
+                                  className="bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white border border-indigo-600 px-2 py-1 rounded cursor-pointer transition-colors shadow-sm font-bold text-[10px] uppercase whitespace-nowrap"
+                                  title="Open Vendor Products / Services"
                                 >
-                                  {expandedRows.has(purchase.id) ? 'Hide Items' : 'Expand Items'}
+                                  Stock item not found
                                 </button>
                               )}
                             </div>
@@ -803,39 +821,6 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                             )}
                           </td>
 
-                          {/* Voucher Status */}
-                          <td className="px-2 py-3 text-center">
-                            {isCompanyMatch(purchase) ? (
-                              <div className="flex flex-col items-center gap-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
-                                <span className="text-[9px] font-black text-amber-800 uppercase tracking-tight flex items-center gap-1">
-                                  ⚠️ Not Your Company Invoice
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'PROCEED')}
-                                    className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-black uppercase shadow-sm transition-all"
-                                  >
-                                    ✓ Proceed
-                                  </button>
-                                  <button
-                                    onClick={() => handleCompanyMatchDecision(purchase.id, 'NOT_PROCEED')}
-                                    className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-[9px] font-black uppercase shadow-sm transition-all"
-                                  >
-                                    ✕ Not Proceed
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <VoucherStatusBadge 
-                                status={purchase.voucher_status} 
-                                onClick={purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW'
-                                  ? () => openEditModal(purchase)
-                                  : undefined
-                                }
-                              />
-                            )}
-                          </td>
-
                           {/* Actions */}
                           <td className="px-2 py-3 text-center">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
@@ -844,7 +829,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                                 onClick={() => revalidatePurchase(purchase)}
                                 disabled={isRevalidating}
                                 className="p-1.5 hover:bg-indigo-100 rounded text-indigo-500 hover:text-indigo-700 transition-colors disabled:opacity-40"
-                                title="Revalidate — re-run Purchase Upload validation engine"
+                                title="Check invoice again"
                               >
                                 <RefreshCw className={`w-3.5 h-3.5 ${isRevalidating ? 'animate-spin' : ''}`} />
                               </button>
@@ -854,7 +839,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                                 onClick={() => resolvePurchase(purchase)}
                                 disabled={!ready || isResolving}
                                 className={`p-1.5 rounded transition-colors disabled:opacity-40 ${ready ? 'hover:bg-emerald-100 text-emerald-600 hover:text-emerald-800' : 'text-gray-300 cursor-not-allowed'}`}
-                                title={ready ? 'Finalize & Save Vouchers — identical to Purchase Upload finalize' : 'Resolve vendor and item issues first'}
+                                title={ready ? 'Save purchase voucher to books' : 'Add missing vendor or items first'}
                               >
                                 {isResolving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                               </button>
@@ -863,7 +848,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                               <button
                                 onClick={() => console.log('Remove', purchase.id)}
                                 className="p-1.5 hover:bg-red-100 rounded text-red-500 hover:text-red-700 transition-colors"
-                                title="Remove Invoice"
+                                title="Remove invoice"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -877,7 +862,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                                 className="mt-1.5 w-full px-2 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded text-[9px] font-bold shadow-sm hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-40 flex items-center justify-center gap-1"
                               >
                                 <Save className="w-2.5 h-2.5" />
-                                {isResolving ? 'Saving...' : 'Finalize & Save Vouchers'}
+                                {isResolving ? 'Saving...' : 'Save Purchase Voucher'}
                               </button>
                             )}
                           </td>
@@ -889,7 +874,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                             <td colSpan={13} className="px-6 py-4">
                               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                  <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Line Items Validation</span>
+                                  <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Invoice Line Items</span>
                                   <span className="text-[10px] text-gray-500 font-mono">
                                     Total Items: {getLineItems(purchase).length}
                                   </span>
@@ -933,7 +918,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                                                 onClick={() => openCreateItemModal(purchase, item)}
                                                 className="bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white border border-indigo-600 px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition-colors shadow-sm whitespace-nowrap"
                                               >
-                                                Create Item
+                                                Add Item
                                               </button>
                                               <button
                                                 onClick={() => openMatchItemModal(purchase, item, item.line_index ?? itemIdx)}

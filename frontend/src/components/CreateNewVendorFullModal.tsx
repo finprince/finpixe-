@@ -4,12 +4,15 @@
  * of the Vendor Portal > Create New Vendor flow.
  * Used from Purchase Voucher > Supplier Details tab.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { httpClient } from '../services/httpClient';
+import { apiService } from '../services/api';
 import { showError, showSuccess, showInfo } from '../utils/toast';
 import { BILLING_CURRENCIES } from '../constants/customerPortalConstants';
 import { ChevronDown } from 'lucide-react';
 import { Country, State, City } from 'country-state-city';
+import { CreateNewInventoryItemModal } from './CreateNewInventoryItemModal';
+import { MatchExistingItemModal } from './MatchExistingItemModal';
 
 /* ─── Types ──────────────────────────────────────────────── */
 interface PlaceOfBusiness {
@@ -46,6 +49,15 @@ interface VendorItem {
     itemName: string;
     supplierItemCode: string;
     supplierItemName: string;
+    rate?: string | number;
+    uom?: string;
+    gst_rate?: string | number;
+    cgst_rate?: string | number;
+    sgst_rate?: string | number;
+    igst_rate?: string | number;
+    cess_rate?: string | number;
+    description?: string;
+    isExisting?: boolean;
 }
 
 interface BankAccount {
@@ -63,7 +75,10 @@ interface CreateNewVendorFullModalProps {
     onClose: () => void;
     /** Called after vendor is saved; receives the new vendor's name & id */
     onVendorCreated: (vendorName: string, vendorId: number) => void;
+    /** Called immediately when an item is created or matched in master */
+    onItemCreatedOrUpdated?: (items: VendorItem[]) => void;
     prefilledData?: any;
+    initialTab?: TabId;
 }
 
 const TDS_SECTIONS = [
@@ -91,7 +106,9 @@ const TABS: { id: TabId; label: string }[] = [
 const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
     onClose,
     onVendorCreated,
+    onItemCreatedOrUpdated,
     prefilledData,
+    initialTab = 'basic',
 }) => {
     React.useEffect(() => {
         console.info('[FORENSIC][INVOICE_SCANNER_VENDOR_LIFECYCLE] CANONICAL_VENDOR_MODAL_MOUNT');
@@ -99,7 +116,14 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
 
     console.info('[FORENSIC][INVOICE_SCANNER_VENDOR_LIFECYCLE] CANONICAL_VENDOR_MODAL_RENDER. prefilledData:', prefilledData);
 
-    const [activeTab, setActiveTab] = useState<TabId>('basic');
+    const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+
+    useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]);
+
     const [isSaving, setIsSaving] = useState(false);
 
     const [createdVendorId, setCreatedVendorId] = useState<number | null>(null);
@@ -133,6 +157,27 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
     const [items, setItems] = useState<VendorItem[]>([
         { id: 1, hsnSacCode: '', itemCode: '', itemName: '', supplierItemCode: '', supplierItemName: '' },
     ]);
+    const [stockItems, setStockItems] = useState<any[]>([]);
+    const [isCreateItemModalOpen, setIsCreateItemModalOpen] = useState(false);
+    const [isMatchItemModalOpen, setIsMatchItemModalOpen] = useState(false);
+    const [activeItemRowId, setActiveItemRowId] = useState<number | null>(null);
+    const activeItemRowIdRef = useRef<number | null>(null);
+    const lastPrefilledDataRef = useRef<any>(null);
+    const [creatingItemRowId, setCreatingItemRowId] = useState<number | null>(null);
+    const [matchingItemRowId, setMatchingItemRowId] = useState<number | null>(null);
+    const [extractedItemForCreation, setExtractedItemForCreation] = useState<any>(undefined);
+
+    useEffect(() => {
+        const fetchStockItems = async () => {
+            try {
+                const res = await apiService.getStockItems();
+                setStockItems(Array.isArray(res) ? res : (res as any)?.results || []);
+            } catch (err) {
+                console.error('Failed to load stock items:', err);
+            }
+        };
+        fetchStockItems();
+    }, []);
 
     /* ── TDS State ──────────────────────────── */
     const [msmeUdyamNo, setMsmeUdyamNo] = useState('');
@@ -206,7 +251,8 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
     }, []);
 
     useEffect(() => {
-        if (prefilledData) {
+        if (prefilledData && prefilledData !== lastPrefilledDataRef.current) {
+            lastPrefilledDataRef.current = prefilledData;
             console.log('[CreateNewVendorFullModal] Prefilling from:', prefilledData);
             if (prefilledData.vendor_name) setVendorName(prefilledData.vendor_name);
             if (prefilledData.pan_no) setPanNo(prefilledData.pan_no);
@@ -238,15 +284,62 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
             }
 
             if (prefilledData.supplier_items && prefilledData.supplier_items.length > 0) {
-                const itemsToSet = prefilledData.supplier_items.map((it: any, idx: number) => ({
-                    id: idx + 1,
-                    hsnSacCode: it.hsnSac || it.hsnSacCode || '',
-                    itemCode: it.supplierItemCode || it.itemCode || '',
-                    itemName: it.supplierItemName || it.itemName || '',
-                    supplierItemCode: '',
-                    supplierItemName: ''
-                }));
+                const itemsToSet = prefilledData.supplier_items.map((it: any, idx: number) => {
+                    const extName = it.supplierItemName || it.itemName || it.item_name || it.description || it.name || '';
+                    const extCode = it.supplierItemCode || it.itemCode || it.item_code || it.code || '';
+                    const matchedCode = it.matchedItemCode || '';
+                    const matchedName = it.matchedItemName || '';
+
+                    // Check if there is an existing master inventory match
+                    let finalItemCode = matchedCode;
+                    let finalItemName = matchedName;
+                    let finalHsn = it.hsnSac || it.hsnSacCode || it.hsn_sac || it.hsn_code || '';
+                    let isMatched = !!(matchedCode && matchedName);
+
+                    if (!finalItemCode && !finalItemName && stockItems.length > 0) {
+                        const directMatch = stockItems.find((si: any) => {
+                            const siCode = (si.item_code || si.code || '').trim().toLowerCase();
+                            const siName = (si.item_name || si.name || '').trim().toLowerCase();
+                            const targetName = extName.trim().toLowerCase();
+                            const targetCode = extCode.trim().toLowerCase();
+                            return (targetCode && siCode && targetCode === siCode) || (targetName && siName && targetName === siName);
+                        });
+                        if (directMatch) {
+                            finalItemCode = directMatch.item_code || directMatch.code || '';
+                            finalItemName = directMatch.item_name || directMatch.name || '';
+                            if (!finalHsn) finalHsn = directMatch.hsn_code || directMatch.hsn || '';
+                            isMatched = true;
+                        }
+                    }
+
+                    return {
+                        id: idx + 1,
+                        hsnSacCode: finalHsn,
+                        itemCode: finalItemCode,
+                        itemName: finalItemName,
+                        supplierItemCode: extCode,
+                        supplierItemName: extName,
+                        rate: it.rate || it.unit_price || it.price || '',
+                        uom: it.uom || it.unit || 'nos',
+                        gst_rate: it.gst_rate || it.igst_rate || '',
+                        cgst_rate: it.cgst_rate || '',
+                        sgst_rate: it.sgst_rate || '',
+                        igst_rate: it.igst_rate || '',
+                        cess_rate: it.cess_rate || '',
+                        description: it.description || extName,
+                        isExisting: isMatched || undefined,
+                    };
+                });
                 setItems(itemsToSet);
+            }
+
+            const vId = prefilledData.vendor_id || prefilledData.id;
+            if (vId) {
+                fetchExistingVendorProducts(vId);
+            } else if (prefilledData.vendor_name) {
+                resolveVendorId().then(resolvedId => {
+                    if (resolvedId) fetchExistingVendorProducts(resolvedId);
+                });
             }
         }
     }, [prefilledData]);
@@ -423,7 +516,428 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
         }));
     };
 
-    /* ─── Product helpers ──────────────────── */
+    const fetchExistingVendorProducts = async (vendorId: number) => {
+        try {
+            const res: any = await httpClient.get(`/api/vendors/product-services/?vendor_basic_detail=${vendorId}`);
+            const existingList = Array.isArray(res) ? res : (res?.items || res?.results || res?.data || []);
+            if (existingList && existingList.length > 0) {
+                const mappedExisting: VendorItem[] = existingList.map((it: any, idx: number) => ({
+                    id: idx + 1,
+                    hsnSacCode: it.hsn_sac_code || '',
+                    itemCode: it.item_code || '',
+                    itemName: it.item_name || '',
+                    supplierItemCode: it.supplier_item_code || '',
+                    supplierItemName: it.supplier_item_name || '',
+                    isExisting: true,
+                }));
+
+                setItems(prev => {
+                    const merged = [...mappedExisting];
+                    prev.forEach(prevItem => {
+                        const prevName = (prevItem.supplierItemName || prevItem.itemName || '').trim().toLowerCase();
+                        const prevCode = (prevItem.supplierItemCode || prevItem.itemCode || '').trim().toLowerCase();
+                        const exists = merged.some(m => {
+                            const mName = (m.supplierItemName || m.itemName || '').trim().toLowerCase();
+                            const mCode = (m.supplierItemCode || m.itemCode || '').trim().toLowerCase();
+                            return (prevName && mName && prevName === mName) || (prevCode && mCode && prevCode === mCode);
+                        });
+                        if (!exists && (prevItem.supplierItemName || prevItem.itemName || prevItem.hsnSacCode)) {
+                            merged.push({
+                                ...prevItem,
+                                id: merged.length + 1,
+                            });
+                        }
+                    });
+                    return merged.length > 0 ? merged : prev;
+                });
+            }
+        } catch (err) {
+            console.error('Error fetching existing vendor products:', err);
+        }
+    };
+
+    const resolveVendorId = async (): Promise<number | null> => {
+        if (createdVendorId) return createdVendorId;
+        if (prefilledData?.vendor_id) return prefilledData.vendor_id;
+        if (prefilledData?.id) return prefilledData.id;
+        if (vendorName.trim()) {
+            try {
+                const res: any = await httpClient.get(`/api/vendors/basic-details/?search=${encodeURIComponent(vendorName.trim())}`);
+                const list = Array.isArray(res) ? res : (res?.results || []);
+                const found = list.find((v: any) => v.vendor_name?.toLowerCase() === vendorName.trim().toLowerCase());
+                if (found?.id) {
+                    setCreatedVendorId(found.id);
+                    return found.id;
+                }
+            } catch (err) {
+                console.error('Failed to lookup vendor ID by name:', err);
+            }
+        }
+        return null;
+    };
+
+    const isItemInMaster = (item: VendorItem) => {
+        const code = (item.itemCode || '').trim().toLowerCase();
+        const name = (item.itemName || '').trim().toLowerCase();
+        if (!code && !name) return false;
+        return stockItems.some(si => {
+            const siCode = (si.item_code || si.code || '').trim().toLowerCase();
+            const siName = (si.item_name || si.name || '').trim().toLowerCase();
+            return (code && siCode && code === siCode) || (name && siName && name === siName);
+        });
+    };
+
+    const handleDirectCreateItem = async (itemRowId: number) => {
+        const targetItem = items.find(i => i.id === itemRowId);
+        if (!targetItem) return;
+
+        const candidateName = (targetItem.itemName || targetItem.supplierItemName || '').trim();
+        if (!candidateName) {
+            showError('Please provide an Item Name before creating.');
+            return;
+        }
+
+        // Determine code
+        let candidateCode = (targetItem.itemCode || targetItem.supplierItemCode || '').trim();
+        if (!candidateCode) {
+            candidateCode = candidateName.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase() || 'ITEM';
+        }
+
+        setCreatingItemRowId(itemRowId);
+        try {
+            const payload = {
+                item_code: candidateCode,
+                item_name: candidateName,
+                description: targetItem.description || targetItem.itemName || candidateName,
+                hsn_code: (targetItem.hsnSacCode || '').trim() || null,
+                rate: targetItem.rate ? parseFloat(String(targetItem.rate)) || 0 : 0,
+                rate_unit: (targetItem.uom || 'nos').toLowerCase(),
+                uom: (targetItem.uom || 'nos').toLowerCase(),
+                gst_rate: targetItem.gst_rate !== undefined && targetItem.gst_rate !== '' ? String(targetItem.gst_rate) : null,
+                is_vendor_specific: false,
+                vendor_specific_name: null,
+                is_saleable: false
+            };
+
+            const response: any = await httpClient.post('/api/inventory/items/', payload);
+            const createdName = response.item_name || response.name || candidateName;
+            const createdCode = response.item_code || candidateCode;
+            const createdHsn = response.hsn_code || targetItem.hsnSacCode || '';
+
+            const updatedItems = items.map(item => {
+                if (item.id === itemRowId) {
+                    return {
+                        ...item,
+                        itemCode: createdCode,
+                        itemName: createdName,
+                        hsnSacCode: createdHsn || item.hsnSacCode,
+                        isExisting: true,
+                    };
+                }
+                return item;
+            });
+            setItems(updatedItems);
+
+            const vendorId = await resolveVendorId();
+            if (vendorId) {
+                let baseItems = updatedItems;
+                try {
+                    const res: any = await httpClient.get(`/api/vendors/product-services/?vendor_basic_detail=${vendorId}`);
+                    const dbList = Array.isArray(res) ? res : (res?.items || res?.results || res?.data || []);
+                    if (dbList && dbList.length > 0) {
+                        const mappedDb: VendorItem[] = dbList.map((it: any, idx: number) => ({
+                            id: idx + 1,
+                            hsnSacCode: it.hsn_sac_code || '',
+                            itemCode: it.item_code || '',
+                            itemName: it.item_name || '',
+                            supplierItemCode: it.supplier_item_code || '',
+                            supplierItemName: it.supplier_item_name || '',
+                        }));
+                        const merged = [...mappedDb];
+                        updatedItems.forEach(uItem => {
+                            const uName = (uItem.itemName || uItem.supplierItemName || '').trim().toLowerCase();
+                            const uCode = (uItem.itemCode || uItem.supplierItemCode || '').trim().toLowerCase();
+                            const idx = merged.findIndex(m => {
+                                const mName = (m.itemName || m.supplierItemName || '').trim().toLowerCase();
+                                const mCode = (m.itemCode || m.supplierItemCode || '').trim().toLowerCase();
+                                return (uName && mName && uName === mName) || (uCode && mCode && uCode === mCode);
+                            });
+                            if (idx >= 0) {
+                                merged[idx] = {
+                                    ...merged[idx],
+                                    hsnSacCode: uItem.hsnSacCode || merged[idx].hsnSacCode,
+                                    itemCode: uItem.itemCode || (uItem.id === itemRowId ? createdCode : merged[idx].itemCode),
+                                    itemName: uItem.itemName || (uItem.id === itemRowId ? createdName : merged[idx].itemName),
+                                    supplierItemCode: uItem.supplierItemCode || merged[idx].supplierItemCode,
+                                    supplierItemName: uItem.supplierItemName || merged[idx].supplierItemName,
+                                };
+                            } else {
+                                merged.push({ ...uItem, id: merged.length + 1 });
+                            }
+                        });
+                        baseItems = merged;
+                    }
+                } catch (e) {
+                    console.error('Error loading latest DB products before upsert:', e);
+                }
+
+                const cleanItems = baseItems
+                    .filter(i => isItemInMaster(i) || i.id === itemRowId)
+                    .map(i => {
+                        const isTarget = i.id === itemRowId;
+                        const code = (isTarget ? (createdCode || i.itemCode) : i.itemCode) || '';
+                        const name = (isTarget ? (createdName || i.itemName) : i.itemName) || '';
+                        const hsn = (isTarget ? (createdHsn || i.hsnSacCode) : i.hsnSacCode) || '';
+                        return {
+                            hsn_sac_code: hsn,
+                            item_code: code,
+                            item_name: name.trim(),
+                            supplier_item_code: i.supplierItemCode || '',
+                            supplier_item_name: i.supplierItemName || '',
+                        };
+                    })
+                    .filter(i => i.item_name && i.item_code);
+
+                await httpClient.post('/api/vendors/product-services/', {
+                    vendor_basic_detail: vendorId,
+                    items: cleanItems,
+                    is_active: true,
+                }).catch(err => console.error('Auto-sync product-services error:', err));
+            }
+
+            setStockItems(prev => [response, ...prev]);
+            onItemCreatedOrUpdated?.(updatedItems);
+            showSuccess(`Item "${createdName}" created in Inventory Master and linked to Vendor.`);
+        } catch (error: any) {
+            console.warn('Direct item creation encountered an error, opening full modal for customization:', error);
+            handleOpenCreateItemModal(itemRowId);
+        } finally {
+            setCreatingItemRowId(null);
+        }
+    };
+
+    const handleOpenCreateItemModal = (itemRowId?: number) => {
+        const targetItem = itemRowId !== undefined ? items.find(i => i.id === itemRowId) : null;
+        activeItemRowIdRef.current = itemRowId ?? null;
+        setActiveItemRowId(itemRowId ?? null);
+        if (targetItem) {
+            setExtractedItemForCreation({
+                item_code: targetItem.supplierItemCode || targetItem.itemCode || '',
+                item_name: targetItem.supplierItemName || targetItem.itemName || '',
+                hsn_code: targetItem.hsnSacCode || '',
+                rate: targetItem.rate || '0.00',
+                uom: targetItem.uom || 'nos',
+                gst_rate: targetItem.gst_rate || '',
+                cgst_rate: targetItem.cgst_rate || '',
+                sgst_rate: targetItem.sgst_rate || '',
+                igst_rate: targetItem.igst_rate || '',
+                cess_rate: targetItem.cess_rate || '',
+                description: targetItem.description || targetItem.supplierItemName || targetItem.itemName || '',
+            });
+        } else {
+            setExtractedItemForCreation(undefined);
+        }
+        setIsCreateItemModalOpen(true);
+    };
+
+    const handleItemCreated = async (createdName: string, createdCode: string, itemId: number, itemData?: any) => {
+        setIsCreateItemModalOpen(false);
+        const createdHsn = itemData?.hsn_code || '';
+        const targetRowId = activeItemRowIdRef.current ?? activeItemRowId;
+
+        // 1. Add the new item to stockItems state immediately so it appears in the dropdown list for all rows
+        const newItem = {
+            id: itemId,
+            item_name: createdName,
+            item_code: createdCode,
+            name: createdName,
+            code: createdCode,
+            hsn_code: createdHsn,
+            ...(itemData || {})
+        };
+        setStockItems(prev => {
+            const filtered = prev.filter(si => (si.item_code || si.code) !== createdCode);
+            return [newItem, ...filtered];
+        });
+
+        // Fetch latest stock items from master in background
+        setTimeout(() => {
+            apiService.getStockItems().then(res => {
+                if (Array.isArray(res) && res.length > 0) {
+                    setStockItems(prev => {
+                        const hasNew = res.some(si => (si.item_code || si.code) === createdCode);
+                        return hasNew ? res : [newItem, ...res];
+                    });
+                }
+            }).catch(err => console.error('Error refreshing stock items:', err));
+        }, 2000);
+
+        // 2. Target the exact row clicked and update it with the created Item Code, Item Name, and isExisting: true
+        let targetItemSnapshot: VendorItem | undefined;
+        let updatedItemsSnapshot: VendorItem[] = [];
+
+        setItems(prevItems => {
+            const updated = prevItems.map(item => {
+                if (targetRowId !== null && item.id === targetRowId) {
+                    targetItemSnapshot = item;
+                    return {
+                        ...item,
+                        itemCode: createdCode,
+                        itemName: createdName,
+                        hsnSacCode: createdHsn || item.hsnSacCode,
+                        isExisting: true,
+                    };
+                }
+                return item;
+            });
+            updatedItemsSnapshot = updated;
+            return updated;
+        });
+
+        if (targetRowId !== null) {
+            onItemCreatedOrUpdated?.(updatedItemsSnapshot);
+
+            // 3. Create vendor ↔ item mapping so the product/service is saved to this vendor
+            try {
+                const vendorId = await resolveVendorId();
+                if (vendorId) {
+                    const supplierItemCode = targetItemSnapshot?.supplierItemCode || '';
+                    const supplierItemName = targetItemSnapshot?.supplierItemName || '';
+                    await httpClient.post('/api/vendors/product-services/match-existing/', {
+                        vendor_basic_detail: vendorId,
+                        item_code: createdCode,
+                        item_name: createdName,
+                        hsn_sac_code: createdHsn,
+                        supplier_item_code: supplierItemCode,
+                        supplier_item_name: supplierItemName,
+                    }).catch(err => console.warn('Vendor match-existing non-blocking error:', err));
+                }
+            } catch (mapErr: any) {
+                console.error('[handleItemCreated] Vendor mapping error:', mapErr);
+            }
+        }
+
+        showSuccess(`Item "${createdName}" (${createdCode}) created in Inventory Master and linked to vendor.`);
+        activeItemRowIdRef.current = null;
+        setActiveItemRowId(null);
+    };
+
+
+    const handleMatchExistingItem = async (itemRowId: number) => {
+        const targetItem = items.find(i => i.id === itemRowId);
+        if (!targetItem) return;
+
+        const itemCode = (targetItem.itemCode || '').trim();
+        const itemName = (targetItem.itemName || '').trim();
+
+        if (!itemCode || !itemName) {
+            showError('Please select both Item Code and Item Name before matching.');
+            return;
+        }
+
+        setMatchingItemRowId(itemRowId);
+        try {
+            const vendorId = await resolveVendorId();
+            const payload = {
+                vendor_basic_detail: vendorId || null,
+                item_code: itemCode,
+                item_name: itemName,
+                hsn_sac_code: (targetItem.hsnSacCode || '').trim(),
+                supplier_item_code: (targetItem.supplierItemCode || '').trim(),
+                supplier_item_name: (targetItem.supplierItemName || '').trim(),
+            };
+
+            const response: any = await httpClient.post('/api/vendors/product-services/match-existing/', payload);
+            
+            const matchedCode = response?.item?.item_code || itemCode;
+            const matchedName = response?.item?.item_name || itemName;
+            const matchedHsn = response?.item?.hsn_code || targetItem.hsnSacCode || '';
+
+            const updatedItems = items.map(item => {
+                if (item.id === itemRowId) {
+                    return {
+                        ...item,
+                        itemCode: matchedCode,
+                        itemName: matchedName,
+                        hsnSacCode: matchedHsn,
+                        isExisting: true,
+                    };
+                }
+                return item;
+            });
+            setItems(updatedItems);
+            onItemCreatedOrUpdated?.(updatedItems);
+            showSuccess(response?.message || `Successfully matched "${matchedName}" (${matchedCode}).`);
+        } catch (error: any) {
+            console.error('Error matching existing item:', error);
+            showError(error?.response?.data?.error || error.message || 'No matching existing item found in Item Master.');
+        } finally {
+            setMatchingItemRowId(null);
+        }
+    };
+
+    const handleOpenMatchModal = (itemRowId: number) => {
+        const targetItem = items.find(i => i.id === itemRowId);
+        setActiveItemRowId(itemRowId);
+        if (targetItem) {
+            setExtractedItemForCreation({
+                item_code: targetItem.supplierItemCode || targetItem.itemCode || '',
+                item_name: targetItem.supplierItemName || targetItem.itemName || '',
+                hsn_code: targetItem.hsnSacCode || '',
+                rate: targetItem.rate || '0.00',
+                uom: targetItem.uom || 'nos',
+                description: targetItem.description || targetItem.supplierItemName || targetItem.itemName || '',
+            });
+        }
+        setIsMatchItemModalOpen(true);
+    };
+
+    const handleStockItemMatched = (stockItem: any) => {
+        setIsMatchItemModalOpen(false);
+        if (activeItemRowId !== null) {
+            const canonicalName = stockItem.item_name || stockItem.name || '';
+            const canonicalCode = stockItem.item_code || stockItem.code || '';
+            const canonicalHsn = stockItem.hsn_code || stockItem.hsn || '';
+
+            const updatedItems = items.map(item => {
+                if (item.id === activeItemRowId) {
+                    return {
+                        ...item,
+                        itemCode: canonicalCode || item.itemCode,
+                        itemName: canonicalName || item.itemName,
+                        hsnSacCode: canonicalHsn || item.hsnSacCode,
+                    };
+                }
+                return item;
+            });
+            setItems(updatedItems);
+
+            resolveVendorId().then(vendorId => {
+                if (vendorId) {
+                    const cleanItems = updatedItems
+                        .filter(i => isItemInMaster(i) || i.id === activeItemRowId)
+                        .map(i => ({
+                            hsn_sac_code: i.hsnSacCode || '',
+                            item_code: i.itemCode || '',
+                            item_name: i.itemName.trim(),
+                            supplier_item_code: i.supplierItemCode || '',
+                            supplier_item_name: i.supplierItemName || '',
+                        }))
+                        .filter(i => i.item_name && i.item_code);
+                    httpClient.post('/api/vendors/product-services/', {
+                        vendor_basic_detail: vendorId,
+                        items: cleanItems,
+                        is_active: true,
+                    }).catch(err => console.error('Auto-sync product-services error:', err));
+                }
+            });
+
+            onItemCreatedOrUpdated?.(updatedItems);
+            showSuccess(`Matched to "${canonicalName}" (${canonicalCode || 'No code'}).`);
+        }
+        setActiveItemRowId(null);
+    };
+
     const addItem = () => setItems(prev => [...prev, {
         id: prev.length + 1, hsnSacCode: '', itemCode: '', itemName: '',
         supplierItemCode: '', supplierItemName: '',
@@ -432,8 +946,40 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
     const removeItem = (id: number) =>
         setItems(prev => prev.length > 1 ? prev.filter(i => i.id !== id) : prev);
 
-    const updateItem = (id: number, field: keyof VendorItem, value: string) =>
-        setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+    const updateItem = (id: number, field: keyof VendorItem, value: string) => {
+        setItems(prev => prev.map(i => {
+            if (i.id !== id) return i;
+            const updated = { ...i, [field]: value };
+            if (field === 'itemCode') {
+                if (!value.trim()) {
+                    updated.itemCode = '';
+                } else {
+                    const matchedStock = stockItems.find(si => (si.item_code || si.code || '').trim().toLowerCase() === value.trim().toLowerCase());
+                    if (matchedStock) {
+                        updated.itemCode = matchedStock.item_code || matchedStock.code || value;
+                        updated.itemName = matchedStock.item_name || matchedStock.name || updated.itemName;
+                        if (matchedStock.hsn_code || matchedStock.hsn) {
+                            updated.hsnSacCode = matchedStock.hsn_code || matchedStock.hsn;
+                        }
+                    }
+                }
+            } else if (field === 'itemName') {
+                if (!value.trim()) {
+                    updated.itemName = '';
+                } else {
+                    const matchedStock = stockItems.find(si => (si.item_name || si.name || '').trim().toLowerCase() === value.trim().toLowerCase());
+                    if (matchedStock) {
+                        updated.itemName = matchedStock.item_name || matchedStock.name || value;
+                        updated.itemCode = matchedStock.item_code || matchedStock.code || updated.itemCode;
+                        if (matchedStock.hsn_code || matchedStock.hsn) {
+                            updated.hsnSacCode = matchedStock.hsn_code || matchedStock.hsn;
+                        }
+                    }
+                }
+            }
+            return updated;
+        }));
+    };
 
     /* ─── Bank helpers ─────────────────────── */
     const addBank = () => setBankAccounts(prev => [...prev, {
@@ -639,10 +1185,10 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
             // 3. Products / Services
             try {
                 const cleanItems = items
-                    .filter(i => i.itemName?.trim())
+                    .filter(i => (isItemInMaster(i) || i.isExisting) && i.itemCode?.trim() && i.itemName?.trim())
                     .map(i => ({
                         hsn_sac_code: i.hsnSacCode || '',
-                        item_code: i.itemCode || '',
+                        item_code: i.itemCode.trim(),
                         item_name: i.itemName.trim(),
                         supplier_item_code: i.supplierItemCode || '',
                         supplier_item_name: i.supplierItemName || '',
@@ -1174,48 +1720,177 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
     const renderProducts = () => (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <p className={sectionTitle + ' mb-0 border-0'}>Products / Services</p>
-                <button type="button" onClick={addItem}
-                    className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 border border-indigo-300 rounded px-3 py-1.5">
-                    + Add Item
-                </button>
+                <div>
+                    <p className={sectionTitle + ' mb-0 border-0'}>Products / Services</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Map vendor products and services to inventory master items.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={addItem}
+                        className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 border border-indigo-300 rounded px-3 py-1.5 hover:bg-indigo-50 transition-all"
+                    >
+                        + Add Row
+                    </button>
+                </div>
             </div>
+
             <div className="border border-gray-200 rounded-[4px] overflow-hidden">
-                <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_2rem] bg-indigo-600 text-white text-xs font-semibold">
-                    {['#', 'HSN/SAC', 'Item Code', 'Item Name', 'Supplier Code', 'Supplier Name', ''].map((h, i) => (
-                        <div key={i} className="px-2 py-2 truncate">{h}</div>
+                <div className="grid grid-cols-[2.2rem_1fr_1.3fr_1.8fr_1.1fr_1.1fr_17rem] bg-indigo-600 text-white text-xs font-semibold">
+                    {['#', 'HSN/SAC', 'Item Code', 'Item Name', 'Supplier Code', 'Supplier Name', 'Item Status / Action'].map((h, i) => (
+                        <div key={i} className={`px-2 py-2 truncate ${i === 0 || i === 6 ? 'text-center' : ''}`}>{h}</div>
                     ))}
                 </div>
-                {items.map((item, idx) => (
-                    <div key={item.id} className={`grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_2rem] items-center border-t ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <div className="px-2 py-1.5 text-center text-xs text-gray-400">{idx + 1}</div>
-                        {([
-                            ['hsnSacCode', 'HSN/SAC', 8],
-                            ['itemCode', 'Item Code', 50],
-                            ['itemName', 'Item Name', 100],
-                            ['supplierItemCode', 'Supplier Code', 50],
-                            ['supplierItemName', 'Supplier Name', 100],
-                        ] as [keyof VendorItem, string, number][]).map(([field, placeholder, maxLen]) => (
-                            <div key={field} className="px-1.5 py-1">
+                {items.map((item, idx) => {
+                    return (
+                        <div key={item.id} className={`grid grid-cols-[2.2rem_1fr_1.3fr_1.8fr_1.1fr_1.1fr_17rem] items-center border-t ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <div className="px-2 py-1.5 text-center text-xs text-gray-400 font-medium">{idx + 1}</div>
+
+                            {/* HSN/SAC */}
+                            <div className="px-1.5 py-1">
                                 <input
                                     type="text"
-                                    value={item[field] as string}
-                                    onChange={e => updateItem(item.id, field, e.target.value)}
-                                    placeholder={placeholder}
-                                    maxLength={maxLen}
-                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-indigo-400 bg-transparent"
+                                    value={item.hsnSacCode}
+                                    onChange={e => updateItem(item.id, 'hsnSacCode', e.target.value)}
+                                    placeholder="HSN/SAC"
+                                    maxLength={8}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-indigo-400 bg-white"
                                 />
                             </div>
-                        ))}
-                        <div className="px-1 flex justify-center">
-                            <button type="button" onClick={() => removeItem(item.id)}
-                                disabled={items.length === 1}
-                                className="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed">
-                                ✕
-                            </button>
+
+                            {/* Item Code */}
+                            <div className="px-1.5 py-1">
+                                {item.isExisting ? (
+                                    <span className="block w-full px-2 py-1 text-xs font-semibold text-gray-800 bg-emerald-50 border border-emerald-200 rounded truncate">
+                                        {item.itemCode || '—'}
+                                    </span>
+                                ) : (
+                                <select
+                                    value={item.itemCode || ''}
+                                    onChange={e => updateItem(item.id, 'itemCode', e.target.value)}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-indigo-400 bg-white truncate"
+                                >
+                                    <option value="">Select Item Code</option>
+                                    {item.itemCode && (
+                                        <option value={item.itemCode}>{item.itemCode}</option>
+                                    )}
+                                    {stockItems.map((si, sIdx) => {
+                                        const code = si.item_code || si.code;
+                                        if (!code || code === item.itemCode) return null;
+                                        return (
+                                            <option key={`${si.id || sIdx}-${code}`} value={code}>
+                                                {code}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                )}
+                            </div>
+
+                            {/* Item Name */}
+                            <div className="px-1.5 py-1">
+                                {item.isExisting ? (
+                                    <span className="block w-full px-2 py-1 text-xs font-semibold text-gray-800 bg-emerald-50 border border-emerald-200 rounded truncate">
+                                        {item.itemName || '—'}
+                                    </span>
+                                ) : (
+                                <select
+                                    value={item.itemName || ''}
+                                    onChange={e => updateItem(item.id, 'itemName', e.target.value)}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-indigo-400 bg-white truncate"
+                                >
+                                    <option value="">Select Item Name</option>
+                                    {item.itemName && (
+                                        <option value={item.itemName}>{item.itemName}</option>
+                                    )}
+                                    {stockItems.map((si, sIdx) => {
+                                        const name = si.item_name || si.name;
+                                        if (!name || name === item.itemName) return null;
+                                        return (
+                                            <option key={`${si.id || sIdx}-${name}`} value={name}>
+                                                {name}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                )}
+                            </div>
+
+                            {/* Supplier Code */}
+                            <div className="px-1.5 py-1">
+                                <input
+                                    type="text"
+                                    value={item.supplierItemCode || ''}
+                                    onChange={e => updateItem(item.id, 'supplierItemCode', e.target.value)}
+                                    placeholder="Supplier Code"
+                                    maxLength={50}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-indigo-400 bg-white"
+                                />
+                            </div>
+
+                            {/* Supplier Name */}
+                            <div className="px-1.5 py-1">
+                                <input
+                                    type="text"
+                                    value={item.supplierItemName || ''}
+                                    onChange={e => updateItem(item.id, 'supplierItemName', e.target.value)}
+                                    placeholder="Supplier Name"
+                                    maxLength={100}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-indigo-400 bg-white"
+                                />
+                            </div>
+
+                            {/* Item Status / Action */}
+                            <div className="px-2 py-1 flex items-center justify-center gap-1.5">
+                                {item.isExisting ? (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        Already Exist
+                                    </span>
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            disabled={creatingItemRowId === item.id || matchingItemRowId === item.id || activeItemRowId === item.id}
+                                            onClick={() => handleOpenCreateItemModal(item.id)}
+                                            className="px-2.5 py-1 rounded text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-all whitespace-nowrap shadow-xs cursor-pointer flex items-center gap-1"
+                                            title="Create this item in Inventory Master and map under vendor"
+                                        >
+                                            {activeItemRowId === item.id && !isCreateItemModalOpen ? (
+                                                <>
+                                                    <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                                                    Linking…
+                                                </>
+                                            ) : (
+                                                'CREATE NEW ITEM'
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={matchingItemRowId === item.id || creatingItemRowId === item.id}
+                                            onClick={() => handleMatchExistingItem(item.id)}
+                                            className="px-2 py-1 rounded text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition-all whitespace-nowrap shadow-xs cursor-pointer flex items-center gap-1"
+                                            title="Match selected Item Code and Item Name with existing Item Master"
+                                        >
+                                            {matchingItemRowId === item.id ? (
+                                                <>
+                                                    <span className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                                                    Matching…
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                    </svg>
+                                                    MATCH EXISTING
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
@@ -1550,6 +2225,30 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Create Item Modal */}
+            {isCreateItemModalOpen && (
+                <CreateNewInventoryItemModal
+                    prefilledData={extractedItemForCreation}
+                    onClose={() => {
+                        setIsCreateItemModalOpen(false);
+                        setActiveItemRowId(null);
+                    }}
+                    onItemCreated={handleItemCreated}
+                />
+            )}
+
+            {/* Match Existing Item Modal */}
+            {isMatchItemModalOpen && (
+                <MatchExistingItemModal
+                    extractedItem={extractedItemForCreation || {}}
+                    onClose={() => {
+                        setIsMatchItemModalOpen(false);
+                        setActiveItemRowId(null);
+                    }}
+                    onSelectStockItem={handleStockItemMatched}
+                />
+            )}
         </div>
     );
 };

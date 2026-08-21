@@ -530,18 +530,24 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                     flat_consistency.extend(val_meta.get('item_consistency') or [])
                 merged_group['_validation_metadata'] = {'layout_confidence': val_metadata_list[0].get('layout_confidence') if val_metadata_list else None, 'layout_type': val_metadata_list[0].get('layout_type') if val_metadata_list else None, 'validation_warnings': list(dict.fromkeys((str(w) for w in flat_warnings))), 'item_consistency': flat_consistency, 'pages': val_metadata_list}
             items = merged_group.get('items') or []
-            generic_keywords = ['services', 'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward', 'rounded off', 'round off', 'rounding', 'adjustment', 'output cgst', 'output sgst', 'output igst', 'input cgst', 'input sgst', 'input igst', 'cgst @', 'sgst @', 'igst @', 'tax summary', 'amount chargeable', 'declaration', 'less round', 'add round', 'bank charges', 'net amount', 'e & o.e', 'balance']
+            pure_summary_exact = {
+                'rounded off', 'round off', 'rounding adjustment', 'rounding off',
+                'round_off', 'adjustment', 'carried forward', 'brought forward',
+                'c/f', 'b/f', 'total', 'grand total', 'subtotal', 'sub-total', 'summary',
+                'tax summary', 'amount chargeable in words'
+            }
             has_summary_rows = False
             has_real_items = False
             for itm in items:
-                desc = str(itm.get('description') or itm.get('item_name') or '').lower()
-                is_summary = any((kw in desc for kw in generic_keywords))
+                desc = str(itm.get('description') or itm.get('item_name') or '').strip().lower()
+                is_summary = desc in pure_summary_exact or any(desc.startswith(p) for p in ['total:', 'subtotal:', 'carried forward:', 'brought forward:'])
                 if is_summary:
                     has_summary_rows = True
                 else:
                     has_real_items = True
-            continuation_page = merged_group.get('continuation_page') == True or merged_group.get('_continuation_page') == True or merged_group.get('is_continuation') == True or (merged_group.get('has_continuation_marker') == True) or (merged_group.get('is_continuation_page') == True) or (merged_group.get('summary_continuation') == True) or (merged_group.get('_summary_continuation') == True) or ('summary continuation' in str(merged_group.get('warnings') or []).lower()) or ('continuation' in str(merged_group.get('warnings') or []).lower())
-            if not has_real_items and has_summary_rows and (not continuation_page):
+            invoice_no = str(merged_group.get('invoice_no') or '').strip().upper()
+            has_valid_inv = invoice_no and invoice_no not in ('', 'MISSING', '—', 'UNKNOWN', 'NONE', 'NULL')
+            if not has_real_items and has_summary_rows and not has_valid_inv:
                 logger.error(f'[INVALID_PREASSEMBLY_VALIDATION_BLOCKED] [DTO_SEMANTIC_REJECTED] [SUMMARY_ONLY_PAGE_REJECTED] [INVALID_INVOICE_STRUCTURE] group_id={group_id} - rejecting summary-only invoice structure after grouping.')
                 continue
             logger.info(f'[INVOICE_GROUP_TERMINAL] group_id={group_id} pages_in_group={len(group_list)} final_invoice_no={merged_group.get('invoice_no')}')
@@ -1505,8 +1511,8 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool=False, **kwargs
         items = data.get('items', []) or []
         if not items and 'assembled_exports' in data and data['assembled_exports']:
             items = data['assembled_exports'][0].get('items', [])
-        generic_keywords = ['services', 'total', 'subtotal', 'sub-total', 'summary', 'carried forward', 'brought forward', 'rounded off', 'round off', 'rounding', 'adjustment', 'output cgst', 'output sgst', 'output igst', 'input cgst', 'input sgst', 'input igst', 'cgst @', 'sgst @', 'igst @', 'tax summary', 'amount chargeable', 'declaration', 'less round', 'add round', 'bank charges', 'net amount', 'e & o.e', 'balance']
-        is_summary_only = len(items) > 0 and all((any((kw in str(itm.get('description') or itm.get('item_name') or '').lower() for kw in generic_keywords)) for itm in items))
+        pure_summary_exact = {'rounded off', 'round off', 'rounding adjustment', 'rounding off', 'round_off', 'adjustment', 'carried forward', 'brought forward', 'c/f', 'b/f', 'total', 'grand total', 'subtotal', 'sub-total', 'summary'}
+        is_summary_only = len(items) > 0 and all((str(itm.get('description') or itm.get('item_name') or '').strip().lower() in pure_summary_exact for itm in items))
         pre_val_info = {'invoice_no': str(record.supplier_invoice_no or ''), 'inventory_items': items, 'vendor_status': str(record.vendor_id or ''), 'validation_status': str(record.validation_status or ''), 'is_canonicalized': bool('assembled_exports' in data or record.is_primary), 'is_summary_only': is_summary_only, 'dto_memory_id': str(id(data)), 'validation_stage_name': 'validate_and_process_entry'}
         logger.info(f'[FORENSIC_PRE_VALIDATION]\n{json.dumps(pre_val_info, indent=2, default=str)}')
     except Exception as le:
