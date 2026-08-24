@@ -76,8 +76,10 @@ def _ensure_vouchers_posted(tenant_id):
     try:
         from accounting.models import MasterLedger, MasterHierarchyRaw
         ledgers_to_patch = MasterLedger.objects.filter(
-            tenant_id=tenant_id,
-            category__in=['Other', 'Expense', 'Liability', 'Asset', '', None]
+            tenant_id=tenant_id
+        ).filter(
+            Q(sub_group_1__in=['', '-', None]) |
+            Q(category__in=['Other', 'Expense', 'Liability', 'Asset', '', None])
         )
         for l in ledgers_to_patch:
             if not l.name:

@@ -859,7 +859,7 @@ class StockMovementSummaryViewSet(viewsets.ReadOnlyModelViewSet):
                 master_by_name[i.item_name] = info
 
         data = []
-        for item in stock_items:
+        for item in master_items:
             movements = StockMovement.objects.filter(tenant_id=tenant_id, item_code=item.item_code)
             
             inward = movements.aggregate(qty=Sum('inward_qty'), val=Sum('value'))
@@ -871,31 +871,35 @@ class StockMovementSummaryViewSet(viewsets.ReadOnlyModelViewSet):
             outward_qty = float(outward['qty'] or 0)
             outward_val = float(outward['val'] or 0) if outward_qty > 0 else 0
             
-            # Lookup logic: Try Code first, then Name
-            master_info = master_by_code.get(item.item_code)
-            if not master_info:
-                master_info = master_by_name.get(item.name)
+            opening_qty = float(item.opening_stock or 0)
+            opening_rate = float(item.opening_rate or 0)
+            opening_val = opening_qty * opening_rate
             
-            if not master_info:
-                master_info = {'category': 'General', 'subCategory': ''}
+            closing_qty = opening_qty + inward_qty - outward_qty
+            
+            # Use current rate from item or average rate. Here we just use the item.rate
+            closing_val = closing_qty * float(item.rate or 0)
 
-            data.append({
-                'id': item.id,
-                'category': master_info['category'],
-                'subCategory': master_info['subCategory'],
-                'itemCode': item.item_code,
-                'itemName': item.name,
-                'uom': item.unit,
-                'openingQty': 0, 
-                'openingValue': 0, 
-                'inwardQty': inward_qty,
-                'inwardValue': inward_val,
-                'outwardQty': outward_qty,
-                'outwardValue': outward_val,
-                'closingQty': float(item.current_balance),
-                'closingValue': float(item.current_balance * item.rate)
-            })
-            
+            master_info = master_by_code.get(item.item_code, {'category': 'General', 'subCategory': ''})
+
+            # Only show if there's any stock or movement
+            if opening_qty != 0 or inward_qty != 0 or outward_qty != 0 or closing_qty != 0:
+                data.append({
+                    'id': item.id,
+                    'category': master_info['category'],
+                    'subCategory': master_info['subCategory'],
+                    'itemCode': item.item_code,
+                    'itemName': item.item_name,
+                    'uom': item.uom,
+                    'openingQty': opening_qty, 
+                    'openingValue': opening_val, 
+                    'inwardQty': inward_qty,
+                    'inwardValue': inward_val,
+                    'outwardQty': outward_qty,
+                    'outwardValue': outward_val,
+                    'closingQty': closing_qty,
+                    'closingValue': closing_val
+                })
         return Response(data)
 
     @action(detail=False, methods=['post'], url_path='recalculate')
@@ -1052,9 +1056,38 @@ class StockMovementSummaryViewSet(viewsets.ReadOnlyModelViewSet):
         
         data = []
         running_balance = 0
+        opening_rate = 0
+        
+        # Start running balance from opening stock
+        if item_code:
+            master_item = InventoryItem.objects.filter(tenant_id=tenant_id, item_code=item_code).first()
+            if master_item:
+                running_balance = float(master_item.opening_stock or 0)
+                opening_rate = float(master_item.opening_rate or 0)
+                
+                # Prepend an explicit Opening Stock row to the details!
+                if running_balance != 0:
+                    data.append({
+                        'id': 'opening',
+                        'date': '',
+                        'particulars': 'Opening Stock',
+                        'refNo': '',
+                        'location': '',
+                        'uom': uom,
+                        'openingQty': running_balance,
+                        'openingValue': running_balance * opening_rate,
+                        'inwardQty': 0,
+                        'inwardValue': 0,
+                        'outwardQty': 0,
+                        'outwardValue': 0,
+                        'closingQty': running_balance,
+                        'closingValue': running_balance * opening_rate
+                    })
+
         for m in movements:
             # Calculate opening for this specific transaction
             opening = running_balance
+            opening_val = opening * opening_rate # approx
             if m.inward_qty > 0:
                 running_balance += float(m.inward_qty)
             else:
@@ -1068,13 +1101,13 @@ class StockMovementSummaryViewSet(viewsets.ReadOnlyModelViewSet):
                 'location': m.location,
                 'uom': uom,
                 'openingQty': opening,
-                'openingValue': 0, # Placeholder
+                'openingValue': opening_val, 
                 'inwardQty': float(m.inward_qty),
                 'inwardValue': float(m.value) if m.inward_qty > 0 else 0,
                 'outwardQty': float(m.outward_qty),
                 'outwardValue': float(m.value) if m.outward_qty > 0 else 0,
                 'closingQty': running_balance,
-                'closingValue': 0 # Placeholder
+                'closingValue': running_balance * opening_rate # approx placeholder
             })
             
         return Response(data)

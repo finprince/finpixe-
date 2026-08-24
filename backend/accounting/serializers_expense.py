@@ -148,6 +148,10 @@ class VoucherExpenseSerializer(serializers.ModelSerializer):
             date=expense.date,
             voucher_number=expense.voucher_number,
             total=totals['total_amount'],
+            total_taxable_amount=totals['total_taxable_value'],
+            total_cgst=totals['total_cgst'],
+            total_sgst=totals['total_sgst'],
+            total_igst=totals['total_igst'],
             narration=expense.posting_note,
             source='expense_voucher',
             reference_id=expense.id,
@@ -232,6 +236,10 @@ class VoucherExpenseSerializer(serializers.ModelSerializer):
                 voucher.date = instance.date
                 voucher.voucher_number = instance.voucher_number
                 voucher.total = totals['total_amount']
+                voucher.total_taxable_amount = totals['total_taxable_value']
+                voucher.total_cgst = totals['total_cgst']
+                voucher.total_sgst = totals['total_sgst']
+                voucher.total_igst = totals['total_igst']
                 voucher.narration = instance.posting_note
                 voucher.party = party_name
                 voucher.save()
