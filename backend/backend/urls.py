@@ -135,4 +135,7 @@ urlpatterns = [
     path('api/local-upload-simulator/', include([
         path('', include('core.upload_simulator_urls')),
     ])),
+    # RIM Core Engine
+    path('api/rim/', include('rim.urls')),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

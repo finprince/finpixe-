@@ -185,7 +185,7 @@ class VendorExcelUploadView(APIView):
                 header_index = match_headers(excel_headers, VENDOR_COLUMNS)
                 for col in VENDOR_COLUMNS:
                     if col['required'] and col['label'] not in header_index:
-                        return Response({'error': f'Missing required column: {col['label']}'}, status=400)
+                        return Response({'error': f"Missing required column: {col['label']}"}, status=400)
                 for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
                     if not any(row):
                         continue
@@ -266,7 +266,7 @@ class VendorExcelUploadView(APIView):
                 missing_fields = [name for name, val in mandatory_checks if is_empty(val)]
                 if missing_fields:
                     results['failed'] += 1
-                    results['errors'].append({'message': f'Row {row_idx}: {', '.join(missing_fields)} is missing', 'missing_fields': missing_fields, 'row_data': row_data, 'row_index': row_idx})
+                    results['errors'].append({'message': f"Row {row_idx}: {', '.join(missing_fields)} is missing", 'missing_fields': missing_fields, 'row_data': row_data, 'row_index': row_idx})
                     continue
                 pan = row_data.get('PAN Number') or row_data.get('pan_no')
                 if pan:
@@ -367,7 +367,7 @@ class VendorExcelUploadView(APIView):
                     results['failed'] += 1
                     results['errors'].append({'message': f'Row {row_idx}: {str(row_err)}', 'row_data': row_data, 'row_index': row_idx})
                     logger.error(f'Error processing vendor row {row_idx}: {row_err}')
-            return Response({'message': 'Preview complete' if dry_run else f'Processing complete. Success: {results['success']}, Failed: {results['failed']}', 'summary': results, 'is_preview': dry_run}, status=200)
+            return Response({'message': 'Preview complete' if dry_run else f"Processing complete. Success: {results['success']}, Failed: {results['failed']}", 'summary': results, 'is_preview': dry_run}, status=200)
         except Exception as e:
             logger.error(f'Vendor Excel upload failed: {e}', exc_info=True)
             return Response({'error': f'Internal error: {str(e)}'}, status=500)

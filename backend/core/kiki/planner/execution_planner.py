@@ -88,6 +88,19 @@ class ExecutionPlanner:
             column_names=column_names
         )
 
+        # 4b. Detect Text Entity Filters (e.g. party name, customer name, vendor name)
+        filters = []
+        party_cols = [col for col in column_names if any(k in col.lower() for k in ["party", "customer_name", "vendor_name", "customer", "vendor"])]
+        if party_cols:
+            clean_msg = re.sub(r'\b(show|sales|purchase|purchases|report|reports|for|only|data|get|the|me|all|my|vouchers|invoices|invoice|transactions|please|can|you|details|records|of|asked|to|shows|it|why|record|records)\b', '', msg_lower, flags=re.IGNORECASE).strip()
+            clean_msg = re.sub(r'[^\w\s]', '', clean_msg).strip()
+            if len(clean_msg) >= 3:
+                filters.append({
+                    "field": party_cols[0],
+                    "operator": "LIKE",
+                    "value": clean_msg
+                })
+
         # Build Execution Plan IR
         ir_payload = {
             "domain": domain,
@@ -98,6 +111,7 @@ class ExecutionPlanner:
             "group_by": group_by,
             "order_by": order_by,
             "date_filter": date_filter,
+            "filters": filters,
             "limit": limit,
             "joins": [],
             "tenant_filter": True,

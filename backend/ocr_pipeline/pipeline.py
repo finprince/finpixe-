@@ -284,7 +284,7 @@ def run_ocr_pipeline(file_bytes: bytes=None, record: InvoiceTempOCR=None, wait_f
                 record.extracted_data = None
                 record.status = 'PENDING'
                 record.save(update_fields=['extracted_data', 'status'])
-                logger.info(f'[DEDUP_REPROCESS_TRIGGERED] record_id={record.id} corrupted_fields={[k for k in details if k.startswith('corrupted_')]} fresh_extraction=True')
+                logger.info(f"[DEDUP_REPROCESS_TRIGGERED] record_id={record.id} corrupted_fields={[k for k in details if k.startswith('corrupted_')]} fresh_extraction=True")
                 is_reusable = False
         import pypdf
         import io
@@ -339,14 +339,14 @@ def run_ocr_pipeline(file_bytes: bytes=None, record: InvoiceTempOCR=None, wait_f
             extracted = record.extracted_data
         if not wait_for_ai:
             if '_error' in extracted and (not extracted.get('_pages')):
-                logger.error(f'[PIPELINE_TERMINAL_FAILURE] record={record.id} error={extracted.get('_error')}')
+                logger.error(f"[PIPELINE_TERMINAL_FAILURE] record={record.id} error={extracted.get('_error')}")
                 record.status = 'FAILED'
                 record.save(update_fields=['status'])
                 return {'status': 'FAILED', 'error': extracted.get('_error')}
             logger.info(f'[PIPELINE ASYNC] Extraction enqueued for record {record.id}. Returning early.')
             return {'status': 'ENQUEUED'}
         if '_error' in extracted:
-            logger.error(f'[PIPELINE_ERROR] record={record.id} error={extracted.get('_error')}')
+            logger.error(f"[PIPELINE_ERROR] record={record.id} error={extracted.get('_error')}")
             record.status = 'FAILED'
             record.save(update_fields=['status'])
             return {'status': 'FAILED', 'error': extracted.get('_error')}
@@ -361,7 +361,7 @@ def run_ocr_pipeline(file_bytes: bytes=None, record: InvoiceTempOCR=None, wait_f
                 p_items = p_data.get('items') or p_data.get('sections', {}).get('items') or [] if isinstance(p_data, dict) else []
                 InvoicePageResult.objects.update_or_create(record_id=record.id, page_number=int(p_no), defaults={'session_id': record.upload_session_id or 'sync', 'canonical_payload': p_data})
                 logger.info(f'[PERSIST_ITEM_COUNT] record={record.id} page={p_no} items={len(p_items)}')
-                logger.info(f'[PERSIST_PAGES_SUCCESS] record={record.id} count={len(extracted['_pages'])}')
+                logger.info(f"[PERSIST_PAGES_SUCCESS] record={record.id} count={len(extracted['_pages'])}")
         with transaction.atomic():
             sync_record_flattened_fields(record, normalized)
             normalized['folder_path'] = record.file_path
@@ -416,7 +416,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
     import time
     t_assembly_start = time.time()
     logger.info(f'[PIPELINE_STAGE_ENTER] stage=ASSEMBLY record={record.id} session={record.upload_session_id}')
-    logger.info(f'[MERGE_STAGE_ENTER] record={record.id} job_id={kwargs.get('job_id')}')
+    logger.info(f"[MERGE_STAGE_ENTER] record={record.id} job_id={kwargs.get('job_id')}")
     tenant_id = getattr(record, 'tenant_id', None)
     session_id = getattr(record, 'upload_session_id', None)
     merge_lock_name = f'merge:{tenant_id}:{session_id}:{record.id}'
@@ -455,8 +455,8 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
             p_payload = res['canonical_payload'] if isinstance(res['canonical_payload'], dict) else {}
             inv_no = p_payload.get('invoice_no', 'N/A')
             gstin_val = p_payload.get('gstin', 'N/A')
-            logger.info(f'[OCR_COMPLETE] page_no={res['page_number']} invoice_no={inv_no} merge_key=N/A dedupe_key=N/A filter_reason=None dropped={res['is_failed']}')
-            logger.info(f'[PAGE_OCR_COMPLETE] page_no={res['page_number']} invoice_no={inv_no} gstin={gstin_val}')
+            logger.info(f"[OCR_COMPLETE] page_no={res['page_number']} invoice_no={inv_no} merge_key=N/A dedupe_key=N/A filter_reason=None dropped={res['is_failed']}")
+            logger.info(f"[PAGE_OCR_COMPLETE] page_no={res['page_number']} invoice_no={inv_no} gstin={gstin_val}")
         db_page_map = {res['page_number']: res['canonical_payload'] for res in db_results}
         db_fetch_latency = time.time() - t_db_fetch_start
         metrics.record_latency('assembly:db_fetch_latency', db_fetch_latency)
@@ -550,9 +550,9 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
             if not has_real_items and has_summary_rows and not has_valid_inv:
                 logger.error(f'[INVALID_PREASSEMBLY_VALIDATION_BLOCKED] [DTO_SEMANTIC_REJECTED] [SUMMARY_ONLY_PAGE_REJECTED] [INVALID_INVOICE_STRUCTURE] group_id={group_id} - rejecting summary-only invoice structure after grouping.')
                 continue
-            logger.info(f'[INVOICE_GROUP_TERMINAL] group_id={group_id} pages_in_group={len(group_list)} final_invoice_no={merged_group.get('invoice_no')}')
-            logger.info(f'[INVOICE_GROUP_COMPLETE] group_id={group_id} pages_in_group={len(group_list)} final_invoice_no={merged_group.get('invoice_no')}')
-            logger.info(f'[GROUP_FINALIZED] group_key={group_id} pages={merged_group.get('_source_pages', [p.get('_page_no') for p in group_list])} item_count={len(merged_group.get('items', []))}')
+            logger.info(f"[INVOICE_GROUP_TERMINAL] group_id={group_id} pages_in_group={len(group_list)} final_invoice_no={merged_group.get('invoice_no')}")
+            logger.info(f"[INVOICE_GROUP_COMPLETE] group_id={group_id} pages_in_group={len(group_list)} final_invoice_no={merged_group.get('invoice_no')}")
+            logger.info(f"[GROUP_FINALIZED] group_key={group_id} pages={merged_group.get('_source_pages', [p.get('_page_no') for p in group_list])} item_count={len(merged_group.get('items', []))}")
             assembled_exports.append(merged_group)
         logger.info(f'[MULTIPAGE_STITCH_COMPLETE] record_id={record.id} total_groups={len(assembled_exports)}')
         final_invoices = kwargs.get('final_invoices')
@@ -582,7 +582,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                 ui_pay['item_status'] = inv_val['item_status']
                 ui_pay['missing_items'] = inv_val['missing_items']
                 items = inv_val['items']
-                logger.info(f'[ITEM_EXTRACTION_RESULT] session={record.upload_session_id} invoice_no={invoice_no} item_count={len(items)} item_status={inv_val['item_status']} missing_count={len(inv_val['missing_items'])}')
+                logger.info(f"[ITEM_EXTRACTION_RESULT] session={record.upload_session_id} invoice_no={invoice_no} item_count={len(items)} item_status={inv_val['item_status']} missing_count={len(inv_val['missing_items'])}")
             except Exception as e_val:
                 logger.error(f'[ITEM_VALIDATION_ASSEMBLY_FAILED] error={e_val}')
             try:
@@ -671,14 +671,14 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
             logger.info(f"[RECONCILIATION_PROVENANCE_CAPTURED] invoice_no='{invoice_no}'")
             logger.info(f"[RETRY_LINEAGE_RECORDED] invoice_no='{invoice_no}'")
             logger.info(f'[DTO_POST_VALIDATION] page_no={page_src} invoice_no={invoice_no} merge_key=N/A dedupe_key=N/A filter_reason=None dropped=False')
-            logger.info(f'[FINAL_CANONICAL_DTO]\ninvoice_no={invoice_no}\nitem_count={len(items)}\npages={inv.get('_source_pages', [inv.get('_page_no')])}')
+            logger.info(f"[FINAL_CANONICAL_DTO]\ninvoice_no={invoice_no}\nitem_count={len(items)}\npages={inv.get('_source_pages', [inv.get('_page_no')])}")
             final_invoices.append(ui_pay)
             logger.info(f"[EXPORT_FINAL_ROW] invoice_no='{invoice_no}' upload_session_id='{record.upload_session_id}' tenant_id='{record.tenant_id}' job_id='{kwargs.get('job_id')}'")
             logger.info(f"[PIPELINE_EXPORT_APPEND] invoice_no='{invoice_no}'")
         logger.info(f'[FINAL_EXPORT_COUNT] count={len(final_invoices)}')
         for ui_pay in final_invoices:
             ui_pay['is_canonical_frozen'] = True
-            logger.info(f'[CANONICAL_FREEZE] DTO frozen: invoice_no={ui_pay.get('invoice_no')}')
+            logger.info(f"[CANONICAL_FREEZE] DTO frozen: invoice_no={ui_pay.get('invoice_no')}")
 
         def _get_sort_key(x):
             src_pages = x.get('_source_pages', [])
@@ -692,7 +692,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
         try:
             report = get_integrity_enforcer().verify(final_invoices)
             if report.get('validation') == 'FAIL':
-                logger.warning(f'[ASSEMBLY_INTEGRITY_WARNING] Semantic checks failed: {report.get('failures')} but proceeding in tolerant mode.')
+                logger.warning(f"[ASSEMBLY_INTEGRITY_WARNING] Semantic checks failed: {report.get('failures')} but proceeding in tolerant mode.")
         except Exception as e_verify:
             logger.error(f'[ASSEMBLY_FATAL_ERROR] verification failed: {e_verify}')
             import traceback
@@ -731,7 +731,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
             inv_items = inv_ui.get('items') or []
             logger.critical('[CANONICAL_ITEM_CHECKPOINT] record_id=%s item_count=%d validated_item_count=%d item_status=%s payload_keys=%s', inv_ui.get('id') or record.id, len(inv_items), len(inv_items), inv_ui.get('item_status'), list(inv_ui.keys()))
             if len(inv_items) > 0 and inv_ui.get('item_status') is None:
-                raise CriticalPipelineError(f'Item status lost despite extracted items before snapshot freeze: record_id={inv_ui.get('id') or record.id}')
+                raise CriticalPipelineError(f"Item status lost despite extracted items before snapshot freeze: record_id={inv_ui.get('id') or record.id}")
             try:
                 trace_item_checkpoint(record_id=str(inv_ui.get('id') or record.id), invoice_no=inv_ui.get('invoice_no') or 'N/A', page_number=inv_ui.get('_page_no'), stage='ITEM_TRACE_BEFORE_SNAPSHOT', item_count=len(inv_items), item_status=inv_ui.get('item_status'), snapshot_item_count=len(inv_items))
             except Exception as trace_err:
@@ -812,7 +812,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                     return {'status': 'FINALIZED'}
                 logger.info(f'[MATERIALIZATION_START] session={record.upload_session_id} tenant={record.tenant_id}')
                 existing_siblings = list(InvoiceTempOCR.objects.filter(upload_session_id=record.upload_session_id, file_path=record.file_path).exclude(id=record.id))
-                logger.info(f'[DIAGNOSTIC_LOG] existing_siblings count={len(existing_siblings)} details={[{'id': sib.id, 'file_path': getattr(sib, 'file_path', None), 'file_hash': getattr(sib, 'file_hash', None)} for sib in existing_siblings]}')
+                logger.info(f"[DIAGNOSTIC_LOG] existing_siblings count={len(existing_siblings)} details={[{'id': sib.id, 'file_path': getattr(sib, 'file_path', None), 'file_hash': getattr(sib, 'file_hash', None)} for sib in existing_siblings]}")
                 siblings = []
                 used_existing_ids = set()
                 for idx, inv_ui in enumerate(final_invoices):
@@ -853,7 +853,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                         else:
                             record.validation_status = 'NEED_TO_SAVE'
                         logger.info(f'[DUPLICATE_STATUS_PERSISTED] primary record={record.id} status={record.validation_status}')
-                        logger.info(f'[STAGING_ROW_CREATED] primary={is_primary} index={idx} invoice_no={inv_ui.get('invoice_no')} stable_hash={stable_hash[:8]}')
+                        logger.info(f"[STAGING_ROW_CREATED] primary={is_primary} index={idx} invoice_no={inv_ui.get('invoice_no')} stable_hash={stable_hash[:8]}")
                     else:
                         matched_sib = None
                         for sib in existing_siblings:
@@ -885,11 +885,11 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                             sibling.voucher_type = record.voucher_type
                             sibling.upload_type = record.upload_type
                             sync_record_flattened_fields(sibling, inv_ui, commit=False)
-                            logger.info(f'[STAGING_ROW_REUSED] sibling_id={sibling.id} index={idx} invoice_no={inv_ui.get('invoice_no')} stable_hash={stable_hash[:8]}')
+                            logger.info(f"[STAGING_ROW_REUSED] sibling_id={sibling.id} index={idx} invoice_no={inv_ui.get('invoice_no')} stable_hash={stable_hash[:8]}")
                         else:
                             sibling = InvoiceTempOCR(tenant_id=record.tenant_id, upload_session_id=record.upload_session_id, file_path=record.file_path, file_hash=stable_hash, group_id=record.group_id, status=PipelineStatus.FINALIZED, is_primary=is_primary, processed=False, voucher_type=record.voucher_type, upload_type=record.upload_type)
                             sync_record_flattened_fields(sibling, inv_ui, commit=False)
-                            logger.info(f'[STAGING_ROW_CREATED] sibling index={idx} invoice_no={inv_ui.get('invoice_no')} stable_hash={stable_hash[:8]}')
+                            logger.info(f"[STAGING_ROW_CREATED] sibling index={idx} invoice_no={inv_ui.get('invoice_no')} stable_hash={stable_hash[:8]}")
                         from accounting.models_voucher_purchase import VoucherPurchaseSupplierDetails
                         logger.info(f"[DUPLICATE_CHECK_START] sibling inv_no='{sibling.supplier_invoice_no}' gstin='{sibling.gstin}' branch='{sibling.branch}' tenant_id='{sibling.tenant_id}'")
                         is_dup = False
@@ -936,7 +936,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                     protected_siblings = [sib for sib in existing_siblings if sib.id not in used_existing_ids and sib.id in referenced_by_pp]
                     if protected_siblings:
                         logger.warning(f'[STAGING_ROW_CLEANUP_PROTECTED] Preserved unused siblings referenced by PendingPurchase: {[sib.id for sib in protected_siblings]}')
-                    logger.info(f'[DIAGNOSTIC_LOG] unused_siblings count={len(unused_siblings)} details={[{'id': sib.id, 'file_path': getattr(sib, 'file_path', None), 'file_hash': getattr(sib, 'file_hash', None)} for sib in unused_siblings]}')
+                    logger.info(f"[DIAGNOSTIC_LOG] unused_siblings count={len(unused_siblings)} details={[{'id': sib.id, 'file_path': getattr(sib, 'file_path', None), 'file_hash': getattr(sib, 'file_hash', None)} for sib in unused_siblings]}")
                     if record.upload_type == 'SPRINT3_VALIDATION':
                         logger.info(f'[STAGING_ROW_CLEANUP_SKIPPED] Skipped row cleanup for SPRINT3_VALIDATION session={record.upload_session_id}')
                     elif unused_siblings:
@@ -971,7 +971,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                 try:
                     snapshot = FinalizedSnapshot.objects.create(session_id=record.upload_session_id, tenant_id=record.tenant_id, job_id=kwargs.get('job_id'), s3_key=s3_key, invoice_count=len(final_invoices), finalized_at=timezone.now())
                     for inv in final_invoices:
-                        logger.info(f'[GSTIN_SNAPSHOT] record_id={record.id} gstin={inv.get('gstin')} status={record.status}')
+                        logger.info(f"[GSTIN_SNAPSHOT] record_id={record.id} gstin={inv.get('gstin')} status={record.status}")
                     logger.info(f'[SNAPSHOT_ROW_CREATED] session={record.upload_session_id} snapshot_id={snapshot.id}')
                     logger.info(f'[SNAPSHOT_DB_FLUSH] session={record.upload_session_id} tenant={record.tenant_id}')
                     for inv in final_invoices:
@@ -1015,7 +1015,7 @@ def assemble_multi_page_record(record: InvoiceTempOCR, **kwargs):
                 def on_commit_callback():
                     try:
                         logger.info(f'[SNAPSHOT_TX_COMMIT] session={record.upload_session_id} — transaction committed, snapshot now durable')
-                        logger.info(f'[SNAPSHOT_CALLBACK_ENTER] session={record.upload_session_id} tenant={record.tenant_id} job={kwargs.get('job_id')} record={record.id}')
+                        logger.info(f"[SNAPSHOT_CALLBACK_ENTER] session={record.upload_session_id} tenant={record.tenant_id} job={kwargs.get('job_id')} record={record.id}")
                         logger.info(f'[SNAPSHOT_DB_COMMIT] session={record.upload_session_id} tenant={record.tenant_id}')
                         logger.info(f'[SNAPSHOT_QUERY_START] session={record.upload_session_id}')
                         try:
@@ -1150,7 +1150,7 @@ def trigger_next_fanout(record_id):
                 from ocr_pipeline.models import OCRTask
                 _ocr_task = OCRTask.objects.filter(result_id=record.id).first()
                 job_id = _ocr_task.job_id if _ocr_task and _ocr_task.job_id else record.upload_session_id
-                logger.debug(f'[FANOUT_JOB_RESOLVED] record={record_id} job_id={job_id} via={('OCRTask' if _ocr_task else 'session_fallback')}')
+                logger.debug(f"[FANOUT_JOB_RESOLVED] record={record_id} job_id={job_id} via={('OCRTask' if _ocr_task else 'session_fallback')}")
                 for i in range(batch_size):
                     page_idx = next_start + i
                     page_num = page_idx + 1
@@ -1188,10 +1188,10 @@ def trigger_next_fanout(record_id):
                             logger.error(f'[BARRIER_FAILED_INCREMENT] record={record_id} page={page_num}')
                             from django.utils import timezone
                             before_fail_val = SessionFinalizationState.objects.filter(id=str(record_id)).values('total_pages_completed').first()
-                            logger.info(f'[FORENSIC_DB_FAIL_UPDATE_BEFORE] record={record_id} page={page_num} total_pages_completed={(before_fail_val.get('total_pages_completed') if before_fail_val else None)} timestamp={time.time():.6f}')
+                            logger.info(f"[FORENSIC_DB_FAIL_UPDATE_BEFORE] record={record_id} page={page_num} total_pages_completed={(before_fail_val.get('total_pages_completed') if before_fail_val else None)} timestamp={time.time():.6f}")
                             SessionFinalizationState.objects.filter(id=str(record_id)).update(total_pages_completed=models.F('total_pages_completed') + 1, updated_at=timezone.now())
                             after_fail_val = SessionFinalizationState.objects.filter(id=str(record_id)).values('total_pages_completed').first()
-                            logger.info(f'[FORENSIC_DB_FAIL_UPDATE_AFTER] record={record_id} page={page_num} total_pages_completed={(after_fail_val.get('total_pages_completed') if after_fail_val else None)} timestamp={time.time():.6f}')
+                            logger.info(f"[FORENSIC_DB_FAIL_UPDATE_AFTER] record={record_id} page={page_num} total_pages_completed={(after_fail_val.get('total_pages_completed') if after_fail_val else None)} timestamp={time.time():.6f}")
                             orchestrator.release_ai_slot(str(record_id), page_num, session_id=str(record.upload_session_id), release_reason='ENQUEUE_FAIL', tenant_id=str(record.tenant_id))
                             from vouchers.coordinator import terminalize_page_state, check_and_trigger_assembly
                             terminalize_page_state(record_id=str(record_id), page_number=page_num, session_id=str(record.upload_session_id), is_failed=True, canonical_payload={'status': 'OCR_FAILED', 'error': f'Enqueue Failed: {e}'}, worker_id='ingestion', queue_source='ingestion_queue')
@@ -1406,7 +1406,7 @@ def run_gst_validation_engine(record: InvoiceTempOCR, user=None):
         record.extracted_data['gst_audit_trail'] = {'validation_status': validation_status, 'expected_tax_values': {'cgst': expected_cgst_total, 'sgst': expected_sgst_total, 'igst': expected_igst_total, 'cess': expected_cess_total, 'total_gst': expected_gst_sum, 'total': expected_invoice_total}, 'extracted_tax_values': {'cgst': extracted_cgst_total, 'sgst': extracted_sgst_total, 'igst': extracted_igst_total, 'cess': extracted_cess_total, 'total_gst': extracted_gst_sum, 'total': extracted_invoice_total}, 'difference_amount': difference_amount, 'resolution_choice': gst_resolution, 'resolved_by': resolved_by, 'resolved_at': resolved_at, 'taxable_value': expected_taxable_total, 'gst_rate': gst_rates_str}
         record.save(update_fields=['extracted_data'])
         logger.critical(f"[GST_TRACE_5] GST audit trail written to extracted_data and saved record_id={record.id} validation_status_in_trail='{validation_status}' difference_amount={difference_amount} is_mismatch={is_mismatch}")
-        logger.critical(f'[PROBE_5_GST_SAVED] record_id={record.id} gst_audit_trail SAVED to extracted_data in DB. Key now present: {'gst_audit_trail' in record.extracted_data}')
+        logger.critical(f"[PROBE_5_GST_SAVED] record_id={record.id} gst_audit_trail SAVED to extracted_data in DB. Key now present: {'gst_audit_trail' in record.extracted_data}")
         if is_mismatch and (not gst_resolution):
             record.validation_status = 'GST_MISMATCH'
             record.save(update_fields=['validation_status'])
@@ -1666,7 +1666,7 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool=False, **kwargs
         item_status = inv_val.get('item_status')
         if raw_item_count > 0 and item_status is None:
             raise CriticalPipelineError(f'Item status lost despite extracted items: record_id={record.id} raw_item_count={raw_item_count}')
-        logger.info(f'[DTO_VALIDATION_STATE] record_id={record.id} vendor_status={('EXISTS' if record.vendor_id else 'NEW')} vendor_id={record.vendor_id} voucher_status={('ALREADY_EXIST' if is_duplicate else 'NEED_TO_SAVE')} item_status={inv_val.get('item_status', 'UNKNOWN')}')
+        logger.info(f"[DTO_VALIDATION_STATE] record_id={record.id} vendor_status={('EXISTS' if record.vendor_id else 'NEW')} vendor_id={record.vendor_id} voucher_status={('ALREADY_EXIST' if is_duplicate else 'NEED_TO_SAVE')} item_status={inv_val.get('item_status', 'UNKNOWN')}")
         if (record.extracted_data or {}).get('is_canonical_frozen'):
             logger.info(f'[CANONICAL_FREEZE_VAL_UPDATE] Updating validation metadata on frozen DTO for record {record.id}')
         if not isinstance(record.extracted_data, dict):
@@ -1815,7 +1815,7 @@ def validate_and_process(record: InvoiceTempOCR, auto_save: bool=False, **kwargs
             record.save()
             return {'status': 'ERROR', 'validation_message': 'Voucher save blocked: unresolved GST Calculation Mismatch.'}
         if inv_val['item_status'] != 'ALREADY EXIST':
-            logger.error(f'[INVENTORY_SAVE_BLOCKED] Save blocked for record {record.id} because item_status is {inv_val['item_status']}')
+            logger.error(f"[INVENTORY_SAVE_BLOCKED] Save blocked for record {record.id} because item_status is {inv_val['item_status']}")
             record.validation_status = 'ERROR'
             record.validation_message = 'Voucher save blocked: one or more inventory items do not exist in Master.'
             record.save()

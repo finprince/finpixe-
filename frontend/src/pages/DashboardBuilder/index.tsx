@@ -224,6 +224,24 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
             if (globalFilters.vendor && dataset === 'Expenses') {
                 filtered = filtered.filter(v => (v as any).party === globalFilters.vendor);
             }
+            if (globalFilters.searchQuery) {
+                const queryLower = globalFilters.searchQuery.toLowerCase().trim();
+                filtered = filtered.filter(v => {
+                    const partyName = String((v as any).party || '').toLowerCase();
+                    const invoiceNo = String((v as any).invoiceNo || (v as any).number || '').toLowerCase();
+                    const vDate = String(v.date || '').toLowerCase();
+                    const vType = String(v.type || '').toLowerCase();
+                    const itemsStr = String(JSON.stringify((v as any).items || [])).toLowerCase();
+                    const totalStr = String((v as any).total || (v as any).amount || '');
+
+                    return partyName.includes(queryLower) ||
+                        invoiceNo.includes(queryLower) ||
+                        vDate.includes(queryLower) ||
+                        vType.includes(queryLower) ||
+                        itemsStr.includes(queryLower) ||
+                        totalStr.includes(queryLower);
+                });
+            }
 
             if (filtered.length > 0) {
                 // Group by xField
@@ -327,6 +345,55 @@ const DashboardBuilderPage: React.FC<DashboardBuilderPageProps> = ({ vouchers, l
                 </div>
 
                 <div className="flex items-center gap-4">
+                    {/* Preset Templates Selector */}
+                    <div className="relative group">
+                        <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                            <LayoutDashboard size={13} className="text-indigo-600" /> Presets
+                        </button>
+                        <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 hidden group-hover:block z-[100] animate-in fade-in zoom-in-95 duration-150">
+                            <p className="px-4 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Load BI Template</p>
+                            <button
+                                onClick={() => {
+                                    setWidgets([
+                                        { id: 'rev-line', type: 'line', title: 'Revenue Trend', dataset: 'Sales', xField: 'Date', yField: 'Amount', x: 40, y: 40, width: 560, height: 300, aggregation: 'sum', properties: { showLegend: true, showGridlines: true, colorTheme: '#118DFF', numberFormat: 'Currency' } },
+                                        { id: 'exp-pie', type: 'pie', title: 'Expense Mix', dataset: 'Expenses', xField: 'Category', yField: 'Amount', x: 620, y: 40, width: 360, height: 300, aggregation: 'sum', properties: { showLegend: true, showGridlines: false, colorTheme: '#E044A7', numberFormat: 'Currency' } },
+                                        { id: 'kpi-sales', type: 'kpi', title: 'Total Revenue', dataset: 'Sales', xField: 'Date', yField: 'Amount', x: 40, y: 360, width: 260, height: 200, aggregation: 'sum', properties: { showLegend: false, showGridlines: false, colorTheme: '#6366F1', numberFormat: 'Currency' } },
+                                        { id: 'cust-bar', type: 'bar', title: 'Top Customers', dataset: 'Sales', xField: 'Customer', yField: 'Amount', x: 320, y: 360, width: 660, height: 200, aggregation: 'sum', properties: { showLegend: true, showGridlines: true, colorTheme: '#12239E', numberFormat: 'Currency' } }
+                                    ]);
+                                    showSuccess('Loaded Executive Cockpit Template!');
+                                }}
+                                className="w-full text-left px-4 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                Executive Cockpit
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setWidgets([
+                                        { id: 'sales-bar', type: 'bar', title: 'Customer Sales Breakdown', dataset: 'Sales', xField: 'Customer', yField: 'Amount', x: 40, y: 40, width: 620, height: 320, aggregation: 'sum', properties: { showLegend: true, showGridlines: true, colorTheme: '#6366F1', numberFormat: 'Currency' } },
+                                        { id: 'sales-donut', type: 'donut', title: 'Sales Share', dataset: 'Sales', xField: 'Customer', yField: 'Amount', x: 680, y: 40, width: 300, height: 320, aggregation: 'sum', properties: { showLegend: true, showGridlines: false, colorTheme: '#744EC2', numberFormat: 'Currency' } },
+                                        { id: 'sales-table', type: 'table', title: 'Sales Transaction Ledger', dataset: 'Sales', xField: 'Date', yField: 'Amount', x: 40, y: 380, width: 940, height: 240, aggregation: 'sum', properties: { showLegend: false, showGridlines: true, colorTheme: '#118DFF', numberFormat: 'Currency' } }
+                                    ]);
+                                    showSuccess('Loaded Sales Deep Dive Template!');
+                                }}
+                                className="w-full text-left px-4 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                Sales & Receivables
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setWidgets([
+                                        { id: 'inv-bar', type: 'bar', title: 'Inventory Stock Valuation', dataset: 'Inventory', xField: 'Product', yField: 'Stock Level', x: 40, y: 40, width: 580, height: 320, aggregation: 'sum', properties: { showLegend: true, showGridlines: true, colorTheme: '#10B981', numberFormat: 'Currency' } },
+                                        { id: 'inv-pie', type: 'pie', title: 'Warehouse Distribution', dataset: 'Inventory', xField: 'Warehouse', yField: 'Stock Level', x: 640, y: 40, width: 340, height: 320, aggregation: 'sum', properties: { showLegend: true, showGridlines: false, colorTheme: '#D9B300', numberFormat: 'Currency' } }
+                                    ]);
+                                    showSuccess('Loaded Inventory Operations Template!');
+                                }}
+                                className="w-full text-left px-4 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                Inventory Operations
+                            </button>
+                        </div>
+                    </div>
+
                     <button onClick={handleShare} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors">
                         <Share2 size={14} /> Share
                     </button>

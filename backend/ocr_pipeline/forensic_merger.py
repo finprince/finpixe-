@@ -55,9 +55,9 @@ class ForensicMerger:
             return f'CGST+SGST: {cgst + sgst:.2f}'
         prev_no = str(prev.get('invoice_no') or '').strip()
         curr_no = str(curr.get('invoice_no') or '').strip()
-        trace = {'prev_invoice': prev_no or 'MISSING', 'curr_invoice': curr_no or 'MISSING', 'invoice_no_status': 'valid' if prev_no and curr_no else 'missing', 'prev_total': f'{prev_total:.2f}', 'curr_total': f'{curr_total:.2f}', 'prev_tax': get_tax_summary(prev), 'prev_taxable': f'{self._to_float(prev.get('total_taxable_value')):.2f}', 'decision': decision, 'reason': reason}
+        trace = {'prev_invoice': prev_no or 'MISSING', 'curr_invoice': curr_no or 'MISSING', 'invoice_no_status': 'valid' if prev_no and curr_no else 'missing', 'prev_total': f'{prev_total:.2f}', 'curr_total': f'{curr_total:.2f}', 'prev_tax': get_tax_summary(prev), 'prev_taxable': f"{self._to_float(prev.get('total_taxable_value')):.2f}", 'decision': decision, 'reason': reason}
         self.traces.append(trace)
-        logger.info(f'FORENSIC DECISION: {decision.upper()} | Reason: {reason} | InvNo: {trace['prev_invoice']} vs {trace['curr_invoice']} | Totals: {trace['prev_total']} vs {trace['curr_total']}')
+        logger.info(f"FORENSIC DECISION: {decision.upper()} | Reason: {reason} | InvNo: {trace['prev_invoice']} vs {trace['curr_invoice']} | Totals: {trace['prev_total']} vs {trace['curr_total']}")
 
     def is_empty_or_zero(self, val: Any) -> bool:
         """Helper to determine if a value is null, empty or zero-equivalent."""
@@ -293,7 +293,7 @@ class ForensicMerger:
                         if 'extracted_data' in p and isinstance(p['extracted_data'], dict):
                             p['extracted_data']['vendor_name'] = best_name
         for i, curr in enumerate(invoices):
-            logger.info(f'[GROUPING_INPUT] page_number={curr.get('_page_no')} invoice_no={curr.get('invoice_no')} raw_gstin={curr.get('raw_gstin') or curr.get('gstin')} canonical_gstin={curr.get('canonical_gstin') or curr.get('gstin')} vendor_name={curr.get('vendor_name')} item_count={len(curr.get('items', []))}')
+            logger.info(f"[GROUPING_INPUT] page_number={curr.get('_page_no')} invoice_no={curr.get('invoice_no')} raw_gstin={curr.get('raw_gstin') or curr.get('gstin')} canonical_gstin={curr.get('canonical_gstin') or curr.get('gstin')} vendor_name={curr.get('vendor_name')} item_count={len(curr.get('items', []))}")
             curr_ocr = curr.get('_pdf_ocr_text') or curr.get('_raw_text') or ''
             role = enforcer.classify_page(curr_ocr, curr.get('items', []), invoice_data=curr)
             if self.is_continuation_summary_page(curr):
@@ -320,12 +320,12 @@ class ForensicMerger:
                 lacks_real_density = not has_real_items
                 is_summary_or_totals = role in {'PAGE_ROLE_TOTALS', 'PAGE_ROLE_TAX_SUMMARY', 'PAGE_ROLE_SUMMARY'} or self.is_continuation_summary_page(curr)
                 if same_invoice and same_gstin and same_session and same_pdf and prev_has_continuation and lacks_real_density and is_summary_or_totals:
-                    logger.info(f'[MULTIPAGE_ROLE_DECISION] Relational override applied: page_no={curr.get('_page_no')} -> PAGE_ROLE_CONTINUATION')
+                    logger.info(f"[MULTIPAGE_ROLE_DECISION] Relational override applied: page_no={curr.get('_page_no')} -> PAGE_ROLE_CONTINUATION")
                     role = 'PAGE_ROLE_CONTINUATION'
             curr['_page_role'] = role
             curr_inv = str(curr.get('invoice_no') or '').strip() or 'MISSING'
             curr_gstin = str(curr.get('gstin') or curr.get('vendor_gstin') or '').strip().upper() or 'MISSING'
-            logger.info(f'[PAGE_ROLE_CLASSIFIED] page_no={curr.get('_page_no')} page_role={role} invoice_no={curr_inv} gstin={curr_gstin}')
+            logger.info(f"[PAGE_ROLE_CLASSIFIED] page_no={curr.get('_page_no')} page_role={role} invoice_no={curr_inv} gstin={curr_gstin}")
         total_rejections = 0
         count_role_only_merged = 0
         count_gstin_only_merged = 0
@@ -475,7 +475,7 @@ class ForensicMerger:
             key = f'{key_id}_{valid_inv_nos[0]}'
             validated_groups[key] = group
             for p in group:
-                logger.info(f'[PAGE_NOT_DISCARDED] Preserving page {p.get('_page_no')} in group {key}')
+                logger.info(f"[PAGE_NOT_DISCARDED] Preserving page {p.get('_page_no')} in group {key}")
         import json
         for key, group in validated_groups.items():
             first_page = group[0] if group else {}
@@ -675,7 +675,7 @@ class ForensicMerger:
                     seen_page_item_keys.add(page_items_key)
                 unique_pages.append(p)
             else:
-                logger.info(f'[DUPLICATE_PAGE_FILTERED] page={p.get('_page_no')} filtered out as a duplicate copy.')
+                logger.info(f"[DUPLICATE_PAGE_FILTERED] page={p.get('_page_no')} filtered out as a duplicate copy.")
         group = unique_pages
         try:
             sorted_group = sorted(group, key=lambda x: x.get('_page_no', 0))
@@ -700,17 +700,17 @@ class ForensicMerger:
         except Exception as le:
             logger.warning(f'[FORENSIC_PRE_MERGE_LOG_ERR] {le}')
         for p in group:
-            logger.info(f'[MERGE_GROUP_ENTRY_COUNT] page={p.get('_page_no')} items={len(p.get('items', []))}')
+            logger.info(f"[MERGE_GROUP_ENTRY_COUNT] page={p.get('_page_no')} items={len(p.get('items', []))}")
         enforcer = get_integrity_enforcer()
         for inv in group:
             hydrate_identity_fields(inv)
             role = enforcer.classify_page(inv.get('_pdf_ocr_text') or inv.get('_raw_text') or '', inv.get('items', []), invoice_data=inv)
             inv['_page_role'] = role
-        logger.info(f'[MULTIPAGE_MERGE_APPLIED] pages={[inv.get('_page_no') for inv in group]}')
+        logger.info(f"[MULTIPAGE_MERGE_APPLIED] pages={[inv.get('_page_no') for inv in group]}")
         primary_pages = [p for p in group if p.get('_page_role') == 'PAGE_ROLE_PRIMARY']
         logger.info(f'[MERGE_GROUP_FORENSIC] group_size={len(group)} primary_count={len(primary_pages)}')
         for idx, p in enumerate(group):
-            logger.info(f'[PAGE_KEYS_TRACE] page={p.get('_page_no')} role={p.get('_page_role')} keys={list(p.keys())}')
+            logger.info(f"[PAGE_KEYS_TRACE] page={p.get('_page_no')} role={p.get('_page_role')} keys={list(p.keys())}")
         if primary_pages:
             merged_invoice = self.select_best_header(primary_pages)
         else:
@@ -748,7 +748,7 @@ class ForensicMerger:
         group_hash = hashlib.sha256(f'{record_id_str}:{page_str}'.encode('utf-8')).hexdigest()[:16]
         group_id = f'GRP_HASH_{group_hash}'
         pages_in_group = [p.get('_page_no') for p in sorted_group]
-        logger.info(f'[GROUP_RESULT] group_id={group_id} pages_in_group={pages_in_group} invoice_no={merged_invoice.get('invoice_no')} item_count_before_cleanup={len(all_raw_items)}')
+        logger.info(f"[GROUP_RESULT] group_id={group_id} pages_in_group={pages_in_group} invoice_no={merged_invoice.get('invoice_no')} item_count_before_cleanup={len(all_raw_items)}")
         item_count_before = len(all_raw_items)
         merged_invoice['items'] = self.deduplicate_items(all_raw_items, invoice_no=merged_invoice.get('invoice_no'), group_id=group_id)
         item_count_after = len(merged_invoice['items'])
@@ -778,7 +778,7 @@ class ForensicMerger:
         self.recompute_totals_if_needed(merged_invoice, is_multipage=len(sorted_group) > 1)
         for itm in merged_invoice['items']:
             logger.info(f"[ITEM_AFTER_MERGE] inv={merged_inv_no} desc='{itm.get('description', '')[:20]}' taxable={itm.get('taxable_value')}")
-        logger.info(f'[FINAL_ITEM_COUNT] inv={merged_inv_no} items={len(merged_invoice['items'])}')
+        logger.info(f"[FINAL_ITEM_COUNT] inv={merged_inv_no} items={len(merged_invoice['items'])}")
         logger.info(f"FORENSIC_MERGE_COMPLETE: inv={merged_inv_no} vendor='{merged_invoice.get('vendor_name')}' bill_from_len={len(str(merged_invoice.get('bill_from')))}")
         total_items_taxable = sum((self._to_float(i.get('taxable_value')) for i in merged_invoice['items']))
         header_taxable = self._to_float(merged_invoice.get('total_taxable_value'))
@@ -786,8 +786,8 @@ class ForensicMerger:
         synthetic_items = [i for i in merged_invoice['items'] if i.get('_is_synthetic') is True]
         logger.info(f'[REAL_ITEM_COUNT] inv={merged_inv_no} count={len(real_items)}')
         logger.info(f'[SYNTHETIC_ITEM_COUNT] inv={merged_inv_no} count={len(synthetic_items)}')
-        logger.info(f'[FINAL_GROUP_ITEM_COUNT] inv={merged_inv_no} count={len(merged_invoice['items'])}')
-        logger.info(f'[EXPORT_FINAL_ROW] inv={merged_invoice.get('invoice_no')} name={merged_invoice.get('vendor_name')} total={merged_invoice.get('total_invoice_value')}')
+        logger.info(f"[FINAL_GROUP_ITEM_COUNT] inv={merged_inv_no} count={len(merged_invoice['items'])}")
+        logger.info(f"[EXPORT_FINAL_ROW] inv={merged_invoice.get('invoice_no')} name={merged_invoice.get('vendor_name')} total={merged_invoice.get('total_invoice_value')}")
         if len(real_items) == 0:
             logger.warning(f'[EXTRACTION_DEGRADED] inv={merged_inv_no} No real items found.')
             merged_invoice['_status'] = 'DEGRADED'

@@ -330,9 +330,9 @@ class PurchaseVendorValidateView(APIView):
         print(f'Received payload - Name: {vendor_name}, GSTIN: {gstin}, Branch: {branch}, Address: {address}')
         result = validate_vendor(tenant_id=tenant_id, vendor_name=vendor_name, gstin=gstin, branch=branch, address=address, state=state)
         if result.get('status') in {'FOUND', 'EXISTING_VENDOR'}:
-            print(f'Found vendor by {result.get('matched_by', 'GSTIN_AND_BRANCH')} match: {result.get('vendor_name', 'Unknown')}')
+            print(f"Found vendor by {result.get('matched_by', 'GSTIN_AND_BRANCH')} match: {result.get('vendor_name', 'Unknown')}")
         elif result.get('status') == 'GSTIN_CONFLICT':
-            print(f'GSTIN {gstin} found but name mismatch: {result.get('message', 'GSTIN conflict')}')
+            print(f"GSTIN {gstin} found but name mismatch: {result.get('message', 'GSTIN conflict')}")
         else:
             print(f'No match found for Vendor: {vendor_name}, GSTIN: {gstin}')
         return Response(result)

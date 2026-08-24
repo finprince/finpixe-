@@ -342,7 +342,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
             agg_map[key]['vouchers'].append({'id': v.id, 'invoice_no': v.sales_invoice_no, 'invoice_date': str(v.date), 'invoice_value': float(pay.payment_invoice_value) if pay else 0, 'source': 'eco_drilldown'})
         data = []
         for key, vals in agg_map.items():
-            data.append({'nature_of_supply': vals['nature_of_supply'], 'place_of_supply': f'{vals['place_of_supply']} ({vals['ecommerce_gstin']})', 'ecommerce_name': vals['ecommerce_name'], 'net_value': vals['net_value'], 'igst': vals['igst'], 'cgst': vals['cgst'], 'sgst': vals['sgst'], 'cess': vals['cess'], 'vouchers': vals['vouchers']})
+            data.append({'nature_of_supply': vals['nature_of_supply'], 'place_of_supply': f"{vals['place_of_supply']} ({vals['ecommerce_gstin']})", 'ecommerce_name': vals['ecommerce_name'], 'net_value': vals['net_value'], 'igst': vals['igst'], 'cgst': vals['cgst'], 'sgst': vals['sgst'], 'cess': vals['cess'], 'vouchers': vals['vouchers']})
         return Response(data)
 
     @action(detail=False, methods=['get'])

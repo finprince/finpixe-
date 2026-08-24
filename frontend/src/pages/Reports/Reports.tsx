@@ -565,11 +565,24 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     const lowerQuery = query.toLowerCase();
     let reportData: AIMessage['reportData'] | null = null;
 
-    // Calculate common metrics with proper number conversion
-    const salesVouchers = vouchers.filter(v => v.type === 'Sales') as SalesPurchaseVoucher[];
-    const purchaseVouchers = vouchers.filter(v => v.type === 'Purchase') as SalesPurchaseVoucher[];
+    // Detect if query specifies a particular party/customer/vendor
+    const matchedPartyName = vouchers.map(v => v.party).find(party => {
+      if (!party) return false;
+      const lowerP = party.toLowerCase();
+      if (lowerQuery.includes(lowerP)) return true;
+      const significantWords = lowerP.split(/\s+/).filter(w => w.length > 3 && !['pvt', 'ltd', 'inc', 'corp', 'india', 'tech', 'solutions', 'digital', 'global'].includes(w));
+      return significantWords.some(w => lowerQuery.includes(w));
+    });
 
-    // Ensure proper number conversion
+    // Calculate common metrics with proper number conversion (filtered by party if specified)
+    let salesVouchers = vouchers.filter(v => v.type === 'Sales') as SalesPurchaseVoucher[];
+    let purchaseVouchers = vouchers.filter(v => v.type === 'Purchase') as SalesPurchaseVoucher[];
+
+    if (matchedPartyName) {
+      salesVouchers = salesVouchers.filter(v => v.party.toLowerCase().includes(matchedPartyName.toLowerCase()) || matchedPartyName.toLowerCase().includes(v.party.toLowerCase()));
+      purchaseVouchers = purchaseVouchers.filter(v => v.party.toLowerCase().includes(matchedPartyName.toLowerCase()) || matchedPartyName.toLowerCase().includes(v.party.toLowerCase()));
+    }
+
     const totalSales = salesVouchers.reduce((sum, v) => {
       const total = Number(v.total) || 0;
       return sum + total;
@@ -583,17 +596,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     const grossProfit = totalSales - totalPurchases;
     const profitMargin = totalSales > 0 ? ((grossProfit / totalSales) * 100).toFixed(1) : '0';
 
+    // If query references a specific party or asks for party data
+    const isPartySpecificQuery = Boolean(matchedPartyName) && !lowerQuery.includes('purchase') && !lowerQuery.includes('expense') && !lowerQuery.includes('gst') && !lowerQuery.includes('tax');
 
-    // Sales related queries
-    if (lowerQuery.includes('sales') || lowerQuery.includes('revenue')) {
-      // Check if user wants individual/detailed/separate transactions
-      const wantsDetailed = lowerQuery.includes('individual') ||
-        lowerQuery.includes('detailed') ||
-        lowerQuery.includes('separate') ||
-        lowerQuery.includes('all') ||
-        lowerQuery.includes('each') ||
-        lowerQuery.includes('list') ||
-        lowerQuery.includes('transaction');
+    // Sales related queries or specific customer query
+    if (lowerQuery.includes('sales') || lowerQuery.includes('revenue') || isPartySpecificQuery) {
+      const wantsDetailed = matchedPartyName || !lowerQuery.includes('summary_only');
 
       if (wantsDetailed) {
         // Show individual transaction details
@@ -618,8 +626,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
           }));
 
         reportData = {
-          title: 'Individual Sales Transactions',
-          summary: `Complete list of all ${salesVouchers.length} individual sales transactions`,
+          title: matchedPartyName ? `Filtered Report: ${matchedPartyName}` : 'Individual Sales Transactions',
+          summary: matchedPartyName ? `Filtered analysis for ${matchedPartyName} (${salesVouchers.length} transaction(s))` : `Complete list of all ${salesVouchers.length} individual sales transactions`,
           tableData,
           chartData,
           chartType: 'bar',
@@ -6130,7 +6138,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
                                   {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.owners_funds?.total)}
                                 </td>
-                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-700">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.owners_funds?.prev_total)}
+                                </td>
                               </tr>
 
                               {/* 2. Non-current liabilities */}
@@ -6148,7 +6158,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
                                   {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.total)}
                                 </td>
-                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-700">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.non_current_liabilities?.prev_total)}
+                                </td>
                               </tr>
 
                               {/* 3. Current liabilities */}
@@ -6172,7 +6184,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
                                   {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.total)}
                                 </td>
-                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-700">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.prev_total)}
+                                </td>
                               </tr>
 
                               {/* TOTAL EQUITY AND LIABILITIES */}
@@ -6181,7 +6195,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-4 px-6 text-right font-mono text-white">
                                   {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.total)}
                                 </td>
-                                <td className="py-4 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-4 px-6 text-right font-mono text-slate-200">
+                                  {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.prev_total)}
+                                </td>
                               </tr>
 
                               {/* ASSETS */}
@@ -6215,7 +6231,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
                                   {formatNcAmount(bsData.non_corporate?.assets?.non_current_assets?.total)}
                                 </td>
-                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-700">
+                                  {formatNcAmount(bsData.non_corporate?.assets?.non_current_assets?.prev_total)}
+                                </td>
                               </tr>
 
                               {/* 2. Current assets */}
@@ -6236,7 +6254,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
                                   {formatNcAmount(bsData.non_corporate?.assets?.current_assets?.total)}
                                 </td>
-                                <td className="py-3 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-3 px-6 text-right font-mono font-bold text-slate-700">
+                                  {formatNcAmount(bsData.non_corporate?.assets?.current_assets?.prev_total)}
+                                </td>
                               </tr>
 
                               {/* TOTAL ASSETS */}
@@ -6245,7 +6265,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                 <td className="py-4 px-6 text-right font-mono text-white">
                                   {formatNcAmount(bsData.non_corporate?.assets?.total)}
                                 </td>
-                                <td className="py-4 px-6 text-right font-mono text-slate-400">-</td>
+                                <td className="py-4 px-6 text-right font-mono text-slate-200">
+                                  {formatNcAmount(bsData.non_corporate?.assets?.prev_total)}
+                                </td>
                               </tr>
                             </tbody>
                           </table>

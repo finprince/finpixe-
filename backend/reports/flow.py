@@ -58,12 +58,31 @@ def generate_balance_sheet_data(user, end_date=None):
     ml_qs = MasterLedger.objects.filter(tenant_id=tenant_id)
     ml_map = {l.name.lower().strip(): l for l in ml_qs if l.name}
 
+    _, prev_ed = _calc_prev_period(None, end_date)
     ledger_balances = db.get_ledger_balances(tenant_id, end_date)
+    prev_ledger_balances = db.get_ledger_balances(tenant_id, prev_ed)
+
+    prev_balance_map = {}
+    for item in prev_ledger_balances:
+        p_name = item['ledger__name']
+        if not p_name: continue
+        p_debit = float(item['total_debit'] or 0)
+        p_credit = float(item['total_credit'] or 0)
+        p_ob = float(item['ledger__opening_balance'] or 0)
+        p_ob_type = str(item['ledger__opening_balance_type'] or 'Dr').strip().lower()
+        p_is_debit = p_ob_type in ('debit', 'dr')
+        p_category = str(item['ledger__category'] or '').strip().upper()
+        if p_category in {'ASSET', 'EXPENDITURE', 'EXPENSE'}:
+            p_bal = p_debit - p_credit + (p_ob if p_is_debit else -p_ob)
+        else:
+            p_bal = p_credit - p_debit + (p_ob if not p_is_debit else -p_ob)
+        prev_balance_map[p_name.lower().strip()] = p_bal
 
     assets = {'fixed_assets': [], 'current_assets': [], 'total_fixed_assets': 0.0, 'total_current_assets': 0.0, 'total': 0.0}
     liabilities = {'long_term_liabilities': [], 'current_liabilities': [], 'total_long_term': 0.0, 'total_current': 0.0, 'total': 0.0}
     capital = {'capital_account': [], 'total_capital': 0.0, 'retained_earnings': 0.0, 'total': 0.0}
     retained_earnings = 0.0
+    prev_retained_earnings = 0.0
 
     # Non-Corporate Vertical Buckets
     nc_owners_capital = []
@@ -116,19 +135,23 @@ def generate_balance_sheet_data(user, end_date=None):
 
         text = f"{name} {group} {sg1} {sg2} {sg3} {maj}".lower()
 
-        if category in {'Asset', 'Expenditure', 'Expense'}:
+        cat_upper = str(category or '').strip().upper()
+
+        if cat_upper in {'ASSET', 'EXPENDITURE', 'EXPENSE'}:
             balance = debit - credit
             balance += ob if is_debit else -ob
         else:
             balance = credit - debit
             balance += ob if not is_debit else -ob
 
-        if abs(balance) < 0.001:
+        prev_balance = prev_balance_map.get(name.lower().strip(), 0.0)
+
+        if abs(balance) < 0.001 and abs(prev_balance) < 0.001:
             continue
 
-        item_entry = {'name': name, 'balance': balance}
+        item_entry = {'name': name, 'balance': balance, 'prev_balance': prev_balance}
 
-        if category == 'Asset':
+        if cat_upper in {'ASSET', 'ASSETS'}:
             if 'fixed' in group.lower():
                 assets['fixed_assets'].append(item_entry)
                 assets['total_fixed_assets'] += balance
@@ -168,7 +191,7 @@ def generate_balance_sheet_data(user, end_date=None):
                 else:
                     nc_other_current_assets.append(item_entry)
 
-        elif category == 'Liability':
+        elif cat_upper in {'LIABILITY', 'LIABILITIES'}:
             if 'current' in group.lower() or 'creditor' in group.lower() or 'tax' in group.lower():
                 liabilities['current_liabilities'].append(item_entry)
                 liabilities['total_current'] += balance
@@ -201,7 +224,7 @@ def generate_balance_sheet_data(user, end_date=None):
                 else:
                     nc_other_long_term_liab.append(item_entry)
 
-        elif category in ('Capital', "Owners'  Funds", "Owners' Funds", "NPO Funds"):
+        elif cat_upper in {'CAPITAL', "OWNERS' FUNDS", "OWNERS'  FUNDS", "NPO FUNDS", "EQUITY"}:
             capital['capital_account'].append(item_entry)
             capital['total_capital'] += balance
 
@@ -210,27 +233,38 @@ def generate_balance_sheet_data(user, end_date=None):
             else:
                 nc_owners_capital.append(item_entry)
 
-        elif category in {'Revenue', 'Income'}:
+        elif cat_upper in {'REVENUE', 'INCOME'}:
             retained_earnings += balance
-        elif category in {'Expense', 'Expenditure'}:
+            prev_retained_earnings += prev_balance
+        elif cat_upper in {'EXPENSE', 'EXPENDITURE'}:
             retained_earnings -= balance
+            prev_retained_earnings -= prev_balance
 
     assets['total'] = assets['total_fixed_assets'] + assets['total_current_assets']
     liabilities['total'] = liabilities['total_long_term'] + liabilities['total_current']
     capital['retained_earnings'] = retained_earnings
     capital['total'] = capital['total_capital'] + capital['retained_earnings']
 
-    if retained_earnings != 0:
-        nc_reserves_surplus.append({'name': 'Retained Earnings (Profit / Loss)', 'balance': retained_earnings})
+    if retained_earnings != 0 or prev_retained_earnings != 0:
+        nc_reserves_surplus.append({'name': 'Retained Earnings (Profit / Loss)', 'balance': retained_earnings, 'prev_balance': prev_retained_earnings})
 
     # Subtotals for Non-Corporate Structure
     nc_owners_funds_total = sum(x['balance'] for x in nc_owners_capital) + sum(x['balance'] for x in nc_reserves_surplus)
+    nc_owners_funds_prev_total = sum(x.get('prev_balance', 0) for x in nc_owners_capital) + sum(x.get('prev_balance', 0) for x in nc_reserves_surplus)
+
     nc_non_current_liab_total = (
         sum(x['balance'] for x in nc_long_term_borrowings) +
         sum(x['balance'] for x in nc_deferred_tax_liab) +
         sum(x['balance'] for x in nc_other_long_term_liab) +
         sum(x['balance'] for x in nc_long_term_provisions)
     )
+    nc_non_current_liab_prev_total = (
+        sum(x.get('prev_balance', 0) for x in nc_long_term_borrowings) +
+        sum(x.get('prev_balance', 0) for x in nc_deferred_tax_liab) +
+        sum(x.get('prev_balance', 0) for x in nc_other_long_term_liab) +
+        sum(x.get('prev_balance', 0) for x in nc_long_term_provisions)
+    )
+
     nc_current_liab_total = (
         sum(x['balance'] for x in nc_short_term_borrowings) +
         sum(x['balance'] for x in nc_trade_payables_msme) +
@@ -238,7 +272,16 @@ def generate_balance_sheet_data(user, end_date=None):
         sum(x['balance'] for x in nc_other_current_liab) +
         sum(x['balance'] for x in nc_short_term_provisions)
     )
+    nc_current_liab_prev_total = (
+        sum(x.get('prev_balance', 0) for x in nc_short_term_borrowings) +
+        sum(x.get('prev_balance', 0) for x in nc_trade_payables_msme) +
+        sum(x.get('prev_balance', 0) for x in nc_trade_payables_other) +
+        sum(x.get('prev_balance', 0) for x in nc_other_current_liab) +
+        sum(x.get('prev_balance', 0) for x in nc_short_term_provisions)
+    )
+
     nc_total_equity_liab = nc_owners_funds_total + nc_non_current_liab_total + nc_current_liab_total
+    nc_total_equity_liab_prev = nc_owners_funds_prev_total + nc_non_current_liab_prev_total + nc_current_liab_prev_total
 
     nc_ppe_and_intangibles_total = (
         sum(x['balance'] for x in nc_ppe) +
@@ -246,6 +289,13 @@ def generate_balance_sheet_data(user, end_date=None):
         sum(x['balance'] for x in nc_cwip) +
         sum(x['balance'] for x in nc_intangible_dev)
     )
+    nc_ppe_and_intangibles_prev_total = (
+        sum(x.get('prev_balance', 0) for x in nc_ppe) +
+        sum(x.get('prev_balance', 0) for x in nc_intangibles) +
+        sum(x.get('prev_balance', 0) for x in nc_cwip) +
+        sum(x.get('prev_balance', 0) for x in nc_intangible_dev)
+    )
+
     nc_non_current_assets_total = (
         nc_ppe_and_intangibles_total +
         sum(x['balance'] for x in nc_non_current_inv) +
@@ -253,6 +303,14 @@ def generate_balance_sheet_data(user, end_date=None):
         sum(x['balance'] for x in nc_long_term_loans_adv) +
         sum(x['balance'] for x in nc_other_non_current_assets)
     )
+    nc_non_current_assets_prev_total = (
+        nc_ppe_and_intangibles_prev_total +
+        sum(x.get('prev_balance', 0) for x in nc_non_current_inv) +
+        sum(x.get('prev_balance', 0) for x in nc_deferred_tax_assets) +
+        sum(x.get('prev_balance', 0) for x in nc_long_term_loans_adv) +
+        sum(x.get('prev_balance', 0) for x in nc_other_non_current_assets)
+    )
+
     nc_current_assets_total = (
         sum(x['balance'] for x in nc_current_inv) +
         sum(x['balance'] for x in nc_inventories) +
@@ -261,13 +319,23 @@ def generate_balance_sheet_data(user, end_date=None):
         sum(x['balance'] for x in nc_short_term_loans_adv) +
         sum(x['balance'] for x in nc_other_current_assets)
     )
+    nc_current_assets_prev_total = (
+        sum(x.get('prev_balance', 0) for x in nc_current_inv) +
+        sum(x.get('prev_balance', 0) for x in nc_inventories) +
+        sum(x.get('prev_balance', 0) for x in nc_trade_receivables) +
+        sum(x.get('prev_balance', 0) for x in nc_cash_bank) +
+        sum(x.get('prev_balance', 0) for x in nc_short_term_loans_adv) +
+        sum(x.get('prev_balance', 0) for x in nc_other_current_assets)
+    )
+
     nc_total_assets = nc_non_current_assets_total + nc_current_assets_total
+    nc_total_assets_prev = nc_non_current_assets_prev_total + nc_current_assets_prev_total
 
     nc_opening_balance_diff = []
     nc_opening_balance_diff_liab = []
     bs_diff = round(nc_total_equity_liab - nc_total_assets, 2)
     if bs_diff > 0.01:
-        diff_entry = {'name': 'Difference in Opening Balances', 'balance': bs_diff}
+        diff_entry = {'name': 'Difference in Opening Balances', 'balance': bs_diff, 'prev_balance': 0.0}
         nc_opening_balance_diff = [diff_entry]
         nc_current_assets_total += bs_diff
         nc_total_assets += bs_diff
@@ -275,7 +343,7 @@ def generate_balance_sheet_data(user, end_date=None):
         assets['total'] += bs_diff
     elif bs_diff < -0.01:
         abs_diff = abs(bs_diff)
-        diff_entry = {'name': 'Difference in Opening Balances', 'balance': abs_diff}
+        diff_entry = {'name': 'Difference in Opening Balances', 'balance': abs_diff, 'prev_balance': 0.0}
         nc_opening_balance_diff_liab = [diff_entry]
         nc_owners_funds_total += abs_diff
         nc_total_equity_liab += abs_diff
@@ -288,27 +356,32 @@ def generate_balance_sheet_data(user, end_date=None):
                 'capital_account': nc_owners_capital,
                 'reserves_and_surplus': nc_reserves_surplus,
                 'difference_in_opening_balances': nc_opening_balance_diff_liab,
-                'total': nc_owners_funds_total
+                'total': nc_owners_funds_total,
+                'prev_total': nc_owners_funds_prev_total
             },
             'non_current_liabilities': {
                 'long_term_borrowings': nc_long_term_borrowings,
                 'deferred_tax_liabilities': nc_deferred_tax_liab,
                 'other_long_term_liabilities': nc_other_long_term_liab,
                 'long_term_provisions': nc_long_term_provisions,
-                'total': nc_non_current_liab_total
+                'total': nc_non_current_liab_total,
+                'prev_total': nc_non_current_liab_prev_total
             },
             'current_liabilities': {
                 'short_term_borrowings': nc_short_term_borrowings,
                 'trade_payables': {
                     'msme_dues': nc_trade_payables_msme,
                     'other_creditors_dues': nc_trade_payables_other,
-                    'total': sum(x['balance'] for x in nc_trade_payables_msme) + sum(x['balance'] for x in nc_trade_payables_other)
+                    'total': sum(x['balance'] for x in nc_trade_payables_msme) + sum(x['balance'] for x in nc_trade_payables_other),
+                    'prev_total': sum(x.get('prev_balance', 0) for x in nc_trade_payables_msme) + sum(x.get('prev_balance', 0) for x in nc_trade_payables_other)
                 },
                 'other_current_liabilities': nc_other_current_liab,
                 'short_term_provisions': nc_short_term_provisions,
-                'total': nc_current_liab_total
+                'total': nc_current_liab_total,
+                'prev_total': nc_current_liab_prev_total
             },
-            'total': nc_total_equity_liab
+            'total': nc_total_equity_liab,
+            'prev_total': nc_total_equity_liab_prev
         },
         'assets': {
             'non_current_assets': {
@@ -317,13 +390,15 @@ def generate_balance_sheet_data(user, end_date=None):
                     'intangible_assets': nc_intangibles,
                     'capital_wip': nc_cwip,
                     'intangible_under_development': nc_intangible_dev,
-                    'total': nc_ppe_and_intangibles_total
+                    'total': nc_ppe_and_intangibles_total,
+                    'prev_total': nc_ppe_and_intangibles_prev_total
                 },
                 'non_current_investments': nc_non_current_inv,
                 'deferred_tax_assets': nc_deferred_tax_assets,
                 'long_term_loans_advances': nc_long_term_loans_adv,
                 'other_non_current_assets': nc_other_non_current_assets,
-                'total': nc_non_current_assets_total
+                'total': nc_non_current_assets_total,
+                'prev_total': nc_non_current_assets_prev_total
             },
             'current_assets': {
                 'current_investments': nc_current_inv,
@@ -333,9 +408,11 @@ def generate_balance_sheet_data(user, end_date=None):
                 'short_term_loans_advances': nc_short_term_loans_adv,
                 'other_current_assets': nc_other_current_assets,
                 'difference_in_opening_balances': nc_opening_balance_diff,
-                'total': nc_current_assets_total
+                'total': nc_current_assets_total,
+                'prev_total': nc_current_assets_prev_total
             },
-            'total': nc_total_assets
+            'total': nc_total_assets,
+            'prev_total': nc_total_assets_prev
         }
     }
 

@@ -338,12 +338,41 @@ def get_trial_balance_data(tenant_id, start_date=None, end_date=None):
     return result
 
 def get_ledger_balances(tenant_id, as_of_date=None):
-    """Get all ledger balances as of a specific date."""
-    entries = JournalEntry.objects.filter(tenant_id=tenant_id)
+    """Get all ledger balances as of a specific date.
+    Includes all MasterLedgers for tenant so opening balances are preserved across date filters.
+    """
+    from accounting.models import MasterLedger, JournalEntry
+    from django.db.models import Sum
+
+    ledgers = MasterLedger.objects.filter(tenant_id=tenant_id)
     norm_date = parse_date(as_of_date)
+
+    entries = JournalEntry.objects.filter(tenant_id=tenant_id)
     if norm_date:
         entries = entries.filter(transaction_date__lte=norm_date)
-    return entries.values('ledger__id', 'ledger__name', 'ledger__category', 'ledger__group', 'ledger__opening_balance', 'ledger__opening_balance_type').annotate(total_debit=Sum('debit'), total_credit=Sum('credit'))
+
+    entry_map = {
+        e['ledger__id']: e for e in entries.values('ledger__id').annotate(
+            total_debit=Sum('debit'), total_credit=Sum('credit')
+        ) if e.get('ledger__id')
+    }
+
+    result = []
+    for l in ledgers:
+        if not l.name:
+            continue
+        e = entry_map.get(l.id, {})
+        result.append({
+            'ledger__id': l.id,
+            'ledger__name': l.name,
+            'ledger__category': l.category,
+            'ledger__group': l.group,
+            'ledger__opening_balance': l.opening_balance,
+            'ledger__opening_balance_type': l.opening_balance_type,
+            'total_debit': e.get('total_debit', 0.0) or 0.0,
+            'total_credit': e.get('total_credit', 0.0) or 0.0,
+        })
+    return result
 
 def get_stock_items(tenant_id):
     """Get all stock items for stock summary."""

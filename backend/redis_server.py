@@ -318,6 +318,9 @@ def execute_command_core(cmd, args):
                     resp += f"${len(k)}\r\n".encode() + k + b"\r\n"
                 return resp
 
+            elif cmd == b"DBSIZE":
+                return f":{len(store)}\r\n".encode()
+
             elif cmd == b"FLUSHALL":
                 store.clear()
                 return b"+OK\r\n"
@@ -423,9 +426,9 @@ def handle_client(conn, addr):
 def run_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(('127.0.0.1', 6380))
+    server.bind(('127.0.0.1', 6379))
     server.listen(100)
-    print("Redis emulator running on 127.0.0.1:6380 (Robust Mode)")
+    print("Redis emulator running on 127.0.0.1:6379 (Robust Mode)")
     while True:
         conn, addr = server.accept()
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()

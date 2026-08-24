@@ -171,7 +171,7 @@ class CleanOCRStagingView(views.APIView):
                     duplicate_count += 1
                     logger.info(f'[DUPLICATE_FOUND] Allowing pipeline to orchestrate duplicate file={original_display_name} hash={file_hash}')
                     OCRTask.objects.create(job=job, file_name=original_display_name, file_hash=file_hash, status='COMPLETED', result_id=existing.id)
-                s3_key = f'ocr/{tenant_id}/{job.id}/{file_hash}_{original_display_name.replace('/', '_')}'
+                s3_key = f"ocr/{tenant_id}/{job.id}/{file_hash}_{original_display_name.replace('/', '_')}"
                 safe_content_type = uploaded_file.content_type or 'application/octet-stream'
                 file_url = storage.upload_file(file_bytes, s3_key, safe_content_type)
                 record, created = InvoiceTempOCR.objects.get_or_create(tenant_id=tenant_id, upload_session_id=upload_session_id, file_hash=file_hash, defaults={'file_path': file_url, 'status': 'PENDING', 'voucher_type': voucher_type, 'upload_type': upload_type})
@@ -192,8 +192,8 @@ class CleanOCRStagingView(views.APIView):
                 msg_copy = deepcopy(msg)
                 try:
                     queue.push(msg_copy, queue_type='ingestion')
-                    logger.info(f'[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
-                    logger.info(f'[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
+                    logger.info(f"[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
+                    logger.info(f"[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
                 except Exception as e:
                     logger.error(f'[QUEUE_FORWARD_FAILURE] target_queue=ingestion error={e}')
                     logger.error(f'[DOWNSTREAM_ENQUEUE_FAILED] target_queue=ingestion error={e}')
@@ -244,7 +244,7 @@ class CleanOCRStagingView(views.APIView):
                     norm = dict(norm)
                     norm.update(classification)
                 except Exception as _fe:
-                    logger.warning(f'[GSTIN_ON_THE_FLY_FALLBACK_FAILED] record_id={getattr(r, 'id', None)} error={_fe}')
+                    logger.warning(f"[GSTIN_ON_THE_FLY_FALLBACK_FAILED] record_id={getattr(r, 'id', None)} error={_fe}")
         db_vendor_status = getattr(r, 'vendor_status', 'PENDING')
         if not v_id and vendor_map:
             try:
@@ -256,11 +256,11 @@ class CleanOCRStagingView(views.APIView):
                     vendor_map_result = vendor_map.get((gstin_key, branch_key))
                     if vendor_map_result and vendor_map_result.get('status') == 'EXISTING_VENDOR':
                         v_id = vendor_map_result.get('vendor_id')
-                        logger.info(f'[VENDOR_VALIDATION_RESULT] gstin={gstin_key} matched_vendor_id={v_id} assigned_status=EXISTING_VENDOR record_id={getattr(r, 'id', None)}')
+                        logger.info(f"[VENDOR_VALIDATION_RESULT] gstin={gstin_key} matched_vendor_id={v_id} assigned_status=EXISTING_VENDOR record_id={getattr(r, 'id', None)}")
             except Exception as _vme:
-                logger.warning(f'[HYDRATION_VENDOR_MAP_LOOKUP_FAILED] record_id={getattr(r, 'id', None)} error={_vme}')
-        logger.info(f'[HYDRATION_READONLY] Entering read-only hydration for record_id={getattr(r, 'id', None)} tenant_id={tenant_id} vendor_id={v_id} validation_status={v_status} db_vendor_status={db_vendor_status}')
-        logger.info(f'[HYDRATION_REVALIDATION_BLOCKED] Bypassed validation run for record_id={getattr(r, 'id', None)}')
+                logger.warning(f"[HYDRATION_VENDOR_MAP_LOOKUP_FAILED] record_id={getattr(r, 'id', None)} error={_vme}")
+        logger.info(f"[HYDRATION_READONLY] Entering read-only hydration for record_id={getattr(r, 'id', None)} tenant_id={tenant_id} vendor_id={v_id} validation_status={v_status} db_vendor_status={db_vendor_status}")
+        logger.info(f"[HYDRATION_REVALIDATION_BLOCKED] Bypassed validation run for record_id={getattr(r, 'id', None)}")
         sections = norm.get('sections', {})
         supplier = sections.get('supplier_details', {})
         header = norm.get('header', {})
@@ -269,7 +269,7 @@ class CleanOCRStagingView(views.APIView):
         is_finalized = v_status_record in {'FINALIZED', 'VOUCHER_CREATED', 'COMPLETED', 'EXTRACTED'} or getattr(r, 'processed', False)
         is_failed = v_status_record in {'FAILED', 'ERROR'}
         if is_finalized:
-            logger.info(f'[IMMUTABLE_FINALIZED_DTO] Read-only snapshot mapped for finalized record_id={getattr(r, 'id', None)}')
+            logger.info(f"[IMMUTABLE_FINALIZED_DTO] Read-only snapshot mapped for finalized record_id={getattr(r, 'id', None)}")
         if not is_finalized and (not is_failed):
             has_extracted_data = False
             if norm:
@@ -316,18 +316,18 @@ class CleanOCRStagingView(views.APIView):
                         from .normalize import _clean_bill_to_ocr_extract
                         _raw_to = _clean_bill_to_ocr_extract(_m.group(1).strip())
                         bill_to = fix_encoding_corruption(_raw_to)
-                        logger.info(f'[BILL_TO_UI_FALLBACK_HIT] record_id={getattr(r, 'id', None)} value={repr(bill_to[:80])}')
+                        logger.info(f"[BILL_TO_UI_FALLBACK_HIT] record_id={getattr(r, 'id', None)} value={repr(bill_to[:80])}")
                 except Exception as _bte:
-                    logger.warning(f'[BILL_TO_UI_FALLBACK_FAILED] record_id={getattr(r, 'id', None)} err={_bte}')
+                    logger.warning(f"[BILL_TO_UI_FALLBACK_FAILED] record_id={getattr(r, 'id', None)} err={_bte}")
         if bill_to and '|' in bill_to:
             try:
                 from .normalize import _clean_bill_to_ocr_extract
                 _cleaned = fix_encoding_corruption(_clean_bill_to_ocr_extract(bill_to))
                 if _cleaned:
-                    logger.info(f'[BILL_TO_PIPE_CLEANUP] record_id={getattr(r, 'id', None)} before={repr(bill_to[:60])} after={repr(_cleaned[:60])}')
+                    logger.info(f"[BILL_TO_PIPE_CLEANUP] record_id={getattr(r, 'id', None)} before={repr(bill_to[:60])} after={repr(_cleaned[:60])}")
                     bill_to = _cleaned
             except Exception as _bte:
-                logger.warning(f'[BILL_TO_PIPE_CLEANUP_FAILED] record_id={getattr(r, 'id', None)} err={_bte}')
+                logger.warning(f"[BILL_TO_PIPE_CLEANUP_FAILED] record_id={getattr(r, 'id', None)} err={_bte}")
         inv_no = getattr(r, 'supplier_invoice_no', None) or header.get('invoice_no') or norm.get('invoice_no') or norm.get('invoice_number') or norm.get('supplier_invoice_no') or supplier.get('supplier_invoice_no') or ''
         item_status_raw = norm.get('item_status')
         if not item_status_raw:
@@ -406,14 +406,14 @@ class CleanOCRStagingView(views.APIView):
                 if l_idx in snapshot_items_map:
                     snap_itm = snapshot_items_map[l_idx]
                     if itm.get('inventory_match_strategy') != snap_itm.get('inventory_match_strategy'):
-                        logger.critical(f'[STRATEGY_CHANGED_AFTER_FREEZE] line={l_idx} before={snap_itm.get('inventory_match_strategy')} after={itm.get('inventory_match_strategy')}')
+                        logger.critical(f"[STRATEGY_CHANGED_AFTER_FREEZE] line={l_idx} before={snap_itm.get('inventory_match_strategy')} after={itm.get('inventory_match_strategy')}")
                         from ocr_pipeline.pipeline import CriticalPipelineError
                         raise CriticalPipelineError('match strategy changes after freeze')
                     if itm.get('inventory_item_id') != snap_itm.get('inventory_item_id'):
-                        logger.critical(f'[HYDRATED_ITEM_MISMATCH] line={l_idx} key=inventory_item_id before={snap_itm.get('inventory_item_id')} after={itm.get('inventory_item_id')}')
+                        logger.critical(f"[HYDRATED_ITEM_MISMATCH] line={l_idx} key=inventory_item_id before={snap_itm.get('inventory_item_id')} after={itm.get('inventory_item_id')}")
                         from ocr_pipeline.pipeline import CriticalPipelineError
                         raise CriticalPipelineError('hydrated item differs from snapshot frozen item')
-        logger.info(f'[DTO_VALIDATION_STATE] record_id={getattr(r, 'id', None)} vendor_id={v_id} vendor_status={('EXISTS' if v_id or db_vendor_status in {'EXISTS', 'FOUND', 'MATCHED', 'RESOLVED'} else 'NEW')} validation_status={v_status} item_status={item_status}')
+        logger.info(f"[DTO_VALIDATION_STATE] record_id={getattr(r, 'id', None)} vendor_id={v_id} vendor_status={('EXISTS' if v_id or db_vendor_status in {'EXISTS', 'FOUND', 'MATCHED', 'RESOLVED'} else 'NEW')} validation_status={v_status} item_status={item_status}")
         buyer_name = norm.get('buyer_name') or norm.get('customer_name') or norm.get('header', {}).get('buyer_name') or norm.get('header', {}).get('customer_name') or ''
         from ocr_pipeline.normalize import extract_buyer_name_from_ocr_text, extract_buyer_name_from_bill_to, is_address_token
         if not buyer_name or is_address_token(buyer_name):
@@ -487,10 +487,10 @@ class CleanOCRStagingView(views.APIView):
             res['resume_reason'] = 'Vendor Pending'
         else:
             res['resume_reason'] = None
-        logger.info(f'[API_RESPONSE_STATE] record_id={getattr(r, 'id', None)} vendor_status={res['vendor_status']} voucher_status={res['validationStatus']} item_status={res['item_status']} vendor_id={v_id} gstin={res.get('gstin')}')
-        logger.info(f'[READONLY_HYDRATION_CONFIRMED] Completed readonly hydration for record_id={getattr(r, 'id', None)} validation_status={ui_status}')
-        logger.info(f'[GSTIN_HYDRATION] upload_session_id={getattr(r, 'upload_session_id', None)} record_id={getattr(r, 'id', None)} gstin={res.get('gstin')} status={res.get('status')}')
-        logger.info(f'[GSTIN_API_RESPONSE] upload_session_id={getattr(r, 'upload_session_id', None)} record_id={getattr(r, 'id', None)} gstin={res.get('gstin')} status={res.get('status')}')
+        logger.info(f"[API_RESPONSE_STATE] record_id={getattr(r, 'id', None)} vendor_status={res['vendor_status']} voucher_status={res['validationStatus']} item_status={res['item_status']} vendor_id={v_id} gstin={res.get('gstin')}")
+        logger.info(f"[READONLY_HYDRATION_CONFIRMED] Completed readonly hydration for record_id={getattr(r, 'id', None)} validation_status={ui_status}")
+        logger.info(f"[GSTIN_HYDRATION] upload_session_id={getattr(r, 'upload_session_id', None)} record_id={getattr(r, 'id', None)} gstin={res.get('gstin')} status={res.get('status')}")
+        logger.info(f"[GSTIN_API_RESPONSE] upload_session_id={getattr(r, 'upload_session_id', None)} record_id={getattr(r, 'id', None)} gstin={res.get('gstin')} status={res.get('status')}")
         return res
 
     def _log_final_api_response_rows(self, data, source):
@@ -498,7 +498,7 @@ class CleanOCRStagingView(views.APIView):
             return
         for row in data:
             if isinstance(row, dict):
-                logger.info(f'[FORENSIC_API_ROW] source={source} invoice_no={row.get('invoice_no')} vendor_id={row.get('vendor_id')} vendor_status={row.get('vendor_status')} validation_status={row.get('validation_status')} gstin={row.get('gstin')} branch={row.get('branch')}')
+                logger.info(f"[FORENSIC_API_ROW] source={source} invoice_no={row.get('invoice_no')} vendor_id={row.get('vendor_id')} vendor_status={row.get('vendor_status')} validation_status={row.get('validation_status')} gstin={row.get('gstin')} branch={row.get('branch')}")
 
     def get(self, request, file_hash=None):
         t_poll_start = time.time()
@@ -636,7 +636,7 @@ class CleanOCRStagingView(views.APIView):
                                 logger.warning(f'[HYDRATION_ENRICH_FAILED] record_id={db_record.id} error={_ve}')
                         norm_source = db_record.extracted_data or row
                         dummy = db_record
-                        logger.info(f'[SNAPSHOT_HYDRATION_STATE] record_id={db_record.id} vendor_status={getattr(db_record, 'vendor_status', 'PENDING')} vendor_id={getattr(db_record, 'vendor_id', None)} validation_status={getattr(db_record, 'validation_status', 'PENDING')} item_status={(db_record.extracted_data or {}).get('item_status', 'NOT_SET')}')
+                        logger.info(f"[SNAPSHOT_HYDRATION_STATE] record_id={db_record.id} vendor_status={getattr(db_record, 'vendor_status', 'PENDING')} vendor_id={getattr(db_record, 'vendor_id', None)} validation_status={getattr(db_record, 'validation_status', 'PENDING')} item_status={(db_record.extracted_data or {}).get('item_status', 'NOT_SET')}")
                     else:
                         resolved_vendor_id = row.get('vendor_id')
                         resolved_vendor_status = 'PENDING'
@@ -658,7 +658,7 @@ class CleanOCRStagingView(views.APIView):
                         if not _snap_val_status:
                             _snap_val_status = 'NEED_TO_SAVE' if resolved_vendor_id else 'NEED_VENDOR'
                         dummy = SimpleNamespace(**{'id': row.get('id'), 'tenant_id': tenant_id, 'status': 'FINALIZED', 'processed': True, 'validation_status': _snap_val_status, 'vendor_id': resolved_vendor_id, 'vendor_status': resolved_vendor_status, 'supplier_invoice_no': inv_no, 'gstin': gstin_val, 'irn': row.get('irn'), 'ack_no': row.get('ack_no'), 'ack_date': row.get('ack_date'), 'created_at': row.get('created_at'), 'voucher_type': row.get('voucher_type'), 'branch': row.get('branch'), 'file_hash': row.get('file_hash'), 'file_path': row.get('file_path')})
-                        logger.info(f'[SNAPSHOT_HYDRATION_STATE] record_id={row.get('id')} inv_no={inv_no} vendor_status={resolved_vendor_status} vendor_id={resolved_vendor_id} validation_status={_snap_val_status} item_status={row.get('item_status', 'NOT_SET')} source=snapshot_fallback')
+                        logger.info(f"[SNAPSHOT_HYDRATION_STATE] record_id={row.get('id')} inv_no={inv_no} vendor_status={resolved_vendor_status} vendor_id={resolved_vendor_id} validation_status={_snap_val_status} item_status={row.get('item_status', 'NOT_SET')} source=snapshot_fallback")
                     mapped = self._map_record_to_ui_row(dummy, norm_data=norm_source, vendor_map=_snap_vendor_map)
                     if resume:
                         if mapped.get('is_saved') or mapped.get('validationStatus') in {'VOUCHER_CREATED', 'DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE'} or mapped.get('processed'):
@@ -988,7 +988,7 @@ def _handle_session_metadata_upload(request, session_ids, tenant_id):
         msg_copy = deepcopy(msg)
         try:
             queue.push(msg_copy, queue_type='ingestion')
-            logger.info(f'[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
+            logger.info(f"[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
         except Exception as e:
             logger.error(f'[QUEUE_FORWARD_FAILURE] target_queue=ingestion error={e}')
             raise
@@ -1025,24 +1025,24 @@ class PipelineStatusSSEView(views.APIView):
                         terminal_reason = auth_state.get('terminal_reason', 'FAILED')
                         logger.info(f'[SSE_AUTHORITATIVE_TERMINAL] session={session_id} reason={terminal_reason}')
                         if terminal_reason in {'FAILED', 'FAILED_DUPLICATE', 'ERROR'}:
-                            yield f'data: {json.dumps({'status': 'FAILED', 'session_id': session_id, 'reason': terminal_reason})}\n\n'
+                            yield f"data: {json.dumps({'status': 'FAILED', 'session_id': session_id, 'reason': terminal_reason})}\n\n"
                             break
                     redis_status = orchestrator.get_session_status(session_id)
                     if redis_status:
-                        logger.info(f'[SSE_REDIS_HIT] session={session_id} status={redis_status['status']} progress={redis_status['progress']}')
+                        logger.info(f"[SSE_REDIS_HIT] session={session_id} status={redis_status['status']} progress={redis_status['progress']}")
                         if redis_status['status'] in {'COMPLETED', 'FINALIZED'}:
                             val_exists = FinalizedSnapshot.objects.filter(session_id=session_id, tenant_id=tenant_id).exists()
                             if val_exists and (not is_processing):
                                 logger.info(f'[SNAPSHOT_QUERY_VALIDATED] SSE validated snapshot for session={session_id}')
                                 logger.info(f'[SNAPSHOT_READY_EMIT] SSE emitting SNAPSHOT_READY for session={session_id}')
-                                yield f'data: {json.dumps({'status': 'FINALIZED', 'session_id': session_id, 'progress': 100})}\n\n'
+                                yield f"data: {json.dumps({'status': 'FINALIZED', 'session_id': session_id, 'progress': 100})}\n\n"
                                 break
                             else:
-                                logger.warning(f'[SSE_WAIT_SNAPSHOT] Redis status is {redis_status['status']} but records are still processing or snapshot not committed yet for session={session_id}')
+                                logger.warning(f"[SSE_WAIT_SNAPSHOT] Redis status is {redis_status['status']} but records are still processing or snapshot not committed yet for session={session_id}")
                         if redis_status['status'] == 'FAILED' and (not is_processing):
-                            yield f'data: {json.dumps({'status': 'FAILED', 'session_id': session_id})}\n\n'
+                            yield f"data: {json.dumps({'status': 'FAILED', 'session_id': session_id})}\n\n"
                             break
-                        yield f'data: {json.dumps({'status': redis_status['status'], 'session_id': session_id, 'progress': redis_status['progress']})}\n\n'
+                        yield f"data: {json.dumps({'status': redis_status['status'], 'session_id': session_id, 'progress': redis_status['progress']})}\n\n"
                         if redis_status['status'] == 'EXPORTED':
                             break
                     if not is_processing and records.exists():
@@ -1051,21 +1051,21 @@ class PipelineStatusSSEView(views.APIView):
                             snapshot = FinalizedSnapshot.objects.filter(session_id=session_id).order_by('-created_at').first()
                         if snapshot:
                             logger.info(f'[SESSION_FINALIZED_EVENT] session_id={session_id} event=SNAPSHOT_READY')
-                            yield f'data: {json.dumps({'status': 'FINALIZED', 'snapshot_id': str(snapshot.id)})}\n\n'
+                            yield f"data: {json.dumps({'status': 'FINALIZED', 'snapshot_id': str(snapshot.id)})}\n\n"
                             break
                     if records.exists():
                         total = records.count()
                         failed = records.filter(status=PipelineStatus.FAILED).count()
                         if failed == total and (not is_processing):
                             logger.info(f'[SESSION_FINALIZED_EVENT] session_id={session_id} event=FAILED')
-                            yield f'data: {json.dumps({'status': 'FAILED'})}\n\n'
+                            yield f"data: {json.dumps({'status': 'FAILED'})}\n\n"
                             break
                     time.sleep(2)
             except Exception as e:
                 import traceback
                 error_trace = traceback.format_exc()
                 logger.error(f'[SSE_CRITICAL_ERROR] session={session_id} error={str(e)}\n{error_trace}')
-                yield f'data: {json.dumps({'status': 'ERROR', 'message': str(e)})}\n\n'
+                yield f"data: {json.dumps({'status': 'ERROR', 'message': str(e)})}\n\n"
             finally:
                 metrics.increment_counter('sse:disconnections_total')
         from django.http import StreamingHttpResponse
@@ -1087,7 +1087,7 @@ class S3UploadPolicyView(views.APIView):
         storage = StorageService()
         import uuid
         session_id = uuid.uuid4()
-        s3_key = f'uploads/{tenant_id}/{session_id}/{file_name.replace('/', '_')}'
+        s3_key = f"uploads/{tenant_id}/{session_id}/{file_name.replace('/', '_')}"
         policy = storage.generate_presigned_post(s3_key)
         if not policy:
             return Response({'error': 'Failed to generate upload policy'}, status=500)
@@ -1297,9 +1297,9 @@ class OCRStagingFinalizeView(views.APIView):
                 summary['created'] = qs_base.filter(validation_status='VOUCHER_CREATED').count()
                 summary['skipped'] = qs_base.filter(validation_status__in=['DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE']).count()
                 summary['failed'] = qs_base.filter(processed=True, validation_status='ERROR').count()
-                logger.info(f'[FINALIZE_PATH_A_FALLBACK] session={upload_session_id} created={summary['created']} skipped={summary['skipped']} failed={summary['failed']}')
+                logger.info(f"[FINALIZE_PATH_A_FALLBACK] session={upload_session_id} created={summary['created']} skipped={summary['skipped']} failed={summary['failed']}")
         _finalize_elapsed = _time.time() - _finalize_t0
-        logger.info(f'[SAVE_PIPELINE_COMPLETE] session={upload_session_id} created={summary['created']} skipped={summary['skipped']} failed={summary['failed']} elapsed={_finalize_elapsed:.3f}s candidates={len(candidates)}')
+        logger.info(f"[SAVE_PIPELINE_COMPLETE] session={upload_session_id} created={summary['created']} skipped={summary['skipped']} failed={summary['failed']} elapsed={_finalize_elapsed:.3f}s candidates={len(candidates)}")
         summary['finalize_elapsed_seconds'] = round(_finalize_elapsed, 3)
         return Response(summary)
 
@@ -1352,8 +1352,8 @@ class OCRStagingRescanView(views.APIView):
                 from core.sqs import queue_service
                 pushed = queue_service.push(msg_copy, queue_type='ingestion')
                 if pushed:
-                    logger.info(f'[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
-                    logger.info(f'[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
+                    logger.info(f"[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
+                    logger.info(f"[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
                 else:
                     logger.error(f'[QUEUE_FORWARD_FAILURE] target_queue=ingestion pushed is False')
                     logger.error(f'[DOWNSTREAM_ENQUEUE_FAILED] target_queue=ingestion pushed is False')
@@ -1407,8 +1407,8 @@ class OCRStagingRescanUploadView(views.APIView):
             msg_copy = deepcopy(msg)
             try:
                 queue_service.push(msg_copy, queue_type='ingestion')
-                logger.info(f'[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
-                logger.info(f'[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}')
+                logger.info(f"[QUEUE_FORWARD_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
+                logger.info(f"[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=ingestion msg_id={msg_copy['id']}")
             except Exception as e:
                 logger.error(f'[QUEUE_FORWARD_FAILURE] target_queue=ingestion error={e}')
                 logger.error(f'[DOWNSTREAM_ENQUEUE_FAILED] target_queue=ingestion error={e}')
@@ -1439,12 +1439,12 @@ class ZohoAdapterView(views.APIView):
         msg = message_factory.create_message(task_type='EXPORT', tenant_id=tenant_id, session_id=session_id, payload=export_payload)
         from copy import deepcopy
         msg_copy = deepcopy(msg)
-        logger.info(f'[EXPORT_TRIGGER] session_id={session_id} task_id={msg_copy['id']}')
+        logger.info(f"[EXPORT_TRIGGER] session_id={session_id} task_id={msg_copy['id']}")
         try:
             from core.sqs import queue_service
             queue_service.push(msg_copy, queue_type='export')
-            logger.info(f'[QUEUE_FORWARD_SUCCESS] target_queue=export msg_id={msg_copy['id']}')
-            logger.info(f'[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=export msg_id={msg_copy['id']}')
+            logger.info(f"[QUEUE_FORWARD_SUCCESS] target_queue=export msg_id={msg_copy['id']}")
+            logger.info(f"[DOWNSTREAM_ENQUEUE_SUCCESS] target_queue=export msg_id={msg_copy['id']}")
         except Exception as e:
             logger.error(f'[QUEUE_FORWARD_FAILURE] target_queue=export error={e}')
             logger.error(f'[DOWNSTREAM_ENQUEUE_FAILED] target_queue=export error={e}')
@@ -1460,7 +1460,7 @@ class ZohoReconstructView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        logger.info(f'API HIT: /api/zoho-reconstruct/ (Content-Length: {request.META.get('CONTENT_LENGTH')})')
+        logger.info(f"API HIT: /api/zoho-reconstruct/ (Content-Length: {request.META.get('CONTENT_LENGTH')})")
         try:
             raw_body = request.body.decode('utf-8')
             logger.info(f'RAW_REQUEST_BODY_PRE_PARSE: {raw_body[:2000]}...')
@@ -1515,7 +1515,7 @@ class ZohoReconstructView(views.APIView):
                     except Exception as re_err:
                         logger.error(f'Re-hydration failed for record {record_id}: {re_err}')
             items_in = inv.get('items', [])
-            logger.info(f'FORENSIC_INV_IN[{idx}]: id={inv.get('id')} inv_no={inv.get('invoice_no')} vendor={inv.get('vendor_name')} items={len(items_in)} keys={list(inv.keys())}')
+            logger.info(f"FORENSIC_INV_IN[{idx}]: id={inv.get('id')} inv_no={inv.get('invoice_no')} vendor={inv.get('vendor_name')} items={len(items_in)} keys={list(inv.keys())}")
             if not inv.get('bill_from') and (not inv.get('bill_address_from')):
                 logger.warning(f'FORENSIC_INV_IN[{idx}]: MISSING bill_from/bill_address_from!')
         try:
@@ -1594,7 +1594,7 @@ class OCRStagingRowRescanView(views.APIView):
         resolved_path = _resolve_rescan_file_path(record)
         if not resolved_path:
             logger.error(f'[ROW_RESCAN_FILE_MISSING] record={record.id} stored_path={record.file_path}')
-            return Response({'error': f'Source file not found for rescan. Stored path: {record.file_path or '(none)'}. Please re-upload the invoice to rescan it.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f"Source file not found for rescan. Stored path: {record.file_path or '(none)'}. Please re-upload the invoice to rescan it."}, status=status.HTTP_404_NOT_FOUND)
         reason = request.data.get('reason', '')
         with transaction.atomic():
             rescan_history = RescanHistory.objects.create(invoice_temp_ocr=record, rescan_type='ROW', user=str(request.user.username or request.user.email or request.user.id), reason=reason, cost_impact=0.0)
@@ -1618,7 +1618,7 @@ class OCRStagingRowRescanView(views.APIView):
             msg_copy = deepcopy(msg)
             pushed = queue_service.push(msg_copy, queue_type='ingestion')
             if pushed:
-                logger.info(f'[ROW_RESCAN_ENQUEUE_SUCCESS] msg_id={msg_copy['id']} record={record.id}')
+                logger.info(f"[ROW_RESCAN_ENQUEUE_SUCCESS] msg_id={msg_copy['id']} record={record.id}")
             else:
                 logger.error(f'[ROW_RESCAN_ENQUEUE_FAILED] pushed is False for record={record.id}')
                 return Response({'error': 'Failed to enqueue rescan task'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1680,7 +1680,7 @@ class OCRStagingSessionRescanView(views.APIView):
                 pushed = queue_service.push(msg_copy, queue_type='ingestion')
                 if pushed:
                     triggered_count += 1
-                    logger.info(f'[SESSION_RESCAN_ENQUEUE_SUCCESS] msg_id={msg_copy['id']} record={record.id}')
+                    logger.info(f"[SESSION_RESCAN_ENQUEUE_SUCCESS] msg_id={msg_copy['id']} record={record.id}")
                 else:
                     logger.error(f'[SESSION_RESCAN_ENQUEUE_FAILED] pushed is False for record={record.id}')
             except Exception as e:

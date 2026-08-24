@@ -364,7 +364,7 @@ class RedisOrchestrator:
                 if self.redis.exists(term_key):
                     term_data = self.redis.hgetall(term_key)
                     if term_data and term_data.get('status'):
-                        logger.warning(f'[AUTHORITATIVE_TERMINAL_OVERRIDE] session={session_id} status={term_data.get('status')} reason={term_data.get('reason')}')
+                        logger.warning(f"[AUTHORITATIVE_TERMINAL_OVERRIDE] session={session_id} status={term_data.get('status')} reason={term_data.get('reason')}")
                         return {'terminal': True, 'terminal_reason': term_data.get('reason', 'FAILED'), 'barrier_complete': True, 'snapshot_complete': True, 'materialization_complete': True, 'expected_pages': 0, 'completed_pages': 0, 'failed_pages': 0}
             except Exception as e:
                 logger.error(f'[TERMINAL_KEY_CHECK_ERROR] {e}')
