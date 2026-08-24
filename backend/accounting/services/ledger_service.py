@@ -35,34 +35,49 @@ def _resolve_ledger(value, tenant_id=None):
         elif val_str.startswith('hierarchy-'):
             try:
                 from accounting.models import MasterHierarchyRaw
+                from django.db import transaction as _dbtx
                 hier_id = int(val_str.replace('hierarchy-', ''))
                 hier = MasterHierarchyRaw.objects.filter(id=hier_id).first()
                 if hier and tenant_id:
+                    # Resolve best available name from the hierarchy row
                     name = (hier.ledger_1 or hier.sub_group_3_1 or hier.sub_group_2_1 or hier.group_1 or '').strip()
-                    if name:
+                    # Skip placeholder '-' values
+                    if name == '-':
+                        name = (hier.sub_group_3_1 or hier.sub_group_2_1 or hier.sub_group_1_1 or hier.group_1 or '').strip()
+                    if name and name != '-':
+                        # First check if it already exists by exact name
                         existing = MasterLedger.objects.filter(tenant_id=tenant_id, name__iexact=name).first()
+                        
                         if existing:
                             return existing
-                        # Create ledger from hierarchy blueprint with correct field names
+                        
+                        # Create ledger from hierarchy blueprint using savepoint to avoid poisoning outer txn
                         try:
-                            new_ledger, _ = MasterLedger.objects.get_or_create(
-                                tenant_id=tenant_id,
-                                name=name,
-                                defaults=dict(
-                                    group=hier.group_1,
-                                    sub_group_1=hier.sub_group_1_1,
-                                    sub_group_2=hier.sub_group_2_1,
-                                    sub_group_3=hier.sub_group_3_1,
-                                    major_group=hier.major_group_1,
-                                    financial_reporting=hier.financial_reporting_1,
-                                    type_of_business=hier.type_of_business_1,
-                                    code=hier.code,
-                                    category=hier.major_group_1 or 'Other',
+                            with _dbtx.atomic():
+                                new_ledger, _ = MasterLedger.objects.get_or_create(
+                                    tenant_id=tenant_id,
+                                    name=name,
+                                    defaults=dict(
+                                        group=hier.group_1,
+                                        sub_group_1=hier.sub_group_1_1,
+                                        sub_group_2=hier.sub_group_2_1,
+                                        sub_group_3=hier.sub_group_3_1,
+                                        major_group=hier.major_group_1,
+                                        financial_reporting=hier.financial_reporting_1,
+                                        type_of_business=hier.type_of_business_1,
+                                        code=hier.code,
+                                        category=hier.major_group_1 or 'Other',
+                                    )
                                 )
-                            )
-                        except Exception:
-                            new_ledger = MasterLedger.objects.filter(tenant_id=tenant_id, name__iexact=name).first()
-                        return new_ledger
+                            return new_ledger
+                        except Exception as e:
+                            # Savepoint rolled back — try to fetch existing by name (race condition)
+                            return MasterLedger.objects.filter(tenant_id=tenant_id, name__iexact=name).first()
+                elif hier and not tenant_id:
+                    # No tenant_id — resolve by name across any existing ledger
+                    name = (hier.ledger_1 or hier.sub_group_3_1 or hier.sub_group_2_1 or hier.group_1 or '').strip()
+                    if name and name != '-':
+                        return MasterLedger.objects.filter(name__iexact=name).first()
             except Exception:
                 pass
             return None  # hierarchy- prefix but couldn't resolve — don't fall through to int()

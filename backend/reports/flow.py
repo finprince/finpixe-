@@ -180,6 +180,8 @@ def generate_balance_sheet_data(user, end_date=None):
             if any(k in text for k in ['current', 'creditor', 'duty', 'tax', 'payable', 'overdraft', 'od', 'short term', 'short-term']):
                 if 'overdraft' in text or 'od' in text or 'cash credit' in text or 'working capital' in text or ('borrowing' in text and 'short' in text):
                     nc_short_term_borrowings.append(item_entry)
+                elif any(k in text for k in ['tax', 'tds', 'tcs', 'gst', 'duty', 'duties', 'statutory', 'vat']):
+                    nc_other_current_liab.append(item_entry)
                 elif 'creditor' in text or 'payable' in text or 'trade' in text:
                     if 'msme' in text or 'micro' in text or 'small' in text:
                         nc_trade_payables_msme.append(item_entry)
@@ -261,11 +263,31 @@ def generate_balance_sheet_data(user, end_date=None):
     )
     nc_total_assets = nc_non_current_assets_total + nc_current_assets_total
 
+    nc_opening_balance_diff = []
+    nc_opening_balance_diff_liab = []
+    bs_diff = round(nc_total_equity_liab - nc_total_assets, 2)
+    if bs_diff > 0.01:
+        diff_entry = {'name': 'Difference in Opening Balances', 'balance': bs_diff}
+        nc_opening_balance_diff = [diff_entry]
+        nc_current_assets_total += bs_diff
+        nc_total_assets += bs_diff
+        assets['total_current_assets'] += bs_diff
+        assets['total'] += bs_diff
+    elif bs_diff < -0.01:
+        abs_diff = abs(bs_diff)
+        diff_entry = {'name': 'Difference in Opening Balances', 'balance': abs_diff}
+        nc_opening_balance_diff_liab = [diff_entry]
+        nc_owners_funds_total += abs_diff
+        nc_total_equity_liab += abs_diff
+        capital['total_capital'] += abs_diff
+        capital['total'] += abs_diff
+
     non_corporate_data = {
         'equity_and_liabilities': {
             'owners_funds': {
                 'capital_account': nc_owners_capital,
                 'reserves_and_surplus': nc_reserves_surplus,
+                'difference_in_opening_balances': nc_opening_balance_diff_liab,
                 'total': nc_owners_funds_total
             },
             'non_current_liabilities': {
@@ -310,6 +332,7 @@ def generate_balance_sheet_data(user, end_date=None):
                 'cash_and_bank_balances': nc_cash_bank,
                 'short_term_loans_advances': nc_short_term_loans_adv,
                 'other_current_assets': nc_other_current_assets,
+                'difference_in_opening_balances': nc_opening_balance_diff,
                 'total': nc_current_assets_total
             },
             'total': nc_total_assets
@@ -410,6 +433,7 @@ def _get_inventory_stock_balances(tenant_id, start_date_str, end_date_str, prev_
     master_items = InventoryItem.objects.filter(tenant_id=tenant_id).select_related('category')
     
     master_by_code = {}
+    master_item_objs = {}
     for i in master_items:
         cat_main = i.category.category if i.category else 'General'
         sub = (i.category.subgroup if i.category else '') or (i.category_path if i.category_path else '')
@@ -418,13 +442,14 @@ def _get_inventory_stock_balances(tenant_id, start_date_str, end_date_str, prev_
             display_cat = sub
         if i.item_code:
             master_by_code[i.item_code] = display_cat
+            master_item_objs[i.item_code] = i
 
     cat_opening = {}
     cat_closing = {}
     prev_cat_opening = {}
     prev_cat_closing = {}
 
-    for item in stock_items:
+    for item in master_items:
         code = item.item_code
         cat = master_by_code.get(code, 'General')
 
@@ -435,11 +460,16 @@ def _get_inventory_stock_balances(tenant_id, start_date_str, end_date_str, prev_
 
         qs = StockMovement.objects.filter(tenant_id=tenant_id, item_code=code)
         
+        m_item = master_item_objs.get(code)
+        base_op_qty = float(m_item.opening_stock or 0) if m_item else 0
+        base_op_rate = float(m_item.opening_rate or 0) if m_item else 0
+        base_op_val = base_op_qty * base_op_rate
+
         def get_val(date_limit=None):
             f_qs = qs.filter(date__lte=date_limit) if date_limit else qs
             in_val = f_qs.filter(inward_qty__gt=0).aggregate(v=Sum('value'))['v'] or 0
             out_val = f_qs.filter(outward_qty__gt=0).aggregate(v=Sum('value'))['v'] or 0
-            return float(in_val - out_val)
+            return float(base_op_val) + float(in_val) - float(out_val)
 
         op_date = sd - datetime.timedelta(days=1) if sd else None
         op_val = get_val(op_date) if sd else 0
@@ -454,8 +484,40 @@ def _get_inventory_stock_balances(tenant_id, start_date_str, end_date_str, prev_
         prev_cat_opening[cat] += prev_op_val
         prev_cat_closing[cat] += prev_cl_val
 
-    opening_sub = [{'name': c, 'balance': v, 'prev_balance': prev_cat_opening.get(c, 0)} for c, v in cat_opening.items() if v != 0 or prev_cat_opening.get(c, 0) != 0]
-    closing_sub = [{'name': c, 'balance': -v, 'prev_balance': -prev_cat_closing.get(c, 0)} for c, v in cat_closing.items() if v != 0 or prev_cat_closing.get(c, 0) != 0]
+    def build_tree(data_dict, prev_dict, negate=False):
+        root = {}
+        for path_str, val in data_dict.items():
+            prev_val = prev_dict.get(path_str, 0)
+            if val == 0 and prev_val == 0:
+                continue
+                
+            parts = [p.strip() for p in path_str.split('>')]
+            current = root
+            for part in parts:
+                if part not in current:
+                    current[part] = {'val': 0, 'prev_val': 0, 'children': {}}
+                current[part]['val'] += val
+                current[part]['prev_val'] += prev_val
+                current = current[part]['children']
+                
+        def to_list(node):
+            res = []
+            for k, v in node.items():
+                mult = -1 if negate else 1
+                item = {
+                    'name': k,
+                    'balance': v['val'] * mult,
+                    'prev_balance': v['prev_val'] * mult
+                }
+                if v['children']:
+                    item['sub_items'] = to_list(v['children'])
+                res.append(item)
+            return res
+            
+        return to_list(root)
+
+    opening_sub = build_tree(cat_opening, prev_cat_opening, negate=False)
+    closing_sub = build_tree(cat_closing, prev_cat_closing, negate=True)
 
     opening_item = None
     if opening_sub:
@@ -570,12 +632,17 @@ def generate_profit_and_loss_data(user, start_date=None, end_date=None):
                     'PURCHASE ACCOUNTS', 'DIRECT EXPENSES', 'INDIRECT EXPENSES',
                     'OTHER EXPENSES', 'COST OF GOODS SOLD', 'EMPLOYEE BENEFITS EXPENSE',
                     'FINANCE COSTS', 'DEPRECIATION, AMORTIZATION AND IMPAIRMENT',
-                    'MANUFACTURING EXPENSES', 'TAX LEDGERS'
+                    'MANUFACTURING EXPENSES', 'TAX LEDGERS',
+                    # Tax expense sub-groups from Schedule III hierarchy
+                    'TAX EXPENSE', 'CURRENT TAX', 'DEFERRED TAX CHARGE/(BENEFIT)',
+                    'DEFERRED TAX CHARGE', 'DEFERRED TAX'
                 } or
                 any(k in text_lower for k in [
                     'purchase accounts', 'direct expenses', 'indirect expenses',
                     'other expenses', 'cost of goods sold', 'employee benefits',
-                    'finance costs', 'depreciation', 'tax ledger'
+                    'finance costs', 'depreciation', 'tax ledger',
+                    # Tax expense keywords from hierarchy
+                    'tax expense', 'current tax', 'deferred tax'
                 ])
             )
 
@@ -598,11 +665,13 @@ def generate_profit_and_loss_data(user, start_date=None, end_date=None):
             if name not in ledger_data_map:
                 ledger_data_map[name] = {
                     'name': name,
+                    'group': grp_str,
                     'current': 0.0,
                     'previous': 0.0,
                     'is_revenue': is_revenue,
                     'is_expense': is_expense,
-                    'text': text
+                    'text': text,
+                    'code': getattr(ml, 'code', None) if ml else None
                 }
             
             ledger_data_map[name][field_key] = balance_val
@@ -610,56 +679,128 @@ def generate_profit_and_loss_data(user, start_date=None, end_date=None):
     process_tb(tb_rows, 'current')
     process_tb(prev_tb_rows, 'previous')
 
-    nc_rev_operations = []
-    nc_other_income = []
-    
-    nc_cogs = []
-    nc_employee_expenses = []
-    nc_finance_costs = []
-    nc_depreciation = []
-    nc_other_expenses = []
-    
-    nc_exceptional_items = []
-    nc_extraordinary_items = []
-    
-    nc_tax_current = []
-    nc_tax_prior = []
-    nc_tax_deferred = []
-    
-    nc_discontinuing_ops = []
-    nc_discontinuing_tax = []
+    nc_groups = {
+        'nc_rev_operations': ({}, {}),
+        'nc_other_income': ({}, {}),
+        'nc_cogs': ({}, {}),
+        'nc_employee_expenses': ({}, {}),
+        'nc_finance_costs': ({}, {}),
+        'nc_depreciation': ({}, {}),
+        'nc_other_expenses': ({}, {}),
+        'nc_exceptional_items': ({}, {}),
+        'nc_extraordinary_items': ({}, {}),
+        'nc_tax_current': ({}, {}),
+        'nc_tax_prior': ({}, {}),
+        'nc_tax_deferred': ({}, {}),
+        'nc_discontinuing_ops': ({}, {}),
+        'nc_discontinuing_tax': ({}, {})
+    }
+
+    def add_to_group(key, grp_str, l_name, curr, prev):
+        ignore_groups = {
+            'revenue from operations', 'other income', 'cost of goods sold', 'cogs',
+            'employee benefits expense', 'employee expenses', 'finance costs', 'finance cost',
+            'depreciation and amortization expense', 'depreciation', 'other expenses', 'other expense',
+            'exceptional items', 'extraordinary items', 'current tax', 'deferred tax',
+            'discontinuing operations'
+        }
+        
+        if not grp_str or grp_str.lower() == l_name.lower() or grp_str.lower().strip() in ignore_groups:
+            path = l_name
+        else:
+            path = f"{grp_str} > {l_name}"
+            
+        curr_dict, prev_dict = nc_groups[key]
+        curr_dict[path] = curr_dict.get(path, 0.0) + curr
+        prev_dict[path] = prev_dict.get(path, 0.0) + prev
 
     for name, data in ledger_data_map.items():
         text = data['text']
-        entry = {'name': name, 'balance': data['current'], 'prev_balance': data['previous']}
+        grp_str = data.get('group', '').strip()
+        curr = data['current']
+        prev = data['previous']
 
         if data['is_revenue']:
             if any(k in text for k in ['sale', 'operation', 'service', 'turnover', 'gross revenue', 'revenue', 'sales']):
-                nc_rev_operations.append(entry)
+                add_to_group('nc_rev_operations', grp_str, name, curr, prev)
             else:
-                nc_other_income.append(entry)
-
+                add_to_group('nc_other_income', grp_str, name, curr, prev)
         elif data['is_expense']:
             if any(k in text for k in ['cost of goods', 'cogs', 'purchase', 'direct cost', 'material', 'freight in', 'raw material', 'carriage inward']):
-                nc_cogs.append(entry)
+                add_to_group('nc_cogs', grp_str, name, curr, prev)
             elif any(k in text for k in ['salary', 'salaries', 'wages', 'employee', 'staff', 'provident fund', 'pf', 'bonus', 'payroll', 'gratuity', 'stipend']):
-                nc_employee_expenses.append(entry)
+                add_to_group('nc_employee_expenses', grp_str, name, curr, prev)
             elif any(k in text for k in ['finance', 'interest', 'bank charges', 'processing fee', 'loan fee', 'borrowing cost']):
-                nc_finance_costs.append(entry)
+                add_to_group('nc_finance_costs', grp_str, name, curr, prev)
             elif any(k in text for k in ['depreciation', 'amortization', 'amortisation', 'depr']):
-                nc_depreciation.append(entry)
+                add_to_group('nc_depreciation', grp_str, name, curr, prev)
             elif any(k in text for k in ['exceptional', 'exceptional item']):
-                nc_exceptional_items.append(entry)
+                add_to_group('nc_exceptional_items', grp_str, name, curr, prev)
             elif any(k in text for k in ['extraordinary', 'extraordinary item']):
-                nc_extraordinary_items.append(entry)
+                add_to_group('nc_extraordinary_items', grp_str, name, curr, prev)
+            elif any(k in text for k in ['deferred tax']) and not any(k in text for k in ['input', 'output', 'gst', 'tcs', 'tds']):
+                add_to_group('nc_tax_deferred', grp_str, name, curr, prev)
+            elif any(k in text for k in ['excess/short provision', 'excess short provision', 'provision of tax relating', 'excess provision of tax', 'short provision of tax']):
+                add_to_group('nc_tax_prior', grp_str, name, curr, prev)
+            elif data.get('code') == '202021000000000':
+                # Map using the exact hierarchy code for Tax Expense to catch renamed ledgers
+                add_to_group('nc_tax_current', grp_str, name, curr, prev)
             elif any(k in text for k in ['current tax', 'income tax', 'tax expense']) and not any(k in text for k in ['input', 'output', 'gst', 'tcs', 'tds']):
-                nc_tax_current.append(entry)
-            elif any(k in text for k in ['deferred tax']):
-                nc_tax_deferred.append(entry)
+                add_to_group('nc_tax_current', grp_str, name, curr, prev)
+            elif grp_str.lower() == 'tax expense' and not any(k in text for k in ['input', 'output', 'gst', 'tcs', 'tds']):
+                # Any ledger directly under the 'Tax expense' group goes to current tax bucket
+                add_to_group('nc_tax_current', grp_str, name, curr, prev)
             elif any(k in text for k in ['discontinuing']):
-                nc_discontinuing_ops.append(entry)
+                add_to_group('nc_discontinuing_ops', grp_str, name, curr, prev)
             else:
-                nc_other_expenses.append(entry)
+                add_to_group('nc_other_expenses', grp_str, name, curr, prev)
+
+    def build_tree(data_dict, prev_dict, negate=False):
+        root = {}
+        for path_str, val in data_dict.items():
+            prev_val = prev_dict.get(path_str, 0)
+            if val == 0 and prev_val == 0:
+                continue
+                
+            parts = [p.strip() for p in path_str.split('>')]
+            current = root
+            for part in parts:
+                if part not in current:
+                    current[part] = {'val': 0, 'prev_val': 0, 'children': {}}
+                current[part]['val'] += val
+                current[part]['prev_val'] += prev_val
+                current = current[part]['children']
+                
+        def to_list(node):
+            res = []
+            for k, v in node.items():
+                mult = -1 if negate else 1
+                item = {
+                    'name': k,
+                    'balance': v['val'] * mult,
+                    'prev_balance': v['prev_val'] * mult
+                }
+                if v['children']:
+                    item['sub_items'] = to_list(v['children'])
+                res.append(item)
+            return res
+            
+        return to_list(root)
+
+    nc_rev_operations = build_tree(nc_groups['nc_rev_operations'][0], nc_groups['nc_rev_operations'][1])
+    nc_other_income = build_tree(nc_groups['nc_other_income'][0], nc_groups['nc_other_income'][1])
+    nc_cogs = build_tree(nc_groups['nc_cogs'][0], nc_groups['nc_cogs'][1])
+    nc_employee_expenses = build_tree(nc_groups['nc_employee_expenses'][0], nc_groups['nc_employee_expenses'][1])
+    nc_finance_costs = build_tree(nc_groups['nc_finance_costs'][0], nc_groups['nc_finance_costs'][1])
+    nc_depreciation = build_tree(nc_groups['nc_depreciation'][0], nc_groups['nc_depreciation'][1])
+    nc_other_expenses = build_tree(nc_groups['nc_other_expenses'][0], nc_groups['nc_other_expenses'][1])
+    nc_exceptional_items = build_tree(nc_groups['nc_exceptional_items'][0], nc_groups['nc_exceptional_items'][1])
+    nc_extraordinary_items = build_tree(nc_groups['nc_extraordinary_items'][0], nc_groups['nc_extraordinary_items'][1])
+    nc_tax_current = build_tree(nc_groups['nc_tax_current'][0], nc_groups['nc_tax_current'][1])
+    nc_tax_prior = build_tree(nc_groups['nc_tax_prior'][0], nc_groups['nc_tax_prior'][1])
+    nc_tax_deferred = build_tree(nc_groups['nc_tax_deferred'][0], nc_groups['nc_tax_deferred'][1])
+    nc_discontinuing_ops = build_tree(nc_groups['nc_discontinuing_ops'][0], nc_groups['nc_discontinuing_ops'][1])
+    nc_discontinuing_tax = build_tree(nc_groups['nc_discontinuing_tax'][0], nc_groups['nc_discontinuing_tax'][1])
 
     try:
         op_item, cl_item = _get_inventory_stock_balances(tenant_id, start_date, end_date, prev_sd, prev_ed)

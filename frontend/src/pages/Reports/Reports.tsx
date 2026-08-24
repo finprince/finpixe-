@@ -176,6 +176,22 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   useEffect(() => {
     sessionStorage.setItem('reports_endDate', endDate);
   }, [endDate]);
+
+  // Day Book Filter States
+  const [daybookVoucherType, setDaybookVoucherType] = useState<string>('all');
+  const [daybookSearch, setDaybookSearch] = useState<string>('');
+  const [daybookPartyFilter, setDaybookPartyFilter] = useState<string>('');
+  const [daybookMinAmount, setDaybookMinAmount] = useState<string>('');
+  const [daybookMaxAmount, setDaybookMaxAmount] = useState<string>('');
+
+  // Ledger Report Filter States
+  const [ledgerVoucherType, setLedgerVoucherType] = useState<string>('all');
+  const [ledgerStatusFilter, setLedgerStatusFilter] = useState<string>('all');
+  const [ledgerSearch, setLedgerSearch] = useState<string>('');
+  const [ledgerRefSearch, setLedgerRefSearch] = useState<string>('');
+  const [ledgerMinAmount, setLedgerMinAmount] = useState<string>('');
+  const [ledgerMaxAmount, setLedgerMaxAmount] = useState<string>('');
+
   // Drill-down: null = summary view (all ledgers list), string = detail view for that ledger
   const [drillDownLedger, setDrillDownLedger] = useState<string | null>(navParams?.drillDownLedger || null);
   const [drillDownSourceType, setDrillDownSourceType] = useState<string | null>(null);
@@ -1860,9 +1876,98 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     return Array.from(sectionsSet);
   }, [drillDownEntries, isTdsTcsLedger]);
 
+  const calcEntryStatus = (e: any) => {
+    if (!e || e.voucherType === 'Opening') return '-';
+    let st = '';
+    const raw = e.rawVoucher || {};
+    let isExpired = false;
+    const amount = parseFloat(raw.total || raw.amount || raw.total_amount || 0);
+    const paidAmount = parseFloat(raw.paid_amount || raw.used_amount || 0);
+    const pendingBalance = Math.max(0, amount - paidAmount);
+
+    if (amount > 0 && e.date) {
+      const activeLedgerNameForStatus = drillDownLedger?.includes(':') ? drillDownLedger.split(':')[1] : drillDownLedger;
+      const activeLedgerForStatus = ledgers?.find((l: any) => l.name === activeLedgerNameForStatus);
+      const cpStrStatus = activeLedgerForStatus?.additional_data?.credit_period || (activeLedgerForStatus as any)?.credit_period || activeLedgerForStatus?.creditPeriod || '0';
+      const cpStatus = parseInt(String(cpStrStatus), 10) || (drillDownData[0]?.ledger_credit_period || 0);
+      const invDate = new Date(e.date);
+      const today = new Date();
+      const diffDays = Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - new Date(invDate.getFullYear(), invDate.getMonth(), invDate.getDate()).getTime()) / 86400000);
+      isExpired = diffDays > cpStatus;
+    }
+
+    const vtLower = (e.voucherType || '').toLowerCase();
+    const txType = (raw.voucher_type || raw.type || vtLower).toLowerCase();
+    const isPurchase = txType.includes('purchase') || txType.includes('expense');
+    const isSales = txType.includes('sales') || txType.includes('invoice');
+    const isDebitNote = vtLower.includes('debit');
+    const isCreditNote = vtLower.includes('credit');
+    const isPayment = vtLower.includes('payment') || vtLower.includes('receipt') || vtLower.includes('contra');
+
+    if (raw.is_disputed || raw.status === 'Disputed' || raw.payment_status === 'Disputed') {
+      st = 'Disputed';
+    } else if (isSales || isDebitNote) {
+      const rawDueStatus = raw.due_status || '';
+      if (rawDueStatus) st = rawDueStatus;
+      else if (pendingBalance === 0 && amount > 0) st = 'Received';
+      else if (pendingBalance < amount && pendingBalance > 0) st = 'Partially Received';
+      else if (pendingBalance === amount) st = isExpired ? 'Due' : 'Not Due';
+      else st = 'Not Due';
+    } else if (isPurchase || isCreditNote) {
+      const rawDueStatus = raw.due_status || '';
+      if (rawDueStatus && pendingBalance === amount) st = rawDueStatus;
+      else if (pendingBalance === 0 && amount > 0) st = 'Paid';
+      else if (pendingBalance < amount && pendingBalance > 0) st = 'Partially Paid';
+      else if (pendingBalance === amount) st = isExpired ? 'Due' : 'Not Due';
+      else st = 'Not Due';
+    } else if (isPayment) {
+      const rawPayStatus = raw.due_status || '';
+      if (rawPayStatus) st = rawPayStatus;
+      else if (pendingBalance === 0 && amount > 0) st = 'Utilized';
+      else if (pendingBalance < amount && pendingBalance > 0) st = 'Partially Utilized';
+      else st = 'Unutilized';
+    } else {
+      st = '-';
+    }
+    return st;
+  };
+
   // ═══ FILTERED LEDGER DATA (for Ledger / Journal views) ══════════════════════
   const filteredDrillData = useMemo(() => {
     return drillDownEntries.filter(e => {
+      if (e.voucherType === 'Opening') return true;
+
+      if (startDate && e.date && e.date < startDate) return false;
+      if (endDate && e.date && e.date > endDate) return false;
+
+      if (ledgerVoucherType && ledgerVoucherType !== 'all') {
+        const targetVt = ledgerVoucherType.toLowerCase();
+        if (!(e.voucherType || '').toLowerCase().includes(targetVt)) return false;
+      }
+
+      if (ledgerStatusFilter && ledgerStatusFilter !== 'all') {
+        const statusVal = calcEntryStatus(e).toLowerCase();
+        if (!statusVal.includes(ledgerStatusFilter.toLowerCase())) return false;
+      }
+
+      if (ledgerSearch && ledgerSearch.trim()) {
+        const q = ledgerSearch.toLowerCase().trim();
+        if (!(e.particulars || '').toLowerCase().includes(q)) return false;
+      }
+
+      if (ledgerRefSearch && ledgerRefSearch.trim()) {
+        const q = ledgerRefSearch.toLowerCase().trim();
+        if (!(e.referenceNo || '').toLowerCase().includes(q) && !(e.voucherNo || '').toLowerCase().includes(q)) return false;
+      }
+
+      const entryAmt = Math.max(Number(e.debit || 0), Number(e.credit || 0));
+      if (ledgerMinAmount !== '' && !isNaN(Number(ledgerMinAmount))) {
+        if (entryAmt < Number(ledgerMinAmount)) return false;
+      }
+      if (ledgerMaxAmount !== '' && !isNaN(Number(ledgerMaxAmount))) {
+        if (entryAmt > Number(ledgerMaxAmount)) return false;
+      }
+
       let dateMatch = true;
       if (ledgerFilters.dateFrom && e.date && e.date < ledgerFilters.dateFrom) dateMatch = false;
       if (ledgerFilters.dateTo && e.date && e.date > ledgerFilters.dateTo) dateMatch = false;
@@ -1895,7 +2000,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
 
       return dateMatch && partMatch && vNoMatch && vtMatch && drMatch && crMatch && sessionMatch && sectionFilterMatch;
     });
-  }, [drillDownEntries, ledgerFilters, isTdsTcsLedger, selectedSession, selectedSection]);
+  }, [drillDownEntries, startDate, endDate, ledgerVoucherType, ledgerStatusFilter, ledgerSearch, ledgerMinAmount, ledgerMaxAmount, ledgerFilters, isTdsTcsLedger, selectedSession, selectedSection, ledgers, drillDownLedger, drillDownData]);
 
   // ═══ MONTH VIEW DATA ═════════════════════════════════════════════════════════
   const ledgerMonthData = useMemo(() => {
@@ -2117,25 +2222,131 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     return rows;
   }, [drillDownEntries]);
 
+  const filteredDaybookResults = useMemo(() => {
+    let list = daybookData?.results || [];
+    if (startDate && startDate.trim()) {
+      list = list.filter((v: any) => v.date && v.date >= startDate);
+    }
+    if (endDate && endDate.trim()) {
+      list = list.filter((v: any) => v.date && v.date <= endDate);
+    }
+    if (daybookVoucherType && daybookVoucherType !== 'all') {
+      const targetVt = daybookVoucherType.toLowerCase();
+      list = list.filter((v: any) => (v.type || '').toLowerCase().includes(targetVt));
+    }
+    if (daybookSearch && daybookSearch.trim()) {
+      const q = daybookSearch.toLowerCase().trim();
+      list = list.filter((v: any) => (v.voucher_number || '').toLowerCase().includes(q));
+    }
+    if (daybookPartyFilter && daybookPartyFilter.trim()) {
+      const q = daybookPartyFilter.toLowerCase().trim();
+      list = list.filter((v: any) => (v.party || '').toLowerCase().includes(q));
+    }
+    if (daybookMinAmount !== '' && !isNaN(Number(daybookMinAmount))) {
+      const minVal = Number(daybookMinAmount);
+      list = list.filter((v: any) => Number(v.amount || 0) >= minVal);
+    }
+    if (daybookMaxAmount !== '' && !isNaN(Number(daybookMaxAmount))) {
+      const maxVal = Number(daybookMaxAmount);
+      list = list.filter((v: any) => Number(v.amount || 0) <= maxVal);
+    }
+    return list;
+  }, [daybookData, startDate, endDate, daybookVoucherType, daybookSearch, daybookPartyFilter, daybookMinAmount, daybookMaxAmount]);
+
   const renderDayBook = () => (
     <div className="erp-table-container">
       <table className="erp-table min-w-full">
         <thead className="bg-[#F8F9FA] border-b border-gray-200">
           <tr>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Voucher Type</th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Reference No</th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Party</th>
-            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider print:hidden">Action</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[120px]">
+              <div className="py-1.5 text-slate-700 font-bold">Date</div>
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[150px]">
+              <div className="mb-1 text-slate-700">Voucher Type</div>
+              <select
+                value={daybookVoucherType}
+                onChange={(e) => setDaybookVoucherType(e.target.value)}
+                className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+              >
+                <option value="all">All Types</option>
+                <option value="Sales">Sales</option>
+                <option value="Purchase">Purchase</option>
+                <option value="Payment">Payment</option>
+                <option value="Receipt">Receipt</option>
+                <option value="Expense">Expense</option>
+                <option value="Journal">Journal</option>
+                <option value="Contra">Contra</option>
+                <option value="Debit Note">Debit Note</option>
+                <option value="Credit Note">Credit Note</option>
+              </select>
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[150px]">
+              <div className="mb-1 text-slate-700">Reference No</div>
+              <input
+                type="text"
+                placeholder="Filter Ref..."
+                value={daybookSearch}
+                onChange={(e) => setDaybookSearch(e.target.value)}
+                className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+              />
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[160px]">
+              <div className="mb-1 text-slate-700">Party</div>
+              <input
+                type="text"
+                placeholder="Filter Party..."
+                value={daybookPartyFilter}
+                onChange={(e) => setDaybookPartyFilter(e.target.value)}
+                className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+              />
+            </th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[180px]">
+              <div className="mb-1 text-slate-700">Amount</div>
+              <div className="flex items-center justify-end gap-1">
+                <input
+                  type="number"
+                  placeholder="Min ₹"
+                  value={daybookMinAmount}
+                  onChange={(e) => setDaybookMinAmount(e.target.value)}
+                  className="w-20 text-xs font-normal py-1 px-1 border rounded border-slate-300 bg-white text-right"
+                />
+                <input
+                  type="number"
+                  placeholder="Max ₹"
+                  value={daybookMaxAmount}
+                  onChange={(e) => setDaybookMaxAmount(e.target.value)}
+                  className="w-20 text-xs font-normal py-1 px-1 border rounded border-slate-300 bg-white text-right"
+                />
+              </div>
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider print:hidden min-w-[80px]">
+              <div className="mb-1 text-slate-700">Action</div>
+              {(startDate || endDate || daybookVoucherType !== 'all' || daybookSearch || daybookPartyFilter || daybookMinAmount || daybookMaxAmount) ? (
+                <button
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                    setDaybookVoucherType('all');
+                    setDaybookSearch('');
+                    setDaybookPartyFilter('');
+                    setDaybookMinAmount('');
+                    setDaybookMaxAmount('');
+                  }}
+                  className="text-[10px] bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-2 py-0.5 rounded border border-rose-200"
+                  title="Clear All Filters"
+                >
+                  Clear
+                </button>
+              ) : <span className="text-[10px] text-slate-400 font-normal">-</span>}
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
           {daybookLoading && (
             <tr><td colSpan={6} className="px-6 py-12 text-sm text-center text-gray-400">Loading day book…</td></tr>
           )}
-          {!daybookLoading && (daybookData?.results || []).length > 0
-            ? (daybookData!.results).map((v, idx) => (
+          {!daybookLoading && filteredDaybookResults.length > 0
+            ? filteredDaybookResults.map((v, idx) => (
               <tr
                 key={`daybook-${v.type}-${v.date}-${idx}`}
                 className="hover:bg-indigo-50 transition-colors cursor-pointer group"
@@ -2181,7 +2392,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             : !daybookLoading && (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-sm text-center text-gray-500">
-                  {(startDate || endDate) ? 'No transactions found for the selected filter.' : 'No transactions found.'}
+                  {(startDate || endDate || daybookVoucherType !== 'all' || daybookSearch || daybookMinAmount || daybookMaxAmount) ? 'No transactions found for the selected filters.' : 'No transactions found.'}
                 </td>
               </tr>
             )
@@ -2190,9 +2401,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
         {!daybookLoading && daybookData && (
           <tfoot className="bg-gray-50 border-t border-gray-200">
             <tr>
-              <td colSpan={4} className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total ({daybookData.count} entries)</td>
+              <td colSpan={4} className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total ({filteredDaybookResults.length} entries)</td>
               <td className="px-6 py-3 text-sm font-mono text-right font-bold text-gray-900">
-                ₹{(daybookData.results || []).reduce((s, v) => s + Number(v.amount || 0), 0).toFixed(2)}
+                ₹{filteredDaybookResults.reduce((s, v) => s + Number(v.amount || 0), 0).toFixed(2)}
               </td>
               <td className="print:hidden" />
             </tr>
@@ -2325,18 +2536,114 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                 <table className="erp-table min-w-full">
                   <thead className="bg-[#F8F9FA] border-b border-slate-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Created From</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Reference No</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200 min-w-[110px]">
+                        <div className="py-1.5 text-slate-700 font-bold">Date</div>
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200 min-w-[140px]">
+                        <div className="mb-1 text-slate-700">Created From</div>
+                        <select
+                          value={ledgerVoucherType}
+                          onChange={(e) => setLedgerVoucherType(e.target.value)}
+                          className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+                        >
+                          <option value="all">All Types</option>
+                          <option value="Sales">Sales</option>
+                          <option value="Purchase">Purchase</option>
+                          <option value="Payment">Payment</option>
+                          <option value="Receipt">Receipt</option>
+                          <option value="Expense">Expense</option>
+                          <option value="Journal">Journal</option>
+                          <option value="Contra">Contra</option>
+                          <option value="Debit Note">Debit Note</option>
+                          <option value="Credit Note">Credit Note</option>
+                        </select>
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200 min-w-[140px]">
+                        <div className="mb-1 text-slate-700">Reference No</div>
+                        <input
+                          type="text"
+                          placeholder="Filter Ref..."
+                          value={ledgerRefSearch}
+                          onChange={(e) => setLedgerRefSearch(e.target.value)}
+                          className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+                        />
+                      </th>
                       {isTdsTcsLedger && (
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Section</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200 min-w-[120px]">
+                          <div className="mb-1 text-slate-700">Section</div>
+                          <select
+                            value={selectedSection}
+                            onChange={(e) => setSelectedSection(e.target.value)}
+                            className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+                          >
+                            <option value="all">All</option>
+                            {(availableSections || []).map(sec => (
+                              <option key={sec} value={sec}>{sec}</option>
+                            ))}
+                          </select>
+                        </th>
                       )}
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Ledger</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Status</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Debit (₹)</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Credit (₹)</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">Running Bal</th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200 min-w-[160px]">
+                        <div className="mb-1 text-slate-700">Ledger</div>
+                        <input
+                          type="text"
+                          placeholder="Filter Ledger..."
+                          value={ledgerSearch}
+                          onChange={(e) => setLedgerSearch(e.target.value)}
+                          className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+                        />
+                      </th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">
+                        <div>GST Rate</div>
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200 min-w-[130px]">
+                        <div className="mb-1 text-slate-700">Status</div>
+                        <select
+                          value={ledgerStatusFilter}
+                          onChange={(e) => setLedgerStatusFilter(e.target.value)}
+                          className="w-full text-xs font-normal py-1 px-2 border rounded border-slate-300 bg-white"
+                        >
+                          <option value="all">All</option>
+                          <option value="Not Due">Not Due</option>
+                          <option value="Due">Due / Overdue</option>
+                          <option value="Paid">Paid</option>
+                          <option value="Received">Received</option>
+                          <option value="Partially Paid">Partially Paid</option>
+                          <option value="Partially Received">Partially Received</option>
+                          <option value="Utilized">Utilized</option>
+                          <option value="Unutilized">Unutilized</option>
+                          <option value="Disputed">Disputed</option>
+                        </select>
+                      </th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">
+                        <div>Debit (₹)</div>
+                      </th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">
+                        <div>Credit (₹)</div>
+                      </th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-r border-slate-200">
+                        <div>Running Bal</div>
+                      </th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[70px]">
+                        <div className="mb-1 text-slate-700">Action</div>
+                        {(startDate || endDate || ledgerVoucherType !== 'all' || ledgerStatusFilter !== 'all' || ledgerSearch || ledgerRefSearch || selectedSection !== 'all') ? (
+                          <button
+                            onClick={() => {
+                              setStartDate('');
+                              setEndDate('');
+                              setLedgerVoucherType('all');
+                              setLedgerStatusFilter('all');
+                              setLedgerSearch('');
+                              setLedgerRefSearch('');
+                              setSelectedSection('all');
+                            }}
+                            className="text-[10px] bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-2 py-0.5 rounded border border-rose-200"
+                            title="Clear All Filters"
+                          >
+                            Clear
+                          </button>
+                        ) : <span className="text-[10px] text-slate-400 font-normal">-</span>}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
@@ -2402,6 +2709,47 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                       } else {
                         st = '-';
                       }
+
+                      // GST Rate calculation helper
+                      const getGstRateVal = () => {
+                        if (!e || e.voucherType === 'Opening') return '-';
+                        let rate = raw.gst_rate ?? raw.gstRate ?? e.gst_rate ?? e.gstRate;
+                        if (rate !== undefined && rate !== null && rate !== '' && !isNaN(Number(rate)) && Number(rate) > 0) {
+                          return `${Number(rate)}%`;
+                        }
+                        const parts = String(e.particulars || '');
+                        const match = parts.match(/@\s*(\d+(?:\.\d+)?)\s*%/);
+                        if (match) {
+                          return `${match[1]}%`;
+                        }
+                        if (e.full_legs && Array.isArray(e.full_legs) && e.full_legs.length > 0) {
+                          const isTaxLeg = (name: string) => {
+                            const n = (name || '').toLowerCase();
+                            return n.includes('tax liability') || n.includes('tax credit') || n.includes('cgst') || n.includes('sgst') || n.includes('igst') || n.includes('output gst') || n.includes('input gst');
+                          };
+                          const taxLegs = e.full_legs.filter((l: any) => isTaxLeg(l.ledger_name) && !l.ledger_name?.toLowerCase().includes('tds') && !l.ledger_name?.toLowerCase().includes('tcs'));
+                          const totalTax = taxLegs.reduce((sum: number, l: any) => sum + (l.debit || 0) + (l.credit || 0), 0);
+                          
+                          if (totalTax > 0) {
+                            const isPartyLeg = (name: string) => {
+                              const n = (name || '').toLowerCase();
+                              return isTaxLeg(n) || n.includes('tds') || n.includes('tcs') || n.includes('sundry debtor') || n.includes('sundry creditor') || n.includes('cash') || n.includes('bank');
+                            };
+                            const baseLegs = e.full_legs.filter((l: any) => !isPartyLeg(l.ledger_name));
+                            let totalBase = baseLegs.reduce((sum: number, l: any) => sum + (l.debit || 0) + (l.credit || 0), 0);
+                            if (totalBase === 0) {
+                              const totalVoucherAmount = e.full_legs.reduce((maxVal: number, l: any) => Math.max(maxVal, l.debit || 0, l.credit || 0), 0);
+                              totalBase = Math.max(0, totalVoucherAmount - totalTax);
+                            }
+                            if (totalBase > 0) {
+                              const calc = Math.round((totalTax / totalBase) * 100);
+                              if (calc > 0) return `${calc}%`;
+                            }
+                          }
+                        }
+                        return '-';
+                      };
+
                       return (
                         <tr key={`dd-${idx}`}
                           className={`transition-colors ${e.voucherType === 'Opening' ? 'bg-indigo-50/50' : 'hover:bg-indigo-50'}`}>
@@ -2415,6 +2763,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           )}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-50">
                             {isTdsTcsLedger && e.particulars && typeof e.particulars === 'string' ? e.particulars.split(' | ')[0] : (e.particulars || '-')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-semibold text-indigo-700 border-r border-gray-50">
+                            {getGstRateVal()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap border-r border-gray-50">
                             {st !== '-' && e.voucherType !== 'Opening' ? (
@@ -2449,13 +2800,13 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                         </tr>
                       )
                     }) : (
-                      <tr><td colSpan={isTdsTcsLedger ? 10 : 9} className="px-6 py-12 text-center text-sm text-gray-400">No transactions found for <strong>{drillDownLedger}</strong>.</td></tr>
+                      <tr><td colSpan={isTdsTcsLedger ? 11 : 10} className="px-6 py-12 text-center text-sm text-gray-400">No transactions found for <strong>{drillDownLedger}</strong>.</td></tr>
                     )}
                   </tbody>
                   {filteredDrillData.length > 0 && (
                     <tfoot className="bg-gray-50 font-bold border-t border-gray-200">
                       <tr>
-                        <td colSpan={isTdsTcsLedger ? 6 : 5} className="px-6 py-3 text-right text-gray-900 text-sm">TOTAL</td>
+                        <td colSpan={isTdsTcsLedger ? 7 : 6} className="px-6 py-3 text-right text-gray-900 text-sm">TOTAL</td>
                         <td className="px-6 py-3 text-right text-gray-900 text-sm">₹{totalDr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td className="px-6 py-3 text-right text-gray-900 text-sm">₹{totalCr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td className={`px-6 py-3 text-right text-sm ${last?.balanceType === 'Dr' ? 'text-indigo-600' : 'text-green-700'}`}>{last ? `₹${last.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''}</td>
@@ -2486,6 +2837,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider min-w-[350px] border-r border-gray-50">Transaction Particulars</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider w-[120px] border-r border-gray-50">Type</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider w-[120px] border-r border-gray-50">VCH No.</th>
+                      <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider w-[100px] border-r border-gray-50">GST Rate</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider w-[120px] border-r border-gray-50">Status</th>
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider w-[140px] border-r border-gray-50">Debit (₹)</th>
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider w-[140px] border-r border-gray-50">Credit (₹)</th>
@@ -2556,6 +2908,47 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                         st = '-';
                       }
                       const stFinal = st || '-';
+
+                      // GST Rate calculation helper for Journal View
+                      const getGstRateVal = () => {
+                        if (!e || e.voucherType === 'Opening') return '-';
+                        let rate = raw.gst_rate ?? raw.gstRate ?? e.gst_rate ?? e.gstRate;
+                        if (rate !== undefined && rate !== null && rate !== '' && !isNaN(Number(rate)) && Number(rate) > 0) {
+                          return `${Number(rate)}%`;
+                        }
+                        const parts = String(e.particulars || '');
+                        const match = parts.match(/@\s*(\d+(?:\.\d+)?)\s*%/);
+                        if (match) {
+                          return `${match[1]}%`;
+                        }
+                        if (e.full_legs && Array.isArray(e.full_legs) && e.full_legs.length > 0) {
+                          const isTaxLeg = (name: string) => {
+                            const n = (name || '').toLowerCase();
+                            return n.includes('tax liability') || n.includes('tax credit') || n.includes('cgst') || n.includes('sgst') || n.includes('igst') || n.includes('output gst') || n.includes('input gst');
+                          };
+                          const taxLegs = e.full_legs.filter((l: any) => isTaxLeg(l.ledger_name) && !l.ledger_name?.toLowerCase().includes('tds') && !l.ledger_name?.toLowerCase().includes('tcs'));
+                          const totalTax = taxLegs.reduce((sum: number, l: any) => sum + (l.debit || 0) + (l.credit || 0), 0);
+                          
+                          if (totalTax > 0) {
+                            const isPartyLeg = (name: string) => {
+                              const n = (name || '').toLowerCase();
+                              return isTaxLeg(n) || n.includes('tds') || n.includes('tcs') || n.includes('sundry debtor') || n.includes('sundry creditor') || n.includes('cash') || n.includes('bank');
+                            };
+                            const baseLegs = e.full_legs.filter((l: any) => !isPartyLeg(l.ledger_name));
+                            let totalBase = baseLegs.reduce((sum: number, l: any) => sum + (l.debit || 0) + (l.credit || 0), 0);
+                            if (totalBase === 0) {
+                              const totalVoucherAmount = e.full_legs.reduce((maxVal: number, l: any) => Math.max(maxVal, l.debit || 0, l.credit || 0), 0);
+                              totalBase = Math.max(0, totalVoucherAmount - totalTax);
+                            }
+                            if (totalBase > 0) {
+                              const calc = Math.round((totalTax / totalBase) * 100);
+                              if (calc > 0) return `${calc}%`;
+                            }
+                          }
+                        }
+                        return '-';
+                      };
+
                       return (
                         <React.Fragment key={`dd-j-${idx}`}>
                           {/* ── Main transaction row ── */}
@@ -2565,6 +2958,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                             <td className="px-6 py-4 text-sm font-bold text-gray-800 border-r border-gray-100">{e.voucherType !== 'Opening' ? '(as per details)' : e.particulars || 'Opening Balance'}</td>
                             <td className="px-6 py-4 text-sm text-gray-500 uppercase border-r border-gray-100">{normalizeVoucherType(e.voucherType) || '-'}</td>
                             <td className="px-6 py-4 text-sm text-gray-500 border-r border-gray-100">{e.voucherNo || '-'}</td>
+                            <td className="px-6 py-4 text-sm text-center font-semibold text-indigo-700 border-r border-gray-100">{getGstRateVal()}</td>
                             <td className="px-6 py-4 whitespace-nowrap border-r border-gray-100">
                               {stFinal !== '-' && e.voucherType !== 'Opening' ? (
                                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-[4px] ${stFinal === 'Received' ? 'bg-green-100 text-green-800' :
@@ -5046,6 +5440,46 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
               });
             };
 
+            const renderRecursiveSubItems = (items: any[], pId: string, depth: number) => {
+              return items.map((subIt: any, subIdx: number) => {
+                const hasSub = subIt.sub_items && subIt.sub_items.length > 0;
+                const currentId = `${pId}-${subIt.name}`;
+                const isSubExp = expandedPnlSubCategories.has(currentId);
+                
+                const toggle = () => {
+                  setExpandedPnlSubCategories(prev => {
+                    const next = new Set(prev);
+                    if (next.has(currentId)) next.delete(currentId);
+                    else next.add(currentId);
+                    return next;
+                  });
+                };
+                
+                const paddingLeft = 5 + depth * 1.5;
+                
+                return (
+                  <React.Fragment key={`subdetail-${currentId}-${subIdx}`}>
+                    <tr className="bg-slate-100/50 border-b border-slate-200/40 text-[11px]">
+                      <td className="py-2 pr-4 font-sans text-slate-600 italic" style={{ paddingLeft: `${paddingLeft}rem` }}>
+                        <div className="flex items-center justify-between">
+                          <span className={hasSub ? "cursor-pointer hover:text-indigo-600 transition-colors" : ""} onClick={hasSub ? toggle : undefined}>
+                            {hasSub ? (isSubExp ? '▼ ' : '▶ ') : '- '}{subIt.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-6 text-right font-mono font-medium text-slate-700">
+                        {Number(subIt.balance || 0) !== 0 ? `₹${Number(subIt.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                      </td>
+                      <td className="py-2 px-6 text-right font-mono font-medium text-slate-500">
+                        {Number(subIt.prev_balance || 0) !== 0 ? `₹${Number(subIt.prev_balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                      </td>
+                    </tr>
+                    {hasSub && isSubExp && renderRecursiveSubItems(subIt.sub_items, currentId, depth + 1)}
+                  </React.Fragment>
+                );
+              });
+            };
+
             return (
               <React.Fragment key={`detail-${label}-${idx}`}>
                 <tr className="bg-slate-50/90 border-b border-slate-200/70 text-xs">
@@ -5072,19 +5506,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                     {Number(it.prev_balance || 0) !== 0 ? `₹${Number(it.prev_balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                   </td>
                 </tr>
-                {hasSubItems && isSubExpanded && it.sub_items.map((subIt: any, subIdx: number) => (
-                  <tr key={`subdetail-${subId}-${subIdx}`} className="bg-slate-100/50 border-b border-slate-200/40 text-[11px]">
-                    <td className="py-2 pl-20 pr-4 font-sans text-slate-600 italic">
-                      - {subIt.name}
-                    </td>
-                    <td className="py-2 px-6 text-right font-mono font-medium text-slate-700">
-                      {Number(subIt.balance || 0) !== 0 ? `₹${Number(subIt.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                    </td>
-                    <td className="py-2 px-6 text-right font-mono font-medium text-slate-500">
-                      {Number(subIt.prev_balance || 0) !== 0 ? `₹${Number(subIt.prev_balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                    </td>
-                  </tr>
-                ))}
+                {hasSubItems && isSubExpanded && renderRecursiveSubItems(it.sub_items, subId, 0)}
               </React.Fragment>
             );
           })
@@ -5125,54 +5547,50 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
 
         <div className="erp-container">
           {reportType === 'DayBook' && (
-            <>
-              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div className="min-w-[200px]">
-                  <label htmlFor="startDate" className="label-text">Start Date</label>
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-4 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div className="flex flex-wrap items-end gap-4">
+                <div>
+                  <label htmlFor="daybookStartDate" className="label-text text-xs font-semibold text-slate-600 mb-1 block">Start Date</label>
                   <DateInput
-
-                    id="startDate"
+                    id="daybookStartDate"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="erp-input"
+                    className="erp-input text-xs"
                   />
                 </div>
-                <div className="min-w-[200px]">
-                  <label htmlFor="endDate" className="label-text">End Date</label>
+                <div>
+                  <label htmlFor="daybookEndDate" className="label-text text-xs font-semibold text-slate-600 mb-1 block">End Date</label>
                   <DateInput
-
-                    id="endDate"
+                    id="daybookEndDate"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="erp-input"
+                    className="erp-input text-xs"
                   />
                 </div>
                 {(startDate || endDate) && (
                   <button
                     onClick={() => { setStartDate(''); setEndDate(''); }}
-                    className="erp-button-secondary"
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-2 rounded-lg transition-colors border border-rose-200"
                   >
-                    Clear
+                    Clear Dates
                   </button>
                 )}
               </div>
-
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => window.print()}
-                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                  title="Create PDF"
-                >
-                  Create PDF
-                </button>
-              </div>
-            </>
+              <button
+                onClick={() => window.print()}
+                className="erp-button-primary bg-rose-600 hover:bg-rose-700 py-2 px-4 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                title="Create PDF"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Create PDF
+              </button>
+            </div>
           )}
           {reportType === 'LedgerReport' && (
-            <>
-              <div className="mb-8 flex flex-wrap items-end gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div className="min-w-[250px]">
-                  <label className="label-text">Select Ledger/Group</label>
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-4 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div className="flex flex-wrap items-end gap-4 flex-1">
+                <div className="min-w-[240px] max-w-xs">
+                  <label className="label-text text-xs font-semibold text-slate-600 mb-1 block">Select Ledger / Group</label>
                   <LedgerSelector
                     selectedValue={selectedLedger}
                     onChange={(val) => {
@@ -5192,53 +5610,42 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                     ledgers={ledgers}
                   />
                 </div>
-                {isTdsTcsLedger && (
-                  <div className="min-w-[180px]">
-                    <label htmlFor="sessionFilter" className="label-text">Select Session</label>
-                    <select
-                      id="sessionFilter"
-                      value={selectedSession}
-                      onChange={(e) => setSelectedSession(e.target.value)}
-                      className="erp-select"
-                    >
-                      <option value="all">All Sessions</option>
-                      <option value="2024-2025">2024-2025</option>
-                      <option value="2025-2026">2025-2026</option>
-                      <option value="2026-2027">2026-2027</option>
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="ledgerStartDate" className="label-text text-xs font-semibold text-slate-600 mb-1 block">Start Date</label>
+                  <DateInput
+                    id="ledgerStartDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="erp-input text-xs"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ledgerEndDate" className="label-text text-xs font-semibold text-slate-600 mb-1 block">End Date</label>
+                  <DateInput
+                    id="ledgerEndDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="erp-input text-xs"
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <button
+                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-2 rounded-lg transition-colors border border-rose-200"
+                  >
+                    Clear Dates
+                  </button>
                 )}
-                {isTdsTcsLedger && (
-                  <div className="min-w-[180px]">
-                    <label htmlFor="sectionFilter" className="label-text">Select Section</label>
-                    <select
-                      id="sectionFilter"
-                      value={selectedSection}
-                      onChange={(e) => setSelectedSection(e.target.value)}
-                      className="erp-select"
-                    >
-                      <option value="all">All Sections</option>
-                      {(availableSections || []).map((sec) => (
-                        <option key={sec} value={sec}>
-                          {sec}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
               </div>
-
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => window.print()}
-                  className="erp-button-primary bg-rose-600 hover:bg-rose-700"
-                  title="Create PDF"
-                >
-                  Create PDF
-                </button>
-              </div>
-            </>
+              <button
+                onClick={() => window.print()}
+                className="erp-button-primary bg-rose-600 hover:bg-rose-700 py-2 px-4 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                title="Create PDF"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Create PDF
+              </button>
+            </div>
           )}
           {reportType === 'TrialBalance' && (
             <>
@@ -5400,9 +5807,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                         "VIII. Extraordinary Items",
                         "Current tax",
                         "Excess/ Short provision of tax relating to earlier years",
-                        "Deferred tax charge/ (benefit)",
-                        "XII. Profit/(loss) from discontinuing operations",
-                        "XIII. Tax expense of discontinuing operations"
+                        "Deferred tax charge/ (benefit)"
                       ]);
                       setExpandedPnlCategories(allCats);
                     }
@@ -5551,40 +5956,14 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           {renderNcRowItem("Excess/ Short provision of tax relating to earlier years", pnlData.non_corporate?.tax_expense?.prior_period_tax?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
                           {renderNcRowItem("Deferred tax charge/ (benefit)", pnlData.non_corporate?.tax_expense?.deferred_tax?.items, "pl-10", expandedPnlCategories, setExpandedPnlCategories)}
 
-                          {/* XI. Profit/(Loss) for the period from continuing operations (IX-X) */}
-                          <tr className="font-bold text-sm text-slate-900 border-t border-b border-slate-200 bg-slate-50">
-                            <td className="py-3 px-6">XI. Profit/(Loss) for the period from continuing operations (IX - X)</td>
-                            <td className="py-3 px-6 text-right font-mono font-bold">
+                          {/* XI. Profit/(Loss) for the year (IX-X) */}
+                          <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
+                            <td className="py-4 px-6">XI. Profit/(Loss) for the year (IX - X)</td>
+                            <td className="py-4 px-6 text-right font-mono text-white">
                               {formatNcAmount(pnlData.non_corporate?.profit_continuing_operations)}
                             </td>
-                            <td className="py-3 px-6 text-right font-mono font-bold">
-                              {formatNcAmount(pnlData.non_corporate?.prev_profit_continuing_operations)}
-                            </td>
-                          </tr>
-
-                          {/* XII. Discontinuing operations */}
-                          {renderNcRowItem("XII. Profit/(loss) from discontinuing operations", pnlData.non_corporate?.discontinuing_operations?.profit_loss?.items, "pl-6 font-medium text-slate-800", expandedPnlCategories, setExpandedPnlCategories)}
-                          {renderNcRowItem("XIII. Tax expense of discontinuing operations", pnlData.non_corporate?.discontinuing_operations?.tax_expense?.items, "pl-6 font-medium text-slate-800", expandedPnlCategories, setExpandedPnlCategories)}
-
-                          {/* XIV. Profit/(loss) from discontinuing operations (after tax) (XII-XIII) */}
-                          <tr className="font-bold text-sm text-slate-900 border-t border-b border-slate-200 bg-slate-50">
-                            <td className="py-3 px-6">XIV. Profit/(loss) from discontinuing operations (after tax) (XII - XIII)</td>
-                            <td className="py-3 px-6 text-right font-mono font-bold">
-                              {formatNcAmount(pnlData.non_corporate?.discontinuing_operations?.total_after_tax)}
-                            </td>
-                            <td className="py-3 px-6 text-right font-mono font-bold">
-                              {formatNcAmount(pnlData.non_corporate?.discontinuing_operations?.prev_total_after_tax)}
-                            </td>
-                          </tr>
-
-                          {/* XV. Profit/(Loss) for the year (XI+XIV) */}
-                          <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
-                            <td className="py-4 px-6">XV. Profit/(Loss) for the year (XI + XIV)</td>
-                            <td className="py-4 px-6 text-right font-mono text-white">
-                              {formatNcAmount(pnlData.non_corporate?.net_profit_for_year)}
-                            </td>
                             <td className="py-4 px-6 text-right font-mono text-slate-300">
-                              {formatNcAmount(pnlData.non_corporate?.prev_net_profit_for_year)}
+                              {formatNcAmount(pnlData.non_corporate?.prev_profit_continuing_operations)}
                             </td>
                           </tr>
                         </tbody>
@@ -5745,6 +6124,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                               </tr>
                               {renderNcRowItem("Owners' Capital Account", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.capital_account, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               {renderNcRowItem("Reserves and surplus", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.reserves_and_surplus, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Difference in Opening Balances", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.difference_in_opening_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
                                 <td className="py-3 px-10">Subtotal - Owners' Funds</td>
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
@@ -5850,6 +6230,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                               {renderNcRowItem("Cash and bank balances", bsData.non_corporate?.assets?.current_assets?.cash_and_bank_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               {renderNcRowItem("Short Term Loans and Advances", bsData.non_corporate?.assets?.current_assets?.short_term_loans_advances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               {renderNcRowItem("Other current assets", bsData.non_corporate?.assets?.current_assets?.other_current_assets, "pl-10", expandedBsCategories, setExpandedBsCategories)}
+                              {renderNcRowItem("Difference in Opening Balances", bsData.non_corporate?.assets?.current_assets?.difference_in_opening_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
                                 <td className="py-3 px-10">Subtotal - Current assets</td>
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">

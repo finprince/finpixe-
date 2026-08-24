@@ -167,6 +167,11 @@ class InventoryItem(BaseModel):
     reorder_level = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     reorder_level_2 = models.CharField(max_length=255, null=True, blank=True)
     is_saleable = models.BooleanField(default=False)
+    
+    # Opening Stock
+    opening_stock = models.DecimalField(max_digits=15, decimal_places=3, default=0)
+    opening_rate = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    
     is_active = models.BooleanField(default=True)
 
     class Meta:

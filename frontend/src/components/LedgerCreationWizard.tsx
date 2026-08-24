@@ -434,6 +434,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
     const [subGroup3Input, setSubGroup3Input] = useState('');
     const [ledgerTypeInput, setLedgerTypeInput] = useState('');
     const [questionAnswers, setQuestionAnswers] = useState<Record<number, any>>({});
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Edit existing (tenant) ledgers directly in the preview panel
     const [isEditingExistingLedger, setIsEditingExistingLedger] = useState(false);
@@ -742,7 +743,8 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                             existingNode.ledgerId = row.id;
                         }
                         if (level.level === maxLevel) {
-                            existingNode.isCustom = true;
+                            // Do not set existingNode.isCustom = true; 
+                            // Default ledgers should not get a star just because they exist in MasterLedger
                             ledgerIdToPath.set(row.id, currentPath);
                         }
                     }
@@ -855,7 +857,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
             if (tree.has(childPath)) {
                 // Update existing node instead of replacing it (to preserve references in parent's children array)
                 const existingNode = tree.get(childPath)!;
-                existingNode.isCustom = true;
+                // Do not force isCustom = true to prevent default ledgers from getting a star
                 existingNode.ledgerId = ledger.id;
                 existingNode.fullPath = {
                     category: ledger.category,
@@ -956,13 +958,13 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
         setEditSubGroup3('');
     };
 
-    const renderTree = (nodes: TreeNode[], parentPath = '', level = 0): React.ReactElement[] => {
+    const renderTree = (nodes: TreeNode[], parentPath = '', level = 0, isSearchActive = false): React.ReactElement[] => {
         const HIDDEN = ['sundry debtors', 'sundry creditors', 'duties & taxes', 'sales accounts', 'purchase accounts', 'purchase account'];
         return nodes
             .filter(node => !HIDDEN.includes((node.name || '').toLowerCase().trim()))
             .map((node, index) => {
                 const nodePath = parentPath ? `${parentPath}>${node.name}` : node.name;
-                const isExpanded = expandedNodes.has(nodePath);
+                const isExpanded = isSearchActive || expandedNodes.has(nodePath);
                 const hasChildren = node.children.length > 0;
                 const isSelected = selectedNode?.name === node.name &&
                     selectedNode?.level === node.level &&
@@ -1000,7 +1002,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                 }
 
                 return (
-                    <div key={nodePath} style={{ marginLeft: `${level * 20}px` }}>
+                    <div key={nodePath} id={`node-${nodePath}`} style={{ marginLeft: `${level * 20}px` }}>
                         <div
                             className={`flex items-center py-1.5 px-2 cursor-pointer hover:bg-gray-100 rounded transition-colors ${isSelected ? 'bg-[#EEF2FF] border-l-2 border-[#6366F1]' : ''}`}
                             onClick={() => {
@@ -1030,7 +1032,7 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
                         </div>
                         {hasChildren && isExpanded && (
                             <div>
-                                {renderTree(node.children, nodePath, level + 1)}
+                                {renderTree(node.children, nodePath, level + 1, isSearchActive)}
                             </div>
                         )}
                     </div>
@@ -1228,6 +1230,70 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
         setTimeout(refetchHierarchy, 500);
     };
 
+    const filteredTreeData = React.useMemo(() => {
+        const filterTree = (nodes: TreeNode[], query: string): TreeNode[] => {
+            if (!query) return nodes;
+            const lowerQuery = query.toLowerCase();
+            
+            return nodes.reduce<TreeNode[]>((acc, node) => {
+                const isMatch = node.name.toLowerCase().includes(lowerQuery);
+                const filteredChildren = filterTree(node.children, query);
+                
+                if (isMatch) {
+                    acc.push(node);
+                } else if (filteredChildren.length > 0) {
+                    acc.push({ ...node, children: filteredChildren });
+                }
+                
+                return acc;
+            }, []);
+        };
+        return filterTree(treeData, searchQuery);
+    }, [treeData, searchQuery]);
+
+    useEffect(() => {
+        if (!searchQuery || treeData.length === 0) return;
+        const lowerQuery = searchQuery.toLowerCase();
+        
+        let bestMatch: { node: TreeNode, path: string } | null = null;
+        
+        const findMatch = (nodes: TreeNode[], parentPath = '') => {
+            for (const node of nodes) {
+                const nodePath = parentPath ? `${parentPath}>${node.name}` : node.name;
+                
+                // Check if name matches
+                if (node.name.toLowerCase().includes(lowerQuery)) {
+                    // Prefer leaf nodes (level >= 5) or nodes with exact match
+                    if (!bestMatch || 
+                        (node.level >= 5 && bestMatch.node.level < 5) || 
+                        (node.name.toLowerCase() === lowerQuery && bestMatch.node.name.toLowerCase() !== lowerQuery)) {
+                        bestMatch = { node, path: nodePath };
+                    }
+                }
+                
+                if (node.children.length > 0) {
+                    findMatch(node.children, nodePath);
+                }
+            }
+        };
+        
+        findMatch(treeData);
+        
+        if (bestMatch) {
+            const { node, path } = bestMatch;
+            selectNodeForPreview(node);
+            setSubGroup3Input('');
+            setLedgerTypeInput('');
+            
+            setTimeout(() => {
+                const el = document.getElementById(`node-${path}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 150);
+        }
+    }, [searchQuery, treeData]);
+
     if (loading) return <div className="text-gray-500 text-sm">Loading hierarchy...</div>;
 
     // Helper to determine if input should be disabled (value comes from parent hierarchy)
@@ -1385,12 +1451,26 @@ export const LedgerCreationWizard: React.FC<LedgerCreationWizardProps> = ({ onCr
             <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column: Hierarchy Tree */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Ledger Type
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                            Select Ledger Type
+                        </label>
+                        <div className="relative w-1/2">
+                            <input
+                                type="text"
+                                placeholder="Search ledgers..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full text-xs p-1.5 pl-7 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-gray-400">
+                                <Icon name="search" size={12} />
+                            </div>
+                        </div>
+                    </div>
                     <div className="border border-gray-300 rounded-[4px] p-3 max-h-[32rem] overflow-y-auto bg-gray-50">
-                        {treeData.length > 0 ? (
-                            renderTree(treeData)
+                        {filteredTreeData.length > 0 ? (
+                            renderTree(filteredTreeData, '', 0, !!searchQuery)
                         ) : (
                             <div className="text-gray-500 text-sm">No hierarchy data available</div>
                         )}

@@ -88,7 +88,7 @@ class MasterLedger(BaseModel):
 
     class Meta:
         db_table = 'master_ledgers'
-        unique_together = (('name', 'tenant_id'), ('tenant_id', 'code'))
+        unique_together = ('name', 'tenant_id')
 
     def __str__(self):
         return f'{self.name or '-'} ({self.group})'

@@ -185,22 +185,41 @@ class PaymentVoucherViewSet(viewsets.ModelViewSet):
         Does NOT create allocations, advances, or use mapping logic.
         """
         data = request.data
-        tenant_id = getattr(request.user, 'tenant_id', None) or request.headers.get('X-Branch-Id')
+        from core.tenant import get_tenant_from_request
+        tenant_id = get_tenant_from_request(request)
+        if not tenant_id:
+            tenant_id = getattr(request.user, 'branch_id', None)
+        if not tenant_id:
+            tenant_id = getattr(request.user, 'tenant_id', None) or request.headers.get('X-Branch-Id')
+        
         entered_amount = data.get('amount')
         pay_from_id = data.get('pay_from')
         pay_to_id = data.get('pay_to')
         date_str = data.get('date') or timezone.now().date().isoformat()
         if not entered_amount or not pay_from_id or (not pay_to_id):
             return Response({'error': 'Missing required fields: amount, pay_from, pay_to'}, status=status.HTTP_400_BAD_REQUEST)
-        with db_transaction.atomic():
-            from .services.ledger_service import _resolve_ledger
-            pay_from_ledger = _resolve_ledger(pay_from_id, tenant_id)
-            pay_to_ledger = _resolve_ledger(pay_to_id, tenant_id)
-            if not pay_from_ledger:
-                return Response({'error': f'Invalid Pay From ledger ID: {pay_from_id}'}, status=status.HTTP_400_BAD_REQUEST)
-            if not pay_to_ledger:
-                return Response({'error': f'Invalid Pay To ledger ID: {pay_to_id}'}, status=status.HTTP_400_BAD_REQUEST)
 
+        import os
+        debug_path = os.path.join(os.path.dirname(__file__), "debug_save.txt")
+        with open(debug_path, "a") as f:
+            f.write(f"\n[save_amount_only] STARTED. tenant_id={tenant_id!r}, pay_from_id={pay_from_id!r}, pay_to_id={pay_to_id!r}\n")
+            f.flush()
+
+        # Resolve ledgers BEFORE atomic block
+        from .services.ledger_service import _resolve_ledger
+        pay_from_ledger = _resolve_ledger(pay_from_id, tenant_id)
+        pay_to_ledger = _resolve_ledger(pay_to_id, tenant_id)
+        
+        with open(debug_path, "a") as f:
+            f.write(f"[save_amount_only] pay_from={pay_from_ledger}, pay_to={pay_to_ledger}\n")
+            f.flush()
+
+        if not pay_from_ledger:
+            return Response({'error': f'Invalid Pay From ledger ID: {pay_from_id}'}, status=status.HTTP_400_BAD_REQUEST)
+        if not pay_to_ledger:
+            return Response({'error': f'Invalid Pay To ledger ID: {pay_to_id}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with db_transaction.atomic():
             def get_party_ids(ledger):
                 if not ledger:
                     return (None, None, None)

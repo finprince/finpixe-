@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from django.db import connection
+from django.db.models import Q
 from core.mixins import BranchQuerysetMixin, IsBranchMember
 from .models import MasterLedgerGroup, MasterLedger, MasterHierarchyRaw, Voucher, JournalEntry
 from customerportal.database import CustomerMasterCustomerBasicDetails as Customer
@@ -156,10 +157,17 @@ class JournalEntryViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
     required_permission = 'ACCOUNTING_VOUCHERS'
 
     def get_queryset(self):
-        """Exclude supplementary GST and TDS detail rows from the default list.
+        """Exclude supplementary GST, TDS, and TCS detail rows from the default list.
         These are only surfaced in the report action for ledger drill-downs."""
         qs = super().get_queryset()
-        return qs.exclude(voucher_type__in=['PURCHASE_GST_DETAIL', 'SALES_GST_DETAIL', 'PURCHASE_TDS_DETAIL', 'SALES_TCS_DETAIL'])
+        return qs.exclude(
+            Q(voucher_type__endswith='_DETAIL') |
+            Q(voucher_type__in=[
+                'PURCHASE_GST_DETAIL', 'SALES_GST_DETAIL',
+                'PURCHASE_TDS_DETAIL', 'SALES_TDS_DETAIL',
+                'PURCHASE_TCS_DETAIL', 'SALES_TCS_DETAIL'
+            ])
+        )
 
     def perform_update(self, serializer):
         import logging
@@ -296,7 +304,17 @@ class JournalEntryViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
         voucher_ids = list(queryset.values_list('voucher_id', flat=True).distinct())
         counterpart_map = {}
         if voucher_ids:
-            all_entries_for_vouchers = JournalEntry.objects.filter(tenant_id=tenant_id, voucher_id__in=voucher_ids).exclude(voucher_type__in=['PURCHASE_GST_DETAIL', 'SALES_GST_DETAIL', 'PURCHASE_TDS_DETAIL', 'SALES_TCS_DETAIL']).select_related('ledger').values('voucher_id', 'ledger_id', 'ledger__name', 'ledger_name')
+            all_entries_for_vouchers = JournalEntry.objects.filter(
+                tenant_id=tenant_id,
+                voucher_id__in=voucher_ids
+            ).exclude(
+                DQ(voucher_type__endswith='_DETAIL') |
+                DQ(voucher_type__in=[
+                    'PURCHASE_GST_DETAIL', 'SALES_GST_DETAIL',
+                    'PURCHASE_TDS_DETAIL', 'SALES_TDS_DETAIL',
+                    'PURCHASE_TCS_DETAIL', 'SALES_TCS_DETAIL'
+                ])
+            ).select_related('ledger').values('voucher_id', 'ledger_id', 'ledger__name', 'ledger_name')
             for ae in all_entries_for_vouchers:
                 vid = ae['voucher_id']
                 lid = ae['ledger_id']
@@ -335,21 +353,175 @@ class JournalEntryViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
         voucher_meta_map = {}
         if voucher_ids:
             try:
-                voucher_rows = Voucher.objects.filter(tenant_id=tenant_id, id__in=voucher_ids).values('id', 'source', 'reference_id', 'type')
+                voucher_rows = Voucher.objects.filter(tenant_id=tenant_id, id__in=voucher_ids).values(
+                    'id', 'source', 'reference_id', 'type', 'total_taxable_amount', 'total_cgst', 'total_sgst', 'total_igst'
+                )
                 for vrow in voucher_rows:
-                    voucher_meta_map[vrow['id']] = {'voucher_pk': vrow['id'], 'source': vrow['source'] or '', 'reference_id': vrow['reference_id'], 'voucher_type_generic': vrow['type'] or ''}
+                    taxable = float(vrow.get('total_taxable_amount') or 0)
+                    cgst = float(vrow.get('total_cgst') or 0)
+                    sgst = float(vrow.get('total_sgst') or 0)
+                    igst = float(vrow.get('total_igst') or 0)
+                    tax_tot = igst if igst > 0 else (cgst + sgst)
+                    computed_rate = round((tax_tot / taxable) * 100) if (taxable > 0 and tax_tot > 0) else None
+                    voucher_meta_map[vrow['id']] = {
+                        'voucher_pk': vrow['id'],
+                        'source': vrow['source'] or '',
+                        'reference_id': vrow['reference_id'],
+                        'voucher_type_generic': vrow['type'] or '',
+                        'gst_rate': computed_rate
+                    }
             except Exception:
                 pass
             unmapped_ids = [vid for vid in voucher_ids if vid not in voucher_meta_map]
             if unmapped_ids:
                 try:
-                    ref_voucher_rows = Voucher.objects.filter(tenant_id=tenant_id, reference_id__in=unmapped_ids).values('id', 'source', 'reference_id', 'type')
+                    ref_voucher_rows = Voucher.objects.filter(tenant_id=tenant_id, reference_id__in=unmapped_ids).values(
+                        'id', 'source', 'reference_id', 'type', 'total_taxable_amount', 'total_cgst', 'total_sgst', 'total_igst'
+                    )
                     for vrow in ref_voucher_rows:
                         ref_id = vrow['reference_id']
                         if ref_id and ref_id not in voucher_meta_map:
-                            voucher_meta_map[ref_id] = {'voucher_pk': vrow['id'], 'source': vrow['source'] or '', 'reference_id': vrow['reference_id'], 'voucher_type_generic': vrow['type'] or ''}
+                            taxable = float(vrow.get('total_taxable_amount') or 0)
+                            cgst = float(vrow.get('total_cgst') or 0)
+                            sgst = float(vrow.get('total_sgst') or 0)
+                            igst = float(vrow.get('total_igst') or 0)
+                            tax_tot = igst if igst > 0 else (cgst + sgst)
+                            computed_rate = round((tax_tot / taxable) * 100) if (taxable > 0 and tax_tot > 0) else None
+                            voucher_meta_map[ref_id] = {
+                                'voucher_pk': vrow['id'],
+                                'source': vrow['source'] or '',
+                                'reference_id': vrow['reference_id'],
+                                'voucher_type_generic': vrow['type'] or '',
+                                'gst_rate': computed_rate
+                            }
                 except Exception:
                     pass
+            
+            # 1. Sales Payment Details
+            try:
+                from accounting.models_voucher_sales import VoucherSalesPaymentDetails
+                pmt_tax_rows = VoucherSalesPaymentDetails.objects.filter(
+                    tenant_id=tenant_id,
+                    invoice_id__in=voucher_ids
+                ).values('invoice_id', 'payment_taxable_value', 'payment_igst', 'payment_cgst', 'payment_sgst')
+                for ptr in pmt_tax_rows:
+                    vid = ptr['invoice_id']
+                    if vid in voucher_meta_map and not voucher_meta_map[vid].get('gst_rate'):
+                        tx = float(ptr.get('payment_taxable_value') or 0)
+                        ig = float(ptr.get('payment_igst') or 0)
+                        cg = float(ptr.get('payment_cgst') or 0)
+                        sg = float(ptr.get('payment_sgst') or 0)
+                        tot_tax = ig if ig > 0 else (cg + sg)
+                        if tx > 0 and tot_tax > 0:
+                            voucher_meta_map[vid]['gst_rate'] = round((tot_tax / tx) * 100)
+            except Exception:
+                pass
+
+            # 2. Sales Items
+            try:
+                from accounting.models_voucher_sales import VoucherSalesItems
+                sales_items_rows = VoucherSalesItems.objects.filter(
+                    tenant_id=tenant_id,
+                    invoice_id__in=voucher_ids
+                ).values('invoice_id', 'taxable_value', 'igst', 'cgst', 'sgst')
+                for sir in sales_items_rows:
+                    vid = sir['invoice_id']
+                    if vid in voucher_meta_map and not voucher_meta_map[vid].get('gst_rate'):
+                        tx = float(sir.get('taxable_value') or 0)
+                        ig = float(sir.get('igst') or 0)
+                        cg = float(sir.get('cgst') or 0)
+                        sg = float(sir.get('sgst') or 0)
+                        tot_tax = ig if ig > 0 else (cg + sg)
+                        if tx > 0 and tot_tax > 0:
+                            voucher_meta_map[vid]['gst_rate'] = round((tot_tax / tx) * 100)
+            except Exception:
+                pass
+
+            # 3. Purchase Items
+            try:
+                from accounting.models_voucher_purchase import VoucherPurchaseItem
+                purch_items_rows = VoucherPurchaseItem.objects.filter(
+                    tenant_id=tenant_id,
+                    supplier_details_id__in=voucher_ids
+                ).values('supplier_details_id', 'gst_rate', 'taxable_value', 'igst_amount', 'cgst_amount', 'sgst_amount')
+                for pir in purch_items_rows:
+                    vid = pir['supplier_details_id']
+                    if vid in voucher_meta_map and not voucher_meta_map[vid].get('gst_rate'):
+                        crate = float(pir.get('gst_rate') or 0)
+                        if crate > 0:
+                            voucher_meta_map[vid]['gst_rate'] = round(crate)
+                        else:
+                            tx = float(pir.get('taxable_value') or 0)
+                            ig = float(pir.get('igst_amount') or 0)
+                            cg = float(pir.get('cgst_amount') or 0)
+                            sg = float(pir.get('sgst_amount') or 0)
+                            tot_tax = ig if ig > 0 else (cg + sg)
+                            if tx > 0 and tot_tax > 0:
+                                voucher_meta_map[vid]['gst_rate'] = round((tot_tax / tx) * 100)
+            except Exception:
+                pass
+
+            # 4. Expense Vouchers & Expense Line Items
+            try:
+                from accounting.models_voucher_expense import VoucherExpense, ExpenseLineItem
+                
+                exp_voucher_rows = VoucherExpense.objects.filter(
+                    tenant_id=tenant_id,
+                    id__in=voucher_ids
+                ).values('id', 'total_taxable_value', 'total_cgst', 'total_sgst', 'total_igst')
+                for evr in exp_voucher_rows:
+                    vid = evr['id']
+                    if vid in voucher_meta_map and not voucher_meta_map[vid].get('gst_rate'):
+                        tx = float(evr.get('total_taxable_value') or 0)
+                        ig = float(evr.get('total_igst') or 0)
+                        cg = float(evr.get('total_cgst') or 0)
+                        sg = float(evr.get('total_sgst') or 0)
+                        tot_tax = ig if ig > 0 else (cg + sg)
+                        if tx > 0 and tot_tax > 0:
+                            voucher_meta_map[vid]['gst_rate'] = round((tot_tax / tx) * 100)
+
+                ref_ids = [vmeta.get('reference_id') for vmeta in voucher_meta_map.values() if vmeta.get('reference_id')]
+                if ref_ids:
+                    exp_voucher_ref_rows = VoucherExpense.objects.filter(
+                        tenant_id=tenant_id,
+                        id__in=ref_ids
+                    ).values('id', 'total_taxable_value', 'total_cgst', 'total_sgst', 'total_igst')
+                    exp_ref_map = {}
+                    for evr in exp_voucher_ref_rows:
+                        tx = float(evr.get('total_taxable_value') or 0)
+                        ig = float(evr.get('total_igst') or 0)
+                        cg = float(evr.get('total_cgst') or 0)
+                        sg = float(evr.get('total_sgst') or 0)
+                        tot_tax = ig if ig > 0 else (cg + sg)
+                        if tx > 0 and tot_tax > 0:
+                            exp_ref_map[evr['id']] = round((tot_tax / tx) * 100)
+                    
+                    for vid, vmeta in voucher_meta_map.items():
+                        if not vmeta.get('gst_rate'):
+                            ref_id = vmeta.get('reference_id')
+                            if ref_id in exp_ref_map:
+                                vmeta['gst_rate'] = exp_ref_map[ref_id]
+
+                exp_items_rows = ExpenseLineItem.objects.filter(
+                    tenant_id=tenant_id,
+                    expense_voucher_id__in=voucher_ids
+                ).values('expense_voucher_id', 'gst_rate', 'taxable_value', 'cgst', 'sgst', 'igst')
+                for eir in exp_items_rows:
+                    vid = eir['expense_voucher_id']
+                    if vid in voucher_meta_map and not voucher_meta_map[vid].get('gst_rate'):
+                        crate = float(eir.get('gst_rate') or 0)
+                        if crate > 0:
+                            voucher_meta_map[vid]['gst_rate'] = round(crate)
+                        else:
+                            tx = float(eir.get('taxable_value') or 0)
+                            ig = float(eir.get('igst') or 0)
+                            cg = float(eir.get('cgst') or 0)
+                            sg = float(eir.get('sgst') or 0)
+                            tot_tax = ig if ig > 0 else (cg + sg)
+                            if tx > 0 and tot_tax > 0:
+                                voucher_meta_map[vid]['gst_rate'] = round((tot_tax / tx) * 100)
+            except Exception:
+                pass
         purchase_payment_map = {}
         if voucher_ids:
             try:
@@ -523,7 +695,7 @@ class JournalEntryViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
             e_ref = getattr(e, 'reference_number', '') or ''
             vt_status = vendor_txn_status_map.get(vno) or vendor_txn_status_map.get(e_ref) or None
             ct_status = customer_txn_status_map.get(vno) or customer_txn_status_map.get(e_ref) or None
-            row = {'id': e.id, 'transaction_date': e.transaction_date, 'date': e.transaction_date, 'particulars': particulars, 'voucher_type': e.voucher_type, 'voucherType': e.voucher_type, 'voucher_number': e.voucher_number, 'voucherNo': e.voucher_number, 'debit': dr, 'credit': cr, 'balance': abs(running_balance), 'balance_type': balance_type, 'voucher_id': e.voucher_id, 'reference_number': getattr(e, 'reference_number', None), 'referenceNo': getattr(e, 'reference_number', None), 'allocation_status': dn_data.get('allocation_status') or getattr(e, 'allocation_status', 'Unutilized'), 'allocationStatus': dn_data.get('allocation_status') or getattr(e, 'allocation_status', 'Unutilized'), 'source': vsource, 'reference_id': ref_id, 'voucher_pk': vmeta.get('voucher_pk'), 'due_status': ct_status or vt_status or pv_data.get('due_status') or dn_data.get('due_status') or '', 'paid_amount': pv_data.get('paid_amount', pmt_data.get('paid_amount', 0)), 'total_amount': pv_data.get('total_amount', pmt_data.get('total_amount', 0)), 'is_advance': pmt_data.get('is_advance', False), 'reference_type': pmt_data.get('reference_type', ''), 'ledger_credit_period': credit_period}
+            row = {'id': e.id, 'transaction_date': e.transaction_date, 'date': e.transaction_date, 'particulars': particulars, 'voucher_type': e.voucher_type, 'voucherType': e.voucher_type, 'voucher_number': e.voucher_number, 'voucherNo': e.voucher_number, 'debit': dr, 'credit': cr, 'balance': abs(running_balance), 'balance_type': balance_type, 'voucher_id': e.voucher_id, 'reference_number': getattr(e, 'reference_number', None), 'referenceNo': getattr(e, 'reference_number', None), 'allocation_status': dn_data.get('allocation_status') or getattr(e, 'allocation_status', 'Unutilized'), 'allocationStatus': dn_data.get('allocation_status') or getattr(e, 'allocation_status', 'Unutilized'), 'source': vsource, 'reference_id': ref_id, 'voucher_pk': vmeta.get('voucher_pk'), 'gst_rate': vmeta.get('gst_rate'), 'gstRate': vmeta.get('gst_rate'), 'due_status': ct_status or vt_status or pv_data.get('due_status') or dn_data.get('due_status') or '', 'paid_amount': pv_data.get('paid_amount', pmt_data.get('paid_amount', 0)), 'total_amount': pv_data.get('total_amount', pmt_data.get('total_amount', 0)), 'is_advance': pmt_data.get('is_advance', False), 'reference_type': pmt_data.get('reference_type', ''), 'ledger_credit_period': credit_period}
             row['full_legs'] = full_legs_map.get(vid, [])
             if is_gst_ledger or is_tds_ledger:
                 components = supplementary_detail_map.get(vid, [])

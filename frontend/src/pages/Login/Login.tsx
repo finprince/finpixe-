@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { apiService } from '../../services';
 import Icon from '../../components/Icon';
 import FinpixeLogo from '../../assets/finpixe_with_empty_bg.png';
@@ -17,6 +17,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    const usernameRef = useRef<HTMLInputElement>(null);
+    const passwordRef = useRef<HTMLInputElement>(null);
 
     const [fieldErrors, setFieldErrors] = useState<{ email?: string; username?: string; password?: string }>({});
     const [error, setError] = useState('');
@@ -326,6 +329,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                             placeholder="branch@company.com"
                             value={branchEmail}
                             onChange={e => { setBranchEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    usernameRef.current?.focus();
+                                }
+                            }}
                             error={fieldErrors.email}
                             autoFocus
                         />
@@ -336,6 +345,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                             placeholder="Your username"
                             value={username}
                             onChange={e => { setUsername(e.target.value); setFieldErrors(p => ({ ...p, username: undefined })); }}
+                            ref={usernameRef}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    passwordRef.current?.focus();
+                                }
+                            }}
                             error={fieldErrors.username}
                         />
 
@@ -345,6 +361,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                             placeholder="••••••••"
                             value={password}
                             onChange={e => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })); }}
+                            ref={passwordRef}
                             error={fieldErrors.password}
                             rightIcon={
                                 <button
