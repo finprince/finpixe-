@@ -126,7 +126,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     activityLogs?: Array<{ id: string; user: string; action: string; timestamp: string }>;
     aiRecommendations?: Array<{ id: string; text: string; confidence?: number }>;
   }>({ isOpen: false, title: '', data: null });
-  const [isReadOnlyMode, setIsReadOnlyMode] = useState(!!viewVoucherData);
+  const [isReadOnlyMode, setIsReadOnlyMode] = useState((viewVoucherData as any)?.viewOnly === true);
   // Tracks whether we are viewing/editing an EXISTING voucher (stays true even after clicking Edit)
   const isExistingVoucherRef = useRef(!!viewVoucherData);
   const loadedVoucherIdRef = useRef<any>(null);
@@ -1081,39 +1081,39 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
     const grnMap: Record<string, { qty: number }> = {};
     grnItems.forEach((s: any) => {
-        const code = (s.item_code || s.item_name || '').trim();
-        const qty = parseFloat((s.secondary_qty || s.quantity || '0').toString());
-        if (code) {
-            if (!grnMap[code]) {
-                grnMap[code] = { qty: 0 };
-            }
-            grnMap[code].qty += qty;
+      const code = (s.item_code || s.item_name || '').trim();
+      const qty = parseFloat((s.secondary_qty || s.quantity || '0').toString());
+      if (code) {
+        if (!grnMap[code]) {
+          grnMap[code] = { qty: 0 };
         }
+        grnMap[code].qty += qty;
+      }
     });
 
     const gridMap: Record<string, { qty: number }> = {};
     activeItemRows.forEach((r: any) => {
-        const code = (r.itemCode || r.itemName || '').trim();
-        const qty = parseFloat((r.qty || '0').toString());
-        if (code) {
-            if (!gridMap[code]) {
-                gridMap[code] = { qty: 0 };
-            }
-            gridMap[code].qty += qty;
+      const code = (r.itemCode || r.itemName || '').trim();
+      const qty = parseFloat((r.qty || '0').toString());
+      if (code) {
+        if (!gridMap[code]) {
+          gridMap[code] = { qty: 0 };
         }
+        gridMap[code].qty += qty;
+      }
     });
 
     const grnKeys = Object.keys(grnMap);
-    
+
     for (const key of grnKeys) {
-        if (!gridMap[key]) {
-            setGrnMismatchError(`Item '${key}' from GRN is missing or not selected in Grid.`);
-            return false;
-        }
-        if (Math.abs(grnMap[key].qty - gridMap[key].qty) > 0.0001) {
-            setGrnMismatchError(`Quantity for item '${key}' (${gridMap[key].qty}) does not match GRN (${grnMap[key].qty}).`);
-            return false;
-        }
+      if (!gridMap[key]) {
+        setGrnMismatchError(`Item '${key}' from GRN is missing or not selected in Grid.`);
+        return false;
+      }
+      if (Math.abs(grnMap[key].qty - gridMap[key].qty) > 0.0001) {
+        setGrnMismatchError(`Quantity for item '${key}' (${gridMap[key].qty}) does not match GRN (${grnMap[key].qty}).`);
+        return false;
+      }
     }
     setGrnMismatchError('');
     return true;
@@ -5587,7 +5587,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     };
     const mappedType = typeMap[vType] || (vType ? vType.charAt(0).toUpperCase() + vType.slice(1) : 'Purchase');
     setVoucherType(mappedType);
-    setIsReadOnlyMode(true);
+    setIsReadOnlyMode((viewVoucherData as any)?.viewOnly === true);
     isExistingVoucherRef.current = true; // Mark: an existing voucher is being viewed/edited
     setDrillDownDetails(null);
 
@@ -6344,7 +6344,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     Date <span className="text-red-500">*</span>
                   </label>
                   <DateInput
-                    
+
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     max={getTodayDate()}
@@ -6492,7 +6492,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     Supplier Invoice Date <span className="text-red-500">*</span>
                   </label>
                   <DateInput
-                    
+
                     value={supplierInvoiceDate}
                     onChange={(e) => { setSupplierInvoiceDate(e.target.value); setGstr2bExpectedDate(null); }}
                     className={`w-full px-4 py-2 border rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 ${gstr2bExpectedDate ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`}
@@ -7574,12 +7574,12 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
                 {/* GRN Mismatch Error Banner */}
                 {grnMismatchError && (
-                    <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-300 rounded-[4px] text-red-700 text-sm font-medium">
-                        <svg className="w-5 h-5 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                        </svg>
-                        {grnMismatchError}
-                    </div>
+                  <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-300 rounded-[4px] text-red-700 text-sm font-medium">
+                    <svg className="w-5 h-5 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                    {grnMismatchError}
+                  </div>
                 )}
 
                 {/* Add Item Button Outside (Like Sales Voucher) */}
@@ -7907,7 +7907,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         Received Date
                       </label>
                       <DateInput
-                        
+
                         value={purchaseTransitReceiptDate}
                         onChange={(e) => setPurchaseTransitReceiptDate(e.target.value)}
                         max={getTodayDate()}
@@ -8079,7 +8079,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
                                 <DateInput
-                                  
+
                                   value={purchaseTransitUptoPortShippingBillDate}
                                   onChange={(e) => setPurchaseTransitUptoPortShippingBillDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8116,7 +8116,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
                                 <DateInput
-                                  
+
                                   value={purchaseTransitUptoPortBolDate}
                                   onChange={(e) => setPurchaseTransitUptoPortBolDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8195,7 +8195,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
                                 <DateInput
-                                  
+
                                   value={purchaseTransitUptoPortRrDate}
                                   onChange={(e) => setPurchaseTransitUptoPortRrDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8223,7 +8223,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
                                 <DateInput
-                                  
+
                                   value={purchaseTransitUptoPortBolDate}
                                   onChange={(e) => setPurchaseTransitUptoPortBolDate(e.target.value)}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500"
@@ -8401,7 +8401,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     return (
       <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div><label className="form-label">Date</label><DateInput  value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
+          <div><label className="form-label">Date</label><DateInput value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
           <div><label className="form-label">Invoice No.</label><input type="text" value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} className="form-input" /></div>
           <div><label className="form-label">Party</label><SearchableDropdown value={party} onChange={setParty} options={partyLedgers.map(l => l.name)} placeholder="Select Party" /></div>
         </div>
@@ -8495,7 +8495,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <DateInput
-                  
+
                   value={date}
                   max={getTodayDate()}
                   onChange={e => handleDateChange(e.target.value)}
@@ -8700,7 +8700,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                   <DateInput
-                    
+
                     value={date}
                     onChange={e => setDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -9170,7 +9170,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     DATE <span className="text-red-500">*</span>
                   </label>
                   <DateInput
-                    
+
                     value={cnDate}
                     onChange={(e) => setCnDate(e.target.value)}
                     max={getTodayDate()}
@@ -9500,7 +9500,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     CUSTOMER'S DEBIT NOTE DATE
                   </label>
                   <DateInput
-                    
+
                     value={cnCustomerDebitNoteDate}
                     onChange={(e) => setCnCustomerDebitNoteDate(e.target.value)}
                     max={getTodayDate()}
@@ -10738,7 +10738,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                       Received Date
                     </label>
                     <DateInput
-                      
+
                       value={cnTransitReceiptDate}
                       onChange={(e) => setCnTransitReceiptDate(e.target.value)}
                       max={getTodayDate()}
@@ -10907,7 +10907,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Bill Date</label>
                               <DateInput
-                                
+
                                 value={cnTransitUptoPortShippingBillDate}
                                 onChange={(e) => setCnTransitUptoPortShippingBillDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -10944,7 +10944,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
                               <DateInput
-                                
+
                                 value={cnTransitUptoPortBolDate}
                                 onChange={(e) => setCnTransitUptoPortBolDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -11023,7 +11023,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Railway Receipt Date</label>
                               <DateInput
-                                
+
                                 value={cnTransitUptoPortRrDate}
                                 onChange={(e) => setCnTransitUptoPortRrDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -11051,7 +11051,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Bill of Lading Date</label>
                               <DateInput
-                                
+
                                 value={cnTransitUptoPortBolDate}
                                 onChange={(e) => setCnTransitUptoPortBolDate(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -11278,7 +11278,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                   <DateInput
-                    
+
                     value={date}
                     onChange={e => setDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -11582,7 +11582,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         <tr className="border-b border-gray-100">
                           <td className="px-4 py-3">
                             <DateInput
-                              
+
                               value={date}
                               onChange={e => setDate(e.target.value)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -11702,7 +11702,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           <tr>
                             <td className="px-2 py-2">
                               <DateInput
-                                
+
                                 value={date}
                                 onChange={e => setDate(e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -11792,7 +11792,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                           <tr>
                             <td className="px-2 py-2">
                               <DateInput
-                                
+
                                 value={date}
                                 onChange={e => setDate(e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -11895,7 +11895,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
               <DateInput
-                 value={date}
+                value={date}
                 onChange={e => setDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -12241,7 +12241,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
     return (
       <div className="max-w-md mx-auto space-y-4">
-        <div><label className="form-label">Date</label><DateInput  value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
+        <div><label className="form-label">Date</label><DateInput value={date} onChange={e => setDate(e.target.value)} className="form-input" /></div>
         {type !== 'Contra' && <div><label className="form-label">Account (Cash/Bank)</label><SearchableDropdown value={account} onChange={setAccount} options={accountLedgers.map(l => l.name)} placeholder="Select Account" /></div>}
         {type === 'Contra' && <>
           <div><label className="form-label">From Account</label><SearchableDropdown value={fromAccount} onChange={setFromAccount} options={accountLedgers.map(l => l.name)} placeholder="Select From Account" /></div>
@@ -12474,7 +12474,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
             Date <span className="text-red-500">*</span>
           </label>
           <DateInput
-            
+
             value={date}
             max={getTodayDate()}
             onChange={e => setDate(e.target.value)}
@@ -12770,7 +12770,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
         <div>
           <label className="erp-label">Date</label>
           <DateInput
-            
+
             value={date}
             max={getTodayDate()}
             onChange={e => setDate(e.target.value)}
@@ -12975,17 +12975,23 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       return;
     }
 
+    const closedVoucherData = viewVoucherData || drillDownDetails?._rawEntry || navParams?.viewVoucher || navParams;
     setIsReadOnlyMode(false);
     setDrillDownDetails(null);
     if (clearViewVoucherData) clearViewVoucherData();
     if (onNavigate) {
-      if (viewVoucherData?.returnTo === 'GST' || (viewVoucherData?.source && (viewVoucherData.source.endsWith('_drilldown') || viewVoucherData.source.includes('gstr2') || viewVoucherData.source.includes('reco')))) {
-        let targetTab = viewVoucherData?.returnTab || 'GSTR1';
-        if (viewVoucherData?.source && viewVoucherData.source.includes('gstr2b_reco')) targetTab = 'GSTR2B_RECO';
-        else if (viewVoucherData?.source && viewVoucherData.source.includes('gstr2')) targetTab = 'GSTR2';
-        onNavigate('GST', { tab: targetTab });
-      } else if (viewVoucherData?.ledgerName) {
-        onNavigate('Reports', { reportType: 'LedgerReport', drillDownLedger: viewVoucherData.ledgerName });
+      if (closedVoucherData?.returnTo === 'GST' || (closedVoucherData?.source && (closedVoucherData.source.endsWith('_drilldown') || closedVoucherData.source.includes('gstr2') || closedVoucherData.source.includes('reco')))) {
+        let targetTab = closedVoucherData?.returnTab || 'GSTR1';
+        if (closedVoucherData?.source && (closedVoucherData.source.includes('gstr2b_reco') || closedVoucherData.source.includes('reco'))) targetTab = 'GSTR2B_RECO';
+        else if (closedVoucherData?.source && closedVoucherData.source.includes('gstr2')) targetTab = 'GSTR2';
+
+        const shouldReturnToBulkReview = closedVoucherData?.returnBulkReview || (sessionStorage.getItem('reco_bulk_review_open') === 'true');
+        onNavigate('GST', {
+          tab: targetTab,
+          returnBulkReview: shouldReturnToBulkReview
+        });
+      } else if (closedVoucherData?.ledgerName) {
+        onNavigate('Reports', { reportType: 'LedgerReport', drillDownLedger: closedVoucherData.ledgerName });
       } else {
         onNavigate('Reports', { reportType: 'DayBook' });
       }
@@ -13080,6 +13086,43 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 </div>
               );
             })()}
+
+            {!isReadOnlyMode && (isExistingVoucherRef.current || !!viewVoucherData || !!drillDownDetails) && (
+              <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-950 text-white p-4 rounded-xl flex flex-wrap justify-between items-center mb-6 shadow-md border border-indigo-700/50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center bg-white/15 backdrop-blur-md border border-white/25 rounded-lg shadow-inner">
+                    <Icon name="edit" className="w-5 h-5 text-indigo-200" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 rounded text-[11px] font-black tracking-wider uppercase">EDITING VOUCHER</span>
+                      <p className="font-bold text-base text-white">
+                        {drillDownDetails?._mappedType || voucherType} Voucher: {drillDownDetails?.voucher_number || drillDownDetails?.purchase_voucher_no || drillDownDetails?.supplier_invoice_no || viewVoucherData?.purchase_voucher_no || viewVoucherData?.voucherNo || viewVoucherData?.invoiceNo || ""}
+                      </p>
+                    </div>
+                    <p className="text-indigo-200 text-xs mt-0.5">Modify fields and click &quot;Update Voucher&quot; to save your changes to books.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    disabled={isSubmitting}
+                    onClick={() => handleSaveVoucher(false)}
+                    className={`flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-black text-sm shadow-md transition-all active:scale-95 cursor-pointer ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title="Update and save changes to this voucher"
+                  >
+                    <span>{isSubmitting ? 'Updating...' : '💾 Update Voucher'}</span>
+                  </button>
+                  <button
+                    onClick={handleCloseVoucher}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-indigo-100 px-4 py-2.5 rounded-lg font-bold text-sm border border-white/20 transition-all cursor-pointer"
+                    title="Cancel and close"
+                  >
+                    <Icon name="x" className="w-4 h-4" />
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
 
 
             {/* Main Tabs */}
@@ -13404,74 +13447,112 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                 )}
               </div>
 
-              {!isReadOnlyMode && (
+              {isReadOnlyMode ? (
+                <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-gradient-to-r from-indigo-50 to-slate-50 border border-indigo-200 rounded-xl mt-6 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                      🔒
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-indigo-950">Voucher in Read-Only Mode</p>
+                      <p className="text-xs text-slate-600">Click &quot;Edit Voucher&quot; to modify fields and save changes to your books.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setIsReadOnlyMode(false)}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Icon name="edit" className="w-4 h-4" />
+                      EDIT VOUCHER
+                    </button>
+                    <button
+                      onClick={handleCloseVoucher}
+                      className="flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm border border-slate-300 transition-all cursor-pointer"
+                    >
+                      <Icon name="x" className="w-4 h-4" />
+                      CLOSE
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <>
                   {voucherType === 'Purchase' && (
                     purchaseActiveTab !== 'transit' ? (
-                      <button
-                        onClick={() => {
-                          setShowPurchaseMismatches(true);
-                          const hasMismatch = purchaseItems.some(item => item.rateMismatch || item.qtyMismatch);
-                          if (hasMismatch) {
-                            showError("Please resolve Quantity or Rate mismatches before proceeding.");
-                            return;
-                          }
+                      <div className="flex items-center justify-start mt-6 pt-4 border-t border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPurchaseMismatches(true);
+                            const hasMismatch = purchaseItems.some(item => item.rateMismatch || item.qtyMismatch);
+                            if (hasMismatch) {
+                              showError("Please resolve Quantity or Rate mismatches before proceeding.");
+                              return;
+                            }
 
-                          if (purchaseActiveTab === 'supplier') {
-                            if (invoiceInForeignCurrency === 'Yes') setPurchaseActiveTab('supply_foreign');
-                            else setPurchaseActiveTab('supply');
-                          }
-                          else if (purchaseActiveTab === 'supply_foreign') setPurchaseActiveTab('supply_inr');
-                          else if (purchaseActiveTab === 'supply_inr') setPurchaseActiveTab('due');
-                          else if (purchaseActiveTab === 'supply') setPurchaseActiveTab('due');
-                          else if (purchaseActiveTab === 'due') setPurchaseActiveTab('transit');
-                        }}
-                        className="erp-button-primary"
-                      >
-                        Next
-                      </button>
+                            if (purchaseActiveTab === 'supplier') {
+                              if (invoiceInForeignCurrency === 'Yes') setPurchaseActiveTab('supply_foreign');
+                              else setPurchaseActiveTab('supply');
+                            }
+                            else if (purchaseActiveTab === 'supply_foreign') setPurchaseActiveTab('supply_inr');
+                            else if (purchaseActiveTab === 'supply_inr') setPurchaseActiveTab('due');
+                            else if (purchaseActiveTab === 'supply') setPurchaseActiveTab('due');
+                            else if (purchaseActiveTab === 'due') setPurchaseActiveTab('transit');
+                          }}
+                          className="erp-button-primary"
+                        >
+                          Next Tab →
+                        </button>
+                      </div>
                     ) : (
                       activeOcrFileHash ? (
                         <div className="flex space-x-3 mt-4">
-                          <button onClick={handleSaveChanges} className="erp-button-primary bg-indigo-600 hover:bg-indigo-700">Save Changes</button>
-                          <button onClick={resetForm} className="erp-button-secondary">Cancel</button>
+                          <button onClick={handleSaveChanges} className="erp-button-primary bg-indigo-600 hover:bg-indigo-700 font-bold cursor-pointer">
+                            Save Changes
+                          </button>
+                          <button onClick={handleCloseVoucher} className="erp-button-secondary font-semibold cursor-pointer">
+                            Cancel
+                          </button>
                         </div>
-                      ) : (
+                      ) : !(isExistingVoucherRef.current || !!viewVoucherData) ? (
                         <div className="flex space-x-3 mt-4">
                           <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
                           <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>
                           <button onClick={resetForm} className="erp-button-secondary">Cancel</button>
                         </div>
-                      )
+                      ) : null
                     )
                   )}
 
                   {voucherType === 'Credit Note' && (
                     creditNoteActiveTab !== 'transit' ? (
-                      <button
-                        onClick={() => {
-                          const creditTabs = cnInForeignCurrency === 'Yes'
-                            ? ['invoice', 'items_foreign', 'items_inr', 'due', 'transit']
-                            : ['invoice', 'items', 'due', 'transit'];
+                      <div className="flex items-center justify-start mt-6 pt-4 border-t border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const creditTabs = cnInForeignCurrency === 'Yes'
+                              ? ['invoice', 'items_foreign', 'items_inr', 'due', 'transit']
+                              : ['invoice', 'items', 'due', 'transit'];
 
-                          const idx = creditTabs.indexOf(creditNoteActiveTab);
-                          if (idx >= 0 && idx < creditTabs.length - 1) {
-                            setCreditNoteActiveTab(creditTabs[idx + 1] as any);
-                          }
-                        }}
-                        className="erp-button-primary"
-                      >
-                        Next
-                      </button>
-                    ) : (
+                            const idx = creditTabs.indexOf(creditNoteActiveTab);
+                            if (idx >= 0 && idx < creditTabs.length - 1) {
+                              setCreditNoteActiveTab(creditTabs[idx + 1] as any);
+                            }
+                          }}
+                          className="erp-button-primary"
+                        >
+                          Next Tab →
+                        </button>
+                      </div>
+                    ) : !(isExistingVoucherRef.current || !!viewVoucherData) ? (
                       <div className="flex space-x-3 mt-4">
                         <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
                         <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>
                       </div>
-                    )
+                    ) : null
                   )}
 
-                  {!['Sales', 'Payment', 'Receipt', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) && (
+                  {!['Sales', 'Payment', 'Receipt', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) && !(isExistingVoucherRef.current || !!viewVoucherData) && (
                     <div className="flex space-x-3 mt-4">
                       <button disabled={isSubmitting} onClick={() => handleSaveVoucher(false)} className={`erp-button-primary ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSubmitting ? 'Posting...' : 'Post & Close'}</button>
                       <button disabled={isSubmitting} onClick={() => handleSaveVoucher(true)} className={`erp-button-secondary border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>Post & Print/Email</button>

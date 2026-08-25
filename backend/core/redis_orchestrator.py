@@ -346,7 +346,8 @@ class RedisOrchestrator:
 
         def _set():
             key = f'session_terminal:{session_id}'
-            self.redis.hset(key, mapping={'status': status, 'reason': reason, 'timestamp': str(time.time())})
+            for k, v in {'status': status, 'reason': reason, 'timestamp': str(time.time())}.items():
+                self.redis.hset(key, k, str(v))
             self.redis.expire(key, 86400)
         return self._safe_exec(_set)
 

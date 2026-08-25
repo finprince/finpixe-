@@ -483,11 +483,16 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         from accounting.models_voucher_purchase import VoucherPurchaseSupplierDetails
         invoices_2b = GSTR2BInvoice.objects.all()
         if tenant_id:
-            vouchers_books = VoucherPurchaseSupplierDetails.objects.filter(tenant_id=tenant_id)
+            vouchers_books = VoucherPurchaseSupplierDetails.objects.filter(
+                Q(tenant_id=tenant_id) | Q(tenant_id='default-tenant') | Q(tenant_id__isnull=True) | Q(tenant_id='')
+            )
+            if not vouchers_books.exists():
+                vouchers_books = VoucherPurchaseSupplierDetails.objects.all()
         else:
             vouchers_books = VoucherPurchaseSupplierDetails.objects.all()
         total = invoices_2b.count()
         
+        matched_voucher_ids = set()
         for index, inv_2b in enumerate(invoices_2b):
             norm_gstin = self._normalize_gstin(inv_2b.gstin)
             norm_inv_no = self._normalize_inv_no(inv_2b.invoice_no)
@@ -513,6 +518,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                             break
 
             if candidate:
+                matched_voucher_ids.add(candidate.id)
                 # Candidate found: run complete 12-field validation
                 val_result = self._validate_invoice_against_voucher(inv_2b, candidate, month, year)
                 ReconciliationResult.objects.update_or_create(
@@ -551,6 +557,65 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             if job and total > 0 and index % 10 == 0:
                 job.progress = int((index / total) * 100)
                 job.save()
+
+        # Handle vouchers in books not present in 2B (MISSING_2B)
+        norm_period = self._normalize_reco_period(month, year)
+        for v in vouchers_books:
+            if v.id in matched_voucher_ids:
+                continue
+            
+            # If period filter is supplied, check voucher date alignment
+            if norm_period and v.date:
+                v_month = v.date.month
+                v_year = v.date.year
+                if (v_month, v_year) != norm_period:
+                    inv_d = v.supplier_invoice_date
+                    if not (inv_d and (inv_d.month, inv_d.year) == norm_period):
+                        continue
+
+            line_items = list(v.line_items.all())
+            items_val = sum(Decimal(str(item.invoice_value or item.taxable_value or (item.rate * item.quantity) or 0)) for item in line_items)
+            tx_val = sum(Decimal(str(item.taxable_value or 0)) for item in line_items)
+            igst_val = sum(Decimal(str(item.igst_amount or 0)) for item in line_items)
+            cgst_val = sum(Decimal(str(item.cgst_amount or 0)) for item in line_items)
+            sgst_val = sum(Decimal(str(item.sgst_amount or 0)) for item in line_items)
+            cess_val = sum(Decimal(str(item.cess_amount or 0)) for item in line_items)
+            if items_val == Decimal('0'):
+                items_val = Decimal(str(getattr(getattr(v, 'due_details', None), 'to_pay', 0) or 0))
+            raw_date = getattr(v, 'supplier_invoice_date', None) or getattr(v, 'date', None)
+            
+            ReconciliationResult.objects.update_or_create(
+                purchase_voucher_id=v.id,
+                invoice_2b=None,
+                defaults={
+                    'matching_score': 0,
+                    'status': 'MISSING_2B',
+                    'matching_details': {
+                        'status': 'MISSING_2B',
+                        'matching_score': 0,
+                        'mismatches': ['Missing in GSTR-2B (Supplier has not filed invoice)'],
+                        'itc_availment': 'NO',
+                        'itc_availability': 'NO',
+                        'books_data': {
+                            'purchase_voucher_id': v.id,
+                            'invoice_no': getattr(v, 'supplier_invoice_no', '') or getattr(v, 'purchase_voucher_no', ''),
+                            'invoice_date': str(raw_date) if raw_date else '',
+                            'invoice_value': float(items_val),
+                            'taxable_value': float(tx_val),
+                            'igst': float(igst_val),
+                            'cgst': float(cgst_val),
+                            'sgst': float(sgst_val),
+                            'cess': float(cess_val),
+                            'vendor_name': getattr(v, 'vendor_name', ''),
+                            'supplier_gstin': v.gstin or '',
+                            'gstr_period': f"{month} {year}",
+                            'reverse_charge': "Y" if (getattr(v, 'input_type', '') == 'RCM' or getattr(v, 'reverse_charge', None) == 'Y') else "N",
+                            'itc_availability': 'YES',
+                        },
+                        'fields': []
+                    }
+                }
+            )
 
     def _threaded_reconciliation(self, job_id, month, year, tenant_id=None):
         """Background worker for reconciliation."""
@@ -633,8 +698,9 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             details = r.matching_details or {}
             
             books_data = details.get('books_data')
-            if not books_data and r.purchase_voucher_id and r.purchase_voucher_id in voucher_map:
-                v = voucher_map[r.purchase_voucher_id]
+            v_ref = voucher_map.get(r.purchase_voucher_id) if r.purchase_voucher_id else None
+            if not books_data and v_ref:
+                v = v_ref
                 line_items = list(v.line_items.all())
                 items_val = sum((item.invoice_value or item.taxable_value or (item.rate * item.quantity)) for item in line_items)
                 tx_val = sum(item.taxable_value for item in line_items)
@@ -653,26 +719,44 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                     "sgst": float(sgst_val),
                     "vendor_name": getattr(v, 'vendor_name', ''),
                     "supplier_gstin": v.gstin or '',
+                    "gstr_period": f"{month} {year}",
+                    "reverse_charge": "Y" if (getattr(v, 'input_type', '') == 'RCM' or getattr(v, 'reverse_charge', None) == 'Y') else "N",
+                    "itc_availability": details.get('itc_availability', details.get('itc_availment', 'YES')),
                 }
 
-            raw_rcm = (inv.raw_data or {}).get('rchrg') or (inv.raw_data or {}).get('rev') or (inv.raw_data or {}).get('reverse_charge') or (inv.raw_data or {}).get('Reverse Charge') or 'N' if inv else 'N'
+            raw_rcm = (inv.raw_data or {}).get('rchrg') or (inv.raw_data or {}).get('rev') or (inv.raw_data or {}).get('reverse_charge') or (inv.raw_data or {}).get('Reverse Charge') or 'N' if inv else (books_data.get('reverse_charge', 'N') if books_data else 'N')
             rcm_str = 'Y' if str(raw_rcm).strip().upper() in ('Y', 'YES', 'TRUE', '1') else 'N'
+            inv_fp = (inv.raw_data or {}).get('fp') or (inv.raw_data or {}).get('period') or (inv.raw_data or {}).get('Filing Period') or (inv.raw_data or {}).get('gstr2b_period') or (inv.raw_data or {}).get('return_period') or f"{month} {year}" if inv else (books_data.get('gstr_period', f"{month} {year}") if books_data else f"{month} {year}")
+
+            # Resolve display values
+            disp_gstin = inv.gstin if inv else (books_data.get('supplier_gstin') if books_data else (v_ref.gstin if v_ref else ""))
+            disp_inv_no = inv.invoice_no if inv else (books_data.get('invoice_no') if books_data else (v_ref.supplier_invoice_no if v_ref else ""))
+            disp_inv_date = inv.invoice_date if inv else (books_data.get('invoice_date') if books_data else (str(v_ref.date) if v_ref and v_ref.date else ""))
+            disp_inv_val = float(inv.invoice_value) if inv else (float(books_data.get('invoice_value', 0)) if books_data else 0)
+            disp_tx_val = float(inv.taxable_value) if inv else (float(books_data.get('taxable_value', 0)) if books_data else 0)
+            disp_igst = float(inv.igst) if inv else (float(books_data.get('igst', 0)) if books_data else 0)
+            disp_cgst = float(inv.cgst) if inv else (float(books_data.get('cgst', 0)) if books_data else 0)
+            disp_sgst = float(inv.sgst) if inv else (float(books_data.get('sgst', 0)) if books_data else 0)
+            disp_cess = float(inv.cess) if inv else (float(books_data.get('cess', 0)) if books_data else 0)
+            disp_vendor = inv.vendor_name if inv else (books_data.get('vendor_name') if books_data else (v_ref.vendor_name if v_ref else ""))
 
             data.append({
                 "id": r.id,
                 "status": r.status,
-                "supplier_gstin": inv.gstin if inv else "",
-                "invoice_no": inv.invoice_no if inv else "",
-                "invoice_date": inv.invoice_date if inv else "",
-                "invoice_value": float(inv.invoice_value) if inv else 0,
-                "taxable_value": float(inv.taxable_value) if inv else 0,
-                "igst": float(inv.igst) if inv else 0,
-                "cgst": float(inv.cgst) if inv else 0,
-                "sgst": float(inv.sgst) if inv else 0,
-                "cess": float(inv.cess) if inv else 0,
+                "supplier_gstin": disp_gstin,
+                "invoice_no": disp_inv_no,
+                "invoice_date": str(disp_inv_date),
+                "invoice_value": disp_inv_val,
+                "taxable_value": disp_tx_val,
+                "igst": disp_igst,
+                "cgst": disp_cgst,
+                "sgst": disp_sgst,
+                "cess": disp_cess,
                 "reverse_charge": rcm_str,
                 "matching_score": r.matching_score,
-                "vendor_name": inv.vendor_name if inv else "",
+                "vendor_name": disp_vendor,
+                "gstr_period": inv_fp,
+                "raw_data": inv.raw_data if inv else {},
                 "matching_details": details,
                 "mismatches": details.get('mismatches', []),
                 "itc_availment": details.get('itc_availment', 'YES'),
