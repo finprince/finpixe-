@@ -1,0 +1,35 @@
+{
+  "session_id": "e2e_dup_1787581861019",
+  "job_id": 877,
+  "record_id": 1013205,
+  "counts_before": {
+    "BulkInvoiceJob": 848,
+    "InvoiceProcessingItem": 910,
+    "InvoiceTempOCR": 605,
+    "SessionFinalizationState": 139,
+    "InvoicePageResult": 660,
+    "FinalizedSnapshot": 1222,
+    "PendingPurchase": 103,
+    "VoucherPurchaseSupplierDetails": 100,
+    "VoucherPurchaseItem": 233
+  },
+  "counts_after": {
+    "BulkInvoiceJob": 849,
+    "InvoiceProcessingItem": 911,
+    "InvoiceTempOCR": 606,
+    "SessionFinalizationState": 140,
+    "InvoicePageResult": 661,
+    "FinalizedSnapshot": 1222,
+    "PendingPurchase": 103,
+    "VoucherPurchaseSupplierDetails": 100,
+    "VoucherPurchaseItem": 233
+  },
+  "record_state": {
+    "status": "EXTRACTING",
+    "validation_status": "PENDING",
+    "processed": false,
+    "supplier_invoice_no": null,
+    "gstin": null,
+    "extracted_data": null
+  }
+}

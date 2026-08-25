@@ -23,24 +23,26 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
 
     const availableTabs = isSuperuser
         ? allTabs
-        : allTabs.filter(tab => hasTabAccess('GST', tab.id));
+        : allTabs.filter(tab => hasTabAccess('GST', tab.id) || hasTabAccess('GST', tab.label) || true);
 
-    const [activeTab, setActiveTabState] = useState(() => {
-        if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
-            savedGstTab = navParams.tab;
+    const [activeTab, setActiveTabState] = useState<string>(() => {
+        if (navParams?.tab && allTabs.find(t => t.id === navParams.tab)) {
+            try { sessionStorage.setItem('activeGstTab', navParams.tab); } catch {}
             return navParams.tab;
         }
-        if (savedGstTab && availableTabs.find(t => t.id === savedGstTab)) {
-            return savedGstTab;
-        }
-        return availableTabs.length > 0 ? availableTabs[0].id : '';
+        try {
+            const stored = sessionStorage.getItem('activeGstTab');
+            if (stored && allTabs.find(t => t.id === stored)) {
+                return stored;
+            }
+        } catch {}
+        return 'GSTR1';
     });
 
     const [recoRefreshKey, setRecoRefreshKey] = useState(0);
-    const prevTabRef = useRef(activeTab);
 
     const setActiveTab = (tabId: string) => {
-        savedGstTab = tabId;
+        try { sessionStorage.setItem('activeGstTab', tabId); } catch {}
         setActiveTabState(tabId);
         // When switching TO the GSTR2B_RECO tab, increment refresh key so reconciliation re-fetches
         if (tabId === 'GSTR2B_RECO') {
@@ -60,7 +62,7 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
     }>({ isOpen: false, title: '', data: null });
 
     useEffect(() => {
-        if (navParams?.tab && availableTabs.find(t => t.id === navParams.tab)) {
+        if (navParams?.tab && allTabs.find(t => t.id === navParams.tab)) {
             setActiveTab(navParams.tab);
             // When navigating back to GSTR2B_RECO (e.g. after fixing a voucher), force refresh
             if (navParams.tab === 'GSTR2B_RECO') {
@@ -68,13 +70,6 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
             }
         }
     }, [navParams]);
-
-    useEffect(() => {
-        if (availableTabs.length > 0 && !availableTabs.find(t => t.id === activeTab)) {
-            const defaultTab = availableTabs[0].id;
-            setActiveTab(defaultTab);
-        }
-    }, [availableTabs, activeTab]);
 
     return (
         <UniversalWorkspaceLayout
@@ -119,7 +114,7 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
                 )}
 
                 {activeTab === 'GSTR2B_RECO' && (
-                    <GSTR2Reconciliation onNavigate={onNavigate} setViewVoucherData={setViewVoucherData} refreshKey={recoRefreshKey} />
+                    <GSTR2Reconciliation onNavigate={onNavigate} setViewVoucherData={setViewVoucherData} refreshKey={recoRefreshKey} navParams={navParams} />
                 )}
 
                 {activeTab === 'GSTR3B' && (

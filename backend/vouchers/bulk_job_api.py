@@ -44,7 +44,7 @@ class BulkUploadAPIView(APIView):
 
         tenant_id = getattr(request.user, 'branch_id', None) or getattr(request.user, 'tenant_id', None) or '88fe4389-58a9-4244-9878-8a4e646898bd'
         tenant_id = str(tenant_id)
-        received_session = request.data.get('upload_session_id')
+        received_session = request.data.get('upload_session_id') or request.data.get('session_id')
         
         logger.info(f"[PIPELINE_STAGE_ENTER] stage='UPLOAD' session_id='{received_session}' tenant_id='{tenant_id}' files={len(files)}")
         logger.info(f"[PIPELINE_MODE] mode='DISTRIBUTED_QUEUE' session_id='{received_session}'")

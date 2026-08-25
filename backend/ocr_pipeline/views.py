@@ -1314,15 +1314,21 @@ class OCRStagingCancelView(views.APIView):
         session_id = request.data.get('session_id')
         if not session_id:
             return Response({'error': 'session_id required'}, status=400)
-        from core.redis_orchestrator import orchestrator
-        from ocr_pipeline.models import OCRJob
+        from ocr_pipeline.models import OCRJob, OCRTask, InvoiceTempOCR
         logger.warning(f'[SESSION_CANCELLED] Cancelling session={session_id} tenant={tenant_id}')
         orchestrator.set_terminal_status(session_id, 'CANCELLED', reason='USER_CANCELLED')
         orchestrator.update_session_status(session_id, 'CANCELLED', progress=0.0, extra_data={'hydration_ready': True, 'fatal_error_verified': True})
-        from ocr_pipeline.models import OCRTask
-        job_ids = OCRTask.objects.filter(result__upload_session_id=session_id).values_list('job_id', flat=True).distinct()
-        OCRJob.objects.filter(id__in=job_ids).update(status='CANCELLED')
-        InvoiceTempOCR.objects.filter(upload_session_id=session_id).update(status='CANCELLED')
+        
+        temp_qs = InvoiceTempOCR.objects.filter(upload_session_id=session_id)
+        temp_ids = list(temp_qs.values_list('id', flat=True))
+        temp_qs.update(status='CANCELLED')
+
+        if temp_ids:
+            task_qs = OCRTask.objects.filter(result_id__in=temp_ids)
+            job_ids = list(task_qs.values_list('job_id', flat=True).distinct())
+            task_qs.update(status='FAILED', error_message='Session cancelled by user')
+            if job_ids:
+                OCRJob.objects.filter(id__in=job_ids).update(status='FAILED', is_cancelled=True)
         return Response({'success': True, 'message': 'Session terminally cancelled.'})
 
 class OCRStagingRescanView(views.APIView):

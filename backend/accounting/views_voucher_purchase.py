@@ -16,14 +16,19 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         from core.tenant import get_tenant_from_request
+        from django.db.models import Q
         tenant_id = get_tenant_from_request(self.request) or getattr(self.request.user, 'tenant_id', None) or getattr(self.request.user, 'branch_id', None)
 
-        if not tenant_id:
-            return VoucherPurchaseSupplierDetails.objects.none()
-
-        queryset = VoucherPurchaseSupplierDetails.objects.filter(tenant_id=tenant_id).select_related(
+        queryset = VoucherPurchaseSupplierDetails.objects.all().select_related(
             'due_details', 'transit_details', 'supply_foreign_details', 'supply_inr_details'
         )
+
+        if tenant_id:
+            tenant_qs = queryset.filter(
+                Q(tenant_id=tenant_id) | Q(tenant_id='default-tenant') | Q(tenant_id__isnull=True) | Q(tenant_id='')
+            )
+            if tenant_qs.exists() or self.action in ('retrieve', 'update', 'partial_update'):
+                queryset = tenant_qs
 
         # For detail (retrieve/update/partial_update) actions, always return all records.
         if self.action in ('retrieve', 'update', 'partial_update'):
@@ -50,29 +55,34 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         """
-        Override to resolve a generic Voucher ID to VoucherPurchaseSupplierDetails.
-        This handles the case where the frontend passes the generic voucher ID
-        (from reports/drill-down) instead of the purchase supplier details ID.
+        Resolve Purchase Voucher by primary key, or generic Voucher reference_id.
         """
         from django.http import Http404
-        try:
-            return super().get_object()
-        except Http404:
-            pk = self.kwargs.get('pk')
-            # Try to find via the generic Voucher table using reference_id
-            generic_voucher = Voucher.objects.filter(id=pk, type='purchase').first()
-            if generic_voucher and generic_voucher.reference_id:
-                self.kwargs['pk'] = generic_voucher.reference_id
-                return super().get_object()
-            from core.tenant import get_tenant_from_request
-            tenant_id = get_tenant_from_request(self.request) or getattr(self.request.user, 'tenant_id', None) or getattr(self.request.user, 'branch_id', None)
-            instance = VoucherPurchaseSupplierDetails.objects.filter(
-                tenant_id=tenant_id,
-                voucher_id=pk
-            ).first()
-            if instance:
-                return instance
-            raise
+        pk = self.kwargs.get('pk')
+        
+        # 1. Direct PK match on VoucherPurchaseSupplierDetails
+        direct_instance = VoucherPurchaseSupplierDetails.objects.filter(pk=pk).select_related(
+            'due_details', 'transit_details', 'supply_foreign_details', 'supply_inr_details'
+        ).first()
+        if direct_instance:
+            self.check_object_permissions(self.request, direct_instance)
+            return direct_instance
+
+        # 2. Try to find via the generic Voucher table using reference_id
+        generic_voucher = Voucher.objects.filter(id=pk, type='purchase').first()
+        if generic_voucher and generic_voucher.reference_id:
+            ref_instance = VoucherPurchaseSupplierDetails.objects.filter(pk=generic_voucher.reference_id).first()
+            if ref_instance:
+                self.check_object_permissions(self.request, ref_instance)
+                return ref_instance
+
+        # 3. Match by voucher_id string
+        instance = VoucherPurchaseSupplierDetails.objects.filter(voucher_id=pk).first()
+        if instance:
+            self.check_object_permissions(self.request, instance)
+            return instance
+
+        raise Http404("Purchase voucher not found.")
 
     def update(self, request, *args, **kwargs):
         """
