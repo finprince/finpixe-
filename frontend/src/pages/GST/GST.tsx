@@ -15,7 +15,7 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
 
     const allTabs = [
         { id: 'GSTR1', label: 'GSTR1 - Outward Supplies' },
-        { id: 'GSTR2', label: 'GSTR2 - Inward Supplies' },
+        { id: 'GSTR2', label: 'Inward Supplies' },
         { id: 'GSTR2B_RECO', label: 'GSTR-2B Reconciliation' },
         { id: 'GSTR3B', label: 'GSTR3B - Summary Return' },
         { id: 'LATE_FEES', label: '⚠ Late Fees & Notices' }

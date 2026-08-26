@@ -72,34 +72,64 @@ const ItemStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return <span className="bg-indigo-100 text-indigo-800 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Stock item not found</span>;
 };
 
-const VoucherStatusBadge: React.FC<{ status: string; onClick?: () => void }> = ({ status, onClick }) => {
-  const isNew = status === 'VOUCHER_STATUS_NEW' || status === 'NEED_TO_SAVE' || status === 'NEED TO SAVE';
-  const isExisting = status === 'VOUCHER_STATUS_EXISTING' || status === 'ALREADY_EXIST';
-  if (isNew) {
-    return (
-      <span
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (onClick && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault();
-            onClick();
-          }
-        }}
-        className={`bg-indigo-100 text-indigo-700 border border-indigo-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase transition-all select-none outline-none ${
-          onClick
-            ? 'cursor-pointer hover:bg-indigo-200 hover:text-indigo-800 hover:border-indigo-400 active:scale-95 shadow-sm hover:shadow'
-            : ''
-        }`}
-      >
-        Need to save
-      </span>
-    );
-  }
+// ── Derived Voucher Status helper ────────────────────────────────────────────
+// Consumes the EXISTING validation results (vendor_status/vendor_id, item_status,
+// getGstStatus) — the same values already used by isReadyToFinalize — and returns
+// a derived status string for display only.
+const getDerivedVoucherStatus = (purchase: any): string => {
+  // Reuse the exact same vendor/item/GST checks already used by isReadyToFinalize.
+  const vendorOk =
+    purchase.vendor_status === 'VENDOR_STATUS_EXISTING' ||
+    purchase.vendor_status === 'ALREADY_EXIST' ||
+    purchase.vendor_status === 'ALREADY EXIST' ||
+    purchase.vendor_status === 'EXISTS' ||
+    purchase.vendor_status === 'FOUND' ||
+    purchase.vendor_status === 'MATCHED' ||
+    purchase.vendor_status === 'RESOLVED' ||
+    !!purchase.vendor_id;
+  const itemOk =
+    purchase.item_status === 'ITEM_STATUS_EXISTING' ||
+    purchase.item_status === 'ALREADY_EXIST' ||
+    purchase.item_status === 'ALREADY EXIST';
+  const gstOk = getGstStatus(purchase) !== 'GST_MISMATCH';
+
+  const errors: number[] = [];
+  if (!vendorOk) errors.push(1);
+  if (!itemOk) errors.push(2);
+  if (!gstOk) errors.push(3);
+
+  if (errors.length === 0) return 'READY TO SAVE';
+  return errors.join(', ');
+};
+
+// Non-clickable static badge — edit action lives in the Action column.
+const VoucherStatusBadge: React.FC<{ purchase: any }> = ({ purchase }) => {
+  const rawStatus = purchase.voucher_status || '';
+  const isExisting = rawStatus === 'VOUCHER_STATUS_EXISTING' || rawStatus === 'ALREADY_EXIST';
+
+  // Duplicate/existing voucher — keep the original display unchanged.
   if (isExisting) {
     return <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Already added</span>;
   }
+
+  // Pending/new voucher — derive status from existing validation results.
+  const isNew = rawStatus === 'VOUCHER_STATUS_NEW' || rawStatus === 'NEED_TO_SAVE' || rawStatus === 'NEED TO SAVE';
+  if (isNew) {
+    const derivedLabel = getDerivedVoucherStatus(purchase);
+    const isReady = derivedLabel === 'READY TO SAVE';
+    return (
+      <span
+        className={`${
+          isReady
+            ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+            : 'bg-amber-50 text-amber-800 border border-amber-300'
+        } px-2 py-1 rounded inline-block text-[10px] font-bold uppercase select-none`}
+      >
+        {derivedLabel}
+      </span>
+    );
+  }
+
   return <span className="bg-gray-100 text-gray-500 border border-gray-200 px-2 py-1 rounded inline-block text-[10px] font-bold uppercase">Pending</span>;
 };
 
@@ -668,9 +698,9 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                   <th className="px-3 py-3 text-left">Branch</th>
                   <th className="px-3 py-3 text-right">Amount</th>
                   <th className="px-3 py-3 text-center">Voucher Status</th>
-                  <th className="px-3 py-3 text-center">Vendor Status</th>
-                  <th className="px-3 py-3 text-center">Item Status</th>
-                  <th className="px-3 py-3 text-center">GST Calculation in Invoice</th>
+                  <th className="px-3 py-3 text-center"><span className="inline-flex items-center gap-1"><span className="bg-amber-100 text-amber-700 border border-amber-300 rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px] font-black">1</span>Vendor Status</span></th>
+                  <th className="px-3 py-3 text-center"><span className="inline-flex items-center gap-1"><span className="bg-amber-100 text-amber-700 border border-amber-300 rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px] font-black">2</span>Item Status</span></th>
+                  <th className="px-3 py-3 text-center"><span className="inline-flex items-center gap-1"><span className="bg-amber-100 text-amber-700 border border-amber-300 rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px] font-black">3</span>GST Calculation in Invoice</span></th>
                   <th className="px-3 py-3 text-center">Action</th>
                 </tr>
               </thead>
@@ -761,13 +791,7 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
 
                           {/* Voucher Status */}
                           <td className="px-2 py-3 text-center">
-                            <VoucherStatusBadge 
-                              status={purchase.voucher_status} 
-                              onClick={purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW'
-                                ? () => openEditModal(purchase)
-                                : undefined
-                              }
-                            />
+                            <VoucherStatusBadge purchase={purchase} />
                           </td>
 
                           {/* Vendor Status */}
@@ -824,6 +848,17 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
                           {/* Actions */}
                           <td className="px-2 py-3 text-center">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              {/* Edit — opens edit modal, same as the previous VoucherStatus click */}
+                              {(purchase.voucher_status === 'NEED_TO_SAVE' || purchase.voucher_status === 'NEED TO SAVE' || purchase.voucher_status === 'VOUCHER_STATUS_NEW') && (
+                                <button
+                                  onClick={() => openEditModal(purchase)}
+                                  className="p-1.5 hover:bg-indigo-100 rounded text-indigo-500 hover:text-indigo-700 transition-colors"
+                                  title="Edit invoice"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </button>
+                              )}
+
                               {/* Revalidate */}
                               <button
                                 onClick={() => revalidatePurchase(purchase)}

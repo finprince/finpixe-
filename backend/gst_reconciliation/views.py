@@ -80,6 +80,54 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
 
         return Response({"message": "Upload complete", "created": created_count, "duplicates": duplicate_count})
 
+    def list_invoices(self, request):
+        """
+        Returns raw GSTR-2B government invoices filtered by month and year.
+        Used by the GSTR-2B sub-tab inside GSTR2 – Inward Supplies.
+        Does NOT touch reconciliation logic.
+
+        Query params:
+          month  – e.g. "August"
+          year   – e.g. "2026-27"
+        """
+        query_params = getattr(request, 'query_params', request.GET)
+        month_str = query_params.get('month', '')
+        year_str = query_params.get('year', '')
+
+        qs = GSTR2BInvoice.objects.all()
+
+        # Apply tenant filter when present
+        user = getattr(request, 'user', None)
+        tenant_id = getattr(user, 'tenant_id', None) if user else None
+
+
+        # Period filter
+        period = self._normalize_reco_period(month_str, year_str)
+        if period:
+            m_num, cal_yr = period
+            qs = qs.filter(invoice_date__month=m_num, invoice_date__year=cal_yr)
+
+        qs = qs.order_by('-invoice_date')
+
+        data = []
+        for inv in qs:
+            data.append({
+                'id': inv.id,
+                'gstin': inv.gstin,
+                'supplier_name': inv.vendor_name or '',
+                'invoice_no': inv.invoice_no,
+                'invoice_date': inv.invoice_date.isoformat() if inv.invoice_date else '',
+                'invoice_value': float(inv.invoice_value),
+                'taxable_value': float(inv.taxable_value),
+                'igst': float(inv.igst),
+                'cgst': float(inv.cgst),
+                'sgst': float(inv.sgst),
+                'cess': float(inv.cess),
+                'place_of_supply': inv.raw_data.get('place_of_supply', '') if isinstance(inv.raw_data, dict) else '',
+            })
+
+        return Response({'count': len(data), 'invoices': data})
+
     def _normalize_date(self, date_val):
         if not date_val:
             return timezone.now().date().isoformat()

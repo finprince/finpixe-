@@ -144,6 +144,34 @@ export const renderGstStatusBadge = (status: 'GST_VALID' | 'GST_MISMATCH') => {
 };
 
 /**
+ * Derived Voucher Status for the Purchase Upload Review table.
+ * Consumes the EXISTING vendor_status / vendor_id / item_status / getGstStatus
+ * results already present on each row — same conditions as isVendorRequired,
+ * isItemRequired and the GST filter — and returns the display label:
+ *   READY TO SAVE  — all validations resolved
+ *   1, 2, 3, 1\u00a02, 1\u00a03, 2\u00a03, 1\u00a02\u00a03  — unresolved error numbers
+ */
+const getDerivedVoucherStatusForScan = (row: ScanResult): string => {
+    // Vendor error: no vendor_id AND not in a resolved vendor status.
+    // Matches the exact condition used by isVendorRequired (line ~900).
+    const hasEffectiveVendorMatch = ['EXISTS', 'FOUND', 'MATCHED', 'RESOLVED'].includes(row.vendor_status || '');
+    const vendorOk = !!(row.vendor_id) || hasEffectiveVendorMatch;
+    // Item error: item is still in CREATE ITEM state.
+    // Matches the exact condition used by isItemRequired (line ~908).
+    const itemOk = row.item_status !== 'CREATE ITEM';
+    // GST error: reuses the existing getGstStatus helper.
+    const gstOk = getGstStatus(row) !== 'GST_MISMATCH';
+
+    const errors: number[] = [];
+    if (!vendorOk) errors.push(1);
+    if (!itemOk) errors.push(2);
+    if (!gstOk) errors.push(3);
+
+    if (errors.length === 0) return 'READY TO SAVE';
+    return errors.join(', ');
+};
+
+/**
  * Helper to get value from data object using various key aliases (snake_case, Display Name, etc.)
  */
 const getCellValue = (data: any, col: string): string => {
@@ -2782,9 +2810,9 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                     <th className="px-3 py-3 text-left">Branch</th>
                                                     <th className="px-3 py-3 text-right">Amount</th>
                                                     {showVoucherCol && <th className="px-3 py-3 text-center">Voucher Status</th>}
-                                                    {showVendorCol && <th className="px-3 py-3 text-center">Vendor Status</th>}
-                                                    {showItemCol && <th className="px-3 py-3 text-center">Item Status</th>}
-                                                    {showGstCol && <th className="px-3 py-3 text-center">GST Calculation in Invoice</th>}
+                                                    {showVendorCol && <th className="px-3 py-3 text-center"><span className="inline-flex items-center gap-1"><span className="bg-amber-100 text-amber-700 border border-amber-300 rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px] font-black">1</span>Vendor Status</span></th>}
+                                                    {showItemCol && <th className="px-3 py-3 text-center"><span className="inline-flex items-center gap-1"><span className="bg-amber-100 text-amber-700 border border-amber-300 rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px] font-black">2</span>Item Status</span></th>}
+                                                    {showGstCol && <th className="px-3 py-3 text-center"><span className="inline-flex items-center gap-1"><span className="bg-amber-100 text-amber-700 border border-amber-300 rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px] font-black">3</span>GST Calculation in Invoice</span></th>}
                                                     <th className="px-3 py-3 text-center">Action</th>
                                                 </tr>
                                             </thead>
@@ -2878,33 +2906,25 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                         ) : (row.validationStatus === "DUPLICATE" || row.validationStatus === "DUPLICATE_IN_BATCH") ? (
                                                                             <span className="bg-red-100 text-red-800 border border-red-300 px-2 py-1 rounded">Already added</span>
                                                                         ) : getGstStatus(row) === 'GST_MISMATCH' ? (
-                                                                            <button
-                                                                                onClick={() => setGstCorrectionRow(row)}
-                                                                                title="Review GST details"
-                                                                                className="bg-rose-600 text-white border border-rose-700 px-2 py-1 rounded hover:bg-rose-700 transition-colors cursor-pointer font-bold focus:outline-none inline-block shadow-sm"
-                                                                            >
-                                                                                Review GST Details
-                                                                            </button>
+                                                                            <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-1 rounded font-bold">Review Needed</span>
                                                                         ) : row.validationStatus === "EXTRACTION_FAILED" ? (
                                                                             <span className="bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded">Could not read invoice</span>
                                                                         ) : (
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    if (onEditRow) {
-                                                                                        onEditRow({
-                                                                                            ...row,
-                                                                                            uploadSessionId: uploadSessionId,
-                                                                                            file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
-                                                                                        });
-                                                                                    } else {
-                                                                                        showInfo("Editing is not available in standalone mode.");
-                                                                                    }
-                                                                                }}
-                                                                                title="Click to open voucher and save"
-                                                                                className="bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-1 rounded hover:bg-emerald-200 hover:text-emerald-900 transition-colors cursor-pointer font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 inline-block shadow-sm animate-pulse hover:animate-none"
-                                                                            >
-                                                                                💾 Need to Save
-                                                                            </button>
+                                                                            (() => {
+                                                                                const derivedLabel = getDerivedVoucherStatusForScan(row);
+                                                                                const isReady = derivedLabel === 'READY TO SAVE';
+                                                                                return (
+                                                                                    <span
+                                                                                        className={`${
+                                                                                            isReady
+                                                                                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                                                                                : 'bg-amber-50 text-amber-800 border border-amber-300'
+                                                                                        } px-2 py-1 rounded inline-block font-bold text-[10px] uppercase select-none`}
+                                                                                    >
+                                                                                        {derivedLabel}
+                                                                                    </span>
+                                                                                );
+                                                                            })()
                                                                         )}
                                                                     </td>
                                                                 )}
@@ -2977,6 +2997,21 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                                             pointerEvents: (['PENDING', 'processing', 'PROCESSING', 'SCANNING', 'EXTRACTING', 'scanning', 'resolving', 'validating'].includes(row.validationStatus)) ? 'none' : 'auto'
                                                                         }}
                                                                     >
+
+                                                                        {/* Edit button — opens the voucher edit modal */}
+                                                                        {onEditRow && !isOwnCompanyRow && !['VOUCHER_CREATED', 'DUPLICATE', 'DUPLICATE_IN_BATCH', 'EXTRACTION_FAILED'].includes(row.validationStatus) && (
+                                                                            <button
+                                                                                onClick={() => onEditRow({
+                                                                                    ...row,
+                                                                                    uploadSessionId: uploadSessionId,
+                                                                                    file_name: row.file_path?.split(/[\/]/).pop() || row.file_path || '',
+                                                                                })}
+                                                                                className="p-1 hover:bg-indigo-100 rounded text-indigo-400 hover:text-indigo-700 transition-colors"
+                                                                                title="Edit invoice"
+                                                                            >
+                                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                            </button>
+                                                                        )}
 
                                                                         {/* Revalidate button — triggers a fresh vendor check without opening edit modal.
                                                                          Always shown; the outer container dims it while the row is in-flight. */}
