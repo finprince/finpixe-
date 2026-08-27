@@ -100,6 +100,7 @@ import { useBankPartyOptions } from './useBankPartyOptions';
 import BankAllocationPanel, { AllocationState } from './BankAllocationPanel';
 import { useSubscriptionUsage } from '../../hooks/useSubscriptionUsage';
 import DateInput from '../../components/common/DateInput';
+import { getXLSX } from '../../utils/xlsx';
 
 interface StagedFile {
   id: number;
@@ -146,6 +147,57 @@ interface Ledger { id?: number; name: string; group?: string; category?: string;
 
 type Step = 'upload' | 'map';
 
+const cleanNarrationAndRef = (rawNarration: string, rawRefNo: string | null = null): { narration: string; ref_no: string | null } => {
+  if (!rawNarration) return { narration: '', ref_no: rawRefNo };
+  let s = rawNarration.trim();
+  const orig = s;
+  let ref_no = rawRefNo;
+
+  // 1. Strip leading date: e.g. "12/05/2025 UPI IN/..." -> "UPI IN/..."
+  s = s.replace(/^\s*(?:\d{1,2}[-/\.]\d{1,2}[-/\.](?:20\d{2}|\d{2})|\d{4}[-/\.]\d{1,2}[-/\.]\d{1,2})\s*[-/:]?\s*/, '').trim();
+
+  // 2. Strip leading header artifacts: e.g. "Date Tran Cheque Value Date Particulars Tran ID Type Details "
+  s = s.replace(/^\s*(?:Date\s+|Tran\s+|Cheque\s+|Value\s*Date\s+|Particulars\s+|Tran\s*ID\s+|Type\s+|Details\s+|Withdrawals?\s+|Deposits?\s+|Balance\s*)+\s*/i, '').trim();
+
+  // 3. Strip bank footer / address noise from narration:
+  s = s.replace(/(?:The\s+Federal\s+Bank\s+Ltd\.?|Corporate\s+Office|Federal\s+Towers|Market\s+Rd|Periyar\s+Nagar|Aluva|Kerala\s+\d{6}).*$/i, '').trim();
+  s = s.replace(/(?:Website\s*:\s*www\.[a-z0-9\.\-]+|Ph\s*:\s*\d+[\d\s\-/]*|Tel\s*:\s*\d+).*$/i, '').trim();
+  s = s.replace(/Page\s+\d+\s+of\s+\d+.*$/i, '').trim();
+
+  // 4. Extract Tran ID from the END of narration:
+  const m = s.match(/\b(S\d{6,12})\s*$/i);
+  if (m && m[1]) {
+    if (!ref_no || ref_no === '—' || ref_no === '-' || ref_no === 'null') {
+      ref_no = m[1];
+    }
+    s = s.substring(0, m.index).trim();
+    s = s.replace(/\s+(?:UPI|ATM|NEFT|RTGS|IMPS|CHQ|TRAN\s*ID|REF|TXN)\s*$/i, '').trim();
+  } else if (ref_no) {
+    const escapedRef = ref_no.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    s = s.replace(new RegExp(`(?:\\s+(?:UPI|ATM|NEFT|RTGS|IMPS|CHQ|TRAN\\s*ID|REF|TXN))?\\s+${escapedRef}\\s*$`, 'i'), '').trim();
+  }
+
+  s = s.replace(/\s+/g, ' ').trim();
+  if (!s && orig) {
+    s = orig;
+  }
+  return { narration: s, ref_no };
+};
+
+const formatDateDMY = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  const s = String(dateStr).trim();
+  if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
+    return s.replace(/\//g, '-');
+  }
+  const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) {
+    const [, y, mth, d] = m;
+    return `${d.padStart(2, '0')}-${mth.padStart(2, '0')}-${y}`;
+  }
+  return s;
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 interface BankUploadProps {
   ledgers?: Ledger[];
@@ -169,6 +221,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
   const [posting, setPosting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [postSuccess, setPostSuccess] = useState<string | null>(null);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(180);
 
   const [bankLedgerId, setBankLedgerId] = useState<number | null>(null);
@@ -203,8 +256,8 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
     if (uploading) {
       const file = fileRef.current?.files?.[0];
       const sizeMB = (file?.size || 0) / (1024 * 1024);
-      // Rough heuristic: 60s base + 60s per MB, capped between 2-8 mins
-      const estimate = Math.max(120, Math.min(480, Math.floor(60 + (sizeMB * 60))));
+      // Fast digital extraction estimate: 8s base + 6s per MB, capped at 30s
+      const estimate = Math.max(10, Math.min(30, Math.floor(8 + (sizeMB * 6))));
 
       setCountdownSeconds(estimate);
       timer = setInterval(() => {
@@ -324,7 +377,11 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
       });
 
       setSessionId(res.session_id);
-      const rows = res.rows || [];
+      const rawRows: StagingRow[] = res.rows || [];
+      const rows = rawRows.map(r => {
+        const cleaned = cleanNarrationAndRef(r.narration, r.ref_no);
+        return { ...r, narration: cleaned.narration, ref_no: cleaned.ref_no };
+      }).filter(r => r.narration && !r.narration.toLowerCase().startsWith('date tran cheque'));
       setAllRows(rows);
 
       // Restore displayed Date Range in Step 3 to the active extraction range
@@ -577,6 +634,114 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
     setRowVoucherNumbers({});
   };
 
+  const handleExportExcel = async () => {
+    const rowsToExport = filteredRows.length > 0 ? filteredRows : allRows;
+    if (!rowsToExport || rowsToExport.length === 0) {
+      setUploadError('No extracted transactions available to export.');
+      return;
+    }
+
+    setExportingExcel(true);
+    try {
+      const XLSX = await getXLSX();
+
+      const excelRows = rowsToExport.map(r => {
+        const isPayment = r.inferred_type === 'payment';
+        const debitAmt = isPayment
+          ? (r.debit ? Number(r.debit) : (r.amount ? Number(r.amount) : ''))
+          : (r.debit ? Number(r.debit) : '');
+        const creditAmt = !isPayment
+          ? (r.credit ? Number(r.credit) : (r.amount ? Number(r.amount) : ''))
+          : (r.credit ? Number(r.credit) : '');
+
+        const cleaned = cleanNarrationAndRef(r.narration || '', r.ref_no);
+
+        return {
+          'Date': formatDateDMY(r.date),
+          'Narration': cleaned.narration,
+          'Ref No': cleaned.ref_no || '',
+          'Debit': debitAmt !== '' ? debitAmt : '',
+          'Credit': creditAmt !== '' ? creditAmt : '',
+        };
+      }).filter(r => r.Narration && !r.Narration.toLowerCase().startsWith('date tran cheque'));
+
+      const ws = XLSX.utils.json_to_sheet(excelRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Extracted Transactions');
+
+      ws['!cols'] = [
+        { wch: 14 }, // Date
+        { wch: 45 }, // Narration
+        { wch: 22 }, // Ref No
+        { wch: 18 }, // Debit
+        { wch: 18 }, // Credit
+      ];
+
+      const cleanBankName = (bankLedgerName || 'Bank_Statement').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const dateStamp = new Date().toISOString().split('T')[0];
+      const filename = `Bank_Statement_Extracted_${cleanBankName}_${dateStamp}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+    } catch (err) {
+      console.error('Excel Export Error:', err);
+      setUploadError('Failed to generate Excel file.');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExportStagedFile = async (e: React.MouseEvent, file: StagedFile) => {
+    e.stopPropagation();
+    try {
+      const res = await httpClient.get<any>(`/api/bank-upload/staging/${file.id}/`);
+      const rawData = res.transaction_data;
+      const rows = Array.isArray(rawData) ? rawData : (rawData?.rows || []);
+
+      if (!rows || rows.length === 0) {
+        alert('No transaction data found for this file.');
+        return;
+      }
+
+      const XLSX = await getXLSX();
+      const excelRows = rows.map((r: any) => {
+        const isPayment = r.inferred_type === 'payment' || r.type === 'payment' || (Number(r.debit) > 0 && !Number(r.credit));
+        const debitAmt = isPayment
+          ? (r.debit ? Number(r.debit) : (r.amount ? Number(r.amount) : ''))
+          : (r.debit ? Number(r.debit) : '');
+        const creditAmt = !isPayment
+          ? (r.credit ? Number(r.credit) : (r.amount ? Number(r.amount) : ''))
+          : (r.credit ? Number(r.credit) : '');
+
+        const cleaned = cleanNarrationAndRef(r.narration || '', r.ref_no || r.cheque_no || null);
+
+        return {
+          'Date': formatDateDMY(r.date),
+          'Narration': cleaned.narration,
+          'Ref No': cleaned.ref_no || '',
+          'Debit': debitAmt !== '' ? debitAmt : '',
+          'Credit': creditAmt !== '' ? creditAmt : '',
+        };
+      }).filter((r: any) => r.Narration && !r.Narration.toLowerCase().startsWith('date tran cheque'));
+
+      const ws = XLSX.utils.json_to_sheet(excelRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Extracted Data');
+      ws['!cols'] = [
+        { wch: 14 }, // Date
+        { wch: 45 }, // Narration
+        { wch: 22 }, // Ref No
+        { wch: 18 }, // Debit
+        { wch: 18 }, // Credit
+      ];
+
+      const cleanFileName = file.file_name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      XLSX.writeFile(wb, `${cleanFileName}_Extracted.xlsx`);
+    } catch (err) {
+      console.error('Failed to export staged file Excel:', err);
+      alert('Failed to export Excel.');
+    }
+  };
+
   return (
     <div className="max-w-[1600px] mx-auto p-6">
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
@@ -693,12 +858,12 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                 <div className="flex flex-col items-center">
                   <span className="font-black animate-pulse">
                     {countdownSeconds > 1
-                      ? `Analyzing Statement... ${Math.floor(countdownSeconds / 60)}:${(countdownSeconds % 60).toString().padStart(2, '0')}`
-                      : "Still processing large document..."
+                      ? `Analyzing Statement... ${countdownSeconds}s`
+                      : "Finalizing extraction..."
                     }
                   </span>
                   <span className="text-[10px] opacity-70 font-bold uppercase tracking-wider mt-0.5">
-                    {countdownSeconds > 30 ? 'Estimated time remaining' : 'Finalizing extraction results...'}
+                    Extracting transactions with high speed
                   </span>
                 </div>
               ) : 'Upload & Extract'}
@@ -775,6 +940,13 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                     </div>
 
                     <div className="flex items-center gap-3">
+                      <button
+                        onClick={(e) => handleExportStagedFile(e, file)}
+                        className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                        title="Download Extracted Excel (.xlsx)"
+                      >
+                        <Icon name="file-spreadsheet" className="w-5 h-5" />
+                      </button>
                       <div className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${file.status === 'processed'
                           ? 'bg-emerald-600 text-white shadow-emerald-200'
                           : 'bg-indigo-600 text-white shadow-indigo-200'
@@ -811,7 +983,18 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                 <p className="text-indigo-100 text-sm font-medium opacity-80">{filteredRows.length} transactions extracted</p>
               </div>
             </div>
-            <button onClick={handleReset} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Icon name="close" className="w-6 h-6" /></button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleExportExcel}
+                disabled={exportingExcel}
+                className="px-4 py-2.5 bg-white text-indigo-600 hover:bg-indigo-50 font-black rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                title="Download extracted transactions as Excel (.xlsx)"
+              >
+                <Icon name={exportingExcel ? 'spinner' : 'file-spreadsheet'} className={`w-4 h-4 text-emerald-600 ${exportingExcel ? 'animate-spin' : ''}`} />
+                {exportingExcel ? 'Exporting...' : 'Download Excel'}
+              </button>
+              <button onClick={handleReset} className="p-2 hover:bg-white/10 rounded-full transition-colors" title="Close"><Icon name="close" className="w-6 h-6" /></button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-end justify-between gap-8">
@@ -838,6 +1021,15 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
               </div>
             </div>
             <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+              <button
+                onClick={handleExportExcel}
+                disabled={exportingExcel}
+                className="h-[56px] px-5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100/80 text-slate-700 hover:text-indigo-600 font-black text-xs uppercase tracking-wider flex items-center gap-2.5 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                title="Download extracted transactions as Excel (.xlsx)"
+              >
+                <Icon name={exportingExcel ? 'spinner' : 'file-spreadsheet'} className={`w-5 h-5 text-emerald-600 ${exportingExcel ? 'animate-spin' : ''}`} />
+                {exportingExcel ? 'Exporting...' : 'Download Excel'}
+              </button>
               <div className="px-6 py-2">
                 <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 text-center">SAVED ROWS</span>
                 <span className="block text-2xl font-black text-indigo-600 text-center">{mapped}</span>

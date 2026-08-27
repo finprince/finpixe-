@@ -589,6 +589,7 @@ def _parse_response(raw: str) -> list:
 
 def _process_extracted_rows(rows: list) -> list:
     """Standardize and clean extracted rows according to the Global Bank Statement rules."""
+    from .digital_pdf_extractor import _clean_transaction_narration
     result = []
     for row in rows:
         if not isinstance(row, dict):
@@ -597,10 +598,6 @@ def _process_extracted_rows(rows: list) -> list:
         if not row.get('narration') and not row.get('debit') and not row.get('credit'):
             continue
             
-        # Clean narration: remove line breaks and extra spaces, but keep all text and identifiers
-        narration = str(row.get('narration', '')).replace('\n', ' ').replace('\r', ' ')
-        narration = ' '.join(narration.split()).strip()
-
         raw_ref = row.get('ref_no') or row.get('cheque_no') or row.get('reference_number')
         clean_ref = ' '.join(str(raw_ref).split()).strip() if raw_ref else None
         if clean_ref in ('', 'None', 'null', 'NULL', '—', '-', 'N/A', 'NA'):
@@ -608,6 +605,12 @@ def _process_extracted_rows(rows: list) -> list:
 
         d_val = _clean_date(row.get('date', ''))
         vd_val = _clean_date(row.get('value_date', '')) or d_val
+
+        # Clean narration: remove line breaks, leading dates, header fragments, footer/address text, and extract ref_no/tran_id
+        narration, clean_ref = _clean_transaction_narration(row.get('narration', ''), d_val, clean_ref)
+
+        if not narration and not row.get('debit') and not row.get('credit'):
+            continue
 
         result.append({
             'date':             d_val,

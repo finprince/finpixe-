@@ -172,21 +172,21 @@ class BankUploadView(APIView):
         extract_from_date = _clean_date(raw_from_date) if raw_from_date else None
         extract_to_date = _clean_date(raw_to_date) if raw_to_date else None
 
-        # ── Step 0a: Duplicate Detection ──
+        # ── Step 0a: Duplicate Staging File Handling ──
         file_content = file_obj.read()
         file_obj.seek(0)
         file_hash = hashlib.md5(file_content).hexdigest()
 
-        if BankStatementStagingFile.objects.filter(
+        existing_staging = BankStatementStagingFile.objects.filter(
             tenant_id=tenant_id,
             file_name=file_obj.name,
             account_id=bank_ledger_id,
             file_hash=file_hash
-        ).exists():
-            return Response(
-                {'error': f"Duplicate upload detected: '{file_obj.name}' has already been uploaded for this account."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        ).first()
+        if existing_staging:
+            if existing_staging.session_id:
+                BankStatementTemp.objects.filter(session_id=existing_staging.session_id, tenant_id=tenant_id).delete()
+            existing_staging.delete()
 
         # ── Step 0b: Subscription Limit Check ──
         from accounting.utils_subscription import check_subscription_limit
@@ -504,6 +504,7 @@ class BankStagingProcessView(APIView):
             inferred_type = 'payment'
             amount        = Decimal('0')
 
+        clean_d = _clean_date(row.get('date'))
         narration = row.get('narration', '')
         ref_no = row.get('ref_no') or row.get('cheque_no') or row.get('reference_number')
         if ref_no:
@@ -513,7 +514,8 @@ class BankStagingProcessView(APIView):
         else:
             ref_no = None
 
-        clean_d = _clean_date(row.get('date'))
+        from .services.digital_pdf_extractor import _clean_transaction_narration
+        narration, ref_no = _clean_transaction_narration(narration, clean_d, ref_no)
         balance = row.get('balance')
 
         # Check against previously posted records in the database

@@ -42,7 +42,8 @@ SPLIT_YEAR_REGEX = re.compile(r'^\s*(20\d{2}|\d{2})\s*$')
 IGNORED_EXACT_HEADERS = {
     "post date", "value", "value date", "date", "details", "chq.no.", "debit", "credit", "balance",
     "particulars", "withdrawal", "withdrawals", "deposit", "deposits", "date particulars", "chq no", "chq.no",
-    "statement", "summary", "txn date", "description", "ref no./cheque", "ref no./cheque no.", "no."
+    "statement", "summary", "txn date", "description", "ref no./cheque", "ref no./cheque no.", "no.",
+    "tran id", "txn id", "tran type", "txn type", "type", "balance type", "cheque details"
 }
 
 IGNORED_SUBSTRINGS = (
@@ -58,18 +59,25 @@ IGNORED_SUBSTRINGS = (
     "unless the constituent notifies", "pending penal charges", "this is a computer generated",
     "transaction details", "account statement from", "cif no.", "ckycr number", "ifs code",
     "account description", "nomination registered", "balance as on", "interest rate",
-    "mod balance", "please do not share your atm"
+    "mod balance", "please do not share your atm",
+    # Bank corporate office, branch addresses, footers, website, phone
+    "the federal bank ltd", "corporate office", "federal towers", "market rd", "periyar nagar",
+    "aluwa, kerala", "aluwa", "kerala 683101", "website:www.federalbank", "federalbank.co.in", "federal.bank.in",
+    "toll free", "customer care", "page 1 of", "registered office", "head office",
 )
 
 COLUMN_HEADER_ALIASES = {
     'date': ['date', 'txn date', 'transaction date', 'post date', 'posting date'],
-    'narration': ['narration', 'description', 'particulars', 'details', 'transaction details', 'trans details'],
+    'narration': ['particulars', 'narration', 'description', 'details', 'transaction details', 'trans details'],
     'ref_no': [
+        'tran id', 'tran. id', 'transaction id', 'txn id', 'cheque details', 'chq details',
         'chq./ref.no.', 'chq/ref no.', 'chq.no.', 'cheque no', 'ref no', 'reference no',
         'chq no', 'ref no./cheque no.', 'chq./ref.no', 'chq/ref', 'chq. no.', 'ref. no.',
         'cheque number', 'reference number', 'chq/ref no', 'instrument no', 'instrument number',
+        'tran ref',
     ],
-    'value_date': ['value dt', 'value date', 'val date', 'value dt.', 'val dt', 'effective date'],
+    'value_date': ['value dt', 'value date', 'val date', 'value dt.', 'val dt', 'effective date', 'val. date'],
+    'tran_type': ['tran type', 'txn type', 'type', 'tran. type', 'trans type'],
     'debit': [
         'withdrawal amt.', 'withdrawal', 'withdrawals', 'debit', 'debit amt', 'debit amount',
         'withdrawal amt', 'dr amount', 'withdrawals(dr)', 'debit(dr)',
@@ -80,7 +88,7 @@ COLUMN_HEADER_ALIASES = {
     ],
     'balance': [
         'closing balance', 'balance', 'running balance', 'avl bal', 'available balance',
-        'clg bal', 'bal', 'closing bal', 'running bal',
+        'clg bal', 'bal', 'closing bal', 'running bal', 'balance type', 'bal type',
     ],
 }
 
@@ -96,7 +104,64 @@ COORDINATE_NOISE_PATTERNS = [
     'dr count', 'cr count', 'opening bal', 'closing bal',
     'debits', 'credits', 'disclaimer', 'unless the constituent',
     'pass sheet shall be deemed', 'beware of phishing', 'end of statement',
+    'the federal bank ltd', 'corporate office', 'federal towers', 'market rd', 'periyar nagar',
+    'aluwa', 'kerala 683101', 'website:www.federalbank', 'federalbank.co.in',
+    'page 1 of', 'page of', 'page no.',
 ]
+
+
+def _clean_transaction_narration(narration: str, txn_date: str = None, ref_no: str = None) -> tuple[str, str | None]:
+    """
+    Cleans up transaction narration by:
+    1. Removing leading date tokens (e.g. '12/05/2025 UPI IN/...' -> 'UPI IN/...').
+    2. Stripping header table keywords (e.g. 'Date Tran Cheque Value Date Particulars...').
+    3. Stripping bank footer / corporate office address / website / phone noise.
+    4. Extracting Tran ID (e.g. 'S12201947') into ref_no if present and cleaning it from narration.
+    """
+    if not narration:
+        return "", ref_no
+
+    s = " ".join(str(narration).split()).strip()
+    orig = s
+
+    # 1. Strip leading date if present: e.g. "12/05/2025 UPI IN/..." or "12-05-2025 ..."
+    s = re.sub(r'^\s*(?:\d{1,2}[-/\.]\d{1,2}[-/\.](?:20\d{2}|\d{2})|\d{4}[-/\.]\d{1,2}[-/\.]\d{1,2})\s*[-/:]?\s*', '', s).strip()
+
+    # 2. Strip leading header artifacts: e.g. "Date Tran Cheque Value Date Particulars Tran ID Type Details "
+    header_regex = r'^\s*(?:Date\s+|Tran\s+|Cheque\s+|Value\s*Date\s+|Particulars\s+|Tran\s*ID\s+|Type\s+|Details\s+|Withdrawals?\s+|Deposits?\s+|Balance\s*)+\s*'
+    s = re.sub(header_regex, '', s, flags=re.IGNORECASE).strip()
+
+    # 3. Strip bank footer / address noise from narration:
+    footer_patterns = [
+        r'(?:The\s+Federal\s+Bank\s+Ltd\.?|Corporate\s+Office|Federal\s+Towers|Market\s+Rd|Periyar\s+Nagar|Aluva|Kerala\s+\d{6}).*$',
+        r'(?:Website\s*:\s*www\.[a-z0-9\.\-]+|Ph\s*:\s*\d+[\d\s\-/]*|Tel\s*:\s*\d+).*$',
+        r'Page\s+\d+\s+of\s+\d+.*$',
+        r'This\s+is\s+a\s+computer\s+generated.*$',
+        r'Registered\s+Office\s*:.*$',
+        r'Head\s+Office\s*:.*$',
+        r'Branch\s+Office\s*:.*$',
+        r'Toll\s*Free\s*:.*$',
+        r'Customer\s*Care\s*:.*$',
+        r'Disclaimer\s*:.*$',
+    ]
+    for fp in footer_patterns:
+        s = re.sub(fp, '', s, flags=re.IGNORECASE).strip()
+
+    # 4. Extract Tran ID from the very END of narration if present: e.g. "... S12201947"
+    m_tran = re.search(r'\b(S\d{6,12})\s*$', s, re.IGNORECASE)
+    if m_tran:
+        if not ref_no or ref_no in ('', 'None', 'null', 'NULL', '—', '-', 'N/A', 'NA'):
+            ref_no = m_tran.group(1).strip()
+        s = s[:m_tran.start()].strip()
+        s = re.sub(r'\s+(?:UPI|ATM|NEFT|RTGS|IMPS|CHQ|TRAN\s*ID|REF|TXN)\s*$', '', s, flags=re.IGNORECASE).strip()
+    elif ref_no:
+        pattern = r'(?:\s+(?:UPI|ATM|NEFT|RTGS|IMPS|CHQ|TRAN\s*ID|REF|TXN))?\s+' + re.escape(ref_no) + r'\s*$'
+        s = re.sub(pattern, '', s, flags=re.IGNORECASE).strip()
+
+    s = re.sub(r'\s+', ' ', s).strip()
+    if not s and orig:
+        s = orig
+    return s, ref_no
 
 
 # ── Shared Helpers ──
@@ -242,12 +307,11 @@ def _extract_grid_tables(doc, metrics=None):
                         c_lower = str(col_name).lower().replace("\n", " ").strip()
                         if "txn date" in c_lower or (c_lower == "date" and "date" not in col_map):
                             col_map["date"] = c_idx
-                        elif "value date" in c_lower or "value" in c_lower:
+                        elif "value date" in c_lower or "val date" in c_lower or "value dt" in c_lower:
                             col_map["value_date"] = c_idx
-                        elif ("description" in c_lower or "particulars" in c_lower
-                              or "details" in c_lower or "narration" in c_lower):
+                        elif "particulars" in c_lower or "narration" in c_lower or "description" in c_lower or (c_lower == "details" and "narration" not in col_map):
                             col_map["narration"] = c_idx
-                        elif "ref" in c_lower or "cheque" in c_lower or "chq" in c_lower:
+                        elif "tran id" in c_lower or "txn id" in c_lower or "transaction id" in c_lower or "ref" in c_lower or "cheque" in c_lower or "chq" in c_lower:
                             col_map["ref_no"] = c_idx
                         elif "debit" in c_lower or "withdrawal" in c_lower:
                             col_map["debit"] = c_idx
@@ -270,6 +334,8 @@ def _extract_grid_tables(doc, metrics=None):
                 clean_ref = " ".join(str(raw_ref or "").split()).strip() or None
                 if clean_ref in ("", "None", "null", "NULL", "---", "-", "N/A", "NA"):
                     clean_ref = None
+
+                clean_narr, clean_ref = _clean_transaction_narration(clean_narr, clean_d, clean_ref)
                 raw_deb = row[col_map["debit"]] if "debit" in col_map and col_map["debit"] < len(row) else None
                 raw_cred = row[col_map["credit"]] if "credit" in col_map and col_map["credit"] < len(row) else None
                 raw_bal = row[col_map["balance"]] if "balance" in col_map and col_map["balance"] < len(row) else None
@@ -311,11 +377,22 @@ def _extract_grid_tables(doc, metrics=None):
     return None
 
 
-# ── Strategy 2: Coordinate-Based Column Extraction (HDFC, ICICI, Canara and similar) ──
+COLUMN_HEADER_ALIASES = {
+    'date': ['date', 'txn date', 'transaction date', 'post date', 'posting date'],
+    'narration': ['particulars', 'narration', 'description', 'details', 'transaction details', 'trans details'],
+    'ref_no': ['tran id', 'tran. id', 'transaction id', 'txn id', 'ref no', 'reference no', 'instrument no', 'tran ref'],
+    'chq_no': ['cheque details', 'chq details', 'cheque no', 'chq no', 'chq.no.', 'cheque', 'chq', 'chq./ref.no.', 'chq/ref no.'],
+    'value_date': ['value dt', 'value date', 'val date', 'value dt.', 'val dt', 'effective date', 'val. date'],
+    'tran_type': ['tran type', 'txn type', 'type', 'tran. type', 'trans type'],
+    'debit': ['withdrawal amt.', 'withdrawal', 'withdrawals', 'debit', 'debit amt', 'debit amount', 'dr amount', 'withdrawals(dr)', 'debit(dr)'],
+    'credit': ['deposit amt.', 'deposit', 'deposits', 'credit', 'credit amt', 'credit amount', 'cr amount', 'deposits(cr)', 'credit(cr)'],
+    'balance': ['closing balance', 'balance', 'running balance', 'avl bal', 'available balance', 'clg bal', 'bal', 'closing bal', 'running bal', 'balance type', 'bal type'],
+}
+
 
 def _classify_column_header(text):
     text_clean = text.strip()
-    if len(text_clean) > 30 or len(text_clean.split()) > 4:
+    if len(text_clean) > 35 or len(text_clean.split()) > 4:
         return None
     h = text_clean.lower().rstrip('.')
     for col, aliases in COLUMN_HEADER_ALIASES.items():
@@ -333,115 +410,266 @@ def _classify_column_header(text):
     return None
 
 
-def _detect_column_anchors(page):
+def _detect_dynamic_column_boundaries(doc):
     """
-    Scan page for column header keywords.
-    Returns (col_anchors dict {col: x0}, header_y float) or None.
+    Detects table columns and calculates dynamic horizontal boundary intervals [L_i, R_i]
+    for each column from the actual PDF geometry and body data clusters.
+    
+    Returns (boundaries dict {col: (x_left, x_right)}, header_y0 float, header_y1 float) or None.
     """
-    blocks = page.get_text("dict")["blocks"]
-    candidates = {}
-    for block in blocks:
-        if block.get("type") != 0:
-            continue
-        for line in block.get("lines", []):
-            for span in line.get("spans", []):
-                text = span['text'].strip()
-                if not text or len(text) < 2:
-                    continue
-                col = _classify_column_header(text)
-                if col and col not in candidates:
-                    candidates[col] = {'x0': span['bbox'][0], 'y0': span['bbox'][1]}
-    if len(candidates) < 4 or 'date' not in candidates:
+    best_headers = None
+    header_y0 = 0.0
+    header_y1 = 0.0
+    
+    # 1. Detect candidate header rows across pages by vertical band clustering & horizontal span merging
+    for page in doc:
+        blocks = page.get_text('dict')['blocks']
+        spans = []
+        for b in blocks:
+            if b.get('type') == 0:
+                for l in b['lines']:
+                    for s in l['spans']:
+                        t = s['text'].strip()
+                        if not t:
+                            continue
+                        spans.append({
+                            'text': t, 'x0': s['bbox'][0], 'x1': s['bbox'][2],
+                            'y0': s['bbox'][1], 'y1': s['bbox'][3]
+                        })
+
+        y_groups = defaultdict(list)
+        for s in spans:
+            y_key = round(s['y0'] / 25) * 25
+            y_groups[y_key].append(s)
+
+        for y_key, band_spans in y_groups.items():
+            band_spans.sort(key=lambda s: s['x0'])
+            clusters = []
+            for s in band_spans:
+                matched = False
+                for c in clusters:
+                    if not (s['x1'] < c['x0'] - 6 or s['x0'] > c['x1'] + 6):
+                        c['texts'].append((s['y0'], s['text']))
+                        c['x0'] = min(c['x0'], s['x0'])
+                        c['x1'] = max(c['x1'], s['x1'])
+                        c['y0'] = min(c['y0'], s['y0'])
+                        c['y1'] = max(c['y1'], s['y1'])
+                        matched = True
+                        break
+                if not matched:
+                    clusters.append({
+                        'texts': [(s['y0'], s['text'])],
+                        'x0': s['x0'], 'x1': s['x1'],
+                        'y0': s['y0'], 'y1': s['y1']
+                    })
+            
+            cands = []
+            for c in clusters:
+                sorted_texts = [t[1] for t in sorted(c['texts'], key=lambda x: x[0])]
+                full_header_text = ' '.join(sorted_texts)
+                col = _classify_column_header(full_header_text)
+                if col:
+                    cands.append({'col': col, 'text': full_header_text, 'x0': c['x0'], 'x1': c['x1'], 'y0': c['y0'], 'y1': c['y1']})
+            
+            cols = {c['col'] for c in cands}
+            if len(cols) >= 3 and 'date' in cols:
+                if best_headers is None or len(cols) > len({c['col'] for c in best_headers}):
+                    best_headers = cands
+                    header_y0 = min(c['y0'] for c in cands)
+                    header_y1 = max(c['y1'] for c in cands)
+        if best_headers and len({c['col'] for c in best_headers}) >= 5:
+            break
+
+    if not best_headers:
         return None
-    y_vals = [v['y0'] for v in candidates.values()]
-    y_mean = sum(y_vals) / len(y_vals)
-    if max(y_vals) - min(y_vals) > 12:
-        candidates = {col: info for col, info in candidates.items()
-                      if abs(info['y0'] - y_mean) <= 10}
-        if len(candidates) < 4 or 'date' not in candidates:
-            return None
-        y_mean = sum(v['y0'] for v in candidates.values()) / len(candidates)
-    col_anchors = {col: info['x0'] for col, info in candidates.items()}
-    return col_anchors, y_mean
+
+    # 2. Sort columns strictly by horizontal position and deduplicate
+    ordered_cols = []
+    seen = set()
+    for h in sorted(best_headers, key=lambda x: x['x0']):
+        c = h['col']
+        if c not in seen:
+            seen.add(c)
+            ordered_cols.append(h)
+
+    # 3. Profile body text data clusters (dates, amounts, IDs) across sample pages
+    data_clusters = defaultdict(lambda: {'x0_min': 9999.0, 'x1_max': 0.0, 'count': 0})
+    for p_idx in range(min(5, len(doc))):
+        blocks = doc[p_idx].get_text('dict')['blocks']
+        for b in blocks:
+            if b.get('type') == 0:
+                for l in b['lines']:
+                    for s in l['spans']:
+                        t = s['text'].strip()
+                        if not t or s['bbox'][1] <= header_y1 + 5:
+                            continue
+                        # Identify date clusters
+                        if re.match(r'^\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}$', t):
+                            date_headers = [h for h in ordered_cols if h['col'] in ('date', 'value_date')]
+                            if date_headers:
+                                closest = min(date_headers, key=lambda h: abs((h['x0'] + h['x1']) / 2.0 - (s['bbox'][0] + s['bbox'][2]) / 2.0))
+                                c = closest['col']
+                                data_clusters[c]['x0_min'] = min(data_clusters[c]['x0_min'], s['bbox'][0])
+                                data_clusters[c]['x1_max'] = max(data_clusters[c]['x1_max'], s['bbox'][2])
+                                data_clusters[c]['count'] += 1
+
+    # 4. Construct dynamic boundaries [left, right] based on observed empirical geometry
+    boundaries = {}
+    n = len(ordered_cols)
+    for i, col_info in enumerate(ordered_cols):
+        c_name = col_info['col']
+        
+        # Left boundary
+        if i == 0:
+            left_bound = 0.0
+        else:
+            prev_col = ordered_cols[i - 1]
+            prev_name = prev_col['col']
+            if prev_name in data_clusters and data_clusters[prev_name]['count'] > 0:
+                prev_right = max(prev_col['x1'], data_clusters[prev_name]['x1_max'])
+            else:
+                prev_right = prev_col['x1']
+            curr_left = col_info['x0']
+            if c_name == 'narration':
+                left_bound = prev_right + 2.0
+            elif prev_name == 'narration':
+                left_bound = curr_left - 8.0
+            else:
+                left_bound = (prev_right + curr_left) / 2.0
+
+        # Right boundary
+        if i == n - 1:
+            right_bound = 9999.0
+        else:
+            next_col = ordered_cols[i + 1]
+            next_name = next_col['col']
+            curr_right = col_info['x1']
+            if c_name in data_clusters and data_clusters[c_name]['count'] > 0:
+                curr_right = max(curr_right, data_clusters[c_name]['x1_max'])
+            next_left = next_col['x0']
+            if next_name == 'narration':
+                right_bound = curr_right + 2.0
+            elif c_name == 'narration':
+                right_bound = next_left - 8.0
+            else:
+                right_bound = (curr_right + next_left) / 2.0
+
+        boundaries[c_name] = (left_bound, right_bound)
+
+    return boundaries, header_y0, header_y1
 
 
-def _assign_span_column(x0, col_anchors):
+def _assign_span_to_dynamic_column(x0, x1, dynamic_boundaries):
     """
-    Assign a span's x0 position to a logical column.
+    Assigns a text span to a column based on geometric overlap and position within dynamic intervals.
     """
-    if not col_anchors:
+    if not dynamic_boundaries:
         return None
-    date_anchor = col_anchors.get('date', 0)
-    amount_anchors = [anc for col, anc in col_anchors.items() if col in ('ref_no', 'debit', 'credit', 'balance')]
-    first_amount_anchor = min(amount_anchors) if amount_anchors else 9999
-
-    if x0 <= date_anchor + 30:
-        return 'date'
-    if x0 < first_amount_anchor - 15:
-        return 'narration'
-
-    sorted_right = sorted(
-        [(col, anc) for col, anc in col_anchors.items() if col not in ('date', 'narration')],
-        key=lambda x: x[1]
-    )
+    
+    span_width = max(1.0, x1 - x0)
     best_col = None
-    for col, anchor in sorted_right:
-        if x0 >= anchor - 20:
-            best_col = col
-    return best_col
+    max_overlap = 0.0
+    
+    # 1. Primary check: geometric overlap with candidate column intervals
+    for col, (l_bound, r_bound) in dynamic_boundaries.items():
+        overlap_start = max(x0, l_bound)
+        overlap_end = min(x1, r_bound)
+        if overlap_end > overlap_start:
+            overlap = overlap_end - overlap_start
+            if overlap > max_overlap:
+                max_overlap = overlap
+                best_col = col
+
+    if best_col and (max_overlap / span_width) >= 0.25:
+        return best_col
+
+    # 2. Midpoint fallback if span lies on boundary or is single point
+    mid_x = (x0 + x1) / 2.0
+    for col, (l_bound, r_bound) in dynamic_boundaries.items():
+        if l_bound <= mid_x < r_bound:
+            return col
+
+    # 3. Clamping fallback
+    sorted_cols = sorted(dynamic_boundaries.items(), key=lambda item: item[1][0])
+    if sorted_cols:
+        if x0 < sorted_cols[0][1][0]:
+            return sorted_cols[0][0]
+        if x1 >= sorted_cols[-1][1][1]:
+            return sorted_cols[-1][0]
+
+    return None
 
 
 def _is_coord_noise(texts):
     combined = ' '.join(str(t) for t in texts if t).lower().strip()
-    return any(p in combined for p in COORDINATE_NOISE_PATTERNS)
+    if any(p in combined for p in [
+        'opening balance', 'brought forward', 'carried forward', 'b/f', 'c/f',
+        'statement summary', 'dr. count:', 'cr. count:', 'dr count', 'cr count',
+        'page total', 'grand total', '*** end', 'generated on', 'generated by',
+        'page 1 of', 'page of', 'statement of account for the period',
+        'the federal bank ltd. corporate office',
+    ]):
+        return True
+    return False
 
 
 def _parse_coord_date(s):
     if not s:
         return None
-    s = s.strip()
-    for fmt in ('%d/%m/%Y', '%d/%m/%y', '%d-%m-%Y', '%d-%m-%y', '%d.%m.%Y',
-                '%Y-%m-%d', '%d %b %Y', '%d-%b-%Y', '%d-%b-%y', '%d %B %Y'):
-        try:
-            return datetime.strptime(s, fmt).strftime('%Y-%m-%d')
-        except ValueError:
-            pass
-    return None
+    return _clean_date_cell(s)
 
 
 def _parse_coord_amount(s):
     if not s:
         return None
-    s = str(s).strip().replace(',', '')
-    try:
-        return float(s)
-    except ValueError:
-        return None
+    # Pick valid float amount from token list
+    tokens = str(s).strip().replace(',', '').split()
+    for tok in reversed(tokens):
+        try:
+            return float(tok)
+        except ValueError:
+            continue
+    return None
 
 
 def _extract_coordinate_transactions(doc, metrics=None):
     """
-    Strategy 2: Coordinate-based column extraction.
+    Strategy 2: Coordinate-based column extraction using dynamic layout geometry.
     """
-    col_anchors = None
-    header_y = None
-    for page_idx, page in enumerate(doc):
-        result = _detect_column_anchors(page)
-        if result:
-            col_anchors, header_y = result
-            logger.info(f"[COORD] Page {page_idx+1}: anchors={col_anchors} header_y={header_y:.1f}")
-            break
-    if not col_anchors:
+    dyn_result = _detect_dynamic_column_boundaries(doc)
+    if not dyn_result:
         return None
+    dynamic_boundaries, header_y0, header_y1 = dyn_result
+    logger.info(f"[DYNAMIC COORD] Detected Boundaries: {dynamic_boundaries}")
 
     all_spans = []
     for page_idx, page in enumerate(doc):
-        page_result = _detect_column_anchors(page)
-        page_header_y = page_result[1] if page_result else None
-        if page_result and len(page_result[0]) >= len(col_anchors):
-            col_anchors = page_result[0]
+        # Check if this specific page has its own repeated header row
+        page_dyn = _detect_dynamic_column_boundaries([page])
+        page_header_y1 = None
+        if page_dyn:
+            page_header_y1 = page_dyn[2]
+            if len(page_dyn[0]) >= len(dynamic_boundaries):
+                dynamic_boundaries = page_dyn[0]
+        elif page_idx == 0:
+            page_header_y1 = header_y1
 
+        # Detect footer elements on this page
+        page_footer_y = None
         blocks = page.get_text("dict")["blocks"]
+        for block in blocks:
+            if block.get("type") != 0:
+                continue
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    t = span['text'].strip().lower()
+                    if span['bbox'][1] > 650 and any(p in t for p in [
+                        'corporate office', 'federal towers', 'page 1 of', 'page of',
+                        'website:www.federalbank', 'aluwa, kerala 683101'
+                    ]):
+                        if page_footer_y is None or span['bbox'][1] < page_footer_y:
+                            page_footer_y = span['bbox'][1]
+
         for block in blocks:
             if block.get("type") != 0:
                 continue
@@ -451,11 +679,16 @@ def _extract_coordinate_transactions(doc, metrics=None):
                     if not text:
                         continue
                     x0, y0, x1, y1 = span['bbox']
-                    # Only filter top area if this page has a detected table header row
-                    if page_header_y and y0 <= page_header_y + 2:
+                    # 1. Filter out header zone if this page has a detected header
+                    if page_header_y1 and y1 <= page_header_y1 + 4:
                         continue
-                    col = _assign_span_column(x0, col_anchors)
-                    all_spans.append({'col': col, 'text': text, 'x0': x0, 'y0': y0, 'page': page_idx + 1})
+                    # 2. Filter out footer zone
+                    if page_footer_y and y0 >= page_footer_y - 2:
+                        continue
+
+                    col = _assign_span_to_dynamic_column(x0, x1, dynamic_boundaries)
+                    if col and col != 'tran_type':
+                        all_spans.append({'col': col, 'text': text, 'x0': x0, 'x1': x1, 'y0': y0, 'page': page_idx + 1})
 
     if not all_spans:
         return None
@@ -489,7 +722,7 @@ def _extract_coordinate_transactions(doc, metrics=None):
 
         date_parts = by_col.get('date', [])
         narr_parts = list(by_col.get('narration', []))
-        ref_parts = by_col.get('ref_no', [])
+        ref_parts = by_col.get('ref_no', []) + by_col.get('chq_no', [])
         vd_parts = by_col.get('value_date', [])
         deb_parts = by_col.get('debit', [])
         cred_parts = by_col.get('credit', [])
@@ -571,25 +804,26 @@ def _extract_coordinate_transactions(doc, metrics=None):
 
     canonical = []
     for txn in transactions:
-        narration = re.sub(r'\s+', ' ', ' '.join(p for p in txn['narration_parts'] if p)).strip()
-        ref_no = ''.join(p for p in txn['ref_parts'] if p).strip() or None
+        raw_narration = re.sub(r'\s+', ' ', ' '.join(p for p in txn['narration_parts'] if p)).strip()
+        raw_ref_no = ''.join(p for p in txn['ref_parts'] if p).strip() or None
         
-        # If ref_no was not in dedicated column, check for "Chq: <num>" or "Ref No: <num>"
-        if not ref_no:
-            m_chq = re.search(r'(?:^|\s)(?:chq|cheque|ref\s*no|reference\s*no|instrument\s*no)\s*:\s*([a-zA-Z0-9]+)', narration, re.IGNORECASE)
-            if m_chq:
-                ref_no = m_chq.group(1).strip()
-
+        clean_narration, clean_ref_no = _clean_transaction_narration(raw_narration, txn['date'], raw_ref_no)
+        
+        # If the cleaned narration is empty or is purely header artifact and amount is 0/phantom, skip
+        if not clean_narration and not txn['debit'] and not txn['credit']:
+            continue
+            
         balance = txn['balance']
         if balance is not None:
             balance = abs(balance)
         if txn['debit'] is None and txn['credit'] is None and balance is None:
             continue
+            
         canonical.append({
             "transaction_index": len(canonical) + 1,
             "date": txn['date'], "value_date": txn['value_date'],
-            "narration": narration, "ref_no": ref_no,
-            "ref_source": "REFERENCE_COLUMN" if ref_no else "NONE",
+            "narration": clean_narration, "ref_no": clean_ref_no,
+            "ref_source": "REFERENCE_COLUMN" if clean_ref_no else "NONE",
             "narration_source": "DETAILS_COLUMN",
             "debit": txn['debit'], "credit": txn['credit'],
             "balance": balance, "source_page": 0,
