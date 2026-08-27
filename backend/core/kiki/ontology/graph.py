@@ -12,7 +12,13 @@ class BusinessOntologyGraph:
     DOMAINS: Dict[str, Dict[str, Any]] = {
         "Sales": {
             "description": "Customer billing, sales vouchers, revenue entries, and receivables.",
-            "primary_tables": ["customer_masters_salesorder", "customer_master_customer_basicdetails", "advance_allocation"],
+            "primary_tables": [
+                "master_voucher_sales",
+                "voucher_sales_items",
+                "sales_invoices",
+                "vouchers",
+                "customer_master_customer_basicdetails"
+            ],
             "concepts": {
                 "Customer": {
                     "table": "customer_master_customer_basicdetails",
@@ -20,17 +26,22 @@ class BusinessOntologyGraph:
                     "primary_key": "id"
                 },
                 "SalesOrder": {
-                    "table": "customer_masters_salesorder",
-                    "aliases": ["sales", "sales invoice", "bill", "tax invoice", "sales order", "sales by month"]
+                    "table": "master_voucher_sales",
+                    "aliases": ["sales", "sales invoice", "bill", "tax invoice", "sales order", "sales by month", "revenue", "total sales"]
                 }
             }
         },
         "Purchase": {
             "description": "Vendor procurement, purchase vouchers, and payables.",
-            "primary_tables": ["vendor_master_vendorcreation_basicdetail", "advance_allocation"],
+            "primary_tables": [
+                "master_voucher_purchases",
+                "voucher_purchase_items",
+                "vouchers",
+                "vendor_master"
+            ],
             "concepts": {
                 "Vendor": {
-                    "table": "vendor_master_vendorcreation_basicdetail",
+                    "table": "vendor_master",
                     "aliases": ["vendor", "supplier", "seller", "top vendors"],
                     "primary_key": "id"
                 }

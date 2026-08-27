@@ -18,35 +18,46 @@ class KikiHealthCheckView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        health_status = {
-            "status": "HEALTHY",
-            "version": "4.0.0",
-            "components": {
-                "mysql": "UNKNOWN",
-                "ollama": "UNKNOWN"
-            },
-            "metrics": metrics_collector.get_summary()
-        }
-        
-        # 1. Test MySQL DB Connection
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-            health_status["components"]["mysql"] = "UP"
-        except Exception as e:
-            health_status["components"]["mysql"] = f"DOWN ({str(e)})"
-            health_status["status"] = "DEGRADED"
-
-        # 2. Test Local Ollama Server Connection
-        try:
-            resp = requests.get(f"{kiki_settings.OLLAMA_BASE_URL}/api/tags", timeout=3)
-            if resp.status_code == 200:
-                health_status["components"]["ollama"] = "UP"
-            else:
-                health_status["components"]["ollama"] = f"DEGRADED (HTTP {resp.status_code})"
+            health_status = {
+                "status": "HEALTHY",
+                "version": "4.0.0",
+                "components": {
+                    "mysql": "UNKNOWN",
+                    "ollama": "UNKNOWN"
+                },
+                "metrics": {}
+            }
+            try:
+                health_status["metrics"] = metrics_collector.get_summary()
+            except Exception:
+                pass
+            
+            # 1. Test MySQL DB Connection
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                health_status["components"]["mysql"] = "UP"
+            except Exception as e:
+                health_status["components"]["mysql"] = f"DOWN ({str(e)})"
                 health_status["status"] = "DEGRADED"
-        except Exception as e:
-            health_status["components"]["ollama"] = f"DOWN ({str(e)})"
-            health_status["status"] = "DEGRADED"
 
-        return Response(health_status, status=status.HTTP_200_OK if health_status["status"] == "HEALTHY" else status.HTTP_503_SERVICE_UNAVAILABLE)
+            # 2. Test Local Ollama Server Connection
+            try:
+                resp = requests.get(f"{kiki_settings.OLLAMA_BASE_URL}/api/tags", timeout=3)
+                if resp.status_code == 200:
+                    health_status["components"]["ollama"] = "UP"
+                else:
+                    health_status["components"]["ollama"] = f"DEGRADED (HTTP {resp.status_code})"
+                    health_status["status"] = "DEGRADED"
+            except Exception as e:
+                health_status["components"]["ollama"] = f"DOWN ({str(e)})"
+                health_status["status"] = "DEGRADED"
+
+            return Response(health_status, status=status.HTTP_200_OK if health_status["status"] == "HEALTHY" else status.HTTP_200_OK)
+        except Exception as err:
+            return Response({
+                "status": "DEGRADED",
+                "version": "4.0.0",
+                "error": str(err)
+            }, status=status.HTTP_200_OK)

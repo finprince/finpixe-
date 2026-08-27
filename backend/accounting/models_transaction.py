@@ -74,7 +74,7 @@ class TransactionFile(models.Model):
         indexes = [models.Index(fields=['tenant_id', 'ledger_name']), models.Index(fields=['tenant_id', 'is_active']), models.Index(fields=['ledger_code']), models.Index(fields=['nature'])]
 
     def __str__(self):
-        return f'{self.ledger_name} ({self.ledger_code or 'No Code'})'
+        return f"{self.ledger_name} ({self.ledger_code or 'No Code'})"
 
     def get_display_balance(self):
         """

@@ -184,7 +184,7 @@ class CustomerExcelUploadView(APIView):
                 header_index = match_headers(excel_headers, CUSTOMER_COLUMNS)
                 for col in CUSTOMER_COLUMNS:
                     if col['required'] and col['label'] not in header_index:
-                        return Response({'error': f'Missing required column: {col['label']}'}, status=400)
+                        return Response({'error': f"Missing required column: {col['label']}"}, status=400)
                 for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
                     if not any(row):
                         continue
@@ -380,11 +380,11 @@ class CustomerExcelUploadView(APIView):
                         if not customer:
                             is_new_customer = True
                             if not cust_code:
-                                cust_code = f'CUST-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}'
+                                cust_code = f"CUST-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
                             cat_name_val = row_data.get('Category', 'Regular')
                             cat, _ = CustomerMasterCategory.objects.get_or_create(tenant_id=tenant_id, category=cat_name_val, defaults={'is_active': True})
                             customer = CustomerMasterCustomerBasicDetails.objects.create(tenant_id=tenant_id, customer_name=row_data.get('Customer Name') or row_data.get('customer_name') or row_data.get('name') or row_data.get('Name'), customer_code=cust_code, pan_number=row_data.get('PAN Number'), contact_person=row_data.get('Contact Person'), email_address=row_data.get('Email Address') or row_data.get('email_address') or row_data.get('email_id') or row_data.get('email') or row_data.get('Email ID') or row_data.get('Email'), contact_number=row_data.get('Contact Number') or row_data.get('contact_number') or row_data.get('contact') or row_data.get('Contact No') or row_data.get('contact_no') or row_data.get('Phone') or row_data.get('phone'), billing_currency=row_data.get('Billing Currency', 'INR'), is_also_vendor=True if str(row_data.get('Is Also Vendor', '')).lower() in {'yes', 'true', '1'} else False, gst_tds_applicable=True if str(row_data.get('GST TDS Applicable', '')).lower() in {'yes', 'true', '1'} else False, customer_category=cat, created_by=username)
-                            ledger_code = f'CUST-LED-{getattr(customer, 'id', random.randint(1000, 9999))}'
+                            ledger_code = f"CUST-LED-{getattr(customer, 'id', random.randint(1000, 9999))}"
                             ledger = MasterLedger.objects.create(tenant_id=tenant_id, name=c_name, group='Sundry Debtors', code=ledger_code)
                             customer.ledger_id = ledger.id
                             customer.save(update_fields=['ledger_id'])
@@ -434,7 +434,7 @@ class CustomerExcelUploadView(APIView):
                     results['failed'] += 1
                     results['errors'].append({'message': f'Row {row_idx}: {str(row_err)}', 'row_data': row_data, 'row_index': row_idx})
                     logger.error(f'Error processing customer row {row_idx}: {row_err}')
-            return Response({'message': 'Preview complete' if dry_run else f'Processing complete. Success: {results['success']}, Failed: {results['failed']}', 'summary': results, 'is_preview': dry_run}, status=200)
+            return Response({'message': 'Preview complete' if dry_run else f"Processing complete. Success: {results['success']}, Failed: {results['failed']}", 'summary': results, 'is_preview': dry_run}, status=200)
         except Exception as e:
             logger.error(f'Customer Excel upload failed: {e}', exc_info=True)
             return Response({'error': f'Internal error: {str(e)}'}, status=500)

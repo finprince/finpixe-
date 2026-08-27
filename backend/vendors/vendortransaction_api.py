@@ -74,7 +74,7 @@ class VendorTransactionViewSet(viewsets.ModelViewSet):
             match = re.search('(\\d+)', str(vendor_id))
             if match:
                 vendor_id = match.group(1)
-                logger.info(f'Extracted numeric vendor_id {vendor_id} from {request.query_params.get('vendor_id')}')
+                logger.info(f"Extracted numeric vendor_id {vendor_id} from {request.query_params.get('vendor_id')}")
             else:
                 logger.warning(f'Invalid non-numeric vendor_id: {vendor_id}')
                 return Response([])

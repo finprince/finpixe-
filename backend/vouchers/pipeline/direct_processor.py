@@ -45,7 +45,7 @@ def worker(item_id, job_id, voucher_type, upload_session_id, tenant_id):
             final_status = res.get('validation_status', 'VALIDATION_FAILED')
             is_failed = res.get('status') == 'FAILED' or final_status in {'ERROR', 'VALIDATION_FAILED'}
             if is_failed and ('429' in str(res.get('error', '')) or res.get('code') == 'RATE_LIMIT'):
-                raise Exception(f'AI Rate Limit: {res.get('error')}')
+                raise Exception(f"AI Rate Limit: {res.get('error')}")
             redis_client.get_client().delete(task_lock_key)
             return {'item_id': item_id, 'status': 'failed' if is_failed else 'success', 'result_json': res.get('data') or {}, 'error_message': res.get('error') if is_failed else None}
         except Exception as e:
@@ -82,7 +82,7 @@ def process_bulk_job(job_id: int, voucher_type: str='Purchase'):
                     results.append(res)
                     with transaction.atomic():
                         InvoiceProcessingItem.objects.filter(id=res['item_id']).update(status=res['status'], result_json=res.get('result_json', {}), error_message=res.get('error_message'), updated_at=time.time())
-                    logger.info(f'Job {job_id}: Item {res['item_id']} {res['status']}. Progress {len(results)}/{len(item_ids)}')
+                    logger.info(f"Job {job_id}: Item {res['item_id']} {res['status']}. Progress {len(results)}/{len(item_ids)}")
                 except Exception as fe:
                     logger.error(f'Future error in Job {job_id}: {fe}')
         job.status = 'completed'

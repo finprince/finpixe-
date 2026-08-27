@@ -273,7 +273,7 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
                 old_advances = {}
                 for old_item in AdvanceAllocation.objects.filter(transaction=instance):
                     if old_item.gst_registered == 'Yes':
-                        key = f'{old_item.advance_ref_no or 'ADVANCE'}'
+                        key = f"{old_item.advance_ref_no or 'ADVANCE'}"
                         snapshot = old_item.original_voucher_snapshot
                         if not snapshot:
                             snapshot = {'original_month': instance.date.strftime('%B') if instance.date else '', 'original_year': instance.date.year if instance.date else '', 'original_amount': str(old_item.amount), 'original_rate': str(old_item.gst_rate) if old_item.gst_rate else ''}
@@ -302,7 +302,7 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
                         item_data['is_advance'] = True
                         if not item_data.get('advance_ref_no'):
                             item_data['advance_ref_no'] = item_data.get('reference_id') or 'ADVANCE'
-                        adv_key = f'{item_data.get('advance_ref_no', '')}'
+                        adv_key = f"{item_data.get('advance_ref_no', '')}"
                         if adv_key in old_advances:
                             item_data.update(old_advances[adv_key])
                     target_model.objects.create(tenant_id=instance.tenant_id, transaction=instance, ledger_id_val=i_l_id, party_customer_id=i_c_id, party_vendor_id=i_v_id, pay_from_ledger=customer_ledger, pay_to_ledger=instance.pay_to_ledger, vouch_amount=instance.vouch_amount, amount=amt, **item_data)

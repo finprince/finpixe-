@@ -26,6 +26,7 @@ interface GlobalFilters {
     dateRange: string | null;
     customer: string | null;
     vendor: string | null;
+    searchQuery: string | null;
 }
 
 interface DashboardStore {
@@ -50,6 +51,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         dateRange: null,
         customer: null,
         vendor: null,
+        searchQuery: null,
     },
     datasetSchema: {
         'Sales': ['Date', 'Customer', 'Product', 'City', 'Amount', 'Quantity'],

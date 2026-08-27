@@ -91,7 +91,7 @@ class MasterLedger(BaseModel):
         unique_together = ('name', 'tenant_id')
 
     def __str__(self):
-        return f'{self.name or '-'} ({self.group})'
+        return f"{self.name or '-'} ({self.group})"
 
     @property
     def ledger_type(self):

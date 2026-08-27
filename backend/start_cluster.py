@@ -94,11 +94,17 @@ def validate_dependencies():
     try:
         from core.ai_proxy import validate_ai_on_startup
         if not validate_ai_on_startup():
-            logger.critical("[DEPENDENCY_FAILED] AI Provider endpoint validation failed.")
-            return False
+            if _CLUSTER_ENV == 'local':
+                logger.warning("[DEPENDENCY_WARNING] AI Provider endpoint validation failed — running in LOCAL mode, continuing without AI.")
+            else:
+                logger.critical("[DEPENDENCY_FAILED] AI Provider endpoint validation failed.")
+                return False
     except Exception as e:
-        logger.error(f"[DEPENDENCY_FAILED] AI validation check failed: {e}")
-        return False
+        if _CLUSTER_ENV == 'local':
+            logger.warning(f"[DEPENDENCY_WARNING] AI validation check failed: {e} — running in LOCAL mode, continuing.")
+        else:
+            logger.error(f"[DEPENDENCY_FAILED] AI validation check failed: {e}")
+            return False
 
     logger.info("[CLUSTER_PRECHECK_SUCCESS] All dependencies satisfied.")
     return True

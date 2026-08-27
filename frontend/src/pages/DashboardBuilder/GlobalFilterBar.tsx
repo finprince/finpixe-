@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, X, Calendar, User, Users, RotateCcw, ChevronDown, Check } from 'lucide-react';
+import { Filter, X, Calendar, User, Users, RotateCcw, ChevronDown, Check, Search } from 'lucide-react';
 import { useDashboardStore } from '../../store/dashboardStore';
 
 interface GlobalFilterBarProps {
@@ -16,13 +16,15 @@ const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({ customers, vendors })
             dateRange: null,
             customer: null,
             vendor: null,
+            searchQuery: null,
         });
     };
 
     const activeFiltersCount = [
         globalFilters.dateRange,
         globalFilters.customer,
-        globalFilters.vendor
+        globalFilters.vendor,
+        globalFilters.searchQuery
     ].filter(Boolean).length;
 
     const toggleDropdown = (id: string) => {
@@ -42,7 +44,7 @@ const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({ customers, vendors })
 
     return (
         <div className="bg-white border-b border-slate-200 px-6 py-2.5 flex items-center justify-between z-[60] shadow-sm">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 flex-1">
                 <div className="flex items-center gap-2.5 px-3 py-1 bg-slate-100 rounded-lg">
                     <Filter size={12} className="text-slate-500" strokeWidth={2.5} />
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Global Filters</span>
@@ -50,6 +52,26 @@ const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({ customers, vendors })
                         <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black animate-in zoom-in duration-300">
                             {activeFiltersCount}
                         </span>
+                    )}
+                </div>
+
+                {/* Text Box Search Filter Slicer */}
+                <div className="relative min-w-[240px] flex-1 max-w-sm">
+                    <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" strokeWidth={2.5} />
+                    <input
+                        type="text"
+                        placeholder="Text Box Filter (e.g. Bharat, Infosys, Dell)..."
+                        value={globalFilters.searchQuery || ''}
+                        onChange={(e) => setGlobalFilters({ searchQuery: e.target.value || null })}
+                        className={`w-full pl-9 pr-8 py-1.5 bg-slate-50 border-2 rounded-xl text-xs font-bold text-slate-700 outline-none transition-all ${globalFilters.searchQuery ? 'border-indigo-500 bg-indigo-50/40 text-indigo-900 shadow-sm' : 'border-slate-100 focus:border-indigo-500'}`}
+                    />
+                    {globalFilters.searchQuery && (
+                        <button
+                            onClick={() => setGlobalFilters({ searchQuery: null })}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition-colors"
+                        >
+                            <X size={12} strokeWidth={3} />
+                        </button>
                     )}
                 </div>
 

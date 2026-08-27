@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -308,45 +308,178 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget, data }) => {
             case 'kpi':
                 return renderKPI();
             default:
-                return null;
+                return (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data} onClick={handleChartClick}>
+                            {widget.properties.showGridlines && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />}
+                            <XAxis dataKey={widget.xField} fontSize={9} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontWeight: 700 }} dy={10} />
+                            <YAxis fontSize={9} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontWeight: 700 }} tickFormatter={formatAxisValue} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+                            <Bar dataKey={widget.yField || 'Amount'} fill={chartColor} radius={[4, 4, 0, 0]} barSize={32} animationDuration={1500} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                );
         }
     };
 
+    const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+    const [titleInput, setTitleInput] = React.useState(widget.title);
+    const [isFocusMode, setIsFocusMode] = React.useState(false);
+    const { updateWidget } = useDashboardStore();
+
+    const handleTitleSave = () => {
+        setIsEditingTitle(false);
+        if (titleInput.trim()) {
+            updateWidget(widget.id, { title: titleInput.trim() });
+        }
+    };
+
+    const handleExportCSV = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const headers = listHeaders();
+        const csvRows = [headers.join(',')];
+        data.forEach(row => {
+            const vals = headers.map(h => `"${row[h] !== undefined ? row[h] : ''}"`);
+            csvRows.push(vals.join(','));
+        });
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${widget.title.toLowerCase().replace(/\s+/g, '_')}_data.csv`;
+        a.click();
+        showSuccess(`Exported ${widget.title} data to CSV`);
+    };
+
+    const listHeaders = () => {
+        if (!data || data.length === 0) return ['Name', 'Value'];
+        return Object.keys(data[0]);
+    };
+
     return (
-        <div
-            onClick={(e) => {
-                e.stopPropagation();
-                selectWidget(widget.id);
-            }}
-            className={`w-full h-full bg-white flex flex-col group transition-all duration-500 rounded-2xl ${isSelected ? 'shadow-[0_25px_60px_rgba(17,141,255,0.2)] ring-2 ring-indigo-600' : 'shadow-sm border border-slate-100 hover:border-slate-300'} cursor-pointer`}
-        >
-            {/* Power BI Header Refined */}
-            <div className="h-11 px-5 flex items-center justify-between border-b border-slate-50 bg-white select-none rounded-t-2xl">
-                <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] truncate flex-1 leading-tight">
-                    {widget.title}
-                </h3>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <button
-                        onMouseDown={async (e) => {
-                            e.stopPropagation();
-                            if (await confirm('Are you sure you want to remove this visual?')) {
-                                deleteWidget(widget.id);
-                                showSuccess('Visual removed');
-                            }
-                        }}
-                        className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
-                        title="Remove Visual"
-                    >
-                        <Trash2 size={13} strokeWidth={2.5} />
-                    </button>
+        <>
+            <div
+                onClick={(e) => {
+                    e.stopPropagation();
+                    selectWidget(widget.id);
+                }}
+                className={`w-full h-full bg-white flex flex-col group transition-all duration-500 rounded-2xl ${isSelected ? 'shadow-[0_25px_60px_rgba(17,141,255,0.2)] ring-2 ring-indigo-600' : 'shadow-sm border border-slate-100 hover:border-slate-300'} cursor-pointer`}
+            >
+                {/* Power BI Desktop Style Header */}
+                <div className="h-11 px-5 flex items-center justify-between border-b border-slate-50 bg-white select-none rounded-t-2xl">
+                    {isEditingTitle ? (
+                        <input
+                            type="text"
+                            autoFocus
+                            value={titleInput}
+                            onChange={(e) => setTitleInput(e.target.value)}
+                            onBlur={handleTitleSave}
+                            onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-1 rounded border border-indigo-200 outline-none w-full font-mono"
+                        />
+                    ) : (
+                        <h3
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingTitle(true);
+                            }}
+                            title="Double-click to edit title"
+                            className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] truncate flex-1 leading-tight hover:text-indigo-600 transition-colors"
+                        >
+                            {widget.title}
+                        </h3>
+                    )}
+
+                    {/* Power BI Quick Action Bar */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsFocusMode(true);
+                            }}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                            title="Focus Mode (Full Screen Visual)"
+                        >
+                            <Maximize2 size={13} strokeWidth={2.5} />
+                        </button>
+                        <button
+                            onClick={handleExportCSV}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                            title="Export Data (CSV)"
+                        >
+                            <Download size={13} strokeWidth={2.5} />
+                        </button>
+                        <button
+                            onMouseDown={async (e) => {
+                                e.stopPropagation();
+                                if (await confirm('Are you sure you want to remove this visual?')) {
+                                    deleteWidget(widget.id);
+                                    showSuccess('Visual removed');
+                                }
+                            }}
+                            className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Remove Visual"
+                        >
+                            <Trash2 size={13} strokeWidth={2.5} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 p-6 min-h-[200px] relative">
+                    {renderVisual()}
                 </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 p-6 min-h-[200px] relative">
-                {renderVisual()}
-            </div>
-        </div>
+            {/* Power BI Focus Mode Dialog */}
+            {isFocusMode && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[200] flex items-center justify-center p-8 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-5xl h-[80vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+                        <div className="px-8 py-5 bg-slate-900 text-white flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Power BI Focus Mode</p>
+                                <h2 className="text-lg font-black uppercase tracking-tight">{widget.title}</h2>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all">
+                                    <Download size={14} /> Export CSV
+                                </button>
+                                <button onClick={() => setIsFocusMode(false)} className="p-2 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-colors">
+                                    <Maximize2 size={18} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 p-8 bg-slate-50 flex gap-8 overflow-hidden">
+                            <div className="flex-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                {renderVisual()}
+                            </div>
+                            <div className="w-80 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-4 border-b border-slate-100 pb-2">Underlying Data</h4>
+                                <div className="flex-1 overflow-auto custom-scrollbar">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr>
+                                                <th className="py-2 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">{widget.xField || 'Dimension'}</th>
+                                                <th className="py-2 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 text-right">{widget.yField || 'Measure'}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.map((r, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 border-b border-slate-50">
+                                                    <td className="py-2 text-xs font-bold text-slate-700">{r[widget.xField || 'name']}</td>
+                                                    <td className="py-2 text-xs font-black text-indigo-600 text-right">{formatValue(r[widget.yField || 'value'] || 0)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 

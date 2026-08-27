@@ -91,7 +91,7 @@ class ForensicBenchmarker:
 
     async def run_tier(self, concurrency_level, chaos=False):
         """Runs a specific concurrency tier with optional chaos."""
-        logger.info(f'\n>>> [TIER_START] Concurrency={concurrency_level} Chaos={('ON' if chaos else 'OFF')}')
+        logger.info(f"\n>>> [TIER_START] Concurrency={concurrency_level} Chaos={('ON' if chaos else 'OFF')}")
         t_tier_start = time.time()
         conn = aiohttp.TCPConnector(limit=concurrency_level + 100)
         async with aiohttp.ClientSession(connector=conn) as session:
@@ -131,11 +131,11 @@ class ForensicBenchmarker:
         print('\n' + '=' * 80)
         print('PHASE 7 — FINAL FORENSIC SCALABILITY REPORT')
         print('=' * 80)
-        print(f'{'Concurrency':<12} | {'Finalized':<10} | {'Failed':<8} | {'E2E P50':<10} | {'E2E P95':<10} | {'IPS'}')
+        print(f"{'Concurrency':<12} | {'Finalized':<10} | {'Failed':<8} | {'E2E P50':<10} | {'E2E P95':<10} | {'IPS'}")
         print('-' * 80)
         extended_results = self.results_extended
         for r in extended_results:
-            print(f'{r['concurrency']:<12} | {r['finalized']:<10} | {r['failed']:<8} | {r['e2e_p50']:<10.1f} | {r['e2e_p95']:<10.1f} | {r['throughput_ips']:.2f}')
+            print(f"{r['concurrency']:<12} | {r['finalized']:<10} | {r['failed']:<8} | {r['e2e_p50']:<10.1f} | {r['e2e_p95']:<10.1f} | {r['throughput_ips']:.2f}")
         print('\nBOTTLENECK ANALYSIS:')
         if not extended_results:
             return
