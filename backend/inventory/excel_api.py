@@ -179,7 +179,7 @@ class InventoryItemExcelUploadView(APIView):
                     results['failed'] += 1
                     results['errors'].append({'message': f'Row {row_idx}: {str(row_err)}', 'row_data': row_data, 'row_index': row_idx})
                     logger.error(f'Error processing confirmed inventory item row {row_idx}: {row_err}')
-            return Response({'message': f'Import complete. Success: {results['success']}, Failed: {results['failed']}', 'summary': results, 'is_preview': False}, status=200)
+            return Response({'message': f"Import complete. Success: {results['success']}, Failed: {results['failed']}", 'summary': results, 'is_preview': False}, status=200)
         if not excel_file:
             return Response({'error': 'No file provided'}, status=400)
         try:
@@ -314,7 +314,7 @@ class InventoryItemExcelUploadView(APIView):
                     results['failed'] += 1
                     results['errors'].append({'message': f'Row {row_idx}: {str(row_err)}', 'row_data': row_data, 'row_index': row_idx})
                     logger.error(f'Error processing inventory item row {row_idx}: {row_err}')
-            return Response({'message': 'Preview complete' if dry_run else f'Processing complete. Success: {results['success']}, Failed: {results['failed']}', 'summary': results, 'is_preview': dry_run}, status=200)
+            return Response({'message': 'Preview complete' if dry_run else f"Processing complete. Success: {results['success']}, Failed: {results['failed']}", 'summary': results, 'is_preview': dry_run}, status=200)
         except Exception as e:
             logger.error(f'Inventory Item Excel upload failed: {e}', exc_info=True)
             return Response({'error': f'Internal error: {str(e)}'}, status=500)

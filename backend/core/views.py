@@ -135,8 +135,10 @@ class AdminPaymentsView(views.APIView):
 class AIProxyView(views.APIView):
     """Unified AI proxy endpoint for all AI operations"""
 
-    def dispatch(self, *args, **kwargs):
-        raise Exception('OLD AI PROXY SHOULD NOT BE USED. Use ocr_pipeline instead.')
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        from rest_framework.exceptions import ParseError
+        raise ParseError('OLD AI PROXY SHOULD NOT BE USED. Use ocr_pipeline instead.')
 
     def post(self, request, action):
         import time
@@ -271,8 +273,10 @@ class OCRCacheUpdateView(views.APIView):
     invoice fields after scanning.  OCR is *never* re-run.
     """
 
-    def dispatch(self, *args, **kwargs):
-        raise Exception('OLD OCR CACHE UPDATE SHOULD NOT BE USED. Use ocr_pipeline instead.')
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        from rest_framework.exceptions import ParseError
+        raise ParseError('OLD OCR CACHE UPDATE SHOULD NOT BE USED. Use ocr_pipeline instead.')
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, record_id):

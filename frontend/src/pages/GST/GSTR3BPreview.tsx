@@ -4,7 +4,7 @@ import FileGSTR3BModal from './FileGSTR3BModal';
 import { Wallet, CheckCircle } from 'lucide-react';
 import { formatDate } from '../../utils/formatting';
 
-export default function GSTR3BPreview() {
+export default function GSTR3BPreview({ onNavigate, setActiveTab }: { onNavigate?: (page: string, params?: any) => void; setActiveTab?: (tab: string) => void }) {
     const [isLoading, setIsLoading] = useState(false);
     const [report, setReport] = useState<any>(null);
     const [selectedMonth, setSelectedMonth] = useState('January');
@@ -92,7 +92,18 @@ export default function GSTR3BPreview() {
 
                     {/* ITC */}
                     <div className="border rounded-[4px] overflow-hidden">
-                        <div className="bg-indigo-50 p-3 border-b font-semibold text-indigo-900">4. Eligible ITC (from Reconciliation)</div>
+                        <div className="bg-indigo-50 p-3 border-b font-semibold text-indigo-900 flex justify-between items-center flex-wrap gap-2">
+                            <span>4. Eligible ITC (from Reconciliation)</span>
+                            {report?.pushed_count > 0 ? (
+                                <span className="text-xs font-bold bg-teal-100 text-teal-800 px-3 py-1 rounded-full border border-teal-300 shadow-xs">
+                                    ✓ {report.pushed_count} Invoices Reconciled & Pushed (Total ITC: ₹{Number(report.total_eligible_itc || (parseFloat(report.input_tax_igst || '0') + parseFloat(report.input_tax_cgst || '0') + parseFloat(report.input_tax_sgst || '0'))).toFixed(2)})
+                                </span>
+                            ) : (
+                                <span className="text-xs font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200">
+                                    0 Invoices Pushed
+                                </span>
+                            )}
+                        </div>
                         <div className="p-4 grid grid-cols-3 gap-6">
                             <div className="space-y-1">
                                 <label className="text-xs text-indigo-500 uppercase font-bold">IGST</label>
@@ -107,6 +118,66 @@ export default function GSTR3BPreview() {
                                 <div className="text-lg font-mono">₹{report?.input_tax_sgst || '0.00'}</div>
                             </div>
                         </div>
+
+                        {/* Breakdown Table of Pushed GSTR-2B Invoices */}
+                        {report?.pushed_invoices && report.pushed_invoices.length > 0 ? (
+                            <div className="border-t border-indigo-100 bg-indigo-50/20 p-4">
+                                <div className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                    <span>📄 Reconciled Invoices Contributing to Eligible ITC ({report.pushed_invoices.length})</span>
+                                    <span className="text-[11px] font-semibold text-teal-700">Source: GSTR-2B Auto-Reconciliation</span>
+                                </div>
+                                <div className="overflow-x-auto rounded border border-indigo-200/60 bg-white shadow-xs">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="bg-indigo-50/80 text-indigo-900 font-semibold border-b border-indigo-100">
+                                            <tr>
+                                                <th className="p-2.5">Invoice No</th>
+                                                <th className="p-2.5">Supplier GSTIN</th>
+                                                <th className="p-2.5">Date</th>
+                                                <th className="p-2.5 text-right">Taxable Val</th>
+                                                <th className="p-2.5 text-right">IGST</th>
+                                                <th className="p-2.5 text-right">CGST</th>
+                                                <th className="p-2.5 text-right">SGST</th>
+                                                <th className="p-2.5 text-right">Total ITC</th>
+                                                <th className="p-2.5 text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {report.pushed_invoices.map((inv: any, i: number) => (
+                                                <tr key={i} className="hover:bg-indigo-50/30 transition-colors">
+                                                    <td className="p-2.5 font-bold text-slate-800">{inv.invoice_no}</td>
+                                                    <td className="p-2.5 font-mono text-slate-600">{inv.supplier_gstin}</td>
+                                                    <td className="p-2.5 text-slate-600">{inv.invoice_date}</td>
+                                                    <td className="p-2.5 text-right font-mono">₹{Number(inv.taxable_value).toFixed(2)}</td>
+                                                    <td className="p-2.5 text-right font-mono text-indigo-700">₹{Number(inv.igst).toFixed(2)}</td>
+                                                    <td className="p-2.5 text-right font-mono text-indigo-700">₹{Number(inv.cgst).toFixed(2)}</td>
+                                                    <td className="p-2.5 text-right font-mono text-indigo-700">₹{Number(inv.sgst).toFixed(2)}</td>
+                                                    <td className="p-2.5 text-right font-mono font-bold text-emerald-700">
+                                                        ₹{(Number(inv.igst) + Number(inv.cgst) + Number(inv.sgst)).toFixed(2)}
+                                                    </td>
+                                                    <td className="p-2.5 text-center">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-100 text-teal-800 border border-teal-200">
+                                                            ✓ Pushed
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="border-t border-indigo-100 bg-slate-50/50 p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                                <span>No GSTR-2B invoices pushed for this period yet.</span>
+                                {setActiveTab && (
+                                    <button
+                                        onClick={() => setActiveTab('GSTR2B_RECO')}
+                                        className="font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+                                    >
+                                        Go to GSTR-2B Reconciliation →
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Payable */}

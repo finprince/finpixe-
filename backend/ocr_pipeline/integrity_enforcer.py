@@ -44,7 +44,7 @@ def hydrate_identity_fields(page: Dict[str, Any]) -> Dict[str, Any]:
             val, src_path = resolve(sources)
             if val:
                 page[target] = val
-                logger.info(f'[IDENTITY_TRACE] stage=hydration page={page.get('_page_no')} {target}={val} source={src_path}')
+                logger.info(f"[IDENTITY_TRACE] stage=hydration page={page.get('_page_no')} {target}={val} source={src_path}")
     if page.get('vendor_gstin') and (not page.get('gstin')):
         page['gstin'] = page['vendor_gstin']
     if page.get('gstin') and (not page.get('vendor_gstin')):
@@ -236,7 +236,7 @@ class ZohoIntegrityEnforcer:
             current_hash = get_dto_hash(inv)
             val_rev = inv.get('validation_revision')
             if val_rev and isinstance(val_rev, dict) and (val_rev.get('hash') == current_hash):
-                logger.info(f'[VALIDATION_SKIPPED_ALREADY_VALIDATED] Skip verify for invoice {inv.get('invoice_no')} hash {current_hash}')
+                logger.info(f"[VALIDATION_SKIPPED_ALREADY_VALIDATED] Skip verify for invoice {inv.get('invoice_no')} hash {current_hash}")
                 cached_failures = val_rev.get('failures', [])
                 if cached_failures:
                     report['failures'].extend(cached_failures)
@@ -253,7 +253,7 @@ class ZohoIntegrityEnforcer:
             if not v_items:
                 missing.append('items')
             if missing:
-                err = f'Invoice[{idx}] potentially incomplete. Missing: {', '.join(missing)}'
+                err = f"Invoice[{idx}] potentially incomplete. Missing: {', '.join(missing)}"
                 logger.warning(f'[INTEGRITY_WARNING] {err}')
                 report['failures'].append(err)
                 if not v_name and (not v_inv_no) and (not v_items):
@@ -265,7 +265,7 @@ class ZohoIntegrityEnforcer:
                 logger.info(f'[INTEGRITY_PASS] Invoice[{idx}] has minimum identity anchors.')
             recon = self.run_financial_reconciliation(inv)
             if not recon['valid']:
-                err_msg = f'Financial reconciliation failed for {v_inv_no}: {recon['reason']}'
+                err_msg = f"Financial reconciliation failed for {v_inv_no}: {recon['reason']}"
                 logger.error(f"[INVOICE_RECONCILIATION_FAILED] invoice={v_inv_no} reason='{recon['reason']}'")
                 report['failures'].append(err_msg)
                 report.update({'validation': 'FAIL', 'ready_for_zoho': False})

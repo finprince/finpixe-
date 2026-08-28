@@ -83,7 +83,7 @@ class VendorMasterCategoryViewSet(viewsets.ModelViewSet):
         defaults = ['Raw Material', 'Stores and Spares', 'Packing Material', 'Stock in Trade', 'Fixed Assets', 'Capital Goods', 'Consumables', 'Service']
         tree = {}
         for def_cat in defaults:
-            tree[def_cat] = {'groups': {}, 'id': f'default_{def_cat.lower().replace(' ', '_')}'}
+            tree[def_cat] = {'groups': {}, 'id': f"default_{def_cat.lower().replace(' ', '_')}"}
         for item in queryset:
             cat_name = item.category
             grp_name = item.group

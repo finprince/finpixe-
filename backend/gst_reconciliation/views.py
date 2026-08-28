@@ -238,6 +238,43 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
 
         return (m_num, cal_yr)
 
+    def _get_or_create_gstr3b_report(self, month, year):
+        """Bulletproof single-instance getter for GSTR3BReport for a period."""
+        qs = GSTR3BReport.objects.filter(period_month=month, period_year=year)
+        if qs.count() > 1:
+            filed = qs.filter(status='FILED').order_by('-created_at').first()
+            keep = filed or qs.order_by('-created_at').first()
+            qs.exclude(id=keep.id).delete()
+            return keep, False
+        elif qs.exists():
+            return qs.first(), False
+        else:
+            return GSTR3BReport.objects.create(period_month=month, period_year=year), True
+
+    def _get_or_create_itc_summary(self, month, year, defaults=None):
+        """Bulletproof single-instance getter/upserter for ITCSummary for a period."""
+        qs = ITCSummary.objects.filter(period_month=month, period_year=year)
+        if qs.count() > 1:
+            keep = qs.order_by('-created_at').first()
+            qs.exclude(id=keep.id).delete()
+            if defaults:
+                for k, v in defaults.items():
+                    setattr(keep, k, v)
+                keep.save()
+            return keep, False
+        elif qs.exists():
+            rec = qs.first()
+            if defaults:
+                for k, v in defaults.items():
+                    setattr(rec, k, v)
+                rec.save()
+            return rec, False
+        else:
+            create_kwargs = {'period_month': month, 'period_year': year}
+            if defaults:
+                create_kwargs.update(defaults)
+            return ITCSummary.objects.create(**create_kwargs), True
+
     def _extract_invoices_from_payload(self, payload):
         extracted = []
         docdata_fp = ''
@@ -569,6 +606,13 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                 matched_voucher_ids.add(candidate.id)
                 # Candidate found: run complete 12-field validation
                 val_result = self._validate_invoice_against_voucher(inv_2b, candidate, month, year)
+                
+                # Preserve existing pushed status and timestamp
+                existing_rec = ReconciliationResult.objects.filter(invoice_2b=inv_2b).first()
+                if existing_rec and (existing_rec.matching_details or {}).get('pushed_to_gstr3b'):
+                    val_result['pushed_to_gstr3b'] = True
+                    val_result['pushed_at'] = existing_rec.matching_details.get('pushed_at')
+
                 ReconciliationResult.objects.update_or_create(
                     invoice_2b=inv_2b,
                     defaults={
@@ -813,8 +857,11 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                 "books_data": books_data
             })
         
+        pushed_count = len([r for r in data if r.get('pushed_to_gstr3b')])
         summary = {
             "exact_match": results_qs.filter(status='EXACT').count(),
+            "pushed_exact": pushed_count,
+            "unpushed_exact": max(0, results_qs.filter(status='EXACT').count() - pushed_count),
             "partial_match": results_qs.filter(status='PARTIAL').count(),
             "mismatch": results_qs.filter(status='MISMATCH').count(),
             "missing_in_books": results_qs.filter(status='MISSING_BOOKS').count(),
@@ -862,15 +909,18 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             else:
                 blocked_igst += (inv.igst + inv.cgst + inv.sgst)
 
-        itc = ITCSummary.objects.create(
-            period_month=month, period_year=year,
-            total_itc_igst=total_igst,
-            total_itc_cgst=total_cgst,
-            total_itc_sgst=total_sgst,
-            eligible_itc_igst=eligible_igst,
-            eligible_itc_cgst=eligible_cgst,
-            eligible_itc_sgst=eligible_sgst,
-            blocked_itc_igst=blocked_igst,
+        itc, _ = self._get_or_create_itc_summary(
+            month=month,
+            year=year,
+            defaults={
+                'total_itc_igst': total_igst,
+                'total_itc_cgst': total_cgst,
+                'total_itc_sgst': total_sgst,
+                'eligible_itc_igst': eligible_igst,
+                'eligible_itc_cgst': eligible_cgst,
+                'eligible_itc_sgst': eligible_sgst,
+                'blocked_itc_igst': blocked_igst,
+            }
         )
         return Response(ITCSummarySerializer(itc).data)
 
@@ -886,31 +936,60 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             sales = VoucherSalesInvoiceDetails.objects.filter(tenant_id=tenant_id)
         else:
             sales = VoucherSalesInvoiceDetails.objects.all()
+        
+        reco_period = self._normalize_reco_period(month, year)
         output_tax = {'igst': 0, 'cgst': 0, 'sgst': 0}
         for v in sales:
+            if reco_period and v.date:
+                if (v.date.month, v.date.year) != reco_period:
+                    continue
             pay = getattr(v, 'payment_details', None)
             if pay:
-                output_tax['igst'] += float(pay.payment_igst)
-                output_tax['cgst'] += float(pay.payment_cgst)
-                output_tax['sgst'] += float(pay.payment_sgst)
+                output_tax['igst'] += float(pay.payment_igst or 0)
+                output_tax['cgst'] += float(pay.payment_cgst or 0)
+                output_tax['sgst'] += float(pay.payment_sgst or 0)
 
-        # Auto-Compute ITC on the fly from EXACT matches where ITC Availment == YES
-        exact_matches = ReconciliationResult.objects.filter(status='EXACT').select_related('invoice_2b')
+        # Auto-Compute ITC on the fly from EXACT matches for this period that have been pushed to GSTR-3B
+        all_exact_recos = ReconciliationResult.objects.filter(status='EXACT').select_related('invoice_2b')
         input_igst = Decimal('0')
         input_cgst = Decimal('0')
         input_sgst = Decimal('0')
 
-        for r in exact_matches:
-            inv = r.invoice_2b
-            if not inv:
-                continue
-            itc_avl_raw = (r.matching_details or {}).get('itc_availment') or (inv.raw_data or {}).get('itcavl') or (inv.raw_data or {}).get('itc_avl') or (inv.raw_data or {}).get('itc_availment') or (inv.raw_data or {}).get('ITC Eligible') or 'Y'
-            is_itc_avail = str(itc_avl_raw).strip().upper() in ('Y', 'YES', 'TRUE', '1')
+        pushed_invoices_list = []
+        for rec in all_exact_recos:
+            rec_details = rec.matching_details or {}
+            if rec_details.get('pushed_to_gstr3b'):
+                inv = rec.invoice_2b
+                if not inv:
+                    continue
+                
+                if reco_period:
+                    raw_fp = (inv.raw_data or {}).get('fp') or (inv.raw_data or {}).get('Filing Period')
+                    norm_fp = self._normalize_period(raw_fp)
+                    if norm_fp and norm_fp != reco_period:
+                        continue
 
-            if is_itc_avail:
-                input_igst += inv.igst
-                input_cgst += inv.cgst
-                input_sgst += inv.sgst
+                itc_avl_raw = rec_details.get('itc_availability') or rec_details.get('itc_availment') or (inv.raw_data or {}).get('itcavl') or (inv.raw_data or {}).get('ITC Eligible') or 'Y'
+                is_itc_avail = str(itc_avl_raw).strip().upper() in ('Y', 'YES', 'TRUE', '1')
+
+                if is_itc_avail:
+                    input_igst += inv.igst
+                    input_cgst += inv.cgst
+                    input_sgst += inv.sgst
+                    
+                    pushed_invoices_list.append({
+                        'id': rec.id,
+                        'invoice_no': inv.invoice_no,
+                        'supplier_gstin': inv.gstin,
+                        'vendor_name': inv.vendor_name,
+                        'invoice_date': str(inv.invoice_date) if inv.invoice_date else '',
+                        'taxable_value': float(inv.taxable_value or 0),
+                        'invoice_value': float(inv.invoice_value or 0),
+                        'igst': float(inv.igst or 0),
+                        'cgst': float(inv.cgst or 0),
+                        'sgst': float(inv.sgst or 0),
+                        'pushed_at': rec_details.get('pushed_at'),
+                    })
 
         input_tax = {
             'igst': float(input_igst),
@@ -919,18 +998,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         }
         
         # Bulletproof lookup: prefer FILED record, then latest DRAFT, then create new
-        qs = GSTR3BReport.objects.filter(period_month=month, period_year=year)
-        filed = qs.filter(status='FILED').order_by('-created_at').first()
-        
-        if filed:
-            report = filed
-        else:
-            report = qs.order_by('-created_at').first()
-            if not report:
-                report = GSTR3BReport.objects.create(
-                    period_month=month,
-                    period_year=year
-                )
+        report, _ = self._get_or_create_gstr3b_report(month, year)
 
         # Only update the numbers if it's still in DRAFT mode
         if report.status != 'FILED':
@@ -952,6 +1020,9 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         data['status'] = report.status
         data['arn_number'] = report.arn_number
         data['filed_date'] = report.filed_date
+        data['pushed_invoices'] = pushed_invoices_list
+        data['pushed_count'] = len(pushed_invoices_list)
+        data['total_eligible_itc'] = float(input_igst + input_cgst + input_sgst)
         return Response(data)
 
     @action(detail=False, methods=['post'])
@@ -985,6 +1056,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
 
         # 2. Strict Period, Tenant & EXACT MATCH validation for every record
         reco_period = self._normalize_reco_period(month, year)
+        force_accept = request.data.get('force_accept', False)
         
         for r in qs:
             # Tenant isolation
@@ -994,12 +1066,17 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Strict EXACT MATCH validation
+            # Strict EXACT MATCH validation (or user-approved force_accept)
             if r.status != 'EXACT':
-                return Response(
-                    {"error": f"Cannot push records because invoice '{r.invoice_2b.invoice_no if r.invoice_2b else r.id}' has status '{r.status}'. Only EXACT MATCH records can be pushed to GSTR-3B."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                if force_accept:
+                    r.status = 'EXACT'
+                    r.matching_score = 100
+                    r.save(update_fields=['status', 'matching_score'])
+                else:
+                    return Response(
+                        {"error": f"Cannot push records because invoice '{r.invoice_2b.invoice_no if r.invoice_2b else r.id}' has status '{r.status}'. Only EXACT MATCH records can be pushed to GSTR-3B."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
             # Period validation
             if r.invoice_2b and reco_period:
@@ -1073,10 +1150,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                         pushed_cess += inv.cess
 
             # Update GSTR-3B Report (if not filed)
-            report, _ = GSTR3BReport.objects.get_or_create(
-                period_month=month,
-                period_year=year
-            )
+            report, _ = self._get_or_create_gstr3b_report(month, year)
 
             if report.status != 'FILED':
                 if tenant_id:
@@ -1107,9 +1181,9 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
                 report.save()
 
             # Update / Create ITCSummary
-            ITCSummary.objects.update_or_create(
-                period_month=month,
-                period_year=year,
+            self._get_or_create_itc_summary(
+                month=month,
+                year=year,
                 defaults={
                     'total_itc_igst': agg_igst,
                     'total_itc_cgst': agg_cgst,
@@ -1312,10 +1386,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
         from django.utils import timezone
         
         # 1. Duplicate Prevention Check
-        report, created = GSTR3BReport.objects.get_or_create(
-            period_month=month,
-            period_year=year
-        )
+        report, created = self._get_or_create_gstr3b_report(month, year)
 
         if report.status == 'FILED':
             return Response({

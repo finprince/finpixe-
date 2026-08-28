@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'gst_reconciliation',
     'bank_upload',           # Bank Statement Upload & Staging Module
     'pending_purchases',
+    'rim',                   # RIM Core Engine (System 1→2→3 AI Framework)
 ]
 
 MIDDLEWARE = [

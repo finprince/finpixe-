@@ -66,7 +66,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
         fetchResults();
     }, [selectedMonth, selectedYear]);
 
-    type StatusFilter = 'ALL' | 'EXACT' | 'PARTIAL' | 'MISSING_BOOKS' | 'MISSING_2B';
+    type StatusFilter = 'ALL' | 'EXACT' | 'PUSHED_3B' | 'PARTIAL' | 'MISSING_BOOKS' | 'MISSING_2B';
     const [activeStatusFilter, setActiveStatusFilter] = useState<StatusFilter>('ALL');
 
     const handleFilterToggle = (filter: StatusFilter) => {
@@ -74,7 +74,8 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
     };
 
     const filteredResults = results.filter(row => {
-        if (activeStatusFilter === 'EXACT') return row.status === 'EXACT';
+        if (activeStatusFilter === 'EXACT') return row.status === 'EXACT' && !row.pushed_to_gstr3b;
+        if (activeStatusFilter === 'PUSHED_3B') return Boolean(row.pushed_to_gstr3b);
         if (activeStatusFilter === 'PARTIAL') return row.status === 'PARTIAL' || row.status === 'MISMATCH';
         if (activeStatusFilter === 'MISSING_BOOKS') return row.status === 'MISSING_BOOKS';
         if (activeStatusFilter === 'MISSING_2B') return row.status === 'MISSING_2B';
@@ -127,12 +128,14 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
         }
     }, [navParams]);
 
-    // Exact Match Selection calculations
+    // Exact Match Selection calculations (only unpushed exact rows are eligible for push)
     const exactRows = results.filter(r => r.status === 'EXACT');
+    const unpushedExactRows = exactRows.filter(r => !r.pushed_to_gstr3b);
     const visibleExactRows = filteredResults.filter(r => r.status === 'EXACT');
-    const selectedExactRows = exactRows.filter(r => selectedExactIds.includes(r.id));
+    const visibleUnpushedExactRows = visibleExactRows.filter(r => !r.pushed_to_gstr3b);
+    const selectedExactRows = unpushedExactRows.filter(r => selectedExactIds.includes(r.id));
     const selectedExactCount = selectedExactRows.length;
-    const isAllExactSelected = visibleExactRows.length > 0 && visibleExactRows.every(r => selectedExactIds.includes(r.id));
+    const isAllExactSelected = visibleUnpushedExactRows.length > 0 && visibleUnpushedExactRows.every(r => selectedExactIds.includes(r.id));
 
     // Partial / Mismatch Selection calculations
     const partialRows = results.filter(r => r.status === 'PARTIAL' || r.status === 'MISMATCH');
@@ -142,12 +145,12 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
     const isAllPartialSelected = visiblePartialRows.length > 0 && visiblePartialRows.every(r => selectedPartialIds.includes(r.id));
 
     const toggleSelectAllExact = () => {
-        if (visibleExactRows.length === 0) return;
+        if (visibleUnpushedExactRows.length === 0) return;
         if (isAllExactSelected) {
-            const visibleIds = visibleExactRows.map(r => r.id);
+            const visibleIds = visibleUnpushedExactRows.map(r => r.id);
             setSelectedExactIds(prev => prev.filter(id => !visibleIds.includes(id)));
         } else {
-            const visibleIds = visibleExactRows.map(r => r.id);
+            const visibleIds = visibleUnpushedExactRows.map(r => r.id);
             setSelectedExactIds(prev => Array.from(new Set([...prev, ...visibleIds])));
         }
     };
@@ -164,6 +167,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
     };
 
     const toggleSelectRow = (row: any) => {
+        if (row.pushed_to_gstr3b) return;
         if (row.status === 'EXACT') {
             setSelectedExactIds(prev =>
                 prev.includes(row.id) ? prev.filter(item => item !== row.id) : [...prev, row.id]
@@ -526,14 +530,14 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 mt-4">
-                    {/* Exact Match */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6 mt-4">
+                    {/* Exact Match (Pending) */}
                     <div
                         onClick={() => handleFilterToggle('EXACT')}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && handleFilterToggle('EXACT')}
-                        title="Click to show only Exact Match invoices (Click again to show all)"
+                        title="Click to show only Exact Match invoices pending push (Click again to show all)"
                         className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer select-none relative overflow-hidden group ${activeStatusFilter === 'EXACT'
                             ? 'bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-500 shadow-md transform -translate-y-0.5'
                             : 'bg-emerald-50/70 border-emerald-200/70 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm hover:-translate-y-0.5'
@@ -555,8 +559,45 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                             )}
                         </div>
                         <div className="mt-2 flex items-baseline justify-between">
-                            <div className="text-2xl font-black text-emerald-950">{summary.exact_match}</div>
-                            <span className="text-xs text-emerald-700/80 font-medium">Invoices</span>
+                            <div className="text-2xl font-black text-emerald-950">
+                                {summary.unpushed_exact ?? Math.max(0, (summary.exact_match || 0) - (summary.pushed_exact || 0))}
+                            </div>
+                            <span className="text-xs text-emerald-700/80 font-medium">Pending Push</span>
+                        </div>
+                    </div>
+
+                    {/* Pushed to GSTR-3B */}
+                    <div
+                        onClick={() => handleFilterToggle('PUSHED_3B')}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleFilterToggle('PUSHED_3B')}
+                        title="Click to show only invoices pushed to GSTR-3B (Click again to show all)"
+                        className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer select-none relative overflow-hidden group ${activeStatusFilter === 'PUSHED_3B'
+                            ? 'bg-teal-100/90 border-teal-500 ring-2 ring-teal-500 shadow-md transform -translate-y-0.5'
+                            : 'bg-teal-50/70 border-teal-200/70 hover:border-teal-400 hover:bg-teal-50 hover:shadow-sm hover:-translate-y-0.5'
+                            }`}
+                    >
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-teal-900 font-semibold flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+                                Pushed to 3B
+                            </span>
+                            {activeStatusFilter === 'PUSHED_3B' ? (
+                                <span className="text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 bg-teal-800 text-white rounded-full shadow-sm">
+                                    Active Filter ✓
+                                </span>
+                            ) : (
+                                <span className="text-[11px] text-teal-700/60 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Click to filter
+                                </span>
+                            )}
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between">
+                            <div className="text-2xl font-black text-teal-950">
+                                {summary.pushed_exact || 0}
+                            </div>
+                            <span className="text-xs text-teal-800/80 font-medium">In GSTR-3B</span>
                         </div>
                     </div>
 
@@ -670,7 +711,8 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
                                     <span>Filtered:</span>
                                     <strong className="font-bold">
-                                        {activeStatusFilter === 'EXACT' && 'Exact Match'}
+                                        {activeStatusFilter === 'EXACT' && 'Exact Match (Pending Push)'}
+                                        {activeStatusFilter === 'PUSHED_3B' && 'Pushed to GSTR-3B'}
                                         {activeStatusFilter === 'PARTIAL' && 'Partial / Mismatch'}
                                         {activeStatusFilter === 'MISSING_BOOKS' && 'Missing in Books'}
                                         {activeStatusFilter === 'MISSING_2B' && 'Missing in 2B'}
@@ -869,13 +911,18 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                 filteredResults.map((row, idx) => {
                                     const isRowExact = row.status === 'EXACT';
                                     const isRowPartial = row.status === 'PARTIAL' || row.status === 'MISMATCH';
-                                    const isSelected = isRowExact ? selectedExactIds.includes(row.id) : isRowPartial ? selectedPartialIds.includes(row.id) : false;
+                                    const isAlreadyPushed = Boolean(row.pushed_to_gstr3b);
+                                    const isSelected = !isAlreadyPushed && (isRowExact ? selectedExactIds.includes(row.id) : isRowPartial ? selectedPartialIds.includes(row.id) : false);
 
                                     return (
-                                        <tr key={idx} className={`hover:bg-slate-50 transition-colors ${isSelected ? (isRowExact ? 'bg-emerald-50/30' : 'bg-indigo-50/30') : ''}`}>
+                                        <tr key={idx} className={`hover:bg-slate-50 transition-colors ${isAlreadyPushed ? 'bg-teal-50/20' : isSelected ? (isRowExact ? 'bg-emerald-50/30' : 'bg-indigo-50/30') : ''}`}>
                                             <td
                                                 className="w-12 text-center cursor-pointer"
                                                 onClick={(e) => {
+                                                    if (isAlreadyPushed) {
+                                                        e.stopPropagation();
+                                                        return;
+                                                    }
                                                     if (!isRowExact && !isRowPartial) {
                                                         e.stopPropagation();
                                                         showError(`Cannot select: ${row.status.replace('_', ' ')} invoices are not eligible for bulk actions.`);
@@ -884,16 +931,18 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                             >
                                                 <input
                                                     type="checkbox"
-                                                    checked={isSelected}
-                                                    disabled={!isRowExact && !isRowPartial}
-                                                    onChange={() => toggleSelectRow(row)}
-                                                    className={`rounded focus:ring-indigo-500 h-4 w-4 ${isRowExact
-                                                        ? 'text-emerald-600 cursor-pointer'
-                                                        : isRowPartial
-                                                            ? 'text-indigo-600 cursor-pointer'
-                                                            : 'cursor-not-allowed opacity-30 bg-slate-100'
+                                                    checked={isSelected || isAlreadyPushed}
+                                                    disabled={isAlreadyPushed || (!isRowExact && !isRowPartial)}
+                                                    onChange={() => !isAlreadyPushed && toggleSelectRow(row)}
+                                                    className={`rounded focus:ring-indigo-500 h-4 w-4 ${isAlreadyPushed
+                                                        ? 'text-teal-600 bg-teal-50 opacity-70 cursor-not-allowed'
+                                                        : isRowExact
+                                                            ? 'text-emerald-600 cursor-pointer'
+                                                            : isRowPartial
+                                                                ? 'text-indigo-600 cursor-pointer'
+                                                                : 'cursor-not-allowed opacity-30 bg-slate-100'
                                                         }`}
-                                                    title={isRowExact ? 'Select for GSTR-3B Push' : isRowPartial ? 'Select for Bulk Error Review' : `Cannot select: Status is ${row.status.replace('_', ' ')}`}
+                                                    title={isAlreadyPushed ? 'Already pushed to GSTR-3B' : isRowExact ? 'Select for GSTR-3B Push' : isRowPartial ? 'Select for Bulk Error Review' : `Cannot select: Status is ${row.status.replace('_', ' ')}`}
                                                 />
                                             </td>
                                             <td>
@@ -906,8 +955,8 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                                                         'bg-slate-100 text-slate-800'}`}>
                                                         {row.status.replace('_', ' ')}
                                                     </span>
-                                                    {row.pushed_to_gstr3b && (
-                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-teal-50 text-teal-700 border border-teal-200">
+                                                    {isAlreadyPushed && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-100 text-teal-800 border border-teal-300">
                                                             ✓ Pushed to GSTR-3B
                                                         </span>
                                                     )}
@@ -1282,32 +1331,55 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                     </button>
                                 )}
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 items-center">
                                 <button onClick={() => setSelectedRow(null)} className="px-4 py-2 text-slate-600 hover:text-slate-900 font-semibold text-sm transition-colors cursor-pointer">
                                     Close
                                 </button>
-                                <button
-                                    onClick={() => {
-                                        if (selectedRow.itc_availability === 'NO' || selectedRow.itc_availment === 'NO' || String(selectedRow.raw_data?.itcavl || '').toUpperCase() === 'N') {
-                                            alert("⚠️ ACTION BLOCKED\n\nYour ITC Availment is blocked!\n\nGovernment GSTR-2B has marked this invoice as ineligible for Input Tax Credit. You cannot legally claim ITC for this invoice.");
-                                            return;
-                                        }
-                                        if (selectedRow.books_data) {
-                                            const invoiceNoMatch = selectedRow.invoice_no?.toLowerCase() === selectedRow.books_data.invoice_no?.toLowerCase();
-                                            if (!invoiceNoMatch) {
-                                                alert("⚠️ ACTION BLOCKED\n\nCompulsory fields (Invoice Number) do not match!\n\nYou cannot legally accept this match for ITC. Please click 'Open Purchase Voucher to Fix' and correct your books first.");
+                                {selectedRow.pushed_to_gstr3b ? (
+                                    <span className="px-4 py-2 bg-teal-100 text-teal-800 rounded text-sm font-bold border border-teal-300 flex items-center gap-1.5 shadow-xs select-none">
+                                        ✓ Pushed to GSTR-3B
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={async () => {
+                                            if (selectedRow.itc_availability === 'NO' || selectedRow.itc_availment === 'NO' || String(selectedRow.raw_data?.itcavl || '').toUpperCase() === 'N') {
+                                                alert("⚠️ ACTION BLOCKED\n\nYour ITC Availment is blocked!\n\nGovernment GSTR-2B has marked this invoice as ineligible for Input Tax Credit. You cannot legally claim ITC for this invoice.");
                                                 return;
                                             }
-                                        } else if (selectedRow.status === 'MISSING_BOOKS' || selectedRow.status === 'MISSING_2B') {
-                                            alert("⚠️ ACTION BLOCKED\n\nThis invoice is missing from one side. You must create a matching voucher before you can accept a match.");
-                                            return;
-                                        }
-                                        showSuccess('Match Accepted and ITC computed');
-                                        setSelectedRow(null);
-                                    }}
-                                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded shadow text-sm font-semibold transition-all cursor-pointer">
-                                    Accept Match
-                                </button>
+                                            if (selectedRow.books_data) {
+                                                const invoiceNoMatch = selectedRow.invoice_no?.toLowerCase() === selectedRow.books_data.invoice_no?.toLowerCase();
+                                                if (!invoiceNoMatch) {
+                                                    alert("⚠️ ACTION BLOCKED\n\nCompulsory fields (Invoice Number) do not match!\n\nYou cannot legally accept this match for ITC. Please click 'Open Purchase Voucher to Fix' and correct your books first.");
+                                                    return;
+                                                }
+                                            } else if (selectedRow.status === 'MISSING_BOOKS' || selectedRow.status === 'MISSING_2B') {
+                                                alert("⚠️ ACTION BLOCKED\n\nThis invoice is missing from one side. You must create a matching voucher before you can accept a match.");
+                                                return;
+                                            }
+                                            setIsPushing(true);
+                                            try {
+                                                const res: any = await httpClient.post('/api/gst/reconciliation/push_to_gstr3b/', {
+                                                    month: selectedMonth,
+                                                    year: selectedYear,
+                                                    reconciliation_ids: [selectedRow.id],
+                                                    force_accept: true
+                                                });
+                                                showSuccess(res.message || `Invoice ${selectedRow.invoice_no} accepted & pushed to GSTR-3B!`);
+                                                setSelectedRow(null);
+                                                setSelectedExactIds(prev => prev.filter(id => id !== selectedRow.id));
+                                                await fetchResults();
+                                            } catch (err: any) {
+                                                showError(err.response?.data?.error || err.message || 'Failed to push to GSTR-3B.');
+                                            } finally {
+                                                setIsPushing(false);
+                                            }
+                                        }}
+                                        disabled={isPushing}
+                                        className={`px-4 py-2 text-white rounded shadow text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${isPushing ? 'bg-emerald-400 cursor-wait' : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'}`}
+                                    >
+                                        {isPushing ? 'Pushing...' : '✓ Accept & Push to GSTR-3B'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

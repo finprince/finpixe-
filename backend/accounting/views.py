@@ -39,9 +39,9 @@ class MasterLedgerViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
         import logging
         logger = logging.getLogger('accounting.views')
         try:
-            logger.info(f'🔍 MasterLedgerViewSet.list called - User: {request.user}, Branch: {getattr(request.user, 'tenant_id', None)}')
+            logger.info(f"🔍 MasterLedgerViewSet.list called - User: {request.user}, Branch: {getattr(request.user, 'tenant_id', None)}")
             queryset = self.get_queryset()
-            logger.info(f'🔍 Queryset count: {queryset.count()} (Filters: group={request.query_params.get('group')}, category={request.query_params.get('category')})')
+            logger.info(f"🔍 Queryset count: {queryset.count()} (Filters: group={request.query_params.get('group')}, category={request.query_params.get('category')})")
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -704,7 +704,7 @@ class JournalEntryViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
                         row['gst_components'] = components
                     elif is_tds_ledger:
                         row['tds_components'] = components
-                    comp_str = ', '.join((f'{c['component']}: ₹{c['debit'] or c['credit']:.2f}' for c in components))
+                    comp_str = ', '.join((f"{c['component']}: ₹{c['debit'] or c['credit']:.2f}" for c in components))
                     row['particulars'] = f'{particulars} | {comp_str}'
             data.append(row)
         return Response(data)

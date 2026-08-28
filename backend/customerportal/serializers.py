@@ -221,7 +221,7 @@ class CustomerMasterCustomerSerializer(serializers.ModelSerializer):
                     logger.info(f'  [OK] Empty Product/Service created: ID={prod_record.id}')
                 logger.info('Creating TDS Details...')
                 tds_record, created = CustomerMasterCustomerTDS.objects.update_or_create(customer_basic_detail=basic_details, defaults={'tenant_id': basic_details.tenant_id, 'created_by': basic_details.created_by, **tds_data})
-                logger.info(f'  [OK] TDS Details {('created' if created else 'updated')}: ID={tds_record.id}')
+                logger.info(f"  [OK] TDS Details {('created' if created else 'updated')}: ID={tds_record.id}")
                 logger.info('Creating Banking Information...')
                 accounts = []
                 if banking_info_data and 'accounts' in banking_info_data:
@@ -230,7 +230,7 @@ class CustomerMasterCustomerSerializer(serializers.ModelSerializer):
                 for account in accounts:
                     if account.get('accountNumber'):
                         bank_record = CustomerMasterCustomerBanking.objects.create(customer_basic_detail=basic_details, tenant_id=basic_details.tenant_id, account_number=account.get('accountNumber'), bank_name=account.get('bankName'), ifsc_code=account.get('ifscCode'), branch_name=account.get('branchName'), swift_code=account.get('swiftCode'), associated_branches=account.get('associatedBranches'), created_by=basic_details.created_by)
-                        logger.info(f'  [OK] Banking Info created: ID={bank_record.id}, Account={account.get('accountNumber')}')
+                        logger.info(f"  [OK] Banking Info created: ID={bank_record.id}, Account={account.get('accountNumber')}")
                         created_count += 1
                 if created_count == 0:
                     logger.info('  No bank accounts provided, creating empty banking record...')
@@ -239,7 +239,7 @@ class CustomerMasterCustomerSerializer(serializers.ModelSerializer):
                 logger.info('Creating Terms & Conditions...')
                 logger.info(f'  Terms data to save: {terms_data}')
                 terms_record, created = CustomerMasterCustomerTermsCondition.objects.update_or_create(customer_basic_detail=basic_details, defaults={'tenant_id': basic_details.tenant_id, 'created_by': basic_details.created_by, **terms_data})
-                logger.info(f'  [OK] Terms & Conditions {('created' if created else 'updated')}: ID={terms_record.id}')
+                logger.info(f"  [OK] Terms & Conditions {('created' if created else 'updated')}: ID={terms_record.id}")
             logger.info('=' * 80)
             logger.info('[OK] CUSTOMER CREATION COMPLETED SUCCESSFULLY')
             logger.info('=' * 80)

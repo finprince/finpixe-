@@ -1469,8 +1469,10 @@ def get_normalized_items(invoice: Any, tenant_id: str = None, layout_type: str =
             "igst": ig_amt,
             "cgst": cg_amt,
             "sgst": sg_amt,
-            "total_amount": normalize_amount(item.get("total_amount") or item.get("amount") or item.get("Invoice Value")),
-            "igst_rate": ig_rate,
+            "total_amount": normalize_amount(
+                item.get("total_amount")
+                or (taxable + ig_amt + cg_amt + sg_amt + ce_amt if (ig_amt or cg_amt or sg_amt or ce_amt) else (item.get("amount") or item.get("Invoice Value")))
+            ),
             "cgst_rate": cg_rate,
             "sgst_rate": sg_rate,
             "cess_rate": ce_rate,
@@ -1687,7 +1689,7 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_typ
                 raw_header["canonical_buyer_gstin"] = recovered
                 raw_header["bill_to_gstin"] = recovered
                 raw_header["canonical_bill_to_gstin"] = recovered
-                logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {json.dumps({
+                _audit_payload = json.dumps({
                     'prefix': '[AUDIT_DETERMINISTIC_CORRECTION]',
                     'timestamp': datetime.now().isoformat() + 'Z',
                     'invoice_id': str(invoice.get('record_id') or invoice.get('id') or ''),
@@ -1698,7 +1700,8 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_typ
                     'after_value': recovered,
                     'reason': 'Recovered from Buyer block with checksum verification',
                     'feature_flag': 'NORMALIZER_BUYER_RECOVERY'
-                })}")
+                })
+                logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {_audit_payload}")
 
     # 2. HSN Propagation
     if hsn_prop_enabled and raw_items:
@@ -1752,7 +1755,7 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_typ
                 if "canonical_hsn" in item:
                     item["canonical_hsn"] = prev_hsn
                     
-                logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {json.dumps({
+                _audit_payload = json.dumps({
                     'prefix': '[AUDIT_DETERMINISTIC_CORRECTION]',
                     'timestamp': datetime.now().isoformat() + 'Z',
                     'invoice_id': str(invoice.get('record_id') or invoice.get('id') or ''),
@@ -1763,7 +1766,8 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_typ
                     'after_value': prev_hsn,
                     'reason': reason,
                     'feature_flag': 'NORMALIZER_HSN_PROPAGATION'
-                })}")
+                })
+                logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {_audit_payload}")
             else:
                 prev_hsn = None
     
@@ -1873,7 +1877,7 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_typ
                     item["sgst"] = round(item_taxable * (sgst_rate / 100.0), 2)
                     item["total_amount"] = item_taxable + item["cgst"] + item["sgst"]
                     
-                    logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {json.dumps({
+                    _audit_payload = json.dumps({
                         'prefix': '[AUDIT_DETERMINISTIC_CORRECTION]',
                         'timestamp': datetime.now().isoformat() + 'Z',
                         'invoice_id': str(invoice.get('record_id') or invoice.get('id') or ''),
@@ -1884,7 +1888,8 @@ def get_canonical_export_record(invoice: Any, tenant_id: str = None, voucher_typ
                         'after_value': f"CGST={item['cgst']}({item['cgst_rate']}%), SGST={item['sgst']}({item['sgst_rate']}%)",
                         'reason': f"Distributed header rates (calculated={raw_cgst_rate:.2f}%, snapped={cgst_rate}%)",
                         'feature_flag': 'NORMALIZER_TAX_DISTRIBUTION'
-                    })}")
+                    })
+                    logger.info(f"[AUDIT_DETERMINISTIC_CORRECTION] {_audit_payload}")
             else:
                 logger.warning(f"[TAX_DISTRIBUTION_ABORT] Snapped rates cgst={cgst_rate}% sgst={sgst_rate}% deviate too far from raw values ({raw_cgst_rate:.2f}%, {raw_sgst_rate:.2f}%)")
     
