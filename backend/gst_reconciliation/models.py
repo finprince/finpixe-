@@ -71,6 +71,7 @@ class ITCSummary(BaseModel):
 
     class Meta:
         db_table = 'gst_reconciliation_itc_summaries'
+        unique_together = ('period_month', 'period_year')
 
 class GSTR3BReport(BaseModel):
     """
@@ -101,6 +102,7 @@ class GSTR3BReport(BaseModel):
 
     class Meta:
         db_table = 'gst_reconciliation_gstr3b_reports'
+        unique_together = ('period_month', 'period_year')
 
 class AuditLog(BaseModel):
     """

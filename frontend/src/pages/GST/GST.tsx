@@ -118,7 +118,7 @@ export default function GSTPage({ onNavigate, setViewVoucherData, vouchers, navP
                 )}
 
                 {activeTab === 'GSTR3B' && (
-                    <GSTR3BPreview />
+                    <GSTR3BPreview onNavigate={onNavigate} setActiveTab={setActiveTab} />
                 )}
 
                 {activeTab === 'LATE_FEES' && (
