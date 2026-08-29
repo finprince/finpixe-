@@ -106,6 +106,38 @@ const normalizeVoucherType = (raw: string | undefined | null): string => {
   return typeMap[raw] || typeMap[raw.toLowerCase()] || raw;
 };
 
+/** Flexible reference/voucher number matcher supporting zero-padding variations and field aliases */
+const matchRefOrVoucherNo = (entry: any, query: string): boolean => {
+  if (!query || !query.trim()) return true;
+  const q = query.toLowerCase().trim();
+  const raw = entry?.rawVoucher || entry || {};
+  const candidates = [
+    entry?.referenceNo,
+    entry?.voucherNo,
+    raw.reference_number,
+    raw.referenceNo,
+    raw.ref_no,
+    raw.voucher_number,
+    raw.voucherNo,
+    raw.voucher_no,
+    raw.purchase_voucher_no,
+    raw.voucher_number_display
+  ].filter((val): val is string | number => val !== undefined && val !== null && val !== '' && val !== '-').map(s => String(s).toLowerCase());
+
+  if (candidates.some(c => c.includes(q))) return true;
+
+  // Normalize leading zeros in numeric sequences for zero-padding mismatch resilience (e.g. VCN00111 vs VCN000111)
+  const normQ = q.replace(/([a-zA-Z])0+([1-9])/g, '$1$2').replace(/^0+/, '');
+  if (normQ.length >= 2) {
+    for (const c of candidates) {
+      const normC = c.replace(/([a-zA-Z])0+([1-9])/g, '$1$2').replace(/^0+/, '');
+      if (normC.includes(normQ)) return true;
+    }
+  }
+
+  return false;
+};
+
 const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], ledgers = [], ledgerGroups = [], stockItems = [], onNavigate, setViewVoucherData, navParams }) => {
   // Report Options Mapping
   const { hasTabAccess, isSuperuser } = usePermissions();
@@ -452,13 +484,30 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     'September': '09', 'October': '10', 'November': '11', 'December': '12'
   };
 
-  // When user clicks a ledger, fetch its specific transactions from the API
+  const resetLedgerDetailFilters = () => {
+    setLedgerVoucherType('all');
+    setLedgerStatusFilter('all');
+    setLedgerSearch('');
+    setLedgerRefSearch('');
+    setLedgerMinAmount('');
+    setLedgerMaxAmount('');
+    setSelectedSession('all');
+    setSelectedSection('all');
+    setLedgerFilters({ date: '', dateFrom: '', dateTo: '', particulars: '', voucherNo: '', voucherType: '', debit: '', credit: '', runningBalance: '' });
+  };
+
+  // Reset column filters when active report tab changes
   useEffect(() => {
+    resetLedgerDetailFilters();
+  }, [reportType]);
+
+  // When user clicks a ledger, fetch its specific transactions from the API and reset active filter inputs
+  useEffect(() => {
+    resetLedgerDetailFilters();
     if (drillDownLedger && drillDownLedger !== 'all') {
       setIsDrillDownLoading(true);
       setDrillDownData([]);
       setLedgerViewMode('ledger');
-      setLedgerFilters({ date: '', dateFrom: '', dateTo: '', particulars: '', voucherNo: '', voucherType: '', debit: '', credit: '', runningBalance: '' });
       const ledgerName = drillDownLedger.includes(':') ? drillDownLedger.split(':')[1] : drillDownLedger;
       apiService.getJournalEntriesReport(ledgerName, undefined, undefined)
         .then(data => { setDrillDownData(Array.isArray(data) ? data : []); setIsDrillDownLoading(false); })
@@ -1946,18 +1995,30 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       }
 
       if (ledgerStatusFilter && ledgerStatusFilter !== 'all') {
-        const statusVal = calcEntryStatus(e).toLowerCase();
-        if (!statusVal.includes(ledgerStatusFilter.toLowerCase())) return false;
+        const targetSt = ledgerStatusFilter.toLowerCase().trim();
+        const entrySt = calcEntryStatus(e).toLowerCase().trim();
+        if (targetSt === 'due') {
+          if (entrySt !== 'due' && !entrySt.includes('overdue')) return false;
+        } else if (targetSt === 'paid') {
+          if (entrySt !== 'paid') return false;
+        } else if (targetSt === 'received') {
+          if (entrySt !== 'received') return false;
+        } else if (targetSt === 'utilized') {
+          if (entrySt !== 'utilized') return false;
+        } else {
+          if (!entrySt.includes(targetSt)) return false;
+        }
       }
 
       if (ledgerSearch && ledgerSearch.trim()) {
         const q = ledgerSearch.toLowerCase().trim();
-        if (!(e.particulars || '').toLowerCase().includes(q)) return false;
+        const particularsVal = (e.particulars || '').toLowerCase();
+        const partyVal = (e.rawVoucher?.party || e.rawVoucher?.account || '').toLowerCase();
+        if (!particularsVal.includes(q) && !partyVal.includes(q)) return false;
       }
 
       if (ledgerRefSearch && ledgerRefSearch.trim()) {
-        const q = ledgerRefSearch.toLowerCase().trim();
-        if (!(e.referenceNo || '').toLowerCase().includes(q) && !(e.voucherNo || '').toLowerCase().includes(q)) return false;
+        if (!matchRefOrVoucherNo(e, ledgerRefSearch)) return false;
       }
 
       const entryAmt = Math.max(Number(e.debit || 0), Number(e.credit || 0));
@@ -1973,7 +2034,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       if (ledgerFilters.dateTo && e.date && e.date > ledgerFilters.dateTo) dateMatch = false;
       if (ledgerFilters.date && e.date && !e.date.includes(ledgerFilters.date)) dateMatch = false;
       const partMatch = !ledgerFilters.particulars || (e.particulars || '').toLowerCase().includes(ledgerFilters.particulars.toLowerCase());
-      const vNoMatch = !ledgerFilters.voucherNo || (e.voucherNo || '').toLowerCase().includes(ledgerFilters.voucherNo.toLowerCase());
+      const vNoMatch = !ledgerFilters.voucherNo || matchRefOrVoucherNo(e, ledgerFilters.voucherNo);
       const vtMatch = !ledgerFilters.voucherType || (e.voucherType || '').toLowerCase().includes(ledgerFilters.voucherType.toLowerCase());
       const drMatch = !ledgerFilters.debit || String(e.debit || '').includes(ledgerFilters.debit);
       const crMatch = !ledgerFilters.credit || String(e.credit || '').includes(ledgerFilters.credit);
@@ -2000,7 +2061,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
 
       return dateMatch && partMatch && vNoMatch && vtMatch && drMatch && crMatch && sessionMatch && sectionFilterMatch;
     });
-  }, [drillDownEntries, startDate, endDate, ledgerVoucherType, ledgerStatusFilter, ledgerSearch, ledgerMinAmount, ledgerMaxAmount, ledgerFilters, isTdsTcsLedger, selectedSession, selectedSection, ledgers, drillDownLedger, drillDownData]);
+  }, [drillDownEntries, startDate, endDate, ledgerVoucherType, ledgerStatusFilter, ledgerSearch, ledgerRefSearch, ledgerMinAmount, ledgerMaxAmount, ledgerFilters, isTdsTcsLedger, selectedSession, selectedSection, ledgers, drillDownLedger, drillDownData]);
 
   // ═══ MONTH VIEW DATA ═════════════════════════════════════════════════════════
   const ledgerMonthData = useMemo(() => {
@@ -2008,7 +2069,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     let cumBal = 0;
     return months.map(month => {
       const mStr = monthNameToNumber[month];
-      const inMonth = drillDownEntries.filter(e => e.date && e.date.split('-')[1] === mStr);
+      const inMonth = filteredDrillData.filter(e => e.date && e.date.split('-')[1] === mStr);
       const mDr = inMonth.reduce((s, e) => s + (e.debit || 0), 0);
       const mCr = inMonth.reduce((s, e) => s + (e.credit || 0), 0);
       cumBal += mDr - mCr;
@@ -2020,15 +2081,15 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
         rawBalance: cumBal,
       };
     });
-  }, [drillDownEntries]);
+  }, [filteredDrillData]);
 
   // ═══ ALLOCATION VIEW DATA ════════════════════════════════════════════════════
   const allocationRows = useMemo(() => {
-    if (!drillDownEntries || drillDownEntries.length === 0) return [];
+    if (!filteredDrillData || filteredDrillData.length === 0) return [];
 
     // Group by referenceNo to find linked vouchers
     const groups: Record<string, any[]> = {};
-    drillDownEntries.forEach(entry => {
+    filteredDrillData.forEach(entry => {
       if (entry.voucherType === 'Opening') return;
       const vt = (entry.voucherType || '').toLowerCase();
       const isApplication = vt.includes('receipt') || vt.includes('payment') || vt.includes('contra') || vt.includes('debit') || vt.includes('credit');
@@ -2235,8 +2296,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       list = list.filter((v: any) => (v.type || '').toLowerCase().includes(targetVt));
     }
     if (daybookSearch && daybookSearch.trim()) {
-      const q = daybookSearch.toLowerCase().trim();
-      list = list.filter((v: any) => (v.voucher_number || '').toLowerCase().includes(q));
+      list = list.filter((v: any) => matchRefOrVoucherNo({ rawVoucher: v, voucherNo: v.voucher_number, referenceNo: v.reference_number || v.ref_no }, daybookSearch));
     }
     if (daybookPartyFilter && daybookPartyFilter.trim()) {
       const q = daybookPartyFilter.toLowerCase().trim();
@@ -2488,7 +2548,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       <div>
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-4 text-sm">
-          <button onClick={() => { setDrillDownLedger(null); setDrillDownSourceType(null); }} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-900 font-semibold transition-colors">
+          <button onClick={() => { setDrillDownLedger(null); setDrillDownSourceType(null); resetLedgerDetailFilters(); }} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-900 font-semibold transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             All Ledgers
           </button>
@@ -2755,7 +2815,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           className={`transition-colors ${e.voucherType === 'Opening' ? 'bg-indigo-50/50' : 'hover:bg-indigo-50'}`}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-50">{fmtDate(e.date)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-r border-gray-50">{normalizeVoucherType(e.voucherType) || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium border-r border-gray-50">{e.voucherNo || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium border-r border-gray-50">{e.referenceNo && e.referenceNo !== '-' ? e.referenceNo : (e.voucherNo || '-')}</td>
                           {isTdsTcsLedger && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 border-r border-gray-50">
                               {e.rawVoucher?.tds_components ? e.rawVoucher.tds_components.map((c: any) => c.component).join(', ') : '-'}
