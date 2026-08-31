@@ -10112,43 +10112,18 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                 </div>
               </div>
 
-              {/* Rate & Opening Stock */}
+              {/* Rate */}
               <div className="border-t pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Pricing & Initial Stock</label>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Standard Rate</label>
-                    <input
-                      type="text"
-                      value={editFormData?.rate || ''}
-                      onChange={(e) => handleFormChange('rate', e.target.value)}
-                      disabled={!editFormData?.isNew && !editFormData?.isEditMode}
-                      placeholder="Enter rate"
-                      className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Opening Stock (Qty)</label>
-                    <input
-                      type="text"
-                      value={editFormData?.opening_stock || ''}
-                      onChange={(e) => handleFormChange('opening_stock', e.target.value)}
-                      disabled={!editFormData?.isNew && !editFormData?.isEditMode}
-                      placeholder="e.g. 50"
-                      className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Opening Rate</label>
-                    <input
-                      type="text"
-                      value={editFormData?.opening_rate || ''}
-                      onChange={(e) => handleFormChange('opening_rate', e.target.value)}
-                      disabled={!editFormData?.isNew && !editFormData?.isEditMode}
-                      placeholder="Value per unit"
-                      className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Standard Rate</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={editFormData?.rate || ''}
+                    onChange={(e) => handleFormChange('rate', e.target.value)}
+                    disabled={!editFormData?.isNew && !editFormData?.isEditMode}
+                    placeholder="Enter rate"
+                    className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
                   <select
                     className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     disabled={!editFormData?.isNew && !editFormData?.isEditMode}
@@ -10199,6 +10174,32 @@ const InventoryPage: React.FC<{ navParams?: any }> = ({ navParams }) => {
                     onChange={(e) => handleFormChange('cessRate', e.target.value)}
                     disabled={!editFormData?.isNew && !editFormData?.isEditMode}
                     placeholder="e.g. 2"
+                    className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              {/* Opening Stock & Opening Rate */}
+              <div className="border-t pt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Opening Stock (Qty)</label>
+                  <input
+                    type="text"
+                    value={editFormData?.opening_stock || ''}
+                    onChange={(e) => handleFormChange('opening_stock', e.target.value)}
+                    disabled={!editFormData?.isNew && !editFormData?.isEditMode}
+                    placeholder="e.g. 50"
+                    className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Opening Rate</label>
+                  <input
+                    type="text"
+                    value={editFormData?.opening_rate || ''}
+                    onChange={(e) => handleFormChange('opening_rate', e.target.value)}
+                    disabled={!editFormData?.isNew && !editFormData?.isEditMode}
+                    placeholder="Value per unit"
                     className="w-full px-4 py-2 border-2 border-slate-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
