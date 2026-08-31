@@ -73,7 +73,7 @@ const RiskBadge: React.FC<{ level: 'Low' | 'Medium' | 'High' }> = ({ level }) =>
         Medium: 'bg-indigo-100 text-indigo-800 border border-indigo-300',
         High: 'bg-red-100 text-red-800 border border-red-300',
     };
-    const icons = { Low: 'âœ…', Medium: 'âš ï¸', High: 'ðŸš¨' };
+    const icons = { Low: '✅', Medium: '⚠️', High: '🚨' };
     return (
         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${styles[level]}`}>
             {icons[level]} {level} Risk
@@ -97,10 +97,10 @@ const IngestionDashboard: React.FC<{
                 {/* Header */}
                 <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
-                        <span className="text-2xl">ðŸ“Š</span>
+                        <span className="text-2xl">📊</span>
                         <div>
                             <h2 className="text-lg font-bold text-gray-900">Ingestion Risk Report</h2>
-                            <p className="text-xs text-gray-500">Schema v{report.schemaVersion} Â· {new Date(report.timestamp).toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">Schema v{report.schemaVersion} · {new Date(report.timestamp).toLocaleString()}</p>
                         </div>
                     </div>
                     <RiskBadge level={report.riskLevel} />
@@ -122,11 +122,11 @@ const IngestionDashboard: React.FC<{
                     {/* Block Reasons */}
                     {report.blockSubmission && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <h3 className="font-semibold text-red-800 mb-2">ðŸš« Submission Blocked</h3>
+                            <h3 className="font-semibold text-red-800 mb-2">🚫 Submission Blocked</h3>
                             <ul className="space-y-1">
                                 {report.blockReasons.map((r, i) => (
                                     <li key={i} className="text-sm text-red-700 flex items-start gap-2">
-                                        <span className="mt-0.5">â€¢</span> {r}
+                                        <span className="mt-0.5">•</span> {r}
                                     </li>
                                 ))}
                             </ul>
@@ -243,7 +243,7 @@ const IngestionDashboard: React.FC<{
                                 ${(confirmRequired && !agreed)
                                     ? 'bg-gray-400 cursor-not-allowed'
                                     : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                            âœ… Confirm & Upload
+                            ✅ Confirm & Upload
                         </button>
                     )}
                 </div>
@@ -695,7 +695,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
             const filePaths: string[] = [];
             
             if (!isOthersMode) {
-                showInfo(`ðŸ“¤ Preparing direct S3 upload for ${newFiles.length} files...`);
+                showInfo(`📦 Preparing direct S3 upload for ${newFiles.length} files...`);
                 for (let i = 0; i < newFiles.length; i++) {
                     const f = newFiles[i];
                     try {
@@ -755,7 +755,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                 // Map results immediately (they are already extracted and deleted from DB)
                 handleInstantResults(response.results);
                 setIsExtracting(false);
-                showSuccess(`âœ… ${response.results.length} files extracted instantly (non-persistent).`);
+                showSuccess(`✅ ${response.results.length} files extracted instantly (non-persistent).`);
                 return;
             }
 
@@ -954,7 +954,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
             // No extracted_data.sections. No reconstructZohoInvoices. Direct field mapping only.
             // ═══════════════════════════════════════════════════════════════════════
             if (extractionMode === 'zoho') {
-                const isFinalized = response?.status === 'FINALIZED' || response?.status === 'COMPLETED';
+                const isFinalized = response?.completed === true || response?.terminal === true || ['FINALIZED', 'COMPLETED', 'PARTIAL_FAILED', 'PARTIAL_FAILURE', 'FAILED'].includes(String(response?.status || '').toUpperCase());
                 if (!isFinalized) {
                     console.log(`[ZOHO_GATE] Not finalized (status=${response?.status}). Holding hydration.`);
                     return;
@@ -1393,7 +1393,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
         });
 
         onUpload(allFlatRows);
-        showSuccess(`âœ… ${allFlatRows.length} rows uploaded successfully.`);
+        showSuccess(`✅ ${allFlatRows.length} rows uploaded successfully.`);
         setUploadedFileNames([]);
         setEstimatedExtractionTime(null);
         onClose();
@@ -1749,7 +1749,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                                                 title="Cancel extraction"
                                                 className="text-xs font-semibold text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded px-2 py-0.5 transition-colors bg-red-50 hover:bg-red-100"
                                             >
-                                                âœ• Cancel
+                                                ✖ Cancel
                                             </button>
                                         </div>
                                     </div>
@@ -2019,7 +2019,7 @@ const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({ onClose, onUp
                             </div>
                             <div className="bg-gray-50 px-4 py-3 border-t mt-auto">
                                 <p className="text-sm text-gray-700">
-                                    ðŸ“Š {displayRows.length} line item row{displayRows.length !== 1 ? 's' : ''} extracted.
+                                    📊 {displayRows.length} line item row{displayRows.length !== 1 ? 's' : ''} extracted.
                                     Each printed invoice row appears as a separate table row.
                                 </p>
                             </div>

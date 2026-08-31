@@ -1378,11 +1378,9 @@ Return ONLY valid JSON.
         return [(idx, res) for idx, res in batch_results.items()]
 
 
-    # ── [PHASE 10: BOUNDED FANOUT] ──
-    # Enqueue ONLY the first 5 batches immediately to prevent SQS pressure.
-    # Subsequent pages will be enqueued by workers as they complete prior tasks.
-    MAX_INITIAL_FANOUT = 5
-    batches_to_enqueue = batches[:MAX_INITIAL_FANOUT]
+    # ── [PHASE 10: BOUNDED FANOUT FIX] ──
+    # Enqueue ALL batches so all expected pages are submitted to the AI pipeline.
+    batches_to_enqueue = batches
     
     from django.db import transaction as dj_tx, connection as dj_conn
     in_tx = dj_conn.in_atomic_block

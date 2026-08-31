@@ -1255,9 +1255,9 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                 // Legacy plain-array response (backward compat)
                 rows = res;
                 pipelineStatus = rows.every(r => !['PENDING', 'processing'].includes(r.validation_status || '')) ? 'completed' : 'processing';
-            } else if (res && res.status === 'FINALIZED') {
+            } else if (res && (['FINALIZED', 'COMPLETED', 'PARTIAL_FAILED', 'PARTIAL_FAILURE'].includes(res.status) || res.completed === true)) {
                 const snapshotInvoicesRaw = res.data || [];
-                console.log(`[FRONTEND_RAW_RESPONSE] status=FINALIZED session=${sid} invoices=${snapshotInvoicesRaw.length}`);
+                console.log(`[FRONTEND_RAW_RESPONSE] status=${res.status} session=${sid} invoices=${snapshotInvoicesRaw.length}`);
                 console.log('✅ SNAPSHOT RECEIVED — HALTING POLL.');
                 const snapshotInvoices = snapshotInvoicesRaw.map((inv: any, idx: number) => {
                     const result = {
@@ -1590,7 +1590,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
             }
 
             // ── Stop polling if backend says completed or all rows settled ──
-            if (lowerStatus === 'completed' || lowerStatus === 'finalized' || lowerStatus === 'failed') {
+            if (['completed', 'finalized', 'failed', 'partial_failed', 'partial_failure'].includes(lowerStatus) || res?.completed === true) {
                 console.log(`✅ Backend reported ${pipelineStatus} — stopping poll.`);
                 return true; // Signal caller to stop
             }

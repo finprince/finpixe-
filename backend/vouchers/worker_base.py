@@ -815,7 +815,8 @@ class BaseWorker(ABC):
                             return
 
                         # Calculate exponential backoff based on saturation retry count
-                        backoff_seconds = min(900, (2 ** sat_retries) * 20)
+                        is_local_env = os.getenv('CLUSTER_ENV', 'local') == 'local'
+                        backoff_seconds = 5 if is_local_env else min(900, (2 ** sat_retries) * 20)
                         
                         # Increment saturation count in payload
                         new_task = dict(raw_task)
@@ -860,7 +861,8 @@ class BaseWorker(ABC):
                         logger.info(f"[WORKER_RETRY] correlation_id={correlation_id} upload_session_id={session_id} retry_count={receive_count} - Will retry.")
                         if handle:
                             try:
-                                backoff_seconds = min(900, (2 ** receive_count) * 10) # 20s, 40s, 80s... max 15m
+                                is_local_env = os.getenv('CLUSTER_ENV', 'local') == 'local'
+                                backoff_seconds = 5 if is_local_env else min(900, (2 ** receive_count) * 10) # 20s, 40s, 80s... max 15m
                                 loop = asyncio.get_running_loop()
                                 await loop.run_in_executor(None, lambda: queue_service.change_visibility(handle, backoff_seconds, queue_type=self.queue_type))
                                 logger.info(f"[MESSAGE_NACK] id={task_id} queue={queue_name} reason=FAILED backoff={backoff_seconds}s")
@@ -883,7 +885,8 @@ class BaseWorker(ABC):
                 try:
                     # Exponential backoff for unhandled exceptions too
                     receive_count = int(raw_task.get('_sqs_receive_count', 1))
-                    backoff_seconds = min(900, (2 ** receive_count) * 10)
+                    is_local_env = os.getenv('CLUSTER_ENV', 'local') == 'local'
+                    backoff_seconds = 5 if is_local_env else min(900, (2 ** receive_count) * 10)
                     queue_service.change_visibility(handle, backoff_seconds, queue_type=self.queue_type)
                     logger.info(f"[MESSAGE_NACK] id={msg_id} queue={queue_name} reason=UNHANDLED_EXCEPTION backoff={backoff_seconds}s")
                     logger.info(f"[WORKER_VISIBILITY_RECYCLE] msg_id={msg_id} queue={queue_name}")

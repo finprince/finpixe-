@@ -170,36 +170,32 @@ class BulkUploadAPIView(APIView):
                 )
                 
                 # [PHASE 11.9] PROTECTIVE RECORD CREATION (Retry Support)
-                # If we are retrying the same session, some records might already exist.
-                # We reuse them to avoid 409 IntegrityErrors.
+                # If retrying or re-uploading a file with an existing hash, reuse the record to avoid 409 IntegrityErrors.
                 record = InvoiceTempOCR.objects.filter(
                     tenant_id=tenant_id,
-                    file_hash=f_hash,
-                    upload_session_id=received_session
+                    file_hash=f_hash
                 ).first()
                 
                 if record:
                     logger.info(f"[REUSING_RECORD] id={record.id} session={received_session} hash={f_hash[:8]}...")
+                    record._bypass_immutability_guard = True
                     record.status = 'PENDING'
+                    record.validation_status = 'PENDING'
+                    record.upload_session_id = received_session
                     record.file_path = storage_key # Update path to newest upload
-                    record.save(update_fields=['status', 'file_path'])
+                    record.processed = False
+                    record.save(update_fields=['status', 'validation_status', 'upload_session_id', 'file_path', 'processed'])
                 else:
-                    # [FIX] Critical: Must pass file_hash to prevent (tenant, hash, session) collision
-                    record, created = InvoiceTempOCR.objects.get_or_create(
+                    record = InvoiceTempOCR.objects.create(
                         tenant_id=tenant_id,
                         upload_session_id=received_session,
                         file_hash=f_hash,
-                        defaults={
-                            'file_path': storage_key,
-                            'status': 'PENDING',
-                            'voucher_type': request.data.get('voucher_type', 'Purchase'),
-                            'upload_type': upload_type
-                        }
+                        file_path=storage_key,
+                        status='PENDING',
+                        voucher_type=request.data.get('voucher_type', 'Purchase'),
+                        upload_type=upload_type
                     )
-                    if created:
-                        logger.info(f"[RECORD_CREATED] id={record.id} job={job.id} hash={f_hash[:8]}...")
-                    else:
-                        logger.info(f"[RECORD_REUSED_IN_BATCH] id={record.id} job={job.id} hash={f_hash[:8]}...")
+                    logger.info(f"[RECORD_CREATED] id={record.id} job={job.id} hash={f_hash[:8]}...")
 
                 item.staging_record_id = record.id
                 item.save(update_fields=['staging_record_id'])

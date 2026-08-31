@@ -221,7 +221,17 @@ class CleanOCRStagingView(views.APIView):
         api_duration_ms = int((time.time() - t_start_api) * 1000) if 't_start_api' in locals() else 0
         from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
         PipelineStageTelemetry.record_stage('API', {'files_received': len(files)}, {'success': True, 'queued_count': queued_count, 'duplicate_count': duplicate_count}, api_duration_ms)
-        return Response({'success': True, 'job_id': str(job.id), 'status': 'PROCESSING', 'message': f'Queued {queued_count} files. {duplicate_count} skipped (deduplicated).', 'total_files': job.total_files, 'estimated_delay_seconds': round(estimated_delay, 1)}, status=status.HTTP_202_ACCEPTED)
+def from_norm_state(val, gstin=None):
+    from .normalize import normalize_state, is_empty
+    st = normalize_state(val)
+    if (is_empty(st) or st.isdigit()) and gstin and len(str(gstin)) >= 2 and str(gstin)[:2].isdigit():
+        derived = normalize_state(str(gstin)[:2])
+        if derived and not derived.isdigit():
+            return derived
+    return st
+
+class CleanOCRStagingView(views.APIView):
+    permission_classes = [IsAuthenticated]
 
     def _map_record_to_ui_row(self, record, norm_data=None, vendor_map=None):
         """
@@ -438,7 +448,7 @@ class CleanOCRStagingView(views.APIView):
             bill_to=bill_to
         )
 
-        res = {'id': getattr(r, 'id', None), 'file_hash': getattr(r, 'file_hash', None) or norm.get('file_hash', None), 'buyer_name': cust_val['buyer_name'] or buyer_name, 'customer_name': cust_val['customer_name'] or buyer_name, 'raw_buyer_name': norm.get('raw_buyer_name') or buyer_name, 'canonical_buyer_name': cust_val['canonical_buyer_name'] or buyer_name, 'file_path': getattr(r, 'file_path', None) or norm.get('file_path', None), 'tenant_id': getattr(r, 'tenant_id', None), 'invoice_no': inv_no, 'page_no': norm.get('_page_no') or norm.get('page_no') or getattr(r, 'page_no', None), 'invoice_status': norm.get('invoice_status') or ('MISSING' if not inv_no else 'FOUND'), 'invoice_date': norm.get('invoice_date') or header.get('invoice_date') or supplier.get('invoice_date') or '—', 'total_amount': norm.get('total_invoice_value') or norm.get('invoice_total') or header.get('total_amount') or header.get('invoice_total') or norm.get('total_amount') or '0.00', 'totals': norm.get('total_invoice_value') or norm.get('invoice_total') or header.get('total_amount') or header.get('invoice_total') or norm.get('total_amount') or '0.00', 'branch': branch, 'vendor_name': vendor_name_val, 'vendor_gstin': norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None) or header.get('vendor_gstin') or norm.get('gstin') or supplier.get('gstin') or '—', 'gstin': norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None) or header.get('gstin') or norm.get('gstin') or supplier.get('gstin') or '—', 'buyer_gstin': cust_val['buyer_gstin'] or buyer_gstin_val or '—', 'customer_gstin': cust_val['customer_gstin'] or buyer_gstin_val or '—', 'consignee_gstin': norm.get('consignee_gstin') or norm.get('ship_to_gstin') or '—', 'ship_to_gstin': norm.get('ship_to_gstin') or norm.get('consignee_gstin') or '—', 'bill_to_gstin': norm.get('bill_to_gstin') or buyer_gstin_val or '—', 'raw_vendor_gstin': norm.get('raw_vendor_gstin') or getattr(r, 'gstin', None) or norm.get('gstin') or '—', 'raw_buyer_gstin': norm.get('raw_buyer_gstin') or '—', 'raw_consignee_gstin': norm.get('raw_consignee_gstin') or '—', 'raw_bill_to_gstin': norm.get('raw_bill_to_gstin') or '—', 'raw_ship_to_gstin': norm.get('raw_ship_to_gstin') or '—', 'canonical_vendor_gstin': norm.get('canonical_vendor_gstin') or getattr(r, 'gstin', None) or norm.get('gstin') or '—', 'canonical_buyer_gstin': cust_val['canonical_buyer_gstin'] or buyer_gstin_val or '—', 'customer_status': cust_val['customer_status'], 'company_match_detected': cust_val['company_match_detected'], 'company_match_decision': cust_val['company_match_decision'], 'vendor_id': v_id, 'status': final_status, 'validationStatus': ui_status, 'validation_status': ui_status, 'vendor_status': 'EXISTS' if v_id or db_vendor_status in ('EXISTS', 'FOUND', 'MATCHED', 'RESOLVED') else 'NEW', 'item_status': item_status, 'missing_items': missing_items, 'processed': getattr(r, 'processed', False), 'bill_from': bill_from, 'bill_to': bill_to, 'items': items_val, 'line_items': items_val, 'irn': getattr(r, 'irn', None) or norm.get('irn'), 'ack_no': getattr(r, 'ack_no', None) or norm.get('ack_no'), 'ack_date': getattr(r, 'ack_date', None) or norm.get('ack_date'), 'hsn_sac': norm.get('hsn_sac', ''), 'place_of_supply': norm.get('place_of_supply') or supplier.get('place_of_supply') or '—', 'total_taxable_value': norm.get('total_taxable_value') or supplier.get('total_taxable_value') or norm.get('taxable_value') or '0.00', 'total_igst': norm.get('total_igst') or supplier.get('total_igst') or norm.get('igst') or '0.00', 'total_cgst': norm.get('total_cgst') or supplier.get('total_cgst') or norm.get('cgst') or '0.00', 'total_sgst': norm.get('total_sgst') or supplier.get('total_sgst') or norm.get('sgst') or '0.00', 'total_cess': norm.get('total_cess') or supplier.get('total_cess') or norm.get('cess') or '0.00', 'round_off': norm.get('round_off') or supplier.get('round_off') or '0.00', 'total_invoice_value': norm.get('total_invoice_value') or norm.get('invoice_total') or supplier.get('total_invoice_value') or '0.00'}
+        res = {'id': getattr(r, 'id', None), 'file_hash': getattr(r, 'file_hash', None) or norm.get('file_hash', None), 'buyer_name': cust_val['buyer_name'] or buyer_name, 'customer_name': cust_val['customer_name'] or buyer_name, 'raw_buyer_name': norm.get('raw_buyer_name') or buyer_name, 'canonical_buyer_name': cust_val['canonical_buyer_name'] or buyer_name, 'file_path': getattr(r, 'file_path', None) or norm.get('file_path', None), 'tenant_id': getattr(r, 'tenant_id', None), 'invoice_no': inv_no, 'page_no': norm.get('_page_no') or norm.get('page_no') or getattr(r, 'page_no', None), 'invoice_status': norm.get('invoice_status') or ('MISSING' if not inv_no else 'FOUND'), 'invoice_date': norm.get('invoice_date') or header.get('invoice_date') or supplier.get('invoice_date') or '—', 'total_amount': norm.get('total_invoice_value') or norm.get('invoice_total') or header.get('total_amount') or header.get('invoice_total') or norm.get('total_amount') or '0.00', 'totals': norm.get('total_invoice_value') or norm.get('invoice_total') or header.get('total_amount') or header.get('invoice_total') or norm.get('total_amount') or '0.00', 'branch': branch, 'vendor_name': vendor_name_val, 'vendor_gstin': norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None) or header.get('vendor_gstin') or norm.get('gstin') or supplier.get('gstin') or '—', 'gstin': norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None) or header.get('gstin') or norm.get('gstin') or supplier.get('gstin') or '—', 'buyer_gstin': cust_val['buyer_gstin'] or buyer_gstin_val or '—', 'customer_gstin': cust_val['customer_gstin'] or buyer_gstin_val or '—', 'consignee_gstin': norm.get('consignee_gstin') or norm.get('ship_to_gstin') or '—', 'ship_to_gstin': norm.get('ship_to_gstin') or norm.get('consignee_gstin') or '—', 'bill_to_gstin': norm.get('bill_to_gstin') or buyer_gstin_val or '—', 'raw_vendor_gstin': norm.get('raw_vendor_gstin') or getattr(r, 'gstin', None) or norm.get('gstin') or '—', 'raw_buyer_gstin': norm.get('raw_buyer_gstin') or '—', 'raw_consignee_gstin': norm.get('raw_consignee_gstin') or '—', 'raw_bill_to_gstin': norm.get('raw_bill_to_gstin') or '—', 'raw_ship_to_gstin': norm.get('raw_ship_to_gstin') or '—', 'canonical_vendor_gstin': norm.get('canonical_vendor_gstin') or getattr(r, 'gstin', None) or norm.get('gstin') or '—', 'canonical_buyer_gstin': cust_val['canonical_buyer_gstin'] or buyer_gstin_val or '—', 'customer_status': cust_val['customer_status'], 'company_match_detected': cust_val['company_match_detected'], 'company_match_decision': cust_val['company_match_decision'], 'vendor_id': v_id, 'status': final_status, 'validationStatus': ui_status, 'validation_status': ui_status, 'vendor_status': 'EXISTS' if v_id or db_vendor_status in ('EXISTS', 'FOUND', 'MATCHED', 'RESOLVED') else 'NEW', 'item_status': item_status, 'missing_items': missing_items, 'processed': getattr(r, 'processed', False), 'bill_from': bill_from, 'bill_to': bill_to, 'items': items_val, 'line_items': items_val, 'irn': getattr(r, 'irn', None) or norm.get('irn'), 'ack_no': getattr(r, 'ack_no', None) or norm.get('ack_no'), 'ack_date': getattr(r, 'ack_date', None) or norm.get('ack_date'), 'hsn_sac': norm.get('hsn_sac', ''), 'place_of_supply': from_norm_state(norm.get('place_of_supply') or supplier.get('place_of_supply') or '—', norm.get('canonical_vendor_gstin') or norm.get('vendor_gstin') or getattr(r, 'gstin', None)), 'total_taxable_value': norm.get('total_taxable_value') or supplier.get('total_taxable_value') or norm.get('taxable_value') or '0.00', 'total_igst': norm.get('total_igst') or supplier.get('total_igst') or norm.get('igst') or '0.00', 'total_cgst': norm.get('total_cgst') or supplier.get('total_cgst') or norm.get('cgst') or '0.00', 'total_sgst': norm.get('total_sgst') or supplier.get('total_sgst') or norm.get('sgst') or '0.00', 'total_cess': norm.get('total_cess') or supplier.get('total_cess') or norm.get('cess') or '0.00', 'round_off': norm.get('round_off') or supplier.get('round_off') or '0.00', 'total_invoice_value': norm.get('total_invoice_value') or norm.get('invoice_total') or supplier.get('total_invoice_value') or '0.00'}
         is_degraded = (not inv_no or str(inv_no).upper() == 'MISSING') and (not items_val)
         if getattr(r, 'status', None) == 'partial_extraction' or norm.get('status') == 'partial_extraction':
             is_degraded = True
@@ -581,7 +591,24 @@ class CleanOCRStagingView(views.APIView):
                 for db_record in all_db_records:
                     mapped = self._map_record_to_ui_row(db_record, norm_data=db_record.extracted_data, vendor_map=_snap_vendor_map)
                     mapped_data.append(mapped)
-            return Response({'status': 'FAILED', 'data': mapped_data, 'pipeline_status': 'failed', 'terminal': True, 'hydration_pending': False, 'completed': True, 'failed': True, 'progress_percent': 100.0, 'poll_latency': round(time.time() - t_poll_start, 3)})
+            clean_data = [
+                row for row in mapped_data 
+                if row.get('invoice_no') != 'FAILED' and row.get('validationStatus') not in ('EXTRACTION_FAILED', 'FAILED') and row.get('status') != 'FAILED'
+            ]
+            failed_records = []
+            for row in mapped_data:
+                if row.get('invoice_no') == 'FAILED' or row.get('validationStatus') in ('EXTRACTION_FAILED', 'FAILED') or row.get('status') == 'FAILED':
+                    row['diagnostics'] = {
+                        'source_file': row.get('file_path') or row.get('file_name') or 'N/A',
+                        'page_no': row.get('page_no') or 1,
+                        'stage': 'EXTRACTION_STAGE',
+                        'reason': row.get('error') or row.get('conflict_message') or 'PROVIDER_THROTTLED_OR_UNPARSABLE',
+                        'error_type': 'EXTRACTION_FAILURE'
+                    }
+                    failed_records.append(row)
+            has_clean = len(clean_data) > 0
+            final_status = 'PARTIAL_FAILED' if has_clean else 'FAILED'
+            return Response({'status': final_status, 'data': clean_data, 'failed_records': failed_records, 'pipeline_status': 'completed' if has_clean else 'failed', 'terminal': True, 'hydration_pending': False, 'completed': True, 'failed': True, 'progress_percent': 100.0, 'poll_latency': round(time.time() - t_poll_start, 3)})
         if barrier_state.terminal_consistency:
             snapshots = FinalizedSnapshot.objects.filter(session_id=session_id).order_by('created_at', 'id')
             if not snapshots.exists():
@@ -678,11 +705,28 @@ class CleanOCRStagingView(views.APIView):
                             continue
                     mapped_data.append(mapped)
                 logger.info(f'[SNAPSHOT_EMPTY_FALLBACK] session={session_id} fallback produced {len(mapped_data)} rows')
+            clean_data = [
+                row for row in mapped_data 
+                if row.get('invoice_no') != 'FAILED' and row.get('validationStatus') not in ('EXTRACTION_FAILED', 'FAILED') and row.get('status') != 'FAILED'
+            ]
+            failed_records = []
             for row in mapped_data:
+                if row.get('invoice_no') == 'FAILED' or row.get('validationStatus') in ('EXTRACTION_FAILED', 'FAILED') or row.get('status') == 'FAILED':
+                    row['diagnostics'] = {
+                        'source_file': row.get('file_path') or row.get('file_name') or 'N/A',
+                        'page_no': row.get('page_no') or 1,
+                        'stage': 'EXTRACTION_STAGE',
+                        'reason': row.get('error') or row.get('conflict_message') or 'PROVIDER_THROTTLED_OR_UNPARSABLE',
+                        'error_type': 'EXTRACTION_FAILURE'
+                    }
+                    failed_records.append(row)
+            for row in clean_data:
                 logger.critical('[FORENSIC_ITEMS_STRUCTURE]\n%s', json.dumps(row.get('items'), indent=2, default=str))
                 logger.critical('[FORENSIC_ITEMS_LIFECYCLE] [BEFORE_API_RESPONSE] record_id=%s invoice_no=%s item_count=%d item_status=%s payload_keys=%s', row.get('id'), row.get('invoice_no'), len(row.get('items', [])), row.get('item_status'), list(row.keys()))
-            self._log_final_api_response_rows(mapped_data, 'snapshot')
-            return Response({'status': 'FINALIZED', 'data': mapped_data, 'pipeline_status': 'completed', 'terminal': True, 'hydration_pending': False, 'completed': True, 'failed': False, 'progress_percent': 100.0, 'poll_latency': round(time.time() - t_poll_start, 3)})
+            self._log_final_api_response_rows(clean_data, 'snapshot')
+            has_failures = len(failed_records) > 0
+            final_status = 'PARTIAL_FAILED' if (clean_data and has_failures) else 'FINALIZED'
+            return Response({'status': final_status, 'data': clean_data, 'failed_records': failed_records, 'pipeline_status': 'completed', 'terminal': True, 'hydration_pending': False, 'completed': True, 'failed': has_failures, 'progress_percent': 100.0, 'poll_latency': round(time.time() - t_poll_start, 3)})
         logger.info(f'[STAGING_POLL] session={session_id} records=0 terminal=False pipeline_status=processing hydration_pending=True')
         return Response({'status': 'PROCESSING', 'data': [], 'pipeline_status': 'processing', 'terminal': False, 'hydration_pending': True, 'completed': False, 'failed': False, 'progress_percent': progress_percent, 'poll_latency': round(time.time() - t_poll_start, 3)})
 

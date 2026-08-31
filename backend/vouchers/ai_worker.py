@@ -565,6 +565,8 @@ class AIWorker(BaseWorker):
                     from vouchers.coordinator import log_forensic_trace
 
                     def _fail_db():
+                        from django.db import close_old_connections
+                        close_old_connections()
                         log_forensic_trace("unhandled_fail_db_BEFORE", record_id, f"page={page_idx}")
                         try:
                             from vouchers.coordinator import terminalize_page_state
@@ -730,6 +732,8 @@ class AIWorker(BaseWorker):
                 logger.error(f"[AI_PAGE_FAIL] record={record_id} page={page_idx} correlation_id={correlation_id} worker_role=AI reason=ocr_failed")
 
             def _persist():
+                from django.db import close_old_connections
+                close_old_connections()
                 from core.redis_orchestrator import orchestrator
                 from vouchers.coordinator import log_forensic_trace, terminalize_page_state
                 
