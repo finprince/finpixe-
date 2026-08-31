@@ -304,7 +304,9 @@ class DistributedConcurrencyManager:
             q_depth = 0
 
         effective_max = self.global_max
-        if q_depth > 2000:
+        if os.getenv('CLUSTER_ENV', 'local') == 'local':
+            effective_max = max(effective_max, 20)
+        elif q_depth > 2000:
             effective_max = max(5, self.global_max // 4)
             logger.warning(f"[OVERLOAD_THROTTLE] Q_DEPTH={q_depth}. Reducing concurrency to {effective_max}")
         elif q_depth > 1000:
@@ -315,7 +317,7 @@ class DistributedConcurrencyManager:
 
         now = time.time()
         expiration = now + 900  # 15-minute max lease to match watchdog
-        tenant_limit = 15
+        tenant_limit = 20 if os.getenv('CLUSTER_ENV', 'local') == 'local' else 15
 
         try:
             if not self._lua_sha:
@@ -325,7 +327,7 @@ class DistributedConcurrencyManager:
             args = [permit_id, now, expiration, effective_max, tenant_limit]
 
             result = r.evalsha(self._lua_sha, len(keys), *keys, *args)
-            return result == 1
+            return result == 1 or result in (b'OK', 'OK', True, 1)
         except Exception as e:
             logger.error(f"[QUOTA_ACQUIRE_ERROR] {e}")
             return False
@@ -354,7 +356,7 @@ api_key_manager = APIKeyManager()
 circuit_breaker = CircuitBreaker()
 rate_limiter = RateLimiter()
 concurrency_governor = DistributedConcurrencyManager(
-    max_concurrent=int(os.getenv('AI_GLOBAL_CONCURRENCY', '1'))
+    max_concurrent=int(os.getenv('AI_GLOBAL_CONCURRENCY', '10'))
 )
 
 

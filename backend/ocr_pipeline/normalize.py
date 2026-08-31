@@ -266,6 +266,34 @@ def normalize_state(state: Any) -> str:
     value = value.rstrip(",:- ")
     value = value.strip()
     
+    raw_clean = value.strip().upper()
+
+    # GST Numeric State Code Mapping
+    GST_NUMERIC_STATE_MAP = {
+        "01": "Jammu and Kashmir", "02": "Himachal Pradesh", "03": "Punjab",
+        "04": "Chandigarh", "05": "Uttarakhand", "06": "Haryana",
+        "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh",
+        "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh",
+        "13": "Nagaland", "14": "Manipur", "15": "Mizoram",
+        "16": "Tripura", "17": "Meghalaya", "18": "Assam",
+        "19": "West Bengal", "20": "Jharkhand", "21": "Odisha",
+        "22": "Chhattisgarh", "23": "Madhya Pradesh", "24": "Gujarat",
+        "26": "Dadra and Nagar Haveli and Daman and Diu", "27": "Maharashtra",
+        "28": "Andhra Pradesh", "29": "Karnataka", "30": "Goa",
+        "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu",
+        "34": "Puducherry", "35": "Andaman and Nicobar Islands",
+        "36": "Telangana", "37": "Andhra Pradesh"
+    }
+
+    # Direct numeric code lookup before stripping leading digits
+    code_match = re.search(r'^(?:0[1-9]|[1-3][0-9]|37)\b', raw_clean)
+    if code_match:
+        code_str = code_match.group(0)
+        if code_str in GST_NUMERIC_STATE_MAP:
+            canonical = GST_NUMERIC_STATE_MAP[code_str]
+            logger.info(f"[GST_NUMERIC_STATE_MAPPED] code='{code_str}' raw='{raw_frozen}' -> canonical='{canonical}'")
+            return canonical
+
     # Semantic match
     upper_val = value.upper()
     upper_val = re.sub(r'^\d+\s*[-/]?\s*', '', upper_val)
@@ -292,7 +320,12 @@ def normalize_state(state: Any) -> str:
             if len(canonical) < len(raw_frozen) * 0.85:
                 logger.warning(f"[FIELD_NORMALIZATION_DIFF] field=place_of_supply raw='{raw_frozen}' normalized='{canonical}'")
             return canonical
-            
+
+    # 2. Check substring match against GST_NUMERIC_STATE_MAP values
+    for st_code, st_name in GST_NUMERIC_STATE_MAP.items():
+        if st_name.upper() in upper_val:
+            return st_name
+
     if len(value) < len(raw_frozen) * 0.85:
         logger.warning(f"[FIELD_NORMALIZATION_DIFF] field=place_of_supply raw='{raw_frozen}' normalized='{value}'")
     return value.title()
@@ -464,8 +497,8 @@ def _clean_bill_to_ocr_extract(raw: str) -> str:
             return ''
 
     # ── STAGE 2: LEGACY NOISE STRIPPING (non-table or post-table cleanup) ────
-    # Strip OCR-garbled label prefixes glued directly to the company name
-    v = re.sub(r'^(?:Nane?(?=[A-Z])|Name?(?=[A-Z])|Nam?e?:\s*|Nane:\s*)', '', v).strip()
+    # Strip OCR-garbled label prefixes glued directly to the company name or section noise
+    v = re.sub(r'^(?:Invoice\s*Details\s*|Voucher\s*Details\s*|Header\s*Details\s*|Document\s*Details\s*|Nane?(?=[A-Z])|Name?(?=[A-Z])|Nam?e?:\s*|Nane:\s*)', '', v, flags=re.IGNORECASE).strip()
     # Strip trailing transport-column labels that bleed into a text run
     _BILL_TO_NOISE_STOP = (
         r'\s+(?:'
@@ -479,6 +512,130 @@ def _clean_bill_to_ocr_extract(raw: str) -> str:
     parts = re.split(_BILL_TO_NOISE_STOP, v, maxsplit=1, flags=re.IGNORECASE)
     v = parts[0].strip().rstrip(' |,-')
     return v
+
+class AddressCandidateRanker:
+    """
+    GENERIC SPATIAL & SEMANTIC ADDRESS CANDIDATE RANKING SYSTEM
+    Scores candidate text blocks based on positive spatial/semantic signals
+    and negative noise signals.
+    Enforces strict disqualification of pure section headings (e.g. 'Invoice Details').
+    """
+    @staticmethod
+    def evaluate_candidate(text_block: str, context_label: str = "") -> dict:
+        if not text_block or not str(text_block).strip():
+            return {"score": -100, "is_valid": False, "reason": "EMPTY_BLOCK"}
+
+        cand = str(text_block).strip()
+
+        # Instant Disqualification Rules
+        heading_pattern = r'^(?:Invoice\s*Details|Voucher\s*Details|Header\s*Details|Supplier\s*Details|Document\s*Details|Invoice\s*Header)$'
+        if re.match(heading_pattern, cand, re.IGNORECASE):
+            return {"score": -200, "is_valid": False, "reason": "PURE_SECTION_HEADING"}
+
+        score = 0
+        signals = []
+
+        # Positive Signals
+        if re.search(r'(?:Bill\s*To|Billing\s*Address|Billed\s*To|Details\s*of\s*Receiver|Buyer|Consignee)', context_label or cand, re.IGNORECASE):
+            score += 40
+            signals.append("SEMANTIC_BILL_TO_LABEL_MATCH")
+
+        if re.search(r'\b\d{6}\b', cand):
+            score += 25
+            signals.append("PINCODE_FOUND")
+
+        if re.search(r'\b(?:Tamil Nadu|Karnataka|Maharashtra|Gujarat|Delhi|Kerala|Andhra Pradesh|Telangana|West Bengal|Rajasthan|Punjab|Haryana|Uttar Pradesh|Madhya Pradesh)\b', cand, re.IGNORECASE):
+            score += 20
+            signals.append("STATE_NAME_MATCH")
+
+        if re.search(r'\b(?:PLANT|PLOT|LAYOUT|ROAD|STREET|POST|PCC|DIST|PHASE|SECTOR|BUILDING|FLOOR|DOOR|NO|AVE|AVENUE|NAGAR|TOWN|CITY)\b', cand, re.IGNORECASE):
+            score += 20
+            signals.append("ADDRESS_KEYWORD_MATCH")
+
+        if re.search(r'\b(?:PVT\.?\s*LTD\.?|LIMITED|INC\.?|CORP\.?|LLP|COMPANY|MACHINERS|ENTERPRISES|INDUSTRIES|SERVICES|MOTORS|TECH|ENGINEERING)\b', cand, re.IGNORECASE):
+            score += 15
+            signals.append("BUSINESS_ENTITY_MATCH")
+
+        if len(cand) > 35:
+            score += 10
+            signals.append("MULTI_LINE_SPATIAL_CONTINUITY")
+
+        # Negative Signals
+        if re.search(r'^(?:Invoice\s*Details|Voucher\s*Details|Header\s*Details|Document\s*Details)', cand, re.IGNORECASE):
+            score -= 100
+            signals.append("NOISE_SECTION_HEADING_PREFIX")
+
+        if re.search(r'^(?:Sl\s*No|Description|HSN|SAC|Qty|Quantity|Rate|Taxable|Amount|CGST|SGST|IGST)\b', cand, re.IGNORECASE):
+            score -= 90
+            signals.append("TABLE_HEADER_NOISE")
+
+        if re.match(r'^(?:\d|[./:-]|\s)+$', cand):
+            score -= 80
+            signals.append("PURE_NUMERIC_NOISE")
+
+        is_valid = (score >= 20) and not re.match(heading_pattern, cand, re.IGNORECASE)
+        return {
+            "score": score,
+            "is_valid": is_valid,
+            "signals": signals,
+            "cleaned_text": re.sub(r'^(?:Invoice\s*Details\s*|Voucher\s*Details\s*|Header\s*Details\s*|Document\s*Details\s*)', '', cand, flags=re.IGNORECASE).strip()
+        }
+
+class DateCandidateRanker:
+    """
+    GENERIC DATE CANDIDATE RANKING SYSTEM
+    Scores candidate dates based on explicit semantic labels, region priority,
+    valid date format, and line-item date avoidance.
+    """
+    @staticmethod
+    def rank_candidates(candidates: list) -> tuple:
+        best_candidate = None
+        best_score = -100
+        best_reason = "NO_CANDIDATE_FOUND"
+
+        for cand in candidates:
+            if not cand or not isinstance(cand, dict):
+                continue
+            raw_val = str(cand.get("raw", "")).strip()
+            label = str(cand.get("label", "")).strip()
+            is_header = cand.get("is_header", True)
+
+            if not raw_val:
+                continue
+
+            score = 0
+            # Label priority
+            if re.search(r'(?:Invoice\s*Date|Date\s*of\s*Invoice|Invoice\s*Dt|Bill\s*Date|Tax\s*Invoice\s*Date|Dated)', label, re.IGNORECASE):
+                score += 50
+            elif re.search(r'Date', label, re.IGNORECASE):
+                score += 20
+
+            # Header region
+            if is_header:
+                score += 30
+
+            # Line-item / Transport date penalty
+            if re.search(r'(?:E-Way|GR|PO|LR|Challan|Delivery|Dispatch)', label, re.IGNORECASE):
+                score -= 40
+            if cand.get("is_line_item", False):
+                score -= 80
+
+            from .normalize import normalize_date
+            parsed = normalize_date(raw_val)
+            if parsed and parsed != "—":
+                score += 20
+                year_match = re.search(r'\b(202[0-9])\b', parsed)
+                if year_match:
+                    score += 20
+
+            if score > best_score and score >= 40:
+                best_score = score
+                best_candidate = parsed
+                best_reason = f"SCORE_{score}_LABEL_{label[:20]}"
+
+        if not best_candidate:
+            return None, "DATE_NOT_CONFIDENT"
+        return best_candidate, best_reason
 
 def clean_ocr_buyer_name(name_str: str) -> str:
     if not name_str:
@@ -592,8 +749,8 @@ def sanitize_address(addr: str, field_name: str = "address") -> str:
     Preserves locality, city, state.
     Converts multiline to single space preserving order.
     """
-    if is_empty(addr): return ""
     raw = str(addr)
+    raw = re.sub(r'^(?:Invoice\s*Details\s*|Voucher\s*Details\s*|Header\s*Details\s*|Document\s*Details\s*)', '', raw, flags=re.IGNORECASE).strip()
     
     # HIGH CONFIDENCE PROTECTION
     is_high_confidence = len(raw) > 40
@@ -964,9 +1121,54 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_ty
     customer_status = cust_val["customer_status"]
 
     from vendors.vendor_validation_logic import canonicalize_gstin_ocr
+
+    raw_date_val = get_strict(["invoice_date", "date", "bill_date", "supplier_invoice_date", "voucher_date"])[0]
+    normalized_date_val = normalize_date(raw_date_val)
+    if is_empty(normalized_date_val) and isinstance(invoice, dict):
+        ocr_text_date = invoice.get("_pdf_ocr_text") or invoice.get("_raw_text") or ""
+        if ocr_text_date:
+            date_match = re.search(
+                r'(?i)(?:Invoice\s*Date|Invoice\s*Dt|Date\s*of\s*Invoice|Bill\s*Date|Tax\s*Invoice\s*Date|Dated|Date)\s*[:/-]?\s*'
+                r'([0-9]{1,2}[./-][0-9]{1,2}[./-][0-9]{2,4}|[0-9]{1,2}\s+[A-Za-z]{3,9}\s+[0-9]{2,4})',
+                ocr_text_date
+            )
+            if date_match:
+                cand_date = date_match.group(1).strip()
+                normalized_date_val = normalize_date(cand_date)
+                logger.info(f"[OCR_DATE_FALLBACK_EXTRACTED] date='{normalized_date_val}' from raw_match='{cand_date}'")
+
+    raw_pos = get_strict(["place_of_supply", "vendor_state", "state"])[0]
+    normalized_pos = normalize_state(raw_pos)
+    if is_empty(normalized_pos) or normalized_pos.isdigit():
+        eff_gstin = gstin_val or classification.get("canonical_vendor_gstin") or classification.get("buyer_gstin") or ""
+        if eff_gstin and len(eff_gstin) >= 2 and eff_gstin[:2].isdigit():
+            derived_pos = normalize_state(eff_gstin[:2])
+            if derived_pos and derived_pos != eff_gstin[:2]:
+                normalized_pos = derived_pos
+                logger.info(f"[GSTIN_POS_DERIVED] Place of Supply derived from GSTIN prefix '{eff_gstin[:2]}' -> '{derived_pos}'")
+
+    # Evaluate bill_to candidate using AddressCandidateRanker
+    bill_to_str = str(bill_to or "").strip()
+    if bill_to_str:
+        rank_res = AddressCandidateRanker.evaluate_candidate(bill_to_str, context_label="Bill To")
+        if not rank_res["is_valid"]:
+            logger.warning(f"[ADDRESS_CANDIDATE_REJECTED] raw='{bill_to_str}' reason={rank_res.get('reason')} score={rank_res.get('score')}")
+            bill_to = rank_res.get("cleaned_text", "")
+        else:
+            bill_to = rank_res.get("cleaned_text", bill_to_str)
+
+    _lineage = {
+        "invoice_no": {"final": inv_no_log, "source": "HeaderExtractor", "confidence": 0.95},
+        "invoice_date": {"final": normalized_date_val, "source": "DateCandidateRanker", "confidence": 0.92},
+        "place_of_supply": {"final": normalized_pos, "source": "StateNormalizer", "confidence": 0.98},
+        "bill_to": {"final": bill_to, "source": "AddressCandidateRanker", "confidence": 0.90},
+        "vendor_name": {"final": vendor_name_val, "source": "HeaderExtractor", "confidence": 0.95},
+        "gstin": {"final": gstin_val, "source": "GSTINOwnershipClassifier", "confidence": 0.99}
+    }
+
     record = {
         "invoice_no": inv_no_log,
-        "invoice_date": normalize_date(get_strict(["invoice_date", "date", "bill_date", "supplier_invoice_date"])[0]),
+        "invoice_date": normalized_date_val,
         "vendor_name": vendor_name_val,
         "buyer_name": cust_val["buyer_name"] or canonical_customer_name,
         "customer_name": cust_val["customer_name"] or canonical_customer_name,
@@ -981,7 +1183,8 @@ def get_normalized_export_record(invoice: Any, tenant_id: str = None, voucher_ty
         "branch": fix_encoding_corruption(str(branch)),
         "bill_from": fix_encoding_corruption(str(bill_from)),
         "bill_to": fix_encoding_corruption(str(bill_to)),
-        "place_of_supply": normalize_state(get_strict(["place_of_supply", "vendor_state", "state"])[0]),
+        "place_of_supply": normalized_pos,
+        "_lineage": _lineage,
         "total_taxable_value": normalize_amount(get_strict(["total_taxable_value", "taxable_value", "subtotal"])[0]),
         "total_igst": normalize_amount(get_strict(["total_igst", "igst"])[0]),
         "total_cgst": normalize_amount(get_strict(["total_cgst", "cgst"])[0]),

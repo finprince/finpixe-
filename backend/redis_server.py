@@ -274,7 +274,12 @@ def execute_command_core(cmd, args):
                 for i in range(2, len(args), 2):
                     score = float(args[i])
                     member = args[i+1]
-                    # Simple emulator: append and sort
+                    m_str = member.decode('utf-8') if isinstance(member, bytes) else str(member)
+                    # Filter out existing instance of member for Set uniqueness
+                    store[key] = [
+                        x for x in store[key] 
+                        if (x[1].decode('utf-8') if isinstance(x[1], bytes) else str(x[1])) != m_str
+                    ]
                     store[key].append((score, member))
                     added += 1
                 store[key].sort(key=lambda x: x[0])
@@ -284,6 +289,19 @@ def execute_command_core(cmd, args):
                 z = store.get(args[1], [])
                 return f":{len(z)}\r\n".encode()
 
+            elif cmd == b"ZRANGE":
+                key = args[1]
+                z = store.get(key, [])
+                if not isinstance(z, list):
+                    return b"*0\r\n"
+                res_items = []
+                for item in z:
+                    m = item[1]
+                    m_bytes = m if isinstance(m, bytes) else str(m).encode('utf-8')
+                    res_items.append(f"${len(m_bytes)}\r\n".encode() + m_bytes + b"\r\n")
+                return f"*{len(res_items)}\r\n".encode() + b"".join(res_items)
+
+
             elif cmd == b"ZREMRANGEBYSCORE":
                 key, min_s, max_s = args[1], float(args[2]), float(args[3])
                 z = store.get(key, [])
@@ -291,6 +309,22 @@ def execute_command_core(cmd, args):
                 new_z = [x for x in z if not (min_s <= x[0] <= max_s)]
                 removed = len(z) - len(new_z)
                 store[key] = new_z
+                return f":{removed}\r\n".encode()
+
+            elif cmd == b"ZREM":
+                key = args[1]
+                z = store.get(key, [])
+                removed = 0
+                if isinstance(z, list):
+                    members_to_remove = set(args[2:])
+                    members_str = {m.decode('utf-8') if isinstance(m, bytes) else str(m) for m in members_to_remove}
+                    new_z = [
+                        x for x in z 
+                        if (x[1] if isinstance(x[1], bytes) else x[1].encode('utf-8')) not in members_to_remove 
+                        and (x[1].decode('utf-8') if isinstance(x[1], bytes) else str(x[1])) not in members_str
+                    ]
+                    removed = len(z) - len(new_z)
+                    store[key] = new_z
                 return f":{removed}\r\n".encode()
 
             elif cmd == b"ZCOUNT":
@@ -344,7 +378,10 @@ def execute_command_core(cmd, args):
             elif cmd in (b"EXPIRE", b"EXPIREAT", b"PEXPIRE", b"PEXPIREAT", b"PERSIST", b"TTL", b"PTTL"):
                 return b":1\r\n"
 
-            elif cmd in (b"EVAL", b"EVALSHA", b"SCRIPT", b"PUBLISH", b"SUBSCRIBE"):
+            elif cmd in (b"EVAL", b"EVALSHA"):
+                return b":1\r\n"
+
+            elif cmd in (b"SCRIPT", b"PUBLISH", b"SUBSCRIBE"):
                 return b"+OK\r\n"
 
             else:

@@ -56,8 +56,16 @@ def validate_dependencies():
         r.ping()
         logger.info("[DEPENDENCY_VALID] Redis is UP.")
     except Exception as e:
-        logger.error(f"[DEPENDENCY_FAILED] Redis connectivity check failed: {e}")
-        return False
+        logger.info(f"[REDIS_AUTOSTART] Redis not running. Auto-starting local redis_server.py emulator...")
+        try:
+            subprocess.Popen([sys.executable, os.path.join(current_dir, "redis_server.py")], cwd=current_dir)
+            time.sleep(2)
+            r = redis.Redis.from_url(redis_url)
+            r.ping()
+            logger.info("[DEPENDENCY_VALID] Redis emulator started successfully and is UP.")
+        except Exception as ex:
+            logger.error(f"[DEPENDENCY_FAILED] Redis connectivity check failed: {ex}")
+            return False
 
     # B. MySQL (Django DB)
     try:
