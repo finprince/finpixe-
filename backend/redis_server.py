@@ -466,9 +466,22 @@ def run_server():
     server.bind(('127.0.0.1', 6379))
     server.listen(100)
     print("Redis emulator running on 127.0.0.1:6379 (Robust Mode)")
-    while True:
-        conn, addr = server.accept()
-        threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+    try:
+        while True:
+            conn, addr = server.accept()
+            threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    except Exception as e:
+        print(f"Redis emulator exited: {e}")
+    finally:
+        try:
+            server.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
-    run_server()
+    try:
+        run_server()
+    except (KeyboardInterrupt, SystemExit):
+        pass

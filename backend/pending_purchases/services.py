@@ -18,7 +18,7 @@ _PENDING_TRIGGER_ITEM     = {ValidationEnums.ITEM_STATUS_CREATE}
 _PENDING_SKIP_VOUCHER     = {ValidationEnums.VOUCHER_STATUS_EXISTING}   # duplicates → skip
 
 
-def _needs_pending_queue(vendor_status, voucher_status, item_status, validation_status=None, auto_save=False) -> bool:
+def _needs_pending_queue(vendor_status, voucher_status, item_status, validation_status=None, auto_save=False, record=None, ui_row=None) -> bool:
     """
     Returns True when the record cannot be auto-saved and must wait in the
     Pending Purchase queue for manual resolution.
@@ -28,8 +28,22 @@ def _needs_pending_queue(vendor_status, voucher_status, item_status, validation_
         return False
 
     # Terminal states or already created vouchers stay out of the queue
-    if validation_status in {'DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE', 'VOUCHER_CREATED', 'COMPLETED', 'FAILED', 'ERROR'}:
+    if validation_status in {'DUPLICATE', 'DUPLICATE_IN_BATCH', 'DUPLICATE_INVOICE', 'VOUCHER_CREATED', 'COMPLETED', 'FAILED', 'ERROR', 'EXTRACTION_FAILED'}:
         return False
+
+    # Hard skip: failed OCR or placeholder records
+    if record:
+        rec_status = getattr(record, 'status', None)
+        rec_val = getattr(record, 'validation_status', None)
+        rec_inv = str(getattr(record, 'supplier_invoice_no', '') or '').strip().upper()
+        if rec_status in {'FAILED', 'ERROR'} or rec_val in {'FAILED', 'ERROR', 'EXTRACTION_FAILED'} or rec_inv in {'FAILED', 'ERROR'}:
+            return False
+
+    if ui_row:
+        ui_inv = str(ui_row.get('invoice_no') or ui_row.get('supplier_invoice_no') or '').strip().upper()
+        ui_v = str(ui_row.get('vendor_name') or '').strip().upper()
+        if ui_inv in {'FAILED', 'ERROR'} or ui_v in {'FAILED', 'ERROR'}:
+            return False
 
     vendor_unresolved = (vendor_status == ValidationEnums.VENDOR_STATUS_CREATE)
     item_unresolved = (item_status == ValidationEnums.ITEM_STATUS_CREATE)
@@ -51,7 +65,7 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
     logger.critical(
         f"[PENDING_EVALUATION_ENTERED] "
         f"record_id={record.id} "
-        f"invoice_no={getattr(record,'invoice_no',None)}"
+        f"invoice_no={getattr(record,'supplier_invoice_no',None)}"
     )
 
     logger.info(
@@ -59,7 +73,7 @@ def evaluate_pending_purchase(record, vendor_status, voucher_status, item_status
         f"vendor={vendor_status} voucher={voucher_status} item={item_status}"
     )
 
-    is_pending = _needs_pending_queue(vendor_status, voucher_status, item_status, record.validation_status, auto_save)
+    is_pending = _needs_pending_queue(vendor_status, voucher_status, item_status, record.validation_status, auto_save, record=record, ui_row=ui_row)
     is_duplicate = (voucher_status == ValidationEnums.VOUCHER_STATUS_EXISTING)
 
     logger.critical(

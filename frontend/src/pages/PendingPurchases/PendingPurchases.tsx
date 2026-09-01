@@ -180,6 +180,16 @@ const getLineItems = (purchase: any) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+const isFailedPurchaseRecord = (purchase: any): boolean => {
+  if (!purchase) return true;
+  const inv = String(purchase.invoice_number || '').trim().toUpperCase();
+  const vendor = String(purchase.vendor_name || '').trim().toUpperCase();
+  const status = String(purchase.pending_purchase_status || purchase.status || purchase.validation_status || '').trim().toUpperCase();
+  if (inv === 'FAILED' || inv === 'ERROR' || vendor === 'FAILED' || vendor === 'ERROR') return true;
+  if (status === 'FAILED' || status === 'ERROR' || status === 'EXTRACTION_FAILED') return true;
+  return false;
+};
+
 const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -257,8 +267,8 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
       setLoading(true);
       const response = await httpClient.get<any>('/api/pending-purchases/');
       const data = Array.isArray(response) ? response : (response?.results || []);
-      // Show all non-resolved purchases
-      setPurchases(data.filter((p: any) => p.pending_purchase_status !== 'RESOLVED'));
+      // Show all valid non-resolved purchases
+      setPurchases(data.filter((p: any) => p.pending_purchase_status !== 'RESOLVED' && !isFailedPurchaseRecord(p)));
     } catch (error) {
       console.error('Failed to fetch pending purchases', error);
       showError('Failed to load pending purchases');
@@ -271,10 +281,11 @@ const PendingPurchases: React.FC<PendingPurchasesProps> = ({ onNavigate }) => {
     fetchPurchases();
   }, [fetchPurchases]);
 
-  const visiblePurchases = purchases;
+  const visiblePurchases = purchases.filter((p: any) => !isFailedPurchaseRecord(p));
 
   // ── Determine if a row is ready to finalize ─────────────────────────────────
   const isReadyToFinalize = (purchase: any) => {
+    if (isFailedPurchaseRecord(purchase)) return false;
     const vendorOk = purchase.vendor_status === 'VENDOR_STATUS_EXISTING' || purchase.vendor_status === 'ALREADY_EXIST' || purchase.vendor_status === 'EXISTS';
     const itemOk = purchase.item_status === 'ITEM_STATUS_EXISTING' || purchase.item_status === 'ALREADY_EXIST' || purchase.item_status === 'ALREADY EXIST';
     const gstOk = getGstStatus(purchase) !== 'GST_MISMATCH';

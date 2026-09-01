@@ -52,20 +52,37 @@ def validate_dependencies():
     try:
         import redis
         redis_url = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', '6379')}/0"
-        r = redis.Redis.from_url(redis_url)
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
         r.ping()
         logger.info("[DEPENDENCY_VALID] Redis is UP.")
     except Exception as e:
         logger.info(f"[REDIS_AUTOSTART] Redis not running. Auto-starting local redis_server.py emulator...")
         try:
-            subprocess.Popen([sys.executable, os.path.join(current_dir, "redis_server.py")], cwd=current_dir)
+            kwargs = {}
+            if os.name == 'nt':
+                kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW
+            subprocess.Popen([sys.executable, os.path.join(current_dir, "redis_server.py")], cwd=current_dir, **kwargs)
             time.sleep(2)
-            r = redis.Redis.from_url(redis_url)
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
             r.ping()
             logger.info("[DEPENDENCY_VALID] Redis emulator started successfully and is UP.")
         except Exception as ex:
             logger.error(f"[DEPENDENCY_FAILED] Redis connectivity check failed: {ex}")
             return False
+
+    # Clear stale worker locks from previous cluster runs so new workers can acquire them
+    try:
+        lock_keys = r.keys("worker_lock_*")
+        hb_keys = r.keys("worker_hb_*")
+        for key in lock_keys:
+            r.delete(key)
+        for key in hb_keys:
+            r.delete(key)
+        r.delete("worker_heartbeats")
+        if lock_keys or hb_keys:
+            logger.info(f"[REDIS_CLEANUP] Cleared {len(lock_keys)} stale lock(s) and {len(hb_keys)} heartbeat(s).")
+    except Exception as cle:
+        logger.warning(f"[REDIS_CLEANUP_WARN] Stale lock cleanup error: {cle}")
 
     # B. MySQL (Django DB)
     try:

@@ -201,6 +201,12 @@ class AssemblyWorker(BaseWorker):
         if not is_failed_assembly:
             logger.info(f"[ASSEMBLY_SUCCESS] record={record_id} status={final_status} res_status={res_status}")
             logger.info(f"[FILE_TERMINAL_SUCCESS] record={record_id} status={final_status}")
+            def _safe_save_success():
+                from ocr_pipeline.models import SessionFinalizationState
+                SessionFinalizationState.objects.filter(id=str(record_id)).update(
+                    status='FINALIZED' if final_status == 'READY_FOR_REVIEW' else final_status
+                )
+            await asyncio.shield(loop.run_in_executor(None, _safe_save_success))
             await asyncio.shield(loop.run_in_executor(
                 None,
                 lambda: orchestrator.update_session_status(record_id, final_status, progress=100.0)
@@ -209,9 +215,14 @@ class AssemblyWorker(BaseWorker):
             logger.error(f"[ASSEMBLY_TERMINAL_FAILURE] record={record_id} status={res_status}")
             logger.error(f"[FILE_TERMINAL_FAILED] record={record_id} status=FAILED reason={res_status}")
             def _safe_save_failed():
+                from ocr_pipeline.models import SessionFinalizationState
                 InvoiceTempOCR.objects.filter(id=record_id).update(
                     status=PipelineStatus.FAILED,
                     validation_status='ERROR'
+                )
+                SessionFinalizationState.objects.filter(id=str(record_id)).update(
+                    status='FAILED',
+                    terminal_consistency=True
                 )
             await asyncio.shield(loop.run_in_executor(
                 None,

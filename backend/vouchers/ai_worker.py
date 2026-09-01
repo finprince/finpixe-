@@ -453,14 +453,18 @@ class AIWorker(BaseWorker):
                             char_count = len(text_str)
                             alnum_count = sum(c.isalnum() for c in text_str)
                             density = alnum_count / max(1, char_count)
+                            page_num = payload.get('_page_number') or payload.get('page_number') or page_idx or 1
+                            if isinstance(page_num, str) and page_num.isdigit():
+                                page_num = int(page_num)
+
                             has_anchors = any(
                                 k in parsed and parsed[k]
                                 for k in ["invoice_no", "date", "total_amount", "vendor_name", "items"]
-                            )
+                            ) or (page_num > 1 and bool(parsed.get('_pdf_ocr_text') or parsed.get('_raw_text') or parsed.get('raw_text')))
 
                             metrics.record_latency("ocr:text_density", density)
 
-                            if char_count > 50 and density > 0.3 and has_anchors:
+                            if char_count > 30 and (density > 0.2 or page_num > 1) and has_anchors:
                                 logger.info(f"[OCR_RECOVERY_SUCCESS] pass={pass_idx+1} record={record_id} page={page_idx}")
                                 logger.info(f"[PAGE_OCR_COMPLETED] record={record_id} page={page_idx}")
                                 metrics.increment_counter("ocr:page_success")
@@ -808,7 +812,10 @@ class AIWorker(BaseWorker):
             required = ['vendor_name', 'invoice_no']
             
         missing = [f for f in required if not payload.get(f)]
-        if 'items' not in payload or payload.get('items') is None:
+        has_text = bool(payload.get('_pdf_ocr_text') or payload.get('_raw_text') or payload.get('raw_text'))
+        if page_num == 1 and ('items' not in payload or payload.get('items') is None):
+            missing.append('items')
+        elif page_num > 1 and not has_text and ('items' not in payload or payload.get('items') is None):
             missing.append('items')
         if missing:
             logger.error(f"[DTO_VALIDATION_ERROR] record={record_id} missing_fields={missing} "
