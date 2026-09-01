@@ -1529,7 +1529,9 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                         <h3 className="text-xl font-bold text-gray-900 mb-2">
                             {createdCustomerId ? 'Edit Customer' : 'Create New Customer'}
                         </h3>
-                        <p className="text-sm text-gray-600 mb-8">Select a tab below to configure customer details:</p>
+                        <p className="text-sm text-gray-600 mb-8">
+                            {customerFormData.customer_name ? `Configuring details for: ${customerFormData.customer_name}` : 'Select a tab below to configure customer details:'}
+                        </p>
 
                         {/* Card-based Tab Overview */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -1572,7 +1574,9 @@ const CustomerContent: React.FC<CustomerContentProps> = ({ onNavigate, setPrefil
                             >
                                 <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO CUSTOMER CREATION HUB
                             </button>
-                            <h3 className="text-xl font-bold text-gray-900">{activeTab}</h3>
+                            <h3 className="text-xl font-bold text-gray-900">
+                                {activeTab}{customerFormData.customer_name ? ` - ${customerFormData.customer_name}` : ''}
+                            </h3>
                         </div>
                     </>
                 )}

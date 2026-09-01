@@ -415,7 +415,7 @@ const AddNewCustomerModal: React.FC<AddNewCustomerModalProps> = ({ isOpen, onClo
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-t-lg">
                     <div>
-                        <h2 className="text-lg font-bold text-white">Add New Customer</h2>
+                        <h2 className="text-lg font-bold text-white">Add New Customer{formData.customer_name ? ` - ${formData.customer_name}` : ''}</h2>
                         <p className="text-xs text-indigo-200 mt-0.5">Fill in the details to create a new customer</p>
                     </div>
                     <button onClick={handleClose} className="text-white/80 hover:text-white transition-colors p-1 rounded hover:bg-white/10">

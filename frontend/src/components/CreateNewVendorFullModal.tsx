@@ -2164,7 +2164,7 @@ const CreateNewVendorFullModal: React.FC<CreateNewVendorFullModalProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b bg-indigo-600 rounded-t-[8px] flex-shrink-0">
                     <div>
-                        <h2 className="text-lg font-bold text-white">Create New Vendor</h2>
+                        <h2 className="text-lg font-bold text-white">Create New Vendor{vendorName ? ` - ${vendorName}` : ''}</h2>
                         <p className="text-indigo-200 text-xs mt-0.5">Fill in the details below. All sections will be saved together.</p>
                     </div>
                     <button onClick={onClose} className="text-white/70 hover:text-white transition-colors text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">

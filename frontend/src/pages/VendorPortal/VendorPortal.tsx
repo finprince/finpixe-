@@ -4092,7 +4092,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                             <p className="text-sm text-gray-500 mt-1">
                                                 {createdVendorId
                                                     ? `Editing active vendor: ${vendorName}`
-                                                    : 'Select a tab below to configure vendor details:'
+                                                    : (vendorName ? `Configuring details for: ${vendorName}` : 'Select a tab below to configure vendor details:')
                                                 }
                                             </p>
                                         </div>
@@ -4131,7 +4131,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                     >
                                         <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO VENDOR CREATION HUB
                                     </button>
-                                    <h3 className="text-xl font-bold text-gray-900">Basic Details</h3>
+                                    <h3 className="text-xl font-bold text-gray-900">Basic Details{vendorName ? ` - ${vendorName}` : ''}</h3>
                                 </div>
 
                                 <form className="space-y-6" onSubmit={handleBasicDetailsSubmit}>
@@ -4436,7 +4436,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                         <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO VENDOR CREATION HUB
                                     </button>
                                     <div className="flex justify-between items-center">
-                                        <h3 className="text-xl font-bold text-gray-900">Branch details</h3>
+                                        <h3 className="text-xl font-bold text-gray-900">Branch details{vendorName ? ` - ${vendorName}` : ''}</h3>
                                         <button
                                             type="button"
                                             onClick={handleAddGstRecord}
@@ -4771,7 +4771,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                         >
                                             <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO VENDOR CREATION HUB
                                         </button>
-                                        <h3 className="text-xl font-bold text-gray-900">TDS & Other Statutory</h3>
+                                        <h3 className="text-xl font-bold text-gray-900">TDS & Other Statutory{vendorName ? ` - ${vendorName}` : ''}</h3>
                                     </div>
                                     <form onSubmit={handleTDSDetailsSubmit} className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -5225,7 +5225,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                         >
                                             <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO VENDOR CREATION HUB
                                         </button>
-                                        <h3 className="text-xl font-bold text-gray-900">Products/Services</h3>
+                                        <h3 className="text-xl font-bold text-gray-900">Products/Services{vendorName ? ` - ${vendorName}` : ''}</h3>
                                     </div>
                                     <div className="space-y-6">
                                         {/* Table for Items */}
@@ -5399,7 +5399,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                         >
                                             <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO VENDOR CREATION HUB
                                         </button>
-                                        <h3 className="text-xl font-bold text-gray-900">Banking Information</h3>
+                                        <h3 className="text-xl font-bold text-gray-900">Banking Information{vendorName ? ` - ${vendorName}` : ''}</h3>
                                     </div>
                                     <form onSubmit={handleBankingDetailsSubmit} className="space-y-6">
                                         <div className="space-y-8">
@@ -5706,7 +5706,7 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                                         >
                                             <ChevronDown className="w-4 h-4 rotate-90" /> BACK TO VENDOR CREATION HUB
                                         </button>
-                                        <h3 className="text-xl font-bold text-gray-900">Terms & Conditions</h3>
+                                        <h3 className="text-xl font-bold text-gray-900">Terms & Conditions{vendorName ? ` - ${vendorName}` : ''}</h3>
                                     </div>
                                     <form onSubmit={handleFinish} className="space-y-6">
                                         <div>
