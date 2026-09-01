@@ -254,7 +254,7 @@ class AIProxyView(views.APIView):
 from rest_framework.permissions import IsAdminUser
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
 def extraction_average_time(request):
     from .models import ExtractionPerformance
     from django.db.models import Avg

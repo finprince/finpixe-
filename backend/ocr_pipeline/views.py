@@ -107,6 +107,15 @@ def get_pending_purchase_eligible_rows(upload_session_id, tenant_id=None):
             eligible.append((r, ui_row))
     return eligible
 
+def from_norm_state(val, gstin=None):
+    from .normalize import normalize_state, is_empty
+    st = normalize_state(val)
+    if (is_empty(st) or st.isdigit()) and gstin and len(str(gstin)) >= 2 and str(gstin)[:2].isdigit():
+        derived = normalize_state(str(gstin)[:2])
+        if derived and not derived.isdigit():
+            return derived
+    return st
+
 class CleanOCRStagingView(views.APIView):
     """
     Step 3: Fix API Response.
@@ -221,17 +230,6 @@ class CleanOCRStagingView(views.APIView):
         api_duration_ms = int((time.time() - t_start_api) * 1000) if 't_start_api' in locals() else 0
         from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
         PipelineStageTelemetry.record_stage('API', {'files_received': len(files)}, {'success': True, 'queued_count': queued_count, 'duplicate_count': duplicate_count}, api_duration_ms)
-def from_norm_state(val, gstin=None):
-    from .normalize import normalize_state, is_empty
-    st = normalize_state(val)
-    if (is_empty(st) or st.isdigit()) and gstin and len(str(gstin)) >= 2 and str(gstin)[:2].isdigit():
-        derived = normalize_state(str(gstin)[:2])
-        if derived and not derived.isdigit():
-            return derived
-    return st
-
-class CleanOCRStagingView(views.APIView):
-    permission_classes = [IsAuthenticated]
 
     def _map_record_to_ui_row(self, record, norm_data=None, vendor_map=None):
         """
