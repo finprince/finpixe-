@@ -379,11 +379,9 @@ def detect_vendor_map_corruption(resolution_map):
 def append_shadow_evidence(record_id, invoice_no, normalized_invoice_no, old_match, new_match):
     import json
     import os
-    
-    evidence_path = r"C:\Users\ulaganathan\.gemini\antigravity-ide\brain\318cbd76-d3fd-4ad6-9ae2-fc757a249593\scratch\shadow_duplicate_evidence.json"
-    os.makedirs(os.path.dirname(evidence_path), exist_ok=True)
-    
     try:
+        evidence_path = os.path.join(os.path.dirname(__file__), '..', 'scratch', 'shadow_duplicate_evidence.json')
+        os.makedirs(os.path.dirname(evidence_path), exist_ok=True)
         data = []
         if os.path.exists(evidence_path):
             with open(evidence_path, 'r', encoding='utf-8') as f:

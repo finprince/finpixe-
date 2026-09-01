@@ -154,13 +154,37 @@ class PendingPurchaseViewSet(viewsets.ModelViewSet):
 
         logger.info(f"[PENDING_QUEUE_FETCH] Fetching pending purchases for tenant: {tenant_id}")
 
+        # Auto-sync un-finalized staging records for this tenant into PendingPurchase queue
+        if tenant_id:
+            try:
+                unproc_staging = InvoiceTempOCR.objects.filter(
+                    tenant_id=tenant_id
+                ).exclude(
+                    validation_status__in=['VOUCHER_CREATED', 'DUPLICATE', 'REJECTED', 'FAILED', 'ERROR', 'EXTRACTION_FAILED']
+                ).exclude(
+                    status__in=['FAILED', 'ERROR']
+                ).exclude(
+                    supplier_invoice_no__in=['FAILED', 'ERROR']
+                )
+                for staging in unproc_staging:
+                    if not PendingPurchase.objects.filter(source_scan_row_id=staging.id).exists():
+                        from ocr_pipeline.pipeline import validate_and_process
+                        validate_and_process(staging, auto_save=False, user=self.request.user)
+            except Exception as e:
+                logger.error(f"[PENDING_AUTO_SYNC_ERROR] tenant={tenant_id} error={e}")
+
         qs = PendingPurchase.objects.filter(company_id=tenant_id)
 
         status_param = getattr(self.request, 'query_params', self.request.GET).get('status')
         if status_param:
             qs = qs.filter(pending_purchase_status=status_param)
         else:
-            qs = qs.exclude(pending_purchase_status='REJECTED').exclude(company_match_decision='NOT_PROCEED')
+            qs = (
+                qs.exclude(pending_purchase_status__in=['REJECTED', 'FAILED', 'ERROR'])
+                .exclude(company_match_decision='NOT_PROCEED')
+                .exclude(invoice_number__in=['FAILED', 'ERROR', '', 'MISSING', '—'])
+                .exclude(vendor_name__in=['FAILED', 'ERROR'])
+            )
 
         return qs.order_by('-created_at')
 

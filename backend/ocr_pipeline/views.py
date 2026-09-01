@@ -175,17 +175,33 @@ class CleanOCRStagingView(views.APIView):
                 logger.info(f'[UPLOAD_ACCEPTED] file={original_display_name} job={job.id}')
                 file_bytes = uploaded_file.read()
                 file_hash = hashlib.sha256(file_bytes).hexdigest()
-                existing = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=tenant_id).first()
-                if existing and existing.processed:
-                    duplicate_count += 1
-                    logger.info(f'[DUPLICATE_FOUND] Allowing pipeline to orchestrate duplicate file={original_display_name} hash={file_hash}')
-                    OCRTask.objects.create(job=job, file_name=original_display_name, file_hash=file_hash, status='COMPLETED', result_id=existing.id)
-                s3_key = f"ocr/{tenant_id}/{job.id}/{file_hash}_{original_display_name.replace('/', '_')}"
-                safe_content_type = uploaded_file.content_type or 'application/octet-stream'
-                file_url = storage.upload_file(file_bytes, s3_key, safe_content_type)
-                record, created = InvoiceTempOCR.objects.get_or_create(tenant_id=tenant_id, upload_session_id=upload_session_id, file_hash=file_hash, defaults={'file_path': file_url, 'status': 'PENDING', 'voucher_type': voucher_type, 'upload_type': upload_type})
-                if not created:
-                    logger.warning(f'[DUPLICATE_UPLOAD] session={upload_session_id} file={original_display_name} hash={file_hash} already exists in this session. Reusing record={record.id}.')
+                file_url = None
+                record = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=tenant_id).first()
+                if record:
+                    created = False
+                    file_url = record.file_path
+                    if record.processed:
+                        duplicate_count += 1
+                        logger.info(f'[DUPLICATE_FOUND] Allowing pipeline to orchestrate duplicate file={original_display_name} hash={file_hash}')
+                        OCRTask.objects.create(job=job, file_name=original_display_name, file_hash=file_hash, status='COMPLETED', result_id=record.id)
+                    if upload_session_id and record.upload_session_id != upload_session_id:
+                        record.upload_session_id = upload_session_id
+                        record.save(update_fields=['upload_session_id'])
+                    logger.warning(f'[DUPLICATE_UPLOAD] session={upload_session_id} file={original_display_name} hash={file_hash} already exists. Reusing record={record.id}.')
+                else:
+                    s3_key = f"ocr/{tenant_id}/{job.id}/{file_hash}_{original_display_name.replace('/', '_')}"
+                    safe_content_type = uploaded_file.content_type or 'application/octet-stream'
+                    file_url = storage.upload_file(file_bytes, s3_key, safe_content_type)
+                    record = InvoiceTempOCR.objects.create(
+                        tenant_id=tenant_id,
+                        upload_session_id=upload_session_id,
+                        file_hash=file_hash,
+                        file_path=file_url,
+                        status='PENDING',
+                        voucher_type=voucher_type,
+                        upload_type=upload_type
+                    )
+                    created = True
                 task = OCRTask.objects.create(job=job, file_name=original_display_name, file_url=file_url, file_hash=file_hash, status='PENDING', result_id=record.id)
                 from vouchers.message_factory import message_factory
                 ingestion_payload = {'record_id': record.id, 'job_id': str(job.id), 'file_url': file_url, 'file_hash': file_hash, 'voucher_type': voucher_type, 'attempt': 1}
@@ -230,6 +246,16 @@ class CleanOCRStagingView(views.APIView):
         api_duration_ms = int((time.time() - t_start_api) * 1000) if 't_start_api' in locals() else 0
         from ocr_pipeline.pipeline_telemetry import PipelineStageTelemetry
         PipelineStageTelemetry.record_stage('API', {'files_received': len(files)}, {'success': True, 'queued_count': queued_count, 'duplicate_count': duplicate_count}, api_duration_ms)
+
+        return Response({
+            'success': True,
+            'status': 'QUEUED',
+            'job_id': str(job.id),
+            'queued_count': queued_count,
+            'duplicate_count': duplicate_count,
+            'results': [],
+            'estimated_delay_seconds': round(estimated_delay, 2)
+        }, status=status.HTTP_200_OK)
 
     def _map_record_to_ui_row(self, record, norm_data=None, vendor_map=None):
         """
@@ -544,8 +570,9 @@ class CleanOCRStagingView(views.APIView):
         expected = barrier_state.expected_pages or 1
         completed = (barrier_state.completed_pages or 0) + (barrier_state.failed_pages or 0)
         progress_percent = min(99.0, completed / expected * 100.0)
-        if barrier_state.status == 'FAILED' or (barrier_state.status == 'FINALIZED' and barrier_state.failed_pages > 0 and (not barrier_state.terminal_consistency)):
-            logger.info(f'[LIFECYCLE_TERMINAL_STATE] session={session_id} tenant_id={tenant_id} state=failed — attempting recovery hydration')
+        is_barrier_complete = completed >= expected and expected > 0
+        if barrier_state.status in ('FAILED', 'PARTIAL_FAILED', 'ERROR') or (barrier_state.status == 'FINALIZED' and barrier_state.failed_pages > 0 and (not barrier_state.terminal_consistency)) or (is_barrier_complete and barrier_state.failed_pages > 0):
+            logger.info(f'[LIFECYCLE_TERMINAL_STATE] session={session_id} tenant_id={tenant_id} state={barrier_state.status} — attempting recovery hydration')
             snapshots = FinalizedSnapshot.objects.filter(session_id=session_id).order_by('created_at', 'id')
             if not snapshots.exists():
                 snapshots = FinalizedSnapshot.objects.filter(session_id=prim_rec.upload_session_id).order_by('created_at', 'id')
@@ -607,7 +634,7 @@ class CleanOCRStagingView(views.APIView):
             has_clean = len(clean_data) > 0
             final_status = 'PARTIAL_FAILED' if has_clean else 'FAILED'
             return Response({'status': final_status, 'data': clean_data, 'failed_records': failed_records, 'pipeline_status': 'completed' if has_clean else 'failed', 'terminal': True, 'hydration_pending': False, 'completed': True, 'failed': True, 'progress_percent': 100.0, 'poll_latency': round(time.time() - t_poll_start, 3)})
-        if barrier_state.terminal_consistency:
+        if barrier_state.terminal_consistency or (completed >= expected and expected > 0):
             snapshots = FinalizedSnapshot.objects.filter(session_id=session_id).order_by('created_at', 'id')
             if not snapshots.exists():
                 snapshots = FinalizedSnapshot.objects.filter(session_id=prim_rec.upload_session_id).order_by('created_at', 'id')
@@ -752,9 +779,11 @@ class CleanOCRStagingView(views.APIView):
             if not record:
                 record = InvoiceTempOCR.objects.filter(upload_session_id=session_id, tenant_id=request.user.branch_id).first()
         else:
-            record = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=request.user.branch_id).first()
+            record = None
+            if str(file_hash).isdigit():
+                record = InvoiceTempOCR.objects.filter(id=int(file_hash), tenant_id=request.user.branch_id).first()
             if not record:
-                record = InvoiceTempOCR.objects.filter(id=int(file_hash) if str(file_hash).isdigit() else None).first()
+                record = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=request.user.branch_id).first()
         if not record:
             return Response({'error': 'File not found'}, status=404)
         

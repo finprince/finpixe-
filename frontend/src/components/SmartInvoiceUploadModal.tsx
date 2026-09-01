@@ -664,16 +664,17 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
     }, []);
 
     const handleInlineOwnCompanyDecision = async (row: ScanResult, decision: 'PROCEED' | 'NOT_PROCEED') => {
+        const targetId = String(row.id || row.file_hash);
         try {
-            await httpClient.patch(`/api/ocr-staging/${row.id || row.file_hash}/`, { company_match_decision: decision });
+            await httpClient.patch(`/api/ocr-staging/${targetId}/`, { company_match_decision: decision });
         } catch {
             // silent catch — state updates locally
         }
         if (decision === 'PROCEED') {
-            setScanResults(prev => prev.map(r => (r.file_hash === row.file_hash || r.id === row.id) ? { ...r, company_match_decision: 'PROCEED', company_match_detected: false } : r));
+            setScanResults(prev => prev.map(r => (String(r.id) === String(row.id) || r.id === row.id) ? { ...r, company_match_decision: 'PROCEED', company_match_detected: false } : r));
             showSuccess('Confirmed invoice for purchase processing.');
         } else {
-            setScanResults(prev => prev.filter(r => r.file_hash !== row.file_hash && r.id !== row.id));
+            setScanResults(prev => prev.filter(r => String(r.id) !== String(row.id) && r.id !== row.id));
             showSuccess('Invoice removed.');
         }
     };
@@ -1536,22 +1537,26 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
             });
 
             setScanResults(prev => {
+                const uniqueSeeded = seeded.filter((r, idx, self) =>
+                    self.findIndex(t => String(t.id || t.file_hash) === String(r.id || r.file_hash)) === idx
+                );
+
                 if (!useAllUnresolvedRef.current) {
-                    // Live Session: seeded is the exact authoritative state
-                    return seeded;
+                    // Live Session: uniqueSeeded is the exact authoritative state
+                    return uniqueSeeded;
                 }
 
                 // Resume Staging: Deterministic Unresolved Identity Merge
                 const normalize = (s: any) => String(s || '').replace(/[^A-Z0-9]/g, '').trim().toUpperCase();
 
                 const getResumeKey = (r: ScanResult) => {
-                    return r.file_hash || String(r.id);
+                    return String(r.id || r.file_hash);
                 };
 
                 const next = [...prev];
                 const seenKeys = new Set<string>();
 
-                for (const incoming of seeded) {
+                for (const incoming of uniqueSeeded) {
                     const rKey = getResumeKey(incoming);
                     if (seenKeys.has(rKey)) {
                         console.log(`[RESUME_DEDUP_SKIPPED] frontend skipping duplicate incoming row key=${rKey}`);
@@ -2817,7 +2822,17 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
-                                                {prioritySortedRows.length === 0 && (
+                                                {isLoading && scanResults.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={totalVisibleCols} className="text-center py-10 text-gray-500 font-medium">
+                                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                                <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                                                <span className="text-xs font-semibold text-indigo-700">Loading scan list...</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                {!isLoading && prioritySortedRows.length === 0 && (
                                                     <tr>
                                                         <td colSpan={totalVisibleCols} className="text-center py-8 text-gray-500 font-medium italic">
                                                             No invoices match the selected filter.
@@ -2830,7 +2845,7 @@ const BulkInvoiceUploadModal: React.FC<BulkInvoiceUploadModalProps> = ({
                                                     const hasEffectiveMatch = ['EXISTS', 'FOUND', 'MATCHED', 'RESOLVED'].includes(row.vendor_status || '');
 
                                                     return (
-                                                        <React.Fragment key={row.file_hash || row.id || idx}>
+                                                        <React.Fragment key={String(row.id || row.file_hash || idx)}>
                                                             <tr className={`group hover:bg-indigo-50/40 transition-colors ${row._isMerged ? 'bg-blue-50/30' : ''} ${selectedHashes.has(row.file_hash) ? 'bg-indigo-50' :
                                                                 isOwnCompanyRow ? 'bg-amber-50/70 border-l-4 border-amber-500' :
                                                                 row.vendor_status === 'NEW' ? 'bg-indigo-50/30' : ''
