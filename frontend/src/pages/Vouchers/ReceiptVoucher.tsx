@@ -118,7 +118,12 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
 
         const normalized = valStr.toLowerCase();
         if (isReceiveFrom) {
-            const option = receiveFromOptions.find(o => o.id === valStr || (o.name || '').trim().toLowerCase() === normalized);
+            const option = receiveFromOptions.find(o =>
+                o.id === valStr ||
+                (o.label && o.label.trim().toLowerCase() === normalized) ||
+                (o.code && `${o.name} - ${o.code}`.trim().toLowerCase() === normalized) ||
+                (o.name || '').trim().toLowerCase() === normalized
+            );
             if (option) {
                 return option.id;
             }
@@ -329,8 +334,9 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
         const finalList = Array.from(masterMap.values());
         finalList.forEach((o: any) => {
             o.label = o.code && o.code !== '00' ? `${o.name} - ${o.code}` : o.name;
+            o.value = o.label;
         });
-        finalList.sort((a, b) => a.name.localeCompare(b.name));
+        finalList.sort((a, b) => (a.label || a.name).localeCompare(b.label || b.name));
         return finalList;
     }, [allLedgers, portalCustomers, portalVendors, hierarchy]);
 
@@ -828,6 +834,16 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
             // Find the ledger ID first
             const findLedgerId = (name: string) => {
                 const normalized = name.trim().toLowerCase();
+                const matchedOption = receiveFromOptions.find(o =>
+                    (o.label && o.label.trim().toLowerCase() === normalized) ||
+                    (o.code && `${o.name} - ${o.code}`.trim().toLowerCase() === normalized) ||
+                    (o.name || '').trim().toLowerCase() === normalized ||
+                    o.id === name
+                );
+                if (matchedOption) {
+                    if (matchedOption.ledger_id) return matchedOption.ledger_id;
+                    if (matchedOption.id && !isNaN(Number(matchedOption.id))) return Number(matchedOption.id);
+                }
                 const ledger = allLedgers.find(l => l.name.trim().toLowerCase() === normalized);
                 if (ledger) return ledger.id;
                 const portalCust = portalCustomers.find(c => (c.customer_name || c.name || '').trim().toLowerCase() === normalized);
@@ -860,11 +876,16 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
 
             // Fetch transactions (Sales Invoices) from the rich system
             console.log(`[DEBUG] ReceiptVoucher: Fetching rich sales for ${customerName}`);
-            const response = await apiService.getRichCustomerSalesInvoices(customerName);
+            const matchedOpt = receiveFromOptions.find(o =>
+                (o.label && o.label.trim().toLowerCase() === customerName.trim().toLowerCase()) ||
+                (o.name || '').trim().toLowerCase() === customerName.trim().toLowerCase()
+            );
+            const lookupName = matchedOpt ? matchedOpt.name : customerName;
+            const response = await apiService.getRichCustomerSalesInvoices(lookupName);
             console.log(`[DEBUG] ReceiptVoucher: Response data:`, response);
 
             // Find the customer to get their credit period from the portal master
-            const normalizedName = customerName.trim().toLowerCase();
+            const normalizedName = lookupName.trim().toLowerCase();
             const customer = portalCustomers.find(c =>
                 (c.customer_name || c.name || '').trim().toLowerCase() === normalizedName
             );
@@ -1512,7 +1533,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                         setReceiveFrom(val);
                                         handleCustomerSelect(val);
                                     }}
-                                    options={receiveFromOptions.map(l => ({ label: l.label, value: l.name }))}
+                                    options={receiveFromOptions.map(l => ({ label: l.label, value: l.label }))}
                                     placeholder="Select Receive From"
                                     className="flex-1"
                                 />
@@ -1852,13 +1873,7 @@ const ReceiptVoucher: React.FC<ReceiptVoucherProps> = ({
                                                 key={`receive-from-${row.id}`}
                                                 value={row.receiveFrom}
                                                 onChange={val => handleReceiptRowChange(row.id, 'receiveFrom', val)}
-                                                options={receiveFromOptions.map(l => {
-                                                     let lbl = l.name;
-                                                     if (l.code) {
-                                                         lbl = `${l.name} - ${l.code}`;
-                                                     }
-                                                     return { label: lbl, value: l.name };
-                                                 })}
+                                                options={receiveFromOptions.map(l => ({ label: l.label, value: l.label }))}
                                                 placeholder="Select Receive From"
                                                 className="w-full h-[40px]"
                                             />

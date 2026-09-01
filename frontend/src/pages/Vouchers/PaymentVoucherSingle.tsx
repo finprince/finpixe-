@@ -255,7 +255,16 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 // Portal entities use their unique ID as key so duplicates are preserved
                 portalEntities.forEach((o: any) => masterMap.set(o.id, o));
 
-                setPayToOptions(Array.from(masterMap.values()).sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))));
+                const options = Array.from(masterMap.values()).map((o: any) => {
+                    const label = (o.code && o.code !== '00') ? `${o.name} - ${o.code}` : o.name;
+                    return {
+                        ...o,
+                        label,
+                        value: label
+                    };
+                }).sort((a, b) => String(a?.label || a?.name || '').localeCompare(String(b?.label || b?.name || '')));
+
+                setPayToOptions(options);
             } catch (error) {
                 console.error('Error fetching data:', error);
                 showError('Failed to fetch master data');
@@ -266,6 +275,22 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
 
     // Pay To options are fetched + filtered in fetchAllData()
     const [payToOptions, setPayToOptions] = useState<any[]>([]);
+
+    const findPayToOption = useCallback((val: string | number | null | undefined) => {
+        if (!val) return undefined;
+        const str = String(val).trim();
+        const normalized = str.toLowerCase();
+        return payToOptions.find(opt => {
+            const optLabel = (opt.label || (opt.code && opt.code !== '00' ? `${opt.name} - ${opt.code}` : opt.name) || '').trim().toLowerCase();
+            const optName = (opt.name || '').trim().toLowerCase();
+            const optCode = (opt.code || '').trim().toLowerCase();
+            return optLabel === normalized ||
+                opt.id === str ||
+                opt.value === str ||
+                (optCode && optCode !== '00' && optCode === normalized) ||
+                optName === normalized;
+        });
+    }, [payToOptions]);
 
     // Single mode state
     const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
@@ -288,7 +313,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
             if (isReadOnlyMode) {
                 return;
             }
-            const selectedOpt = payToOptions.find(opt => opt.name === payTo);
+            const selectedOpt = findPayToOption(payTo);
             const today = new Date();
 
             if (selectedOpt && selectedOpt.ledger_id) {
@@ -451,7 +476,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 setBulkTransactions([]);
                 return;
             }
-            const selectedOpt = payToOptions.find(opt => opt.name === selectedVendor);
+            const selectedOpt = findPayToOption(selectedVendor);
             // Use resolved ledger_id for invoice lookup
             if (selectedOpt && selectedOpt.ledger_id) {
                 try {
@@ -514,8 +539,15 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 return found ? found.name : name.trim();
             };
 
+            const findPayToName = (name: string) => {
+                if (!name) return '';
+                const opt = findPayToOption(name);
+                if (opt) return opt.label || opt.name;
+                return findLedgerName(name);
+            };
+
             if (prefilledData.invoiceDate) setDate(prefilledData.invoiceDate);
-            if (prefilledData.sellerName) setPayTo(findLedgerName(prefilledData.sellerName));
+            if (prefilledData.sellerName) setPayTo(findPayToName(prefilledData.sellerName));
 
             // Support both 'pay_from' (direct API field) and 'account' (mapped from drilldown)
             const payFromRaw = (prefilledData as any).pay_from || (prefilledData as any).account || '';
@@ -775,7 +807,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 const normalized = name.trim().toLowerCase();
 
                 if (isPayTo) {
-                    const found = payToOptions.find(opt => (opt.name || '').trim().toLowerCase() === normalized);
+                    const found = findPayToOption(name);
                     if (found) {
                         // portal-vend-X / portal-cust-X → send as-is for backend resolution
                         if (found.id && typeof found.id === 'string' && found.id.startsWith('portal-')) return found.id;
@@ -941,7 +973,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
         }
 
         try {
-            const selectedOpt = payToOptions.find(opt => opt.name === vendorName);
+            const selectedOpt = findPayToOption(vendorName);
             const today = new Date();
 
             if (selectedOpt && selectedOpt.ledger_id) {
@@ -950,7 +982,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
 
                 if (selectedOpt.type === 'vendor') {
                     // Use the UNIFIED Vendor Transactions API (Procurement source)
-                    const res: any = await httpClient.get(`/api/vendors/transactions/by_vendor/?vendor_id=${selectedOpt.id}`);
+                    const res: any = await httpClient.get(`/api/vendors/transactions/by_vendor/?vendor_id=${selectedOpt.portal_id || selectedOpt.id}`);
                     const transactions = Array.isArray(res) ? res : (res.results || []);
 
                     console.log("!!! Vendor Bulk Transactions (Procurement):", transactions);
@@ -980,7 +1012,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 } else if (selectedOpt.type === 'customer') {
                     // Use rich sales API for customers
                     data = await apiService.getRichCustomerSalesInvoices(selectedOpt.name);
-                    const customer = customers.find(c => c.id === selectedOpt.id);
+                    const customer = customers.find(c => c.id === (selectedOpt.portal_id || selectedOpt.id) || (c.customer_name || c.name || '').toLowerCase() === (selectedOpt.name || '').toLowerCase());
                     const rawTerms = customer?.credit_period || '0';
                     const termsMatch = String(rawTerms).match(/(\d+)/);
                     entityCreditPeriod = termsMatch ? parseInt(termsMatch[1], 10) : 0;
@@ -1142,7 +1174,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 const normalized = name.trim().toLowerCase();
 
                 if (isPayTo) {
-                    const found = payToOptions.find(opt => (opt.name || '').trim().toLowerCase() === normalized);
+                    const found = findPayToOption(name);
                     if (found) {
                         // portal-vend-X / portal-cust-X → send as-is for backend resolution
                         if (found.id && typeof found.id === 'string' && found.id.startsWith('portal-')) return found.id;
@@ -1165,7 +1197,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
             let items: any[] = [];
 
             if (activeTab === 'single') {
-                const selectedOpt = payToOptions.find(opt => opt.name === payTo);
+                const selectedOpt = findPayToOption(payTo);
                 if (!selectedOpt) {
                     showError(`'Pay To' account '${payTo}' is invalid. Please select from the dropdown.`);
                     return;
@@ -1220,11 +1252,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                 // Bulk mode - Consolidate all rows
                 paymentRows.forEach(row => {
                     if (!row.payTo || row.amount <= 0) return;
-                    const normRowPayTo = row.payTo.trim().toLowerCase();
-                    const opt = payToOptions.find(o =>
-                        (o.name || '').trim().toLowerCase() === normRowPayTo ||
-                        (o.code && `${o.name} - ${o.code}`.trim().toLowerCase() === normRowPayTo)
-                    );
+                    const opt = findPayToOption(row.payTo);
                     if (!opt) return;
 
                     // If this row has explicit allocations (stored during editing)
@@ -1470,13 +1498,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                 <SearchableDropdown
                                     value={payTo}
                                     onChange={(val) => setPayTo(val)}
-                                    options={payToOptions.map(l => {
-                                        let label = l.name;
-                                        if (l.code && l.code !== '00') {
-                                            label = `${l.name} - ${l.code}`;
-                                        }
-                                        return { label, value: l.name };
-                                    })}
+                                    options={payToOptions.map(l => ({ label: l.label || l.name, value: l.label || l.name }))}
                                     placeholder="Select Pay To"
                                     className="flex-1"
                                 />
@@ -1826,13 +1848,7 @@ const PaymentVoucherSingle: React.FC<PaymentVoucherSingleProps> = ({
                                                 <SearchableDropdown
                                                     value={row.payTo}
                                                     onChange={val => handlePaymentRowChange(row.id, 'payTo', val)}
-                                                    options={payToOptions.map(l => {
-                                                        let label = l.name;
-                                                        if (l.code && l.code !== '00') {
-                                                            label = `${l.name} - ${l.code}`;
-                                                        }
-                                                        return { label, value: l.name };
-                                                    })}
+                                                    options={payToOptions.map(l => ({ label: l.label || l.name, value: l.label || l.name }))}
                                                     placeholder="Select Pay To"
                                                     className="w-full h-[40px]"
                                                 />
