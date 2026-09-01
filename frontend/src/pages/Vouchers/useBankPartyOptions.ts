@@ -97,28 +97,33 @@ export function useBankPartyOptions(_type?: 'payment' | 'receipt') {
         const sets = buildHierarchySets(hierarchy);
 
         // 1. Hierarchy seed ledgers (leaf nodes only)
+        // 1. Hierarchy seed ledgers (leaf nodes only)
         const hierarchySeedOptions: PartyOption[] = Array.from(sets.selectableMap.values())
           .filter((l: any) => !sets.nonLeaf.has(normalizeName(l.name)))
-          .map((l: any) => ({
-            label:     l.code && l.code !== '00' ? `${l.name} - ${l.code}` : l.name,
-            value:     l.name,
-            ledger_id: l.id,
-            id:        l.id,
-            name:      l.name,
-            group:     l.group,
-            category:  l.category === 'Sundry Debtors' ? 'customer' : 'vendor',
-            type:      'ledger' as const,
-            code:      l.code,
-          }));
+          .map((l: any) => {
+            const label = l.code && l.code !== '00' ? `${l.name} - ${l.code}` : l.name;
+            return {
+              label,
+              value:     label,
+              ledger_id: l.id,
+              id:        l.id,
+              name:      l.name,
+              group:     l.group,
+              category:  l.category === 'Sundry Debtors' ? 'customer' : 'vendor',
+              type:      'ledger' as const,
+              code:      l.code,
+            };
+          });
 
         // 2. Portal vendors  (Sundry Creditors)
         const vendorOptions: PartyOption[] = vendors.map((v: any) => {
           const rawName = v.vendor_name || v.name || 'Unknown Vendor';
           const code = v.code || v.vendor_code;
+          const label = code && code !== '00' ? `${rawName} - ${code}` : rawName;
           return {
             name:      rawName,
-            label:     code && code !== '00' ? `${rawName} - ${code}` : rawName,
-            value:     rawName,
+            label,
+            value:     label,
             ledger_id: v.ledger_id || v.id,
             id:        v.id,
             group:     'Sundry Creditors',
@@ -132,10 +137,11 @@ export function useBankPartyOptions(_type?: 'payment' | 'receipt') {
         const customerOptions: PartyOption[] = customers.map((c: any) => {
           const rawName = c.customer_name || c.name || 'Unknown Customer';
           const code = c.code || c.customer_code;
+          const label = code && code !== '00' ? `${rawName} - ${code}` : rawName;
           return {
             name:      rawName,
-            label:     code && code !== '00' ? `${rawName} - ${code}` : rawName,
-            value:     rawName,
+            label,
+            value:     label,
             ledger_id: c.ledger_id || c.id,
             id:        c.id,
             group:     'Sundry Debtors',
@@ -149,46 +155,41 @@ export function useBankPartyOptions(_type?: 'payment' | 'receipt') {
         const ledgerOptions: PartyOption[] = ledgers
           .filter((l: any) => l.code !== '00')
           .map((l: any) => {
-          const rawName = l.name || 'Unknown Ledger';
-          return {
-            name:      rawName,
-            label:     l.code && l.code !== '00' ? `${rawName} - ${l.code}` : rawName,
-            value:     rawName,
-            ledger_id: l.id,
-            id:        l.id,
-            group:     l.group,
-            type:      l.group === 'Sundry Debtors' ? 'customer' :
-                       l.group === 'Sundry Creditors' ? 'vendor' : 'ledger' as const,
-            category:  l.group === 'Sundry Debtors' ? 'customer' :
-                       l.group === 'Sundry Creditors' ? 'vendor' : undefined,
-            code:      l.code,
-          };
-        });
+            const rawName = l.name || 'Unknown Ledger';
+            const label = l.code && l.code !== '00' ? `${rawName} - ${l.code}` : rawName;
+            return {
+              name:      rawName,
+              label,
+              value:     label,
+              ledger_id: l.id,
+              id:        l.id,
+              group:     l.group,
+              type:      l.group === 'Sundry Debtors' ? 'customer' :
+                         l.group === 'Sundry Creditors' ? 'vendor' : 'ledger' as const,
+              category:  l.group === 'Sundry Debtors' ? 'customer' :
+                         l.group === 'Sundry Creditors' ? 'vendor' : undefined,
+              code:      l.code,
+            };
+          });
 
-        // 5. Merge — same dedup order as PaymentVoucherSingle:
-        //    hierarchy seeds → ledger entries → portal entities (portal wins)
+        // 5. Merge — hierarchy seeds → ledger entries → portal entities
         const masterMap = new Map<string, PartyOption>();
-        hierarchySeedOptions.forEach(o => masterMap.set(o.value.toLowerCase(), o));
+        hierarchySeedOptions.forEach(o => masterMap.set(o.label.toLowerCase(), o));
         ledgerOptions.forEach(o => {
-          const key = o.value.toLowerCase();
+          const key = o.label.toLowerCase();
           const existing = masterMap.get(key);
           const merged = existing ? { ...existing, ...o, code: o.code || existing.code } : o;
           merged.label = merged.code && merged.code !== '00' ? `${merged.name} - ${merged.code}` : merged.name;
+          merged.value = merged.label;
           masterMap.set(key, merged);
         });
         vendorOptions.forEach(o => {
-          const key = o.value.toLowerCase();
-          const existing = masterMap.get(key);
-          const merged = existing ? { ...existing, ...o, code: o.code || existing.code } : o;
-          merged.label = merged.code && merged.code !== '00' ? `${merged.name} - ${merged.code}` : merged.name;
-          masterMap.set(key, merged);
+          const key = o.label.toLowerCase();
+          masterMap.set(key, o);
         });
         customerOptions.forEach(o => {
-          const key = o.value.toLowerCase();
-          const existing = masterMap.get(key);
-          const merged = existing ? { ...existing, ...o, code: o.code || existing.code } : o;
-          merged.label = merged.code && merged.code !== '00' ? `${merged.name} - ${merged.code}` : merged.name;
-          masterMap.set(key, merged);
+          const key = o.label.toLowerCase();
+          masterMap.set(key, o);
         });
 
         const merged = Array.from(masterMap.values())
