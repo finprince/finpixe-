@@ -1866,9 +1866,11 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
 
     const handleUpdatePOStatus = async (poId: number, newStatus: PurchaseOrder['status']) => {
         try {
-            showInfo(`Updating PO status to ${newStatus}...`);
-            await httpClient.post(`/api/vendors/purchase-orders/${poId}/update_status/`, {
-                status: newStatus
+            showInfo(newStatus === 'Mailed' ? 'Approving & Mailing Purchase Order...' : `Updating PO status to ${newStatus}...`);
+            const targetEmail = createPOForm?.emailAddress || selectedPO?.email_address;
+            const response: any = await httpClient.post(`/api/vendors/purchase-orders/${poId}/update_status/`, {
+                status: newStatus,
+                email: targetEmail
             });
 
             setPurchaseOrders(prevOrders => prevOrders.map(p => {
@@ -1883,7 +1885,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                 setSelectedPO({ ...selectedPO, status: newStatus } as any);
             }
 
-            showSuccess(`PO status updated successfully to ${newStatus}.`);
+            const successMsg = response?.message || (newStatus === 'Mailed' ? 'Purchase order approved and emailed successfully!' : `PO status updated successfully to ${newStatus}.`);
+            showSuccess(successMsg);
             return true;
         } catch (error) {
             handleApiError(error, 'Update PO Status');
@@ -2003,8 +2006,10 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
             const updated = { ...prev, [field]: value };
 
             if (field === 'vendorName') {
-                const selectedVendor = vendorList.find(v => v.vendor_name === value);
+                const selectedVendor = vendorList.find(v => v.vendor_name === value || v.id.toString() === value);
                 if (selectedVendor) {
+                    updated.emailAddress = selectedVendor.email || '';
+                    updated.contractNo = selectedVendor.contact_no || '';
                     fetchVendorBranches(selectedVendor.id);
                     fetchAvailableVendorItems(selectedVendor.id);
                 } else {
@@ -2015,16 +2020,17 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
 
             if (field === 'branch') {
                 const selectedBranch = availableBranches.find(b => (b.reference_name || b.id.toString()) === value);
+                const selectedVendor = vendorList.find(v => v.vendor_name === updated.vendorName);
                 if (selectedBranch) {
                     updated.addressLine1 = selectedBranch.branch_address || '';
-                    updated.emailAddress = selectedBranch.branch_email || '';
+                    const branchEmail = selectedBranch.branch_email;
+                    updated.emailAddress = (branchEmail && !branchEmail.includes('@example.com')) ? branchEmail : (selectedVendor?.email || updated.emailAddress || '');
                     updated.state = selectedBranch.gst_state || '';
                     updated.pincode = selectedBranch.branch_pincode || selectedBranch.pincode || '';
                     updated.city = selectedBranch.branch_city || selectedBranch.city || '';
                     updated.state = selectedBranch.branch_state || selectedBranch.state || selectedBranch.gst_state || '';
                     updated.country = selectedBranch.branch_country || selectedBranch.country || '';
-                    updated.contractNo = selectedBranch.branch_contact_no || selectedBranch.contactNumber || '';
-                    // Reset other address fields or try to parse if possible, for now just basic fill
+                    updated.contractNo = selectedBranch.branch_contact_no || selectedBranch.contactNumber || selectedVendor?.contact_no || updated.contractNo || '';
                 }
             }
 
@@ -2212,6 +2218,11 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                 seriesName = fullPO.poNumber.split('-')[0];
             }
 
+            const matchedVendor = vendorList.find(v => v.vendor_name === (fullPO.vendor_name || fullPO.vendorName) || v.id === fullPO.vendor_basic_detail_id);
+            const resolvedEmail = (fullPO.email_address && !fullPO.email_address.includes('@example.com') && !fullPO.email_address.includes('@test.com'))
+                ? fullPO.email_address
+                : (matchedVendor?.email || fullPO.email_address || '');
+
             setCreatePOForm({
                 poSeriesName: seriesName,
                 poNumber: fullPO.po_number || fullPO.poNumber || 'New PO',
@@ -2224,8 +2235,8 @@ const VendorPortalPage: React.FC<VendorPortalProps> = ({ onLogout, onNavigate, s
                 state: fullPO.state || '',
                 country: fullPO.country || '',
                 pincode: fullPO.pincode || '',
-                emailAddress: fullPO.email_address || fullPO.emailAddress || '',
-                contractNo: fullPO.contract_no || fullPO.contractNo || '',
+                emailAddress: resolvedEmail,
+                contractNo: fullPO.contract_no || fullPO.contractNo || matchedVendor?.contact_no || '',
                 receiveBy: fullPO.receive_by || fullPO.receiveBy || fullPO.deliveryDate || '',
                 receiveAt: fullPO.receive_at || fullPO.receiveAt || '',
                 deliveryTerms: fullPO.delivery_terms || fullPO.deliveryTerms || '',

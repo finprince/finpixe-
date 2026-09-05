@@ -1234,6 +1234,8 @@ CREATE TABLE `inventory_master_inventoryitems` (
   `cess_rate` decimal(5,2) DEFAULT NULL,
   `reorder_level` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Reorder Level Information',
   `is_saleable` tinyint(1) NOT NULL DEFAULT '0',
+  `opening_stock` decimal(15,3) NOT NULL DEFAULT '0.000',
+  `opening_rate` decimal(15,2) NOT NULL DEFAULT '0.00',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),

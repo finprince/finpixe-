@@ -555,7 +555,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     onKeyDown={e => handleEnter(e, 'pwd2')}
                     required
                     rightIcon={
-                      <button type="button" className="text-slate-400 hover:text-[#6366F1] transition-colors" onClick={() => setShowPassword(!showPassword)}>
+                      <button type="button" className="text-slate-400 hover:text-[#6366F1] transition-colors focus:outline-none cursor-pointer" onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     }
@@ -571,7 +571,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSwitchToLogin, onBack }) => {
                     onKeyDown={e => handleEnter(e, undefined, true)}
                     required
                     rightIcon={
-                      <button type="button" className="text-slate-400 hover:text-[#6366F1] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      <button type="button" className="text-slate-400 hover:text-[#6366F1] transition-colors focus:outline-none cursor-pointer" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                         {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     }

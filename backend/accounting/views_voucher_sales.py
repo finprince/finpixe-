@@ -341,3 +341,17 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
                 return Response({"message": "Invoice cancelled successfully", "status": invoice.status})
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='send-email')
+    def send_email(self, request, pk=None):
+        invoice = self.get_object()
+        recipient_email = request.data.get('recipient_email') or invoice.customer_email
+        from .services.sales_invoice_mail_service import send_sales_invoice_email
+        result = send_sales_invoice_email(
+            invoice_id=invoice.id,
+            recipient_email=recipient_email,
+            sender_user=request.user
+        )
+        if result.get('success'):
+            return Response(result, status=status.HTTP_200_OK)
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)

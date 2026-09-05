@@ -5,7 +5,10 @@ Concrete implementation of BaseVectorStoreProvider for ChromaDB with ProviderCap
 Stores and validates index provenance metadata (embedding model, dimension, metric, normalization).
 """
 import os
-import chromadb
+try:
+    import chromadb
+except ImportError:
+    chromadb = None
 from typing import Dict, Any, List, Optional
 from ..interfaces.vector_store import BaseVectorStoreProvider
 from ..interfaces.capabilities import ProviderCapabilities
@@ -36,6 +39,11 @@ class ChromaVectorStoreProvider(BaseVectorStoreProvider):
             collection_name
             or getattr(kiki_settings, "PRIMARY_COLLECTION_NAME", self.COLLECTION_NAME)
         )
+        if chromadb is None:
+            self.client = None
+            self.collection = None
+            logger.warning("ChromaDB is not installed. ChromaVectorStoreProvider initialized in disabled mode.")
+            return
         self.client = chromadb.PersistentClient(path=self.persist_dir)
         self.collection = self.client.get_or_create_collection(
             name=self.collection_name,

@@ -513,6 +513,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
         setCustomerName('');
         setCustomerId(null);
         setCustomerBranch('');
+        setCustomerEmail('');
+        setSendEmailToCustomer(false);
         setGstin('');
         setContact('');
         setPlaceOfSupply('');
@@ -680,6 +682,9 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
     const [customerName, setCustomerName] = useState('');
     const [customerId, setCustomerId] = useState<number | string | null>(null);
     const [customerBranch, setCustomerBranch] = useState('');
+    const [customerEmail, setCustomerEmail] = useState('');
+    const [sendEmailToCustomer, setSendEmailToCustomer] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     const [masterCustomers, setMasterCustomers] = useState<any[]>([]);
     const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -867,6 +872,13 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             setCustomerId(customer.id);
             const branches: any[] = customer.gst_details?.branches || [];
             const refs = branches.map((b: any) => b.defaultRef || b.referenceName || '').filter(Boolean);
+
+            // ── Auto-fill Customer Email ──
+            const custEmail = customer.email_address || customer.email || (branches[0] && (branches[0].email || branches[0].branch_email)) || '';
+            setCustomerEmail(custEmail);
+            if (custEmail) {
+                setSendEmailToCustomer(true);
+            }
 
             // ── Auto-select branch if only one exists ──
             if (refs.length === 1) {
@@ -1095,6 +1107,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             setAvailableTcsSections([]);
             setAvailableTdsSections([]);
             setSelectedStatutorySection('');
+            setCustomerEmail('');
+            setSendEmailToCustomer(false);
             setCustomerTaxType('NONE');
             setCustomerGstTdsApplicable(false);
             setCustomerTdsEnabled(false);
@@ -1221,6 +1235,10 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
         setBillToState(branch.state || '');
         setBillToCountry(branch.country || 'India');
         if (branch.contactNumber) setContact(branch.contactNumber);
+        if (branch.email || branch.branch_email) {
+            setCustomerEmail(branch.email || branch.branch_email);
+            setSendEmailToCustomer(true);
+        }
         // Also auto-fill GSTIN if registered branch
         if (branch.gstin) setGstin(branch.gstin);
     };
@@ -2350,6 +2368,8 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                 ship_to: JSON.stringify(shipTo),
                 gstin,
                 contact,
+                customer_email: customerEmail || null,
+                send_email_to_customer: sendEmailToCustomer,
                 tax_type: taxType,
                 state_type: stateType,
                 export_type: exportType,
@@ -2488,10 +2508,10 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             let response: any;
             if (editingVoucherId) {
                 response = await httpClient.patch<any>(`/api/voucher-sales-new/${editingVoucherId}/`, payload);
-                showSuccess('Sales Voucher Updated Successfully!');
+                showSuccess(sendEmailToCustomer && customerEmail ? `Sales Voucher Updated & Invoice Emailed to ${customerEmail}!` : 'Sales Voucher Updated Successfully!');
             } else {
                 response = await apiService.createSalesVoucherNew(payload);
-                showSuccess('Sales Voucher Saved Successfully!');
+                showSuccess(sendEmailToCustomer && customerEmail ? `Sales Voucher Saved & Invoice Emailed to ${customerEmail}!` : 'Sales Voucher Saved Successfully!');
             }
 
             // Propagate to main container state to enable immediate visibility on dashboards and reports
@@ -2578,7 +2598,10 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
 
             const payload = {
                 date: formatDate(date), sales_invoice_no: salesInvoiceNo, voucher_name: voucherName, outward_slip_no: outwardSlipNo, outward_slip_id: outwardSlipId,
-                customer_name: resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName, customer_id: customerId, customer_branch: customerBranch, bill_to: JSON.stringify(billTo), ship_to: JSON.stringify(shipTo), gstin, contact, tax_type: taxType,
+                customer_name: resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName, customer_id: customerId, customer_branch: customerBranch, bill_to: JSON.stringify(billTo), ship_to: JSON.stringify(shipTo), gstin, contact,
+                customer_email: customerEmail || null,
+                send_email_to_customer: sendEmailToCustomer,
+                tax_type: taxType,
                 state_type: stateType, export_type: exportType, exchange_rate: exchangeRate, supporting_document: supportingDocument,
                 sales_order_no: salesOrderNos.join(', '), place_of_supply: placeOfSupply || null, reverse_charge: reverseCharge, invoice_type: invoiceType,
                 gst_export_type: stateType === 'export' ? gstExportType : null, port_code: stateType === 'export' ? portCode : null,
@@ -2599,10 +2622,10 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             let response: any;
             if (editingVoucherId) {
                 response = await httpClient.patch<any>(`/api/voucher-sales-new/${editingVoucherId}/`, payload);
-                showSuccess('Sales Voucher Updated Successfully!');
+                showSuccess(sendEmailToCustomer && customerEmail ? `Sales Voucher Updated & Invoice Emailed to ${customerEmail}!` : 'Sales Voucher Updated Successfully!');
             } else {
                 response = await apiService.createSalesVoucherNew(payload);
-                showSuccess('Sales Voucher Saved Successfully!');
+                showSuccess(sendEmailToCustomer && customerEmail ? `Sales Voucher Saved & Invoice Emailed to ${customerEmail}!` : 'Sales Voucher Saved Successfully!');
             }
 
             // Propagate to main container state to enable immediate visibility on dashboards and reports
@@ -2626,7 +2649,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
 
             // Prepare data for print preview
             const totals = calculateTotals();
-            setPostedVoucherData({ ...payload, totals, billTo, shipTo });
+            setPostedVoucherData({ ...payload, id: response?.id || editingVoucherId, totals, billTo, shipTo, customer_email: customerEmail });
             setShowPrintPreview(true);
 
             // Note: Don't full reset form here so user can print, but number is already incremented
@@ -3539,7 +3562,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                 />
                             </div>
 
-                            {/* Row 3 Col 3: Upload Supporting Document */}
+                            {/* Row 3 Col 2: Upload Supporting Document */}
                             <div className="space-y-3">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Upload Supporting Document
@@ -3613,6 +3636,43 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         </button>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Row 3 Col 3: Customer Email & Auto-Dispatch Option */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Customer Email
+                                    </label>
+                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${sendEmailToCustomer ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}`}>
+                                        {sendEmailToCustomer ? 'Auto-Email ON' : 'Email OFF'}
+                                    </span>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="email"
+                                        value={customerEmail}
+                                        onChange={(e) => setCustomerEmail(e.target.value)}
+                                        placeholder={customerName ? "Customer email address" : "Select customer to auto-fill email"}
+                                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    />
+                                </div>
+                                <label className="flex items-start gap-2 p-2 bg-indigo-50/70 border border-indigo-100 rounded-[4px] cursor-pointer select-none hover:bg-indigo-100/60 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={sendEmailToCustomer}
+                                        onChange={(e) => setSendEmailToCustomer(e.target.checked)}
+                                        className="w-4 h-4 mt-0.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                    />
+                                    <span className="text-xs font-medium text-indigo-900 leading-tight">
+                                        Email Tax Invoice PDF &amp; documents to customer on create
+                                    </span>
+                                </label>
                             </div>
                         </div>
 
@@ -6593,18 +6653,47 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         Print Invoice
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            const email = prompt('Enter recipient email address:');
-                                            if (email) {
-                                                const subject = encodeURIComponent(`Invoice ${postedVoucherData.sales_invoice_no} from ${companyInfo?.company_name || 'Our Company'}`);
-                                                const body = encodeURIComponent(`Dear ${postedVoucherData.customer_name},\n\nPlease find attached Invoice No. ${postedVoucherData.sales_invoice_no} dated ${postedVoucherData.date}.\n\nTotal Amount: ₹${Number(postedVoucherData.totals?.invoiceValue || 0).toFixed(2)}\n\nThank you for your business.\n\nRegards,\n${companyInfo?.company_name || ''}`);
-                                                window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+                                        disabled={isSendingEmail}
+                                        onClick={async () => {
+                                            const defaultTarget = customerEmail || (postedVoucherData as any)?.customer_email || '';
+                                            const email = prompt('Confirm or enter recipient email address for Tax Invoice:', defaultTarget);
+                                            if (!email) return;
+                                            setIsSendingEmail(true);
+                                            try {
+                                                const vId = (postedVoucherData as any)?.id || editingVoucherId;
+                                                if (vId) {
+                                                    const res = await apiService.sendSalesInvoiceEmail(vId, email);
+                                                    showSuccess(res?.message || `Tax Invoice successfully emailed to ${email}!`);
+                                                } else {
+                                                    const subject = encodeURIComponent(`Invoice ${postedVoucherData.sales_invoice_no} from ${companyInfo?.company_name || 'Our Company'}`);
+                                                    const body = encodeURIComponent(`Dear ${postedVoucherData.customer_name},\n\nPlease find attached Invoice No. ${postedVoucherData.sales_invoice_no} dated ${postedVoucherData.date}.\n\nTotal Amount: ₹${Number(postedVoucherData.totals?.invoiceValue || 0).toFixed(2)}\n\nThank you for your business.\n\nRegards,\n${companyInfo?.company_name || ''}`);
+                                                    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+                                                    showSuccess(`Opening email client for ${email}`);
+                                                }
+                                            } catch (err: any) {
+                                                console.error('Email sending error:', err);
+                                                const errMsg = err?.response?.data?.error || err.message || 'Failed to send email';
+                                                showError(`Email Dispatch Error: ${errMsg}`);
+                                            } finally {
+                                                setIsSendingEmail(false);
                                             }
                                         }}
-                                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                                        className={`flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm ${isSendingEmail ? 'opacity-70 cursor-wait' : ''}`}
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                        Email Invoice
+                                        {isSendingEmail ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Sending Email...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                Email Invoice
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </div>

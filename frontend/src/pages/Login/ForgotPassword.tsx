@@ -4,7 +4,7 @@ import { apiService } from '../../services';
 import FinpixeLogo from '../../assets/finpixe_with_empty_bg.png';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, KeyRound, ArrowLeft } from 'lucide-react';
+import { Sparkles, ShieldCheck, Zap, Lock, ArrowRight, KeyRound, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 interface ForgotPasswordProps {
     onBackToLogin: () => void;
@@ -18,6 +18,8 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
@@ -437,20 +439,38 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
                             <form onSubmit={handleResetPassword} className="space-y-5" noValidate>
                                 <Input
                                     label="New Password"
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     required
                                     autoFocus
+                                    rightIcon={
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer"
+                                        >
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    }
                                 />
                                 <Input
                                     label="Confirm New Password"
-                                    type="password"
+                                    type={showConfirmPassword ? 'text' : 'password'}
                                     placeholder="••••••••"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     required
+                                    rightIcon={
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer"
+                                        >
+                                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    }
                                 />
                                 <Button
                                     type="submit"

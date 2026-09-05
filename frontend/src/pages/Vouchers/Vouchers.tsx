@@ -1039,6 +1039,9 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
   const [purchaseSupportingDocument, setPurchaseSupportingDocument] = useState<File | null>(null);
   const [purchasePreviewUrl, setPurchasePreviewUrl] = useState<string | null>(null);
   const [isPurchasePreviewModalOpen, setIsPurchasePreviewModalOpen] = useState(false);
+  const [vendorEmail, setVendorEmail] = useState<string>('');
+  const [sendEmailToVendor, setSendEmailToVendor] = useState<boolean>(true);
+  const [isSendingPurchaseEmail, setIsSendingPurchaseEmail] = useState<boolean>(false);
 
   useEffect(() => {
     if (purchaseSupportingDocument) {
@@ -2756,6 +2759,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
     setFromAccountBalance(0);
     setToAccountBalance(0);
     setPurchaseSupportingDocument(null);
+    setVendorEmail('');
+    setSendEmailToVendor(true);
     setEntries([{ ledger: '', note: '', refNo: '', debit: 0, credit: 0 }, { ledger: '', note: '', refNo: '', debit: 0, credit: 0 }]);
     setVendorValidationStatus(null);
     setIsVendorDisabled(false);
@@ -3654,6 +3659,7 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       if (!value) {
         setGstin('');
         setSelectedBranch('');
+        setVendorEmail('');
         setBillFromAddress1('');
         setBillFromAddress2('');
         setBillFromAddress3('');
@@ -3690,6 +3696,13 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
       }
       if (vendor) {
         setVendorId(vendor.id);
+        if (vendor.email) {
+          setVendorEmail(vendor.email);
+        } else if (vendor.contact_person_email) {
+          setVendorEmail(vendor.contact_person_email);
+        } else {
+          setVendorEmail('');
+        }
         let matchedGst = vendorGstDetails.find(g =>
           g.vendor_basic_detail === vendor.id && (refName ? g.reference_name === refName : true)
         );
@@ -4622,6 +4635,8 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
           purchase_voucher_no: voucherNumber,
           vendor_id: currentVendorId,
           vendor_name: party,
+          vendor_email: vendorEmail || undefined,
+          send_email_to_vendor: sendEmailToVendor,
           branch: selectedBranch,
           gstin: gstin,
           grn_reference: grnRefNo,
@@ -4708,16 +4723,40 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
 
           let response;
           console.log('🔴 [PURCHASE SAVE] isEditing=', isEditing, '| purchasePk=', purchasePk, '| voucherId=', voucherId, '| Will PUT=', isEditing && !!(purchasePk || voucherId));
+
+          let payloadToSend: any = purchaseData;
+          if (purchaseSupportingDocument) {
+            const fd = new FormData();
+            Object.keys(purchaseData).forEach(k => {
+              const val = purchaseData[k];
+              if (typeof val === 'object' && val !== null) {
+                fd.append(k, JSON.stringify(val));
+              } else if (val !== undefined && val !== null) {
+                fd.append(k, String(val));
+              }
+            });
+            fd.append('supporting_document', purchaseSupportingDocument);
+            payloadToSend = fd;
+          }
+
           if (isEditing && (purchasePk || voucherId)) {
             const putId = purchasePk || voucherId;
             console.log('🔴 [PURCHASE SAVE] Sending PUT to /api/vouchers/purchase/' + putId + '/');
-            response = await httpClient.put(`/api/vouchers/purchase/${putId}/`, purchaseData);
+            response = await httpClient.put(`/api/vouchers/purchase/${putId}/`, payloadToSend);
             console.log('🔴 [PURCHASE SAVE] PUT response=', response);
-            showSuccess('Purchase Voucher Updated Successfully!');
+            if (sendEmailToVendor && (vendorEmail || response?.vendor_email)) {
+              showSuccess('Purchase Voucher Updated & Emailed to Vendor!');
+            } else {
+              showSuccess('Purchase Voucher Updated Successfully!');
+            }
           } else {
             console.log('🔴 [PURCHASE SAVE] Sending POST (new voucher)');
-            response = await httpClient.post('/api/vouchers/purchase/', purchaseData);
-            showSuccess('Purchase Voucher Saved Successfully!');
+            response = await httpClient.post('/api/vouchers/purchase/', payloadToSend);
+            if (sendEmailToVendor && (vendorEmail || response?.vendor_email)) {
+              showSuccess('Purchase Voucher Saved & Emailed to Vendor!');
+            } else {
+              showSuccess('Purchase Voucher Saved Successfully!');
+            }
           }
 
           // After a successful edit, force a fresh refetch from the server so the Daybook
@@ -6609,6 +6648,53 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                         </button>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Vendor Email Field */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1 flex items-center justify-between">
+                    <span>Vendor Email</span>
+                    <span className="text-[11px] font-normal text-gray-500">(For PDF/docs dispatch)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={vendorEmail}
+                      onChange={(e) => setVendorEmail(e.target.value)}
+                      className="w-full px-4 py-2 pl-9 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      placeholder="vendor@example.com"
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email to Vendor on Create Toggle */}
+                <div className="flex flex-col justify-end">
+                  <div className="p-2.5 rounded-[4px] border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 transition-colors">
+                    <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={sendEmailToVendor}
+                        onChange={(e) => setSendEmailToVendor(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300 transition-all"
+                      />
+                      <div className="text-xs">
+                        <div className="font-semibold text-indigo-950 flex items-center gap-1.5">
+                          <span>Email Voucher on Create</span>
+                          <span className={`px-1.5 py-0.2 text-[10px] font-bold rounded uppercase ${sendEmailToVendor ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
+                            {sendEmailToVendor ? 'Active' : 'Off'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-indigo-700 leading-tight mt-0.5">
+                          Auto-attaches Purchase PDF & supporting docs
+                        </p>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -14207,6 +14293,49 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     </div>
                     <div className="flex items-center gap-3">
                       <button
+                        onClick={async () => {
+                          const voucherId = postedPurchaseVoucherData?.id || postedPurchaseVoucherData?.voucher_id || (viewVoucherData?.rawVoucher?.reference_id || viewVoucherData?.reference_id);
+                          const defaultEmail = vendorEmail || postedPurchaseVoucherData?.vendor_email || (postedPurchaseVoucherData?.vendor_id ? richVendors.find(v => v.id === postedPurchaseVoucherData?.vendor_id)?.email : '') || '';
+                          const targetEmail = prompt('Enter recipient vendor email address:', defaultEmail);
+                          if (!targetEmail || !targetEmail.trim()) return;
+                          if (!voucherId) {
+                            showError('Purchase voucher ID missing.');
+                            return;
+                          }
+                          setIsSendingPurchaseEmail(true);
+                          try {
+                            const res = await apiService.sendPurchaseVoucherEmail(voucherId, targetEmail.trim());
+                            if (res && res.success) {
+                              showSuccess(res.message || `Purchase Voucher successfully emailed to ${targetEmail}!`);
+                            } else {
+                              showError(res?.message || 'Failed to email Purchase Voucher.');
+                            }
+                          } catch (err: any) {
+                            showError(err?.response?.data?.message || err.message || 'Error occurred while emailing voucher.');
+                          } finally {
+                            setIsSendingPurchaseEmail(false);
+                          }
+                        }}
+                        disabled={isSendingPurchaseEmail}
+                        className={`flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-all shadow-sm ${isSendingPurchaseEmail ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        title="Email Purchase Voucher PDF & attached documents to vendor"
+                      >
+                        {isSendingPurchaseEmail ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            Email Voucher
+                          </>
+                        )}
+                      </button>
+                      <button
                         onClick={() => {
                           const printContent = document.getElementById('purchase-invoice-print-area');
                           if (!printContent) return;
@@ -14352,18 +14481,46 @@ const VouchersPage: React.FC<VouchersPageProps> = ({ vouchers, ledgers, stockIte
                     </button>
                     <div className="flex gap-3">
                       <button
-                        onClick={() => {
-                          const email = prompt('Enter recipient email address:');
-                          if (email) {
-                            const subject = encodeURIComponent(`Purchase Voucher ${postedPurchaseVoucherData.purchase_voucher_no} from ${companyDetails?.name || 'Our Company'}`);
-                            const body = encodeURIComponent(`Dear Team,\n\nPlease find attached Purchase Voucher No. ${postedPurchaseVoucherData.purchase_voucher_no} dated ${postedPurchaseVoucherData.date}.\n\nTotal Amount: ₹${Number(postedPurchaseVoucherData.totals?.invoiceValue || 0).toFixed(2)}\n\nRegards,\n${companyDetails?.name || ''}`);
-                            window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+                        onClick={async () => {
+                          const voucherId = postedPurchaseVoucherData?.id || postedPurchaseVoucherData?.voucher_id || (viewVoucherData?.rawVoucher?.reference_id || viewVoucherData?.reference_id);
+                          const defaultEmail = vendorEmail || postedPurchaseVoucherData?.vendor_email || (postedPurchaseVoucherData?.vendor_id ? richVendors.find(v => v.id === postedPurchaseVoucherData?.vendor_id)?.email : '') || '';
+                          const targetEmail = prompt('Enter recipient vendor email address:', defaultEmail);
+                          if (!targetEmail || !targetEmail.trim()) return;
+                          if (!voucherId) {
+                            showError('Purchase voucher ID missing.');
+                            return;
+                          }
+                          setIsSendingPurchaseEmail(true);
+                          try {
+                            const res = await apiService.sendPurchaseVoucherEmail(voucherId, targetEmail.trim());
+                            if (res && res.success) {
+                              showSuccess(res.message || `Purchase Voucher successfully emailed to ${targetEmail}!`);
+                            } else {
+                              showError(res?.message || 'Failed to email Purchase Voucher.');
+                            }
+                          } catch (err: any) {
+                            showError(err?.response?.data?.message || err.message || 'Error occurred while emailing voucher.');
+                          } finally {
+                            setIsSendingPurchaseEmail(false);
                           }
                         }}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                        disabled={isSendingPurchaseEmail}
+                        className={`flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-all shadow-sm ${isSendingPurchaseEmail ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                        Email Invoice
+                        {isSendingPurchaseEmail ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            Email Invoice
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

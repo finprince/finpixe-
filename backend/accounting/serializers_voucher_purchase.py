@@ -129,6 +129,8 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
     due_details = VoucherPurchaseDueDetailsSerializer(required=False, allow_null=True)  # type: ignore[call-arg]
     transit_details = VoucherPurchaseTransitDetailsSerializer(required=False, allow_null=True)  # type: ignore[call-arg]
     transit_document = serializers.FileField(required=False, write_only=True)
+    vendor_email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    send_email_to_vendor = serializers.BooleanField(required=False, default=False, write_only=True)
     line_items = VoucherPurchaseItemSerializer(many=True, read_only=True)
 
     def __init__(self, *args, **kwargs):
@@ -144,7 +146,7 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
         fields = [
             'id', 'date', 'supplier_invoice_no', 'supplier_invoice_date',
             'purchase_voucher_series', 'purchase_voucher_no',
-            'vendor_id', 'vendor_name', 'branch', 'gstin', 'grn_reference',
+            'vendor_id', 'vendor_name', 'vendor_email', 'send_email_to_vendor', 'branch', 'gstin', 'grn_reference',
             'bill_from', 'ship_from', 'input_type', 'invoice_in_foreign_currency',
             'supporting_document', 'transit_document',
             'supply_foreign_details', 'supply_inr_details',
@@ -179,6 +181,11 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
         due_data = validated_data.pop('due_details', None)
         transit_data = validated_data.pop('transit_details', None)
         transit_document = validated_data.pop('transit_document', None)
+        send_email_to_vendor = validated_data.pop('send_email_to_vendor', False)
+        if not send_email_to_vendor:
+            raw_flag = self.initial_data.get('send_email_to_vendor')
+            if raw_flag in (True, 'true', 'True', '1', 1):
+                send_email_to_vendor = True
 
         parse_json = self._parse_json
 
@@ -379,9 +386,21 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
             po_no = supply_inr_data.get('purchase_order_no')
         elif supply_foreign_data and supply_foreign_data.get('purchase_order_no'):
             po_no = supply_foreign_data.get('purchase_order_no')
-        
-
-
+            
+        # Automatic email dispatch to vendor if requested
+        if send_email_to_vendor:
+            try:
+                from .services.purchase_voucher_mail_service import send_purchase_voucher_email
+                target_email = getattr(supplier_instance, 'vendor_email', None) or (
+                    supplier_instance.vendor_basic_detail.email if supplier_instance.vendor_basic_detail else None
+                )
+                if target_email:
+                    logger.info(f"[EMAIL_DISPATCH_START] Dispatching purchase voucher email for {purchase_voucher_number} to {target_email}")
+                    send_purchase_voucher_email(supplier_instance, recipient_email=target_email)
+                else:
+                    logger.warning(f"[EMAIL_DISPATCH_SKIPPED] No vendor email configured for {purchase_voucher_number}")
+            except Exception as mail_err:
+                logger.error(f"[EMAIL_DISPATCH_FAILED] Purchase Voucher {purchase_voucher_number}: {mail_err}", exc_info=True)
 
         return supplier_instance
 

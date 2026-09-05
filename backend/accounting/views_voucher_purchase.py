@@ -168,3 +168,43 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
                 "voucher_status": "Unique Voucher"
             })
 
+    @action(detail=True, methods=['post'], url_path='send-email')
+    def send_email(self, request, pk=None):
+        """
+        Manually trigger email dispatch for a specific Purchase Voucher.
+        Accepts optional `recipient_email` in request data to override default vendor email.
+        """
+        voucher_obj = self.get_object()
+        recipient_email = request.data.get('recipient_email') or getattr(voucher_obj, 'vendor_email', None)
+        
+        # Fallback to vendor basic detail email if not present
+        if not recipient_email and hasattr(voucher_obj, 'vendor_basic_detail') and voucher_obj.vendor_basic_detail:
+            recipient_email = getattr(voucher_obj.vendor_basic_detail, 'email', None)
+
+        if not recipient_email:
+            return Response(
+                {'success': False, 'message': 'No recipient email provided. Please enter a valid vendor email.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            from .services.purchase_voucher_mail_service import send_purchase_voucher_email
+            result = send_purchase_voucher_email(
+                voucher_obj=voucher_obj,
+                recipient_email=recipient_email
+            )
+            if result.get('success'):
+                # Update voucher record with recipient email if changed
+                if recipient_email and recipient_email != getattr(voucher_obj, 'vendor_email', None):
+                    voucher_obj.vendor_email = recipient_email
+                    voucher_obj.save(update_fields=['vendor_email'])
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response(
+                {'success': False, 'message': f'Failed to send email: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+

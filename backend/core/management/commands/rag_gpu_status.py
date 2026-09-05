@@ -5,7 +5,10 @@ Reports detailed hardware CUDA availability, VRAM allocation/free stats,
 PyTorch status, BGE embedding GPU status, CrossEncoder reranker GPU status,
 and local Ollama GPU offload status.
 """
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import json
 import math
 import urllib.request

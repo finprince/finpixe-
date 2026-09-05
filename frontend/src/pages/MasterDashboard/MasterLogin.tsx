@@ -416,7 +416,7 @@ const MasterLoginPage: React.FC<MasterLoginPageProps> = ({ onLogin }) => {
                                         rightIcon={
                                             <button
                                                 type="button"
-                                                className="text-slate-400 hover:text-[#6366F1] transition-colors"
+                                                className="text-slate-400 hover:text-[#6366F1] transition-colors focus:outline-none cursor-pointer"
                                                 onClick={() => setShowPassword(!showPassword)}
                                             >
                                                 <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
@@ -471,7 +471,7 @@ const MasterLoginPage: React.FC<MasterLoginPageProps> = ({ onLogin }) => {
                                                     />
                                                     <button
                                                         type="button"
-                                                        className="absolute right-3.5 text-slate-400 hover:text-[#6366F1] transition-colors"
+                                                        className="absolute right-3.5 text-slate-400 hover:text-[#6366F1] transition-colors focus:outline-none cursor-pointer"
                                                         onClick={() => setShowPassword(!showPassword)}
                                                     >
                                                         <Icon name={showPassword ? "eye-off" : "eye"} size={16} />

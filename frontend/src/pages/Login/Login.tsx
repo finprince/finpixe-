@@ -367,7 +367,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup, onForg
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                                    className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer"
                                 >
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
