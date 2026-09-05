@@ -190,7 +190,6 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
         { key: 'REVERSE CHARGE MISMATCH', label: 'Reverse Charge Mismatch', shortLabel: 'Reverse Charge' },
         { key: 'PERIOD MISMATCH', label: 'Period Mismatch', shortLabel: 'Period' },
         { key: 'GSTIN MISMATCH', label: 'GSTIN Mismatch', shortLabel: 'GSTIN' },
-        { key: 'TOTAL VALUE MISMATCH', label: 'Total Value Mismatch', shortLabel: 'Total Value' },
         { key: 'ITC AVAILMENT BLOCKED', label: 'ITC Blocked / Ineligible', shortLabel: 'ITC Blocked' },
     ];
 
@@ -207,14 +206,13 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
         if (key === 'REVERSE CHARGE MISMATCH') return fields.some((f: any) => f.field === 'Reverse Charge' && f.status === 'MISMATCH');
         if (key === 'PERIOD MISMATCH') return fields.some((f: any) => f.field === 'GSTR-2B Period' && f.status === 'MISMATCH');
         if (key === 'GSTIN MISMATCH') return fields.some((f: any) => f.field === 'Supplier GSTIN' && f.status === 'MISMATCH');
-        if (key === 'TOTAL VALUE MISMATCH') return fields.some((f: any) => f.field === 'Total Value' && f.status === 'MISMATCH');
         if (key === 'ITC AVAILMENT BLOCKED') return row.itc_availability === 'NO' || row.itc_availment === 'NO' || fields.some((f: any) => f.field === 'ITC Availability' && f.status === 'BLOCKED');
         return false;
     };
 
     const getInvoiceValidationFields = (row: any) => {
         if (row.matching_details?.fields && Array.isArray(row.matching_details.fields) && row.matching_details.fields.length > 0) {
-            return row.matching_details.fields;
+            return row.matching_details.fields.filter((f: any) => f.field !== 'Total Value');
         }
         const b = row.books_data || {};
         const mismatches = (row.mismatches || []).map((m: string) => m.toUpperCase());
@@ -239,7 +237,6 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
             { field: 'CGST', gstr2b: gstr2bCgst, books: booksCgst, difference: gstr2bCgst - booksCgst, status: mismatches.some(m => m.includes('CGST')) ? 'MISMATCH' : 'MATCH' },
             { field: 'SGST', gstr2b: gstr2bSgst, books: booksSgst, difference: gstr2bSgst - booksSgst, status: mismatches.some(m => m.includes('SGST')) ? 'MISMATCH' : 'MATCH' },
             { field: 'GSTR-2B Period', gstr2b: row.gstr_period || row.raw_data?.fp || '-', books: b.gstr_period || `${selectedMonth} ${selectedYear}`, status: mismatches.some(m => m.includes('PERIOD')) ? 'MISMATCH' : 'MATCH' },
-            { field: 'Total Value', gstr2b: gstr2bVal, books: booksVal, difference: gstr2bVal - booksVal, status: mismatches.some(m => m.includes('TOTAL VALUE') || m.includes('INVOICE VALUE')) ? 'MISMATCH' : 'MATCH' },
             { field: 'Reverse Charge', gstr2b: row.reverse_charge || 'N', books: b.reverse_charge || 'N', status: mismatches.some(m => m.includes('REVERSE CHARGE')) ? 'MISMATCH' : 'MATCH' },
             { field: 'ITC Availability', gstr2b: (row.itc_availability === 'NO' || row.itc_availment === 'NO') ? 'NO (Blocked)' : 'YES', books: (b.itc_availability === 'NO') ? 'NO (Blocked)' : 'YES', status: (row.itc_availability === 'NO' || row.itc_availment === 'NO' || mismatches.some(m => m.includes('ITC'))) ? 'BLOCKED' : 'MATCH' },
         ];
@@ -1022,18 +1019,22 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                             )}
 
                             {/* Mismatch Alert Banner */}
-                            {selectedRow.mismatches && selectedRow.mismatches.length > 0 && selectedRow.status !== 'MISSING_BOOKS' && (
-                                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                                    <div className="text-xs font-bold text-rose-800 uppercase tracking-wide mb-1">Mismatches Detected:</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedRow.mismatches.map((m: string, i: number) => (
-                                            <span key={i} className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-semibold">
-                                                ⚠️ {m}
-                                            </span>
-                                        ))}
+                            {(() => {
+                                const visibleMismatches = (selectedRow.mismatches || []).filter((m: string) => m.toUpperCase() !== 'TOTAL VALUE MISMATCH');
+                                if (visibleMismatches.length === 0 || selectedRow.status === 'MISSING_BOOKS') return null;
+                                return (
+                                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                                        <div className="text-xs font-bold text-rose-800 uppercase tracking-wide mb-1">Mismatches Detected:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {visibleMismatches.map((m: string, i: number) => (
+                                                <span key={i} className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-semibold">
+                                                    ⚠️ {m}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             <div className="grid grid-cols-2 gap-8">
                                 {/* GSTR-2B Data */}
@@ -1075,10 +1076,6 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <div className="text-xs text-slate-500 mb-1">Vendor Name</div>
-                                                <div className="font-bold text-slate-800">{selectedRow.vendor_name || 'N/A'}</div>
-                                            </div>
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Supplier GSTIN</div>
                                                 <div className="font-mono text-sm font-semibold text-slate-800">{selectedRow.supplier_gstin || 'N/A'}</div>
@@ -1154,10 +1151,6 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <div className="text-xs text-slate-500 mb-1">Vendor Name</div>
-                                                <div className="font-bold text-slate-800">{selectedRow.books_data.vendor_name || 'N/A'}</div>
-                                            </div>
                                             <div>
                                                 <div className="text-xs text-slate-500 mb-1">Supplier GSTIN</div>
                                                 <div className="font-mono text-sm font-semibold text-slate-800">{selectedRow.books_data.supplier_gstin || 'N/A'}</div>
@@ -1251,42 +1244,46 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                 </div>
                             </div>
 
-                            {/* 12-Field Validation Audit Matrix */}
-                            {selectedRow.matching_details?.fields && selectedRow.matching_details.fields.length > 0 && (
-                                <div className="border-t border-slate-100 pt-4">
-                                    <h4 className="text-sm font-bold text-slate-800 mb-3">12-Field Validation Audit</h4>
-                                    <div className="overflow-x-auto rounded border border-slate-200">
-                                        <table className="w-full text-xs text-left">
-                                            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                                                <tr>
-                                                    <th className="p-2">Validation Field</th>
-                                                    <th className="p-2">Government GSTR-2B</th>
-                                                    <th className="p-2">Purchase Books</th>
-                                                    <th className="p-2">Difference</th>
-                                                    <th className="p-2">Result</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {selectedRow.matching_details.fields.map((f: any, idx: number) => (
-                                                    <tr key={idx} className={f.status === 'MISMATCH' || f.status === 'BLOCKED' ? 'bg-rose-50/50' : ''}>
-                                                        <td className="p-2 font-medium text-slate-800">{f.field}</td>
-                                                        <td className="p-2 text-indigo-700">{typeof f.gstr2b === 'number' ? `₹${f.gstr2b.toFixed(2)}` : String(f.gstr2b ?? 'N/A')}</td>
-                                                        <td className="p-2 text-teal-700">{typeof f.books === 'number' ? `₹${f.books.toFixed(2)}` : String(f.books ?? 'N/A')}</td>
-                                                        <td className="p-2 text-slate-600">{f.difference !== undefined ? `₹${Number(f.difference).toFixed(2)}` : '-'}</td>
-                                                        <td className="p-2">
-                                                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${f.status === 'MATCH' ? 'bg-emerald-100 text-emerald-800' :
-                                                                f.status === 'BLOCKED' ? 'bg-rose-100 text-rose-800' :
-                                                                    'bg-rose-100 text-rose-800'}`}>
-                                                                {f.status}
-                                                            </span>
-                                                        </td>
+                            {/* Validation Audit Matrix */}
+                            {(() => {
+                                const auditFields = (selectedRow.matching_details?.fields || []).filter((f: any) => f.field !== 'Total Value');
+                                if (auditFields.length === 0) return null;
+                                return (
+                                    <div className="border-t border-slate-100 pt-4">
+                                        <h4 className="text-sm font-bold text-slate-800 mb-3">{auditFields.length}-Field Validation Audit</h4>
+                                        <div className="overflow-x-auto rounded border border-slate-200">
+                                            <table className="w-full text-xs text-left">
+                                                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                                    <tr>
+                                                        <th className="p-2">Validation Field</th>
+                                                        <th className="p-2">Government GSTR-2B</th>
+                                                        <th className="p-2">Purchase Books</th>
+                                                        <th className="p-2">Difference</th>
+                                                        <th className="p-2">Result</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {auditFields.map((f: any, idx: number) => (
+                                                        <tr key={idx} className={f.status === 'MISMATCH' || f.status === 'BLOCKED' ? 'bg-rose-50/50' : ''}>
+                                                            <td className="p-2 font-medium text-slate-800">{f.field}</td>
+                                                            <td className="p-2 text-indigo-700">{typeof f.gstr2b === 'number' ? `₹${f.gstr2b.toFixed(2)}` : String(f.gstr2b ?? 'N/A')}</td>
+                                                            <td className="p-2 text-teal-700">{typeof f.books === 'number' ? `₹${f.books.toFixed(2)}` : String(f.books ?? 'N/A')}</td>
+                                                            <td className="p-2 text-slate-600">{f.difference !== undefined ? `₹${Number(f.difference).toFixed(2)}` : '-'}</td>
+                                                            <td className="p-2">
+                                                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${f.status === 'MATCH' ? 'bg-emerald-100 text-emerald-800' :
+                                                                    f.status === 'BLOCKED' ? 'bg-rose-100 text-rose-800' :
+                                                                        'bg-rose-100 text-rose-800'}`}>
+                                                                    {f.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
                         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-3">
                             <div>
@@ -1605,7 +1602,7 @@ export default function GSTR2Reconciliation({ onNavigate, setViewVoucherData, re
                                 ) : (
                                     modalFilteredInvoices.map((inv, invIdx) => {
                                         const fields = getInvoiceValidationFields(inv);
-                                        const activeMismatches = inv.mismatches || [];
+                                        const activeMismatches = (inv.mismatches || []).filter((m: string) => m.toUpperCase() !== 'TOTAL VALUE MISMATCH');
 
                                         return (
                                             <div key={inv.id || invIdx} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-indigo-300">

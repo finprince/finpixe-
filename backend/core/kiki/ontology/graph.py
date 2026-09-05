@@ -11,71 +11,96 @@ class BusinessOntologyGraph:
     # Core domain concepts mapping to physical database schemas
     DOMAINS: Dict[str, Dict[str, Any]] = {
         "Sales": {
-            "description": "Customer billing, sales vouchers, revenue entries, and receivables.",
+            "description": "Customer billing, sales vouchers, revenue entries, customer invoices, and receivables.",
             "primary_tables": [
-                "master_voucher_sales",
-                "voucher_sales_items",
-                "sales_invoices",
                 "vouchers",
+                "voucher_sales_invoicedetails",
+                "voucher_sales_paymentdetails",
+                "voucher_sales_items",
                 "customer_master_customer_basicdetails"
             ],
             "concepts": {
+                "SalesInvoice": {
+                    "table": "vouchers",
+                    "aliases": ["sales", "sale", "sales invoice", "bill", "tax invoice", "sales order", "sales by month", "revenue", "total sales", "sold"]
+                },
                 "Customer": {
                     "table": "customer_master_customer_basicdetails",
-                    "aliases": ["customer", "client", "buyer", "party", "sundry debtor", "top customers"],
+                    "aliases": ["customer", "customers", "client", "clients", "buyer", "party", "sundry debtor", "top customers"],
                     "primary_key": "id"
-                },
-                "SalesOrder": {
-                    "table": "master_voucher_sales",
-                    "aliases": ["sales", "sales invoice", "bill", "tax invoice", "sales order", "sales by month", "revenue", "total sales"]
                 }
             }
         },
         "Purchase": {
-            "description": "Vendor procurement, purchase vouchers, and payables.",
+            "description": "Vendor procurement, purchase vouchers, bills, and payables.",
             "primary_tables": [
-                "master_voucher_purchases",
-                "voucher_purchase_items",
                 "vouchers",
-                "vendor_master"
+                "voucher_purchase_supplier_details",
+                "voucher_purchase_items",
+                "voucher_purchase_supply_inr_details",
+                "vendor_master_vendorcreation_basicdetail"
             ],
             "concepts": {
+                "PurchaseInvoice": {
+                    "table": "vouchers",
+                    "aliases": ["purchase", "purchases", "procurement", "bought", "purchase bill", "supplier invoice", "total purchases"]
+                },
                 "Vendor": {
-                    "table": "vendor_master",
-                    "aliases": ["vendor", "supplier", "seller", "top vendors"],
+                    "table": "vendor_master_vendorcreation_basicdetail",
+                    "aliases": ["vendor", "vendors", "supplier", "suppliers", "seller", "top vendors", "top suppliers"],
+                    "primary_key": "id"
+                }
+            }
+        },
+        "Receivables": {
+            "description": "Outstanding customer balances, unpaid sales invoices, and dues.",
+            "primary_tables": ["advance_allocation", "pending_transaction", "vouchers", "customer_master_customer_basicdetails"],
+            "concepts": {
+                "Receivable": {
+                    "table": "advance_allocation",
+                    "aliases": ["receivable", "receivables", "owe me", "owes me", "customer dues", "unpaid sales", "overdue invoices", "outstanding customer", "pending invoices", "debtors"]
+                }
+            }
+        },
+        "Payables": {
+            "description": "Outstanding vendor bills, supplier dues, and payables.",
+            "primary_tables": ["advance_allocation", "pending_transaction", "vouchers", "vendor_master_vendorcreation_basicdetail"],
+            "concepts": {
+                "Payable": {
+                    "table": "advance_allocation",
+                    "aliases": ["payable", "payables", "i owe", "we owe", "supplier dues", "vendor dues", "unpaid bills", "overdue bills", "outstanding supplier", "pending bills", "creditors"]
+                }
+            }
+        },
+        "Inventory": {
+            "description": "Stock items, item categories, warehouse stock balances, and reorder levels.",
+            "primary_tables": ["inventory_master_inventoryitems", "inventory_stock_items", "inventory_stock_movements"],
+            "concepts": {
+                "StockItem": {
+                    "table": "inventory_master_inventoryitems",
+                    "aliases": ["item", "items", "product", "products", "sku", "goods", "stock", "inventory", "low stock", "reorder", "valuation"],
                     "primary_key": "id"
                 }
             }
         },
         "Finance": {
-            "description": "Ledger balances, trial balance, daybook, journal vouchers, profit/loss.",
-            "primary_tables": ["master_ledgers", "advance_allocation"],
+            "description": "Ledger balances, cash balance, bank balance, trial balance, daybook, profit/loss.",
+            "primary_tables": ["master_ledgers", "entries", "transactions", "advance_allocation"],
             "concepts": {
                 "Ledger": {
                     "table": "master_ledgers",
-                    "aliases": ["ledger account", "account", "head", "outstanding invoices", "balance"],
-                    "primary_key": "id"
-                }
-            }
-        },
-        "Inventory": {
-            "description": "Stock items, item categories, warehouse stock balances.",
-            "primary_tables": ["inventory_master_inventoryitems", "inventory_stock_items"],
-            "concepts": {
-                "StockItem": {
-                    "table": "inventory_master_inventoryitems",
-                    "aliases": ["item", "product", "sku", "goods", "stock", "inventory"],
+                    "aliases": ["ledger", "ledgers", "ledger balance", "account", "accounts", "cash", "bank", "cash balance", "bank balance", "profit", "loss", "daybook", "trial balance"],
                     "primary_key": "id"
                 }
             }
         },
         "GST": {
-            "description": "GSTR-1, GSTR-3B reconciliation, HSN codes, tax calculations.",
-            "primary_tables": ["gst_reconciliation_gstr3b_reports", "customer_master_customer_gstdetails"],
+            "description": "GSTR-1, GSTR-2B, GSTR-3B tax calculations, output tax, input tax credit.",
+            "primary_tables": ["vouchers", "gst_reconciliation_gstr2b_invoices", "gst_reconciliation_gstr3b_reports"],
             "concepts": {
-                "GSTIN": {
-                    "table": "customer_master_customer_gstdetails",
-                    "aliases": ["gst number", "tax id", "gstin", "gst collected", "gst mismatch"]
+                "GST": {
+                    "table": "vouchers",
+                    "aliases": ["gst", "gst collected", "tax", "cgst", "sgst", "igst", "input gst", "output gst", "net gst", "tax liability", "tax collected"]
                 }
             }
         }

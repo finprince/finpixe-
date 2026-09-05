@@ -8,8 +8,9 @@ Pipeline:
   Message → NLU Analyzer → Update Session State → Return ContextResult (Pure Semantic Context)
 """
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 from .session_store import session_store
+
 from .conversation_state import ConversationTurn
 from .nlu_analyzer import nlu_analyzer, needs_nlu
 from ..config import kiki_settings
@@ -32,6 +33,8 @@ class ContextResult:
     clarification_required: bool
     clarification_message: Optional[str]
     confidence: float
+    conversation_state: Optional[Any] = None
+
 
 
 class ConversationContextManager:
@@ -124,8 +127,10 @@ class ConversationContextManager:
             resolved_topic=resolved_topic,
             clarification_required=clarification_required,
             clarification_message=clarification_message,
-            confidence=confidence
+            confidence=confidence,
+            conversation_state=state
         )
+
 
 
 conversation_context_manager = ConversationContextManager()

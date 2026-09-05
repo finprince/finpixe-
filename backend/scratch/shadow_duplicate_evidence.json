@@ -1020,5 +1020,215 @@
     "normalized_invoice_no": "TN2507000597",
     "old_match": false,
     "new_match": false
+  },
+  {
+    "record_id": 1013214,
+    "invoice_no": "035",
+    "normalized_invoice_no": "035",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013215,
+    "invoice_no": "037",
+    "normalized_invoice_no": "037",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013216,
+    "invoice_no": "029",
+    "normalized_invoice_no": "029",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013217,
+    "invoice_no": "041",
+    "normalized_invoice_no": "041",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013218,
+    "invoice_no": "S 060",
+    "normalized_invoice_no": "S060",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012979,
+    "invoice_no": "UMT25-26/019",
+    "normalized_invoice_no": "UMT2526019",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012965,
+    "invoice_no": "VMT25-26/147",
+    "normalized_invoice_no": "VMT2526147",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012960,
+    "invoice_no": "S 060",
+    "normalized_invoice_no": "S060",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012961,
+    "invoice_no": "UMT25-26/079",
+    "normalized_invoice_no": "UMT2526079",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012957,
+    "invoice_no": "037",
+    "normalized_invoice_no": "037",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012980,
+    "invoice_no": "UMT25-26/251",
+    "normalized_invoice_no": "UMT2526251",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012959,
+    "invoice_no": "041",
+    "normalized_invoice_no": "041",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012964,
+    "invoice_no": "UMT25-26/251",
+    "normalized_invoice_no": "UMT2526251",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013150,
+    "invoice_no": "4216/25-26",
+    "normalized_invoice_no": "42162526",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013149,
+    "invoice_no": "4464/25-26",
+    "normalized_invoice_no": "44642526",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012983,
+    "invoice_no": "041",
+    "normalized_invoice_no": "041",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013152,
+    "invoice_no": "S 058",
+    "normalized_invoice_no": "S058",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012982,
+    "invoice_no": "029",
+    "normalized_invoice_no": "029",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012958,
+    "invoice_no": "029",
+    "normalized_invoice_no": "029",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012969,
+    "invoice_no": "041",
+    "normalized_invoice_no": "041",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012966,
+    "invoice_no": "035",
+    "normalized_invoice_no": "035",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012963,
+    "invoice_no": "UMT25-26/019",
+    "normalized_invoice_no": "UMT2526019",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012977,
+    "invoice_no": "UMT25-26/079",
+    "normalized_invoice_no": "UMT2526079",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013151,
+    "invoice_no": "3528/25-26",
+    "normalized_invoice_no": "35282526",
+    "old_match": true,
+    "new_match": true
+  },
+  {
+    "record_id": 1012984,
+    "invoice_no": "S 060",
+    "normalized_invoice_no": "S060",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012967,
+    "invoice_no": "037",
+    "normalized_invoice_no": "037",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012968,
+    "invoice_no": "029",
+    "normalized_invoice_no": "029",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012970,
+    "invoice_no": "S 060",
+    "normalized_invoice_no": "S060",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1012978,
+    "invoice_no": "UMT25-26/091",
+    "normalized_invoice_no": "UMT2526091",
+    "old_match": false,
+    "new_match": false
+  },
+  {
+    "record_id": 1013148,
+    "invoice_no": "5081/25-26",
+    "normalized_invoice_no": "50812526",
+    "old_match": false,
+    "new_match": false
   }
 ]

@@ -494,16 +494,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             mismatches.append("PERIOD MISMATCH")
             field_results.append({"field": "GSTR-2B Period", "gstr2b": period_2b_raw, "books": f"{reco_month} {reco_year}", "status": "MISMATCH"})
 
-        # 10. Total Value
-        tot_val_2b = Decimal(str((inv_2b.raw_data or {}).get('val') or (inv_2b.raw_data or {}).get('Invoice Value') or inv_2b.invoice_value or 0))
-        tot_diff = tot_val_2b - books_inv_val
-        if abs(tot_diff) <= TOLERANCE:
-            field_results.append({"field": "Total Value", "gstr2b": float(tot_val_2b), "books": float(books_inv_val), "difference": float(tot_diff), "status": "MATCH"})
-        else:
-            mismatches.append("TOTAL VALUE MISMATCH")
-            field_results.append({"field": "Total Value", "gstr2b": float(tot_val_2b), "books": float(books_inv_val), "difference": float(tot_diff), "status": "MISMATCH"})
-
-        # 11. Reverse Charge
+        # 10. Reverse Charge
         rcm_2b_raw = (inv_2b.raw_data or {}).get('rchrg') or (inv_2b.raw_data or {}).get('rev') or (inv_2b.raw_data or {}).get('reverse_charge') or (inv_2b.raw_data or {}).get('Reverse Charge') or 'N'
         rcm_2b_bool = True if str(rcm_2b_raw).strip().upper() in ('Y', 'YES', 'TRUE', '1') else False
         rcm_books_raw = getattr(v, 'reverse_charge', None) or getattr(v, 'is_rcm', None) or getattr(v, 'rcm', None) or ('Y' if getattr(v, 'input_type', '') == 'RCM' else 'N')
@@ -515,7 +506,7 @@ class GSTReconciliationViewSet(viewsets.ViewSet):
             mismatches.append("REVERSE CHARGE MISMATCH")
             field_results.append({"field": "Reverse Charge", "gstr2b": "Y" if rcm_2b_bool else "N", "books": "Y" if rcm_books_bool else "N", "status": "MISMATCH"})
 
-        # 12. ITC Availability
+        # 11. ITC Availability
         itc_raw = (inv_2b.raw_data or {}).get('itcavl') or (inv_2b.raw_data or {}).get('itc_avl') or (inv_2b.raw_data or {}).get('itc_availment') or (inv_2b.raw_data or {}).get('itc_availability') or (inv_2b.raw_data or {}).get('ITC Eligible') or (inv_2b.raw_data or {}).get('itc') or 'Y'
         itc_availment = 'YES' if str(itc_raw).strip().upper() in ('Y', 'YES', 'TRUE', '1') else 'NO'
         

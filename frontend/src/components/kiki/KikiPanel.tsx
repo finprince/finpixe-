@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { httpClient } from '../../services/httpClient';
+import { KikiMarkdown } from './KikiMarkdown';
 
 interface CitationItem {
   document_name: string;
@@ -207,7 +208,7 @@ export const KikiPanel: React.FC<KikiPanelProps> = ({ onNavigate }) => {
                           : 'bg-slate-800 text-slate-200 border border-slate-700/60 rounded-bl-none'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                      <KikiMarkdown content={msg.text} isUser={msg.sender === 'user'} />
 
                       {/* Collapsed Secondary Sources Accordion */}
                       {msg.sender === 'kiki' && hasCitations && (

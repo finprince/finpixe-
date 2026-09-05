@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { NumericFormat } from 'react-number-format';
 import { httpClient, apiService } from '../../services';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -297,7 +298,7 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
   };
 
   const hasAnyOverAllocation = pendingTransactions.some(t => (t.payment || 0) > t.amount + 0.01);
-  const canSave = isExactMatch && !hasAnyOverAllocation;
+  const canSave = totalAllocated > 0 && !isOverAllocated && !hasAnyOverAllocation;
 
   const checkRefUniqueness = (refNo: string, isVoucherNum = false) => {
     if (!refNo.trim()) return;
@@ -321,12 +322,12 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (!canSave) {
-      if (isUnderAllocated) {
-        alert(`₹${difference.toLocaleString('en-IN', { minimumFractionDigits: 2 })} still needs to be allocated`);
-      } else if (hasAnyOverAllocation) {
+      if (hasAnyOverAllocation) {
         alert("One or more rows exceed pending amount.");
       } else if (isOverAllocated) {
         alert(`Over allocated by ₹${Math.abs(difference).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+      } else if (totalAllocated === 0) {
+        alert("Please allocate an amount or use Amount Only.");
       }
       return;
     }
@@ -431,17 +432,17 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
               </div>
 
               {pendingTransactions.length > 0 ? (
-                <div className="border-2 border-gray-200 rounded-[4px] overflow-x-auto">
-                  <table className="w-full text-sm min-w-[650px]">
+                <div className="border-2 border-gray-200 rounded-[4px] overflow-x-auto w-full max-w-full custom-scrollbar">
+                  <table className="w-full text-xs min-w-[580px]">
                     <thead className="bg-indigo-600 border-b-2 border-indigo-700 text-white">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase">DATE</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase">REFERENCE NUMBER</th>
-                        <th className="px-3 py-3 text-center text-xs font-semibold uppercase">BILL STATUS</th>
-                        <th className="px-3 py-3 text-center text-xs font-semibold uppercase">ALLOCATION</th>
-                        <th className="px-3 py-3 text-right text-xs font-semibold uppercase">PENDING</th>
-                        <th className="px-3 py-3 text-center text-xs font-semibold uppercase">ACTION</th>
-                        <th className="px-3 py-3 text-right text-xs font-semibold uppercase">{actionFieldLabel}</th>
+                        <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">DATE</th>
+                        <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">REFERENCE NUMBER</th>
+                        <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">BILL STATUS</th>
+                        <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">ALLOCATION</th>
+                        <th className="px-2.5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">PENDING</th>
+                        <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">ACTION</th>
+                        <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">{actionFieldLabel}</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -451,14 +452,14 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
                         
                         return (
                           <tr key={index} className={`transition-colors ${isProblemRow ? 'bg-red-50/30' : 'hover:bg-gray-50'}`}>
-                            <td className="px-6 py-4 text-sm text-gray-700">{txn.date ? txn.date.split('-').reverse().join('-') : '—'}</td>
-                            <td className="px-6 py-4 text-sm text-gray-700">
-                              <div className="font-medium">{txn.referenceNumber}</div>
+                            <td className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap font-medium">{txn.date ? txn.date.split('-').reverse().join('-') : '—'}</td>
+                            <td className="px-3 py-2.5 text-xs text-gray-700 max-w-[130px]">
+                              <div className="font-semibold text-gray-800 truncate" title={txn.referenceNumber}>{txn.referenceNumber}</div>
                               {txn.dueDate && (
                                 <div className="text-[10px] text-gray-400">Due: {txn.dueDate}</div>
                               )}
                             </td>
-                            <td className="px-3 py-4 text-center">
+                            <td className="px-2 py-2.5 text-center whitespace-nowrap">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 txn.dueStatus === 'Due' || txn.dueStatus === 'Due Today'
                                   ? 'bg-red-100 text-red-600 border border-red-200'
@@ -469,29 +470,29 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
                                 {txn.dueStatus}
                               </span>
                             </td>
-                            <td className="px-3 py-4 text-center">
-                              <div className={`px-2 py-1 rounded-[4px] border text-[10px] font-black uppercase tracking-tight ${status.bg} ${status.text} ${status.border}`}>
+                            <td className="px-2 py-2.5 text-center whitespace-nowrap">
+                              <div className={`px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-tight ${status.bg} ${status.text} ${status.border}`}>
                                 {status.label}
                               </div>
                             </td>
-                            <td className="px-3 py-4 text-sm text-right font-medium text-red-600">
+                            <td className="px-2.5 py-2.5 text-xs text-right font-bold text-red-600 whitespace-nowrap">
                               ₹{Math.max(0, txn.amount - txn.payment).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="px-3 py-4 text-center">
+                            <td className="px-2 py-2.5 text-center whitespace-nowrap">
                               <button
                                 onClick={() => handlePay(index)}
-                                className="px-4 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase rounded-[4px] transition-colors shadow-sm"
+                                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase rounded-[4px] transition-colors shadow-sm"
                               >
                                 {actionLabel}
                               </button>
                             </td>
-                            <td className="px-3 py-4 text-right">
+                            <td className="px-3 py-2.5 text-right whitespace-nowrap">
                               <NumericFormat
                                 thousandSeparator="," thousandsGroupStyle="lakh" decimalScale={2} fixedDecimalScale={true} allowNegative={false}
                                 value={txn.payment || ''}
                                 onValueChange={values => handlePaymentChange(index, parseFloat(values.value) || 0)}
                                 placeholder="0"
-                                className={`w-20 px-2 py-1.5 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold ${
+                                className={`w-20 px-2 py-1 text-right border rounded-[4px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-bold ${
                                   status.status === 'OVER' ? 'border-red-500 bg-red-50 text-red-700' : 
                                   status.status === 'PARTIAL' ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 
                                   status.status === 'FULL' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700'
@@ -503,11 +504,11 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
                       })}
                     </tbody>
                   </table>
-                  <div className="border-t-2 border-gray-200 bg-white px-6 py-4 flex justify-end items-center gap-4">
-                    <span className="text-sm font-semibold text-gray-700">
+                  <div className="border-t-2 border-gray-200 bg-white px-4 py-3 flex justify-end items-center gap-3">
+                    <span className="text-xs font-semibold text-gray-700">
                       {totalLabel}
                     </span>
-                    <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-[4px] text-sm font-bold text-gray-900 min-w-[120px] text-right">
+                    <div className="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-[4px] text-xs font-bold text-gray-900 min-w-[110px] text-right">
                       ₹{totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
@@ -602,7 +603,7 @@ const BankAllocationPanel: React.FC<BankAllocationPanelProps> = ({
           <button
             onClick={handleSave}
             disabled={!canSave}
-            className={`px-6 py-2 text-sm font-bold text-emerald-600 bg-white border-2 border-emerald-200 rounded-[4px] hover:bg-emerald-50 transition-all uppercase tracking-wider disabled:opacity-50`}
+            className="px-6 py-2 text-sm font-bold text-emerald-600 bg-white border-2 border-emerald-200 rounded-[4px] hover:bg-emerald-50 transition-all uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isExactMatch ? 'Save Allocation' : 'Complete Allocation'}
           </button>

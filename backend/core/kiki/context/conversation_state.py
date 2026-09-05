@@ -31,13 +31,16 @@ class ConversationState:
     turns: List[ConversationTurn] = field(default_factory=list)
 
     # Current active context slots
-    current_entity: Optional[str] = None          # e.g. "AST-RIM Optimizer"
+    current_entity: Optional[str] = None          # e.g. "deepak", "ABC FIRE INDIA"
     current_document: Optional[str] = None        # e.g. "AST-RIM Optimizer User Manual"
     current_topic: Optional[str] = None           # e.g. "Optimization Engine"
     current_domain: str = "UNKNOWN"               # "KNOWLEDGE" | "ERP"
-    current_module: Optional[str] = None          # e.g. "Sales", "Purchase"
-    current_business_object: Optional[str] = None # e.g. "GSTR-3B", "Invoice"
-    current_time_context: Optional[str] = None    # e.g. "today", "yesterday"
+    current_module: Optional[str] = None          # e.g. "Sales", "Purchase", "Receivables", "Payables", "GST"
+    current_business_object: Optional[str] = None # e.g. "Invoice", "StockItem", "Ledger"
+    current_time_context: Optional[str] = None    # e.g. "today", "August 2026", "FY 2025-26"
+    active_date_range: Optional[dict] = None      # e.g. {"start_date": "2026-08-01", "end_date": "2026-08-31", "label": "August 2026"}
+    active_entity: Optional[str] = None           # e.g. "deepak", "ABC FIRE INDIA"
+    active_domain: Optional[str] = None           # e.g. "Sales", "Purchase", "Receivables"
 
     last_active: datetime = field(default_factory=datetime.utcnow)
 
@@ -54,20 +57,37 @@ class ConversationState:
         document = nlu_result.get("resolved_document")
         topic = nlu_result.get("resolved_topic")
         engine_hint = nlu_result.get("engine_hint", "UNKNOWN")
-        action = nlu_result.get("conversation_action", "new_topic")
+        domain = nlu_result.get("domain")
 
         if entity:
             self.current_entity = entity
+            self.active_entity = entity
         if document:
             self.current_document = document
         if topic:
             self.current_topic = topic
         if engine_hint in ("KNOWLEDGE", "ERP"):
             self.current_domain = engine_hint
+        if domain:
+            self.active_domain = domain
 
-        # Reset time context on new topic
-        if action == "new_topic":
-            self.current_time_context = None
+    def set_active_date_range(self, date_range: Optional[dict]) -> None:
+        """Set active date range context."""
+        if date_range:
+            self.active_date_range = date_range
+            self.current_time_context = date_range.get("label")
+
+    def set_active_entity(self, entity: Optional[str]) -> None:
+        """Set active customer/vendor/item entity context."""
+        if entity:
+            self.active_entity = entity
+            self.current_entity = entity
+
+    def set_active_domain(self, domain: Optional[str]) -> None:
+        """Set active business domain context."""
+        if domain:
+            self.active_domain = domain
+            self.current_module = domain
 
     def get_history_summary(self, last_n: int = 5) -> str:
         """Returns a compact conversation history string for the NLU prompt."""
@@ -81,3 +101,4 @@ class ConversationState:
                 lines.append(f"Entity: {turn.resolved_entity}")
             lines.append(f"Intent: {turn.engine_hint}")
         return "\n".join(lines) if lines else "No previous conversation."
+

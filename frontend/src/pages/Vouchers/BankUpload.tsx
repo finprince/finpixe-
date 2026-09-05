@@ -1061,9 +1061,9 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
 
           <div className="flex items-start gap-6 relative">
             {/* Table Area */}
-            <div className={`transition-all duration-300 min-w-0 ${panelRowId ? 'flex-[0.55]' : 'flex-1'}`}>
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <table className="w-full text-sm">
+            <div className={`transition-all duration-300 min-w-0 ${panelRowId ? 'flex-1' : 'flex-1'}`}>
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-sm custom-scrollbar">
+                <table className="w-full text-sm min-w-[1250px]">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
                       <th className="text-left p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest" style={{ minWidth: 140 }}>Date</th>
@@ -1074,7 +1074,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
                       <th className="text-left p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest" style={{ minWidth: 160 }}>Voucher Type</th>
                       <th className="text-left p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest" style={{ minWidth: 120 }}>Voucher No</th>
                       <th className="text-left p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest" style={{ minWidth: 180 }}>Posting Note</th>
-                      <th className="text-center p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Allocated</th>
+                      <th className="text-center p-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest" style={{ minWidth: 120 }}>Allocated</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1300,7 +1300,7 @@ const BankUpload: React.FC<BankUploadProps> = ({ ledgers = [], defaultType = 'mi
               };
 
               return (
-                <div className="flex-[0.45] sticky top-6 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-slide-in-right z-10 h-[calc(100vh-200px)] flex flex-col">
+                <div className="w-[560px] max-w-[55vw] shrink-0 sticky top-6 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-slide-in-right z-10 h-[calc(100vh-140px)] flex flex-col">
                   <BankAllocationPanel
                     key={panelRowId}
                     row={row}
