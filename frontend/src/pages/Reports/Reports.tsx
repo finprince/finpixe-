@@ -381,6 +381,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
   const [bsLoading, setBsLoading] = useState(false);
   const [balanceSheetFormat, setBalanceSheetFormat] = useState<'auto' | 'vertical' | 'horizontal'>('auto');
   const [expandedBsCategories, setExpandedBsCategories] = useState<Set<string>>(new Set());
+  const [bsCategoryModal, setBsCategoryModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    items: any[];
+  } | null>(null);
+  const [selectedBsCategoryInModal, setSelectedBsCategoryInModal] = useState<string | null>(null);
   const [pnlData, setPnlData] = useState<any | null>(null);
   const [pnlLoading, setPnlLoading] = useState(false);
   const [pnlFormat, setPnlFormat] = useState<'auto' | 'vertical' | 'standard'>('auto');
@@ -615,8 +621,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     let reportData: AIMessage['reportData'] | null = null;
 
     // Detect if query specifies a particular party/customer/vendor
-    const matchedPartyName = vouchers.map(v => v.party).find(party => {
-      if (!party) return false;
+    const matchedPartyName = vouchers.map(v => (v as any).party).find(party => {
+      if (!party || typeof party !== 'string') return false;
       const lowerP = party.toLowerCase();
       if (lowerQuery.includes(lowerP)) return true;
       const significantWords = lowerP.split(/\s+/).filter(w => w.length > 3 && !['pvt', 'ltd', 'inc', 'corp', 'india', 'tech', 'solutions', 'digital', 'global'].includes(w));
@@ -2797,7 +2803,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           };
                           const taxLegs = e.full_legs.filter((l: any) => isTaxLeg(l.ledger_name) && !l.ledger_name?.toLowerCase().includes('tds') && !l.ledger_name?.toLowerCase().includes('tcs'));
                           const totalTax = taxLegs.reduce((sum: number, l: any) => sum + (l.debit || 0) + (l.credit || 0), 0);
-                          
+
                           if (totalTax > 0) {
                             const isPartyLeg = (name: string) => {
                               const n = (name || '').toLowerCase();
@@ -2996,7 +3002,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                           };
                           const taxLegs = e.full_legs.filter((l: any) => isTaxLeg(l.ledger_name) && !l.ledger_name?.toLowerCase().includes('tds') && !l.ledger_name?.toLowerCase().includes('tcs'));
                           const totalTax = taxLegs.reduce((sum: number, l: any) => sum + (l.debit || 0) + (l.credit || 0), 0);
-                          
+
                           if (totalTax > 0) {
                             const isPartyLeg = (name: string) => {
                               const n = (name || '').toLowerCase();
@@ -5457,6 +5463,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
     const prevTotal = itemList.reduce((sum: number, x: any) => sum + Number(x.prev_balance || 0), 0);
     const isExpanded = expandedSet.has(label);
 
+    const isTargetRow = [
+      "Total outstanding dues of micro, small and medium enterprises",
+      "Total outstanding dues of creditors other than micro, small and medium enterprises",
+      "Other current liabilities"
+    ].includes(label);
+
     const toggleExpand = () => {
       setExpandedSet((prev) => {
         const next = new Set(prev);
@@ -5469,19 +5481,53 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
       });
     };
 
+    const openCategoryModal = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setBsCategoryModal({
+        isOpen: true,
+        title: label,
+        items: itemList
+      });
+      setSelectedBsCategoryInModal(null);
+    };
+
+    const handleButtonClick = (e: React.MouseEvent) => {
+      if (isTargetRow) {
+        openCategoryModal(e);
+      } else {
+        toggleExpand();
+      }
+    };
+
+    const handleLabelClick = (e: React.MouseEvent) => {
+      if (isTargetRow && itemList.length > 0) {
+        openCategoryModal(e);
+      }
+    };
+
     return (
       <React.Fragment key={label}>
         <tr className="hover:bg-indigo-50/30 transition-colors border-b border-slate-100 text-sm">
           <td className={`py-3 px-4 ${indentClass} font-medium text-slate-700`}>
             <div className="flex items-center justify-between pr-2">
-              <span>{label}</span>
+              <span
+                className={isTargetRow && itemList.length > 0 ? "cursor-pointer hover:text-indigo-600 font-medium transition-colors" : ""}
+                onClick={handleLabelClick}
+                title={isTargetRow && itemList.length > 0 ? "Click to view categories in window screen" : undefined}
+              >
+                {label}
+              </span>
               {itemList.length > 0 && (
                 <button
                   type="button"
-                  onClick={toggleExpand}
+                  onClick={handleButtonClick}
                   className="text-xs text-indigo-600 font-bold uppercase tracking-wider hover:text-indigo-800 ml-3 print:hidden"
+                  title={isTargetRow ? "Click to view category breakdown in window screen" : "Toggle details"}
                 >
-                  {isExpanded ? 'Hide Details' : `${itemList.length} item${itemList.length > 1 ? 's' : ''}`}
+                  {isTargetRow
+                    ? `${itemList.length} item${itemList.length > 1 ? 's' : ''}`
+                    : (isExpanded ? 'Hide Details' : `${itemList.length} item${itemList.length > 1 ? 's' : ''}`)
+                  }
                 </button>
               )}
             </div>
@@ -5493,12 +5539,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
             {prevTotal !== 0 ? `₹${prevTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
           </td>
         </tr>
-        {isExpanded && itemList.length > 0 && (
+        {!isTargetRow && isExpanded && itemList.length > 0 && (
           itemList.map((it: any, idx: number) => {
             const hasSubItems = it.sub_items && it.sub_items.length > 0;
             const subId = `${label}-${it.name}`;
             const isSubExpanded = expandedPnlSubCategories.has(subId);
-            
+
             const toggleSub = () => {
               setExpandedPnlSubCategories(prev => {
                 const next = new Set(prev);
@@ -5513,7 +5559,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                 const hasSub = subIt.sub_items && subIt.sub_items.length > 0;
                 const currentId = `${pId}-${subIt.name}`;
                 const isSubExp = expandedPnlSubCategories.has(currentId);
-                
+
                 const toggle = () => {
                   setExpandedPnlSubCategories(prev => {
                     const next = new Set(prev);
@@ -5522,9 +5568,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                     return next;
                   });
                 };
-                
+
                 const paddingLeft = 5 + depth * 1.5;
-                
+
                 return (
                   <React.Fragment key={`subdetail-${currentId}-${subIdx}`}>
                     <tr className="bg-slate-100/50 border-b border-slate-200/40 text-[11px]">
@@ -6192,7 +6238,6 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                               </tr>
                               {renderNcRowItem("Owners' Capital Account", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.capital_account, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               {renderNcRowItem("Reserves and surplus", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.reserves_and_surplus, "pl-10", expandedBsCategories, setExpandedBsCategories)}
-                              {renderNcRowItem("Difference in Opening Balances", bsData.non_corporate?.equity_and_liabilities?.owners_funds?.difference_in_opening_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
                                 <td className="py-3 px-10">Subtotal - Owners' Funds</td>
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
@@ -6248,6 +6293,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                   {formatNcAmount(bsData.non_corporate?.equity_and_liabilities?.current_liabilities?.prev_total)}
                                 </td>
                               </tr>
+                              {renderNcRowItem("Difference in Opening Balances", bsData.non_corporate?.equity_and_liabilities?.difference_in_opening_balances, "pl-6 font-semibold", expandedBsCategories, setExpandedBsCategories)}
 
                               {/* TOTAL EQUITY AND LIABILITIES */}
                               <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
@@ -6308,7 +6354,6 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                               {renderNcRowItem("Cash and bank balances", bsData.non_corporate?.assets?.current_assets?.cash_and_bank_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               {renderNcRowItem("Short Term Loans and Advances", bsData.non_corporate?.assets?.current_assets?.short_term_loans_advances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               {renderNcRowItem("Other current assets", bsData.non_corporate?.assets?.current_assets?.other_current_assets, "pl-10", expandedBsCategories, setExpandedBsCategories)}
-                              {renderNcRowItem("Difference in Opening Balances", bsData.non_corporate?.assets?.current_assets?.difference_in_opening_balances, "pl-10", expandedBsCategories, setExpandedBsCategories)}
                               <tr className="border-t border-b border-slate-200 font-bold bg-slate-50 text-slate-900 text-sm">
                                 <td className="py-3 px-10">Subtotal - Current assets</td>
                                 <td className="py-3 px-6 text-right font-mono font-bold text-slate-950">
@@ -6318,6 +6363,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                                   {formatNcAmount(bsData.non_corporate?.assets?.current_assets?.prev_total)}
                                 </td>
                               </tr>
+                              {renderNcRowItem("Difference in Opening Balances", bsData.non_corporate?.assets?.difference_in_opening_balances, "pl-6 font-semibold", expandedBsCategories, setExpandedBsCategories)}
 
                               {/* TOTAL ASSETS */}
                               <tr className="bg-slate-900 text-white font-bold text-base border-t-2 border-slate-900">
@@ -6443,6 +6489,222 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ vouchers = [], entries = [], 
                   </>
                 )}
               </div>
+
+              {/* BALANCE SHEET CATEGORY & VENDOR/LEDGER BREAKDOWN WINDOW SCREEN (MODAL) */}
+              {bsCategoryModal?.isOpen && (() => {
+                const isVendorList = bsCategoryModal.title.toLowerCase().includes('creditor') || 
+                                     bsCategoryModal.title.toLowerCase().includes('micro') || 
+                                     bsCategoryModal.title.toLowerCase().includes('payable') ||
+                                     bsCategoryModal.title.toLowerCase().includes('vendor');
+                const columnHeaderName = isVendorList ? 'VENDOR NAME' : 'PARTICULARS / LEDGER NAME';
+                const itemTypeLabel = isVendorList ? 'Vendor' : 'Item';
+                const itemTypeLabelPlural = isVendorList ? 'Vendors' : 'Items';
+
+                return (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn print:hidden">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                      
+                      {/* MODAL HEADER */}
+                      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {selectedBsCategoryInModal && (
+                            <button
+                              onClick={() => setSelectedBsCategoryInModal(null)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/80 transition-colors"
+                              title="Back to Categories"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-bold text-slate-800">{bsCategoryModal.title}</h3>
+                              <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full border border-indigo-200">
+                                {bsCategoryModal.items.length} {bsCategoryModal.items.length === 1 ? itemTypeLabel : itemTypeLabelPlural}
+                              </span>
+                            </div>
+                            {selectedBsCategoryInModal ? (
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                Category: <span className="font-bold text-indigo-600 uppercase">{selectedBsCategoryInModal}</span>
+                              </p>
+                            ) : (
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                Select a category card to view associated {isVendorList ? 'vendor names' : 'ledger accounts'}.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setBsCategoryModal(null);
+                            setSelectedBsCategoryInModal(null);
+                          }}
+                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* MODAL BODY */}
+                      <div className="p-6 overflow-y-auto flex-1 bg-slate-50/40">
+                        {!selectedBsCategoryInModal ? (
+                          /* STEP 1: CATEGORY CARDS VIEW */
+                          <div>
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Categories</span>
+                              <span className="text-xs text-slate-400">
+                                Click any category card to view {isVendorList ? 'vendor names' : 'ledger accounts'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                              {Object.entries(
+                                bsCategoryModal.items.reduce((acc: any, item: any) => {
+                                  let rawCat = (item.category || 'General').trim();
+                                  if (rawCat.includes('>')) {
+                                    rawCat = rawCat.split('>')[0].trim();
+                                  }
+                                  const cat = rawCat || 'General';
+                                  if (!acc[cat]) acc[cat] = [];
+                                  acc[cat].push(item);
+                                  return acc;
+                                }, {})
+                              ).map(([catName, catItems]: [string, any]) => {
+                                const totalBal = catItems.reduce((s: number, x: any) => s + Number(x.balance || 0), 0);
+                                return (
+                                  <div
+                                    key={catName}
+                                    onClick={() => setSelectedBsCategoryInModal(catName)}
+                                    className="p-5 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-sm">
+                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                          </svg>
+                                        </div>
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                                          {catItems.length} {catItems.length === 1 ? itemTypeLabel : itemTypeLabelPlural}
+                                        </span>
+                                      </div>
+                                      <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wide group-hover:text-indigo-700 transition-colors">
+                                        {catName}
+                                      </h4>
+                                      <p className="text-xs text-slate-400 mt-1">
+                                        {isVendorList ? 'Manage & view vendor list' : 'View associated ledger accounts'}
+                                      </p>
+                                    </div>
+
+                                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                                      <span className="text-xs text-slate-500 font-medium">Total Balance</span>
+                                      <span className="font-mono font-bold text-slate-900 text-sm">
+                                        ₹{totalBal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          /* STEP 2: VENDOR/LEDGER TABLE VIEW UNDER SELECTED CATEGORY */
+                          <div>
+                            <div className="mb-4 flex items-center justify-between">
+                              <button
+                                onClick={() => setSelectedBsCategoryInModal(null)}
+                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 transition-colors"
+                              >
+                                ← Back to Categories
+                              </button>
+                              <span className="text-xs font-semibold text-slate-500">
+                                Selected Category: <strong className="text-slate-800 uppercase font-bold">{selectedBsCategoryInModal}</strong>
+                              </span>
+                            </div>
+
+                            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                              <table className="w-full text-left border-collapse">
+                                <thead>
+                                  <tr className="bg-slate-100 text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                                    <th className="py-3.5 px-5">{columnHeaderName}</th>
+                                    <th className="py-3.5 px-5 text-right">Current Year (₹)</th>
+                                    <th className="py-3.5 px-5 text-right">Previous Year (₹)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-sm text-slate-800">
+                                  {bsCategoryModal.items
+                                    .filter((it: any) => {
+                                      let itCat = (it.category || 'General').trim();
+                                      if (itCat.includes('>')) itCat = itCat.split('>')[0].trim();
+                                      return (itCat || 'General') === selectedBsCategoryInModal;
+                                    })
+                                    .map((it: any, idx: number) => (
+                                      <tr key={idx} className="hover:bg-indigo-50/30 transition-colors">
+                                        <td className="py-3.5 px-5 font-medium flex items-center gap-2.5">
+                                          <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                                          <span className="font-bold text-slate-800">{it.name}</span>
+                                        </td>
+                                        <td className="py-3.5 px-5 text-right font-mono font-bold text-slate-900">
+                                          {Number(it.balance || 0) !== 0 ? `₹${Number(it.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                        </td>
+                                        <td className="py-3.5 px-5 text-right font-mono font-medium text-slate-500">
+                                          {Number(it.prev_balance || 0) !== 0 ? `₹${Number(it.prev_balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="bg-slate-50 font-bold border-t border-slate-200 text-slate-900 text-sm">
+                                    <td className="py-3.5 px-5">Total for {selectedBsCategoryInModal}</td>
+                                    <td className="py-3.5 px-5 text-right font-mono text-indigo-700">
+                                      ₹{bsCategoryModal.items
+                                        .filter((it: any) => {
+                                          let itCat = (it.category || 'General').trim();
+                                          if (itCat.includes('>')) itCat = itCat.split('>')[0].trim();
+                                          return (itCat || 'General') === selectedBsCategoryInModal;
+                                        })
+                                        .reduce((s: number, x: any) => s + Number(x.balance || 0), 0)
+                                        .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="py-3.5 px-5 text-right font-mono text-slate-600">
+                                      ₹{bsCategoryModal.items
+                                        .filter((it: any) => {
+                                          let itCat = (it.category || 'General').trim();
+                                          if (itCat.includes('>')) itCat = itCat.split('>')[0].trim();
+                                          return (itCat || 'General') === selectedBsCategoryInModal;
+                                        })
+                                        .reduce((s: number, x: any) => s + Number(x.prev_balance || 0), 0)
+                                        .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* MODAL FOOTER */}
+                    <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setBsCategoryModal(null);
+                          setSelectedBsCategoryInModal(null);
+                        }}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              );
+              })()}
             </>
           )}
           {reportType === 'StockSummary' && (

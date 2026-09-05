@@ -37,6 +37,47 @@ def generate_trial_balance_data(user, start_date=None, end_date=None):
         raise PermissionError('User has no associated tenant')
     return db.get_trial_balance_data(tenant_id, start_date, end_date)
 
+def _get_trade_payable_bucket_type(v_cat_str: str) -> str:
+    """
+    Returns 'OTHER_CURRENT_LIABILITY' if the vendor/ledger category belongs to:
+    Packing Material, Fixed Assets, Capital Goods, Services, Work in Progress.
+    Returns 'TRADE_PAYABLE' if the category belongs to:
+    Raw Material, Stores and Spares, Stock-in Trade, Consumables, Jobwork (or unassigned/general).
+    """
+    if not v_cat_str:
+        return 'TRADE_PAYABLE'
+    
+    c = v_cat_str.lower().strip()
+    
+    # Categories that MUST go to Other Current Liabilities (even if MSME)
+    other_liab_keys = [
+        'packing material', 'packing materials', 'packing',
+        'fixed asset', 'fixed assets',
+        'capital good', 'capital goods',
+        'service', 'services',
+        'work in progress', 'wip', 'work-in-progress'
+    ]
+    if any(k in c for k in other_liab_keys):
+        return 'OTHER_CURRENT_LIABILITY'
+
+def _get_main_category(cat_str: str) -> str:
+    """
+    Strips sub-group hierarchy breadcrumbs (e.g., 'RAW MATERIAL > IMPORT > ONE' -> 'RAW MATERIAL')
+    and returns the main top-level category name.
+    """
+    if not cat_str:
+        return 'General'
+    s = str(cat_str).strip()
+    if '>' in s:
+        s = s.split('>')[0].strip()
+    elif '/' in s and not ('work in progress' in s.lower() or 'wip' in s.lower()):
+        parts = s.split('/')
+        if len(parts) > 1 and parts[0].strip():
+            s = parts[0].strip()
+    if not s or s.lower() in {'-', 'none', 'null'}:
+        return 'General'
+    return s
+
 def generate_balance_sheet_data(user, end_date=None):
     """
     Generate balance sheet report data as of a specific date.
@@ -57,6 +98,47 @@ def generate_balance_sheet_data(user, end_date=None):
     # Get master ledgers to check subgroup details
     ml_qs = MasterLedger.objects.filter(tenant_id=tenant_id)
     ml_map = {l.name.lower().strip(): l for l in ml_qs if l.name}
+
+    # Fetch ledgers associated with MSME Vendors and Customers
+    msme_ledgers = set()
+    try:
+        from vendors.models import VendorMasterBasicDetail
+        msme_vendors = VendorMasterBasicDetail.objects.filter(
+            tenant_id=tenant_id,
+            tds_details__msme_udyam_no__isnull=False
+        ).exclude(tds_details__msme_udyam_no__exact='').values_list('ledger__name', flat=True)
+        for n in msme_vendors:
+            if n:
+                msme_ledgers.add(n.lower().strip())
+    except Exception as e:
+        logger.warning(f"Failed to fetch MSME vendor ledgers: {e}")
+
+    try:
+        from customerportal.models import CustomerMasterCustomerBasicDetails
+        msme_customers = CustomerMasterCustomerBasicDetails.objects.filter(
+            tenant_id=tenant_id,
+            tds_details__msme_no__isnull=False
+        ).exclude(tds_details__msme_no__exact='').values_list('ledger__name', flat=True)
+        for n in msme_customers:
+            if n:
+                msme_ledgers.add(n.lower().strip())
+    except Exception as e:
+        logger.warning(f"Failed to fetch MSME customer ledgers: {e}")
+
+    # Fetch vendor categories map for ledger categorization
+    vendor_cat_map = {}
+    try:
+        from vendors.models import VendorMasterBasicDetail
+        vb_qs = VendorMasterBasicDetail.objects.filter(tenant_id=tenant_id, is_deleted=False)
+        for vb in vb_qs.select_related('ledger'):
+            cat_val = _get_main_category(vb.vendor_category)
+            if cat_val:
+                if vb.ledger and vb.ledger.name:
+                    vendor_cat_map[vb.ledger.name.lower().strip()] = cat_val
+                if vb.vendor_name:
+                    vendor_cat_map[vb.vendor_name.lower().strip()] = cat_val
+    except Exception as e:
+        logger.warning(f"Failed to fetch vendor categories: {e}")
 
     _, prev_ed = _calc_prev_period(None, end_date)
     ledger_balances = db.get_ledger_balances(tenant_id, end_date)
@@ -149,7 +231,12 @@ def generate_balance_sheet_data(user, end_date=None):
         if abs(balance) < 0.001 and abs(prev_balance) < 0.001:
             continue
 
-        item_entry = {'name': name, 'balance': balance, 'prev_balance': prev_balance}
+        v_cat = vendor_cat_map.get(name.lower().strip())
+        if not v_cat:
+            v_cat = (sg1 or sg2 or sg3 or group or maj or '').strip()
+        v_cat = _get_main_category(v_cat)
+
+        item_entry = {'name': name, 'balance': balance, 'prev_balance': prev_balance, 'category': v_cat}
 
         if cat_upper in {'ASSET', 'ASSETS'}:
             if 'fixed' in group.lower():
@@ -206,10 +293,14 @@ def generate_balance_sheet_data(user, end_date=None):
                 elif any(k in text for k in ['tax', 'tds', 'tcs', 'gst', 'duty', 'duties', 'statutory', 'vat']):
                     nc_other_current_liab.append(item_entry)
                 elif 'creditor' in text or 'payable' in text or 'trade' in text:
-                    if 'msme' in text or 'micro' in text or 'small' in text:
-                        nc_trade_payables_msme.append(item_entry)
+                    bucket_type = _get_trade_payable_bucket_type(v_cat)
+                    if bucket_type == 'OTHER_CURRENT_LIABILITY':
+                        nc_other_current_liab.append(item_entry)
                     else:
-                        nc_trade_payables_other.append(item_entry)
+                        if name.lower().strip() in msme_ledgers or 'msme' in text or 'micro' in text or 'small' in text:
+                            nc_trade_payables_msme.append(item_entry)
+                        else:
+                            nc_trade_payables_other.append(item_entry)
                 elif 'provision' in text:
                     nc_short_term_provisions.append(item_entry)
                 else:
@@ -337,7 +428,6 @@ def generate_balance_sheet_data(user, end_date=None):
     if bs_diff > 0.01:
         diff_entry = {'name': 'Difference in Opening Balances', 'balance': bs_diff, 'prev_balance': 0.0}
         nc_opening_balance_diff = [diff_entry]
-        nc_current_assets_total += bs_diff
         nc_total_assets += bs_diff
         assets['total_current_assets'] += bs_diff
         assets['total'] += bs_diff
@@ -345,7 +435,6 @@ def generate_balance_sheet_data(user, end_date=None):
         abs_diff = abs(bs_diff)
         diff_entry = {'name': 'Difference in Opening Balances', 'balance': abs_diff, 'prev_balance': 0.0}
         nc_opening_balance_diff_liab = [diff_entry]
-        nc_owners_funds_total += abs_diff
         nc_total_equity_liab += abs_diff
         capital['total_capital'] += abs_diff
         capital['total'] += abs_diff
@@ -355,7 +444,6 @@ def generate_balance_sheet_data(user, end_date=None):
             'owners_funds': {
                 'capital_account': nc_owners_capital,
                 'reserves_and_surplus': nc_reserves_surplus,
-                'difference_in_opening_balances': nc_opening_balance_diff_liab,
                 'total': nc_owners_funds_total,
                 'prev_total': nc_owners_funds_prev_total
             },
@@ -380,6 +468,7 @@ def generate_balance_sheet_data(user, end_date=None):
                 'total': nc_current_liab_total,
                 'prev_total': nc_current_liab_prev_total
             },
+            'difference_in_opening_balances': nc_opening_balance_diff_liab,
             'total': nc_total_equity_liab,
             'prev_total': nc_total_equity_liab_prev
         },
@@ -407,10 +496,10 @@ def generate_balance_sheet_data(user, end_date=None):
                 'cash_and_bank_balances': nc_cash_bank,
                 'short_term_loans_advances': nc_short_term_loans_adv,
                 'other_current_assets': nc_other_current_assets,
-                'difference_in_opening_balances': nc_opening_balance_diff,
                 'total': nc_current_assets_total,
                 'prev_total': nc_current_assets_prev_total
             },
+            'difference_in_opening_balances': nc_opening_balance_diff,
             'total': nc_total_assets,
             'prev_total': nc_total_assets_prev
         }
