@@ -505,21 +505,30 @@ def auto_update_po_if_fully_executed(tenant_id: str, po_number: str) -> bool:
         
     return False
 
-def update_po_status(po_id: int, status: str, updated_by: Optional[str] = None) -> bool:
+def update_po_status(po_id: int, status: str, updated_by: Optional[str] = None, email_address: Optional[str] = None) -> bool:
     """
-    Update PO status
+    Update PO status (and optionally email_address)
     
     Returns:
         bool: True if updated successfully
     """
-    query = """
-        UPDATE vendor_transaction_po
-        SET status = %s, updated_by = %s, updated_at = NOW()
-        WHERE id = %s
-    """
+    if email_address and isinstance(email_address, str) and email_address.strip():
+        query = """
+            UPDATE vendor_transaction_po
+            SET status = %s, updated_by = %s, email_address = %s, updated_at = NOW()
+            WHERE id = %s
+        """
+        params = [status, updated_by, email_address.strip(), po_id]
+    else:
+        query = """
+            UPDATE vendor_transaction_po
+            SET status = %s, updated_by = %s, updated_at = NOW()
+            WHERE id = %s
+        """
+        params = [status, updated_by, po_id]
     
     with connection.cursor() as cursor:
-        cursor.execute(query, [status, updated_by, po_id])
+        cursor.execute(query, params)
         return cursor.rowcount > 0
 
 def get_pending_pos_for_vendor(tenant_id: str, vendor_id: Any, vendor_name: Optional[str] = None) -> List[Dict[str, Any]]:

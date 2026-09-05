@@ -1,4 +1,7 @@
-import boto3
+try:
+    import boto3
+except ImportError:
+    boto3 = None
 import json
 import os
 import logging
@@ -116,10 +119,10 @@ class QueueService:
         return self._queue_mapping
 
     def _get_sqs_client(self):
-        if self._sqs is None:
+        if self._sqs is None and boto3 is not None:
             if os.getenv('AWS_ACCESS_KEY_ID'):
-                from botocore.config import Config
                 try:
+                    from botocore.config import Config
                     self._sqs = boto3.client(
                         'sqs',
                         aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),

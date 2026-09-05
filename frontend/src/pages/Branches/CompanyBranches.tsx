@@ -28,6 +28,7 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
     const [actionModal, setActionModal] = useState<{ type: 'reset-password' | 'edit-branch' | 'disable-branch' | null, branch: Branch | null }>({ type: null, branch: null });
     const [isActionProcessing, setIsActionProcessing] = useState(false);
+    const [showResetPassword, setShowResetPassword] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -291,7 +292,20 @@ const CompanyBranches: React.FC<CompanyBranchesProps> = ({ company, onBack, onSe
                         </p>
                         <div className="space-y-2 mt-4">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Password</label>
-                            <input type="password" placeholder="Enter new password" className="border border-slate-200 rounded-lg w-full h-[42px] px-4 text-sm font-bold focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none" />
+                            <div className="relative flex items-center">
+                                <input
+                                    type={showResetPassword ? "text" : "password"}
+                                    placeholder="Enter new password"
+                                    className="border border-slate-200 rounded-lg w-full h-[42px] px-4 pr-10 text-sm font-bold focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowResetPassword(!showResetPassword)}
+                                    className="absolute right-3 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none cursor-pointer"
+                                >
+                                    <Icon name={showResetPassword ? "eye-off" : "eye"} size={16} />
+                                </button>
+                            </div>
                         </div>
                         <div className="flex gap-3 pt-6 mt-2 border-t border-slate-100">
                             <button onClick={() => setActionModal({ type: null, branch: null })} className="flex-1 py-3 bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all">Cancel</button>

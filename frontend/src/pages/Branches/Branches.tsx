@@ -61,6 +61,8 @@ const BranchesPage: React.FC = () => {
     const [pincode, setPincode] = useState('');
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showResetPassword, setShowResetPassword] = useState(false);
     const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
     const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
     const [newPassword, setNewPassword] = useState('');
@@ -609,16 +611,25 @@ const BranchesPage: React.FC = () => {
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Login Password</label>
-                                        <input
-                                            id="password"
-                                            type="password"
-                                            value={password}
-                                            onChange={e => setPassword(e.target.value)}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setCurrentStep(3); } }}
-                                            className="erp-input w-full h-12 text-sm font-bold shadow-sm"
-                                            placeholder="Initial access password"
-                                            required
-                                        />
+                                        <div className="relative flex items-center">
+                                            <input
+                                                id="password"
+                                                type={showPassword ? "text" : "password"}
+                                                value={password}
+                                                onChange={e => setPassword(e.target.value)}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setCurrentStep(3); } }}
+                                                className="erp-input w-full h-12 pr-10 text-sm font-bold shadow-sm"
+                                                placeholder="Initial access password"
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3.5 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none cursor-pointer"
+                                            >
+                                                <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -696,16 +707,25 @@ const BranchesPage: React.FC = () => {
 
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">New Secure Password</label>
-                        <input
-                            type="password"
-                            value={newPassword}
-                            onChange={e => setNewPassword(e.target.value)}
-                            className="erp-input w-full h-12 text-center text-lg tracking-widest font-black bg-slate-50 border-2 focus:border-indigo-500 transition-all rounded-xl"
-                            placeholder="••••••••"
-                            required
-                            minLength={8}
-                            autoFocus
-                        />
+                        <div className="relative flex items-center">
+                            <input
+                                type={showResetPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={e => setNewPassword(e.target.value)}
+                                className="erp-input w-full h-12 text-center text-lg tracking-widest font-black bg-slate-50 border-2 focus:border-indigo-500 transition-all rounded-xl pr-10"
+                                placeholder="••••••••"
+                                required
+                                minLength={8}
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowResetPassword(!showResetPassword)}
+                                className="absolute right-3.5 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none cursor-pointer"
+                            >
+                                <Icon name={showResetPassword ? "eye-off" : "eye"} size={16} />
+                            </button>
+                        </div>
                         <p className="text-[10px] font-bold text-slate-400 text-center mt-2">Minimum 8 characters required</p>
                     </div>
 

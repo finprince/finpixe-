@@ -13,7 +13,10 @@ import json
 import time
 import math
 import hashlib
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 from pathlib import Path
 from django.core.management.base import BaseCommand
 from core.kiki.config import kiki_settings

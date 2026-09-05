@@ -12,7 +12,10 @@ Phase 19 CUDA & Offline Enforcements:
   - Verifies test embedding execution (dimension=1024, finite values, device=cuda:0).
 """
 import os
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import math
 from pathlib import Path
 from typing import List
@@ -70,6 +73,13 @@ class BGEEmbeddingProvider(BaseEmbeddingProvider):
         os.environ["HF_LOCAL_ONLY"] = "1"
 
         # Check CUDA requirement
+        if torch is None:
+            msg = (
+                "[EMBEDDING PROVIDER] ❌ PyTorch is not installed. "
+                "Please run 'pip install torch sentence-transformers' to enable local embeddings."
+            )
+            logger.error(msg)
+            raise RuntimeError(msg)
         cuda_ok = torch.cuda.is_available()
         if self.target_device == "cuda" and not cuda_ok:
             if getattr(kiki_settings, "RAG_REQUIRE_GPU", True) and not getattr(kiki_settings, "DEVELOPMENT_ALLOW_CPU_FALLBACK", False):

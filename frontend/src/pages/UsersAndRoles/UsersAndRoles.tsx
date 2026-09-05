@@ -507,32 +507,49 @@ const RolesTab: React.FC<RolesTabProps> = ({ roles, loading, onCreateRole, onEdi
 );
 
 interface UserModalProps { user: any; form: any; roles: any[]; onFormChange: (form: any) => void; onSave: () => void; onClose: () => void; }
-const UserModal: React.FC<UserModalProps> = ({ user, form, roles, onFormChange, onSave, onClose }) => (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="bg-slate-50 px-8 py-6 border-b border-slate-100">
-                <h2 className="text-2xl font-bold text-slate-800">{user ? 'Modify Seat Access' : 'Onboard New Employee'}</h2>
-                <p className="text-sm text-slate-500 mt-1">Configure identity and access period</p>
-            </div>
-            
-            <div className="p-8 space-y-6">
-                <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Username</label>
-                        <input className="erp-input w-full" placeholder="john_doe" value={form.username} onChange={e => onFormChange({ ...form, username: e.target.value })} disabled={!!user} />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Email Address</label>
-                        <input className="erp-input w-full" placeholder="john@example.com" type="email" value={form.email || ''} onChange={e => onFormChange({ ...form, email: e.target.value })} />
-                    </div>
+const UserModal: React.FC<UserModalProps> = ({ user, form, roles, onFormChange, onSave, onClose }) => {
+    const [showPassword, setShowPassword] = useState(false);
+    return (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="bg-slate-50 px-8 py-6 border-b border-slate-100">
+                    <h2 className="text-2xl font-bold text-slate-800">{user ? 'Modify Seat Access' : 'Onboard New Employee'}</h2>
+                    <p className="text-sm text-slate-500 mt-1">Configure identity and access period</p>
                 </div>
-
-                {!user && (
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Password</label>
-                        <input className="erp-input w-full" placeholder="••••••••" type="password" value={form.password} onChange={e => onFormChange({ ...form, password: e.target.value })} />
+                
+                <div className="p-8 space-y-6">
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Username</label>
+                            <input className="erp-input w-full" placeholder="john_doe" value={form.username} onChange={e => onFormChange({ ...form, username: e.target.value })} disabled={!!user} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Email Address</label>
+                            <input className="erp-input w-full" placeholder="john@example.com" type="email" value={form.email || ''} onChange={e => onFormChange({ ...form, email: e.target.value })} />
+                        </div>
                     </div>
-                )}
+
+                    {!user && (
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Password</label>
+                            <div className="relative flex items-center">
+                                <input
+                                    className="erp-input w-full pr-10"
+                                    placeholder="••••••••"
+                                    type={showPassword ? "text" : "password"}
+                                    value={form.password}
+                                    onChange={e => onFormChange({ ...form, password: e.target.value })}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3.5 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none cursor-pointer"
+                                >
+                                    <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                 <div className="erp-form-section">
                     <label className="erp-label">Assign Roles</label>
@@ -565,7 +582,8 @@ const UserModal: React.FC<UserModalProps> = ({ user, form, roles, onFormChange, 
             </div>
         </div>
     </div>
-);
+    );
+};
 
 interface RoleModalProps { role: any; form: any; permissionsStructure: any; onFormChange: (f: any) => void; onTogglePage: (p: string) => void; onToggleTab: (p: string, t: string) => void; onToggleSubmodule: (p: string, st: string[]) => void; onSave: () => void; onClose: () => void; }
 const RoleModal: React.FC<RoleModalProps> = ({ role, form, permissionsStructure, onFormChange, onTogglePage, onToggleTab, onToggleSubmodule, onSave, onClose }) => (

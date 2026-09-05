@@ -210,8 +210,11 @@ class VendorPOViewSet(viewsets.ModelViewSet):
         Update PO status.
         For cancel actions, automatically resolves 'Cancelled' vs 'Executed Cancelled'
         based on whether the PO was used in any GRN or Purchase Voucher.
+        If new_status is 'Mailed' (Approve & Mail), sends the PO email to recipients.
         """
         try:
+            from .po_mail_service import send_purchase_order_email
+
             new_status = request.data.get('status')
             
             if not new_status:
@@ -224,10 +227,13 @@ class VendorPOViewSet(viewsets.ModelViewSet):
             if new_status in ('Cancelled', 'Executed Cancelled'):
                 new_status = db.resolve_cancellation_status(pk)
             
+            recipient_email = request.data.get('recipient_email') or request.data.get('email') or request.data.get('email_address')
+
             success = db.update_po_status(
                 po_id=pk,
                 status=new_status,
-                updated_by=request.user.username if hasattr(request.user, 'username') else None
+                updated_by=request.user.username if hasattr(request.user, 'username') else None,
+                email_address=recipient_email
             )
             
             if not success:
@@ -238,11 +244,28 @@ class VendorPOViewSet(viewsets.ModelViewSet):
             
             # Fetch updated PO
             updated_po = db.get_purchase_order_by_id(pk)
+
+            # If status is Mailed or send_email requested, dispatch the PO email
+            email_result = None
+            if new_status == 'Mailed' or request.data.get('send_email'):
+                email_result = send_purchase_order_email(
+                    po_id=pk,
+                    sender_user=request.user,
+                    recipient_email=recipient_email
+                )
             
+            msg = f'PO status updated to {new_status}'
+            if email_result:
+                if email_result.get('success'):
+                    msg += f" and emailed to {', '.join(email_result.get('recipients', []))}"
+                elif email_result.get('error'):
+                    msg += f" (Email note: {email_result.get('error')})"
+
             return Response({
                 'success': True,
-                'message': f'PO status updated to {new_status}',
-                'data': updated_po
+                'message': msg,
+                'data': updated_po,
+                'email_result': email_result
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -252,6 +275,81 @@ class VendorPOViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def send_mail(self, request, pk=None):
+        """
+        Dedicated endpoint to send / re-send purchase order email.
+        """
+        try:
+            from .po_mail_service import send_purchase_order_email
+
+            recipient_email = request.data.get('recipient_email') or request.data.get('email')
+            email_result = send_purchase_order_email(
+                po_id=pk,
+                sender_user=request.user,
+                recipient_email=recipient_email
+            )
+
+            if email_result.get('success'):
+                # Also update status to Mailed if currently Approved or Draft
+                po = db.get_purchase_order_by_id(pk)
+                if po and po.get('status') in ('Draft', 'Pending Approval', 'Approved'):
+                    db.update_po_status(
+                        po_id=pk,
+                        status='Mailed',
+                        updated_by=request.user.username if hasattr(request.user, 'username') else None
+                    )
+                    po = db.get_purchase_order_by_id(pk)
+
+                return Response({
+                    'success': True,
+                    'message': email_result.get('message'),
+                    'data': po,
+                    'recipients': email_result.get('recipients')
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'success': False,
+                    'error': email_result.get('error', 'Failed to send email')
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'])
+    def download_pdf(self, request, pk=None):
+        """
+        Download Purchase Order as a PDF document.
+        """
+        try:
+            from django.http import HttpResponse
+            from .po_pdf_service import generate_po_pdf
+            from .po_mail_service import get_company_details
+
+            po_data = db.get_purchase_order_by_id(pk)
+            if not po_data:
+                return Response({'error': 'Purchase Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            tenant_id = po_data.get('tenant_id', '')
+            company_info = get_company_details(tenant_id)
+
+            pdf_bytes = generate_po_pdf(po_data, company_info)
+            po_number = po_data.get('po_number', f'PO_{pk}').replace(' ', '_').replace('/', '_')
+
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="Purchase_Order_{po_number}.pdf"'
+            return response
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

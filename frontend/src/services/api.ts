@@ -2013,6 +2013,26 @@ class ApiService {
         return httpClient.post<any>('/api/voucher-sales-new/', data);
     }
 
+    /**
+     * Dispatch sales invoice document via email with attached PDF and supporting documents
+     */
+    async sendSalesInvoiceEmail(invoiceId: number | string, recipientEmail?: string) {
+        return httpClient.post<any>(`/api/voucher-sales-new/${invoiceId}/send-email/`, {
+            recipient_email: recipientEmail
+        });
+    }
+
+    /**
+     * Send Purchase Voucher via Email (Generates PDF + Attaches supporting documents)
+     * @param voucherId - Purchase Voucher ID
+     * @param recipientEmail - Optional recipient override
+     */
+    async sendPurchaseVoucherEmail(voucherId: number | string, recipientEmail?: string) {
+        return httpClient.post<any>(`/api/vouchers/purchase/${voucherId}/send-email/`, {
+            recipient_email: recipientEmail
+        });
+    }
+
     // ============================================================================
     // RBAC (Role-Based Access Control)
     // ============================================================================

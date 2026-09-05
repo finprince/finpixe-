@@ -5,7 +5,10 @@ Manages ChromaDB collections, vector embeddings, metadata schemas, and strict mu
 Implements the provider-agnostic KnowledgeProvider abstract interface.
 """
 import os
-import chromadb
+try:
+    import chromadb
+except ImportError:
+    chromadb = None
 from typing import Dict, Any, List, Optional
 from .provider import KnowledgeProvider
 from ..config import kiki_settings
@@ -22,6 +25,11 @@ class ChromaVectorStore(KnowledgeProvider):
     def __init__(self, persist_dir: str = None):
         self.persist_dir = persist_dir or kiki_settings.CHROMADB_PERSIST_DIRECTORY
         os.makedirs(self.persist_dir, exist_ok=True)
+        if chromadb is None:
+            self.client = None
+            self.collection = None
+            logger.warning("ChromaDB is not installed. Vector store features will be disabled.")
+            return
         self.client = chromadb.PersistentClient(path=self.persist_dir)
         self.collection = self.client.get_or_create_collection(
             name=self.COLLECTION_NAME,
@@ -32,7 +40,7 @@ class ChromaVectorStore(KnowledgeProvider):
         """
         Stores chunk text, metadata, and optional dense embeddings in ChromaDB.
         """
-        if not chunks:
+        if not chunks or not self.collection:
             return 0
 
         ids = [c["chunk_id"] for c in chunks]
@@ -65,6 +73,8 @@ class ChromaVectorStore(KnowledgeProvider):
         """
         Lightweight fast vector probe implementing KnowledgeProvider interface (< 5ms).
         """
+        if not self.client:
+            return {"is_candidate": False, "max_similarity": 0.0, "top_document": None, "top_family": None, "chunks_found": 0}
         try:
             global_coll = self.client.get_or_create_collection("finpixe_global_knowledge")
             if global_coll.count() == 0:
@@ -103,6 +113,8 @@ class ChromaVectorStore(KnowledgeProvider):
 
     def query_global(self, query_text: str, top_k: int = 10) -> List[Dict[str, Any]]:
         """Queries the developer-managed global knowledge collection 'finpixe_global_knowledge'."""
+        if not self.client:
+            return []
         try:
             global_coll = self.client.get_or_create_collection("finpixe_global_knowledge")
             results = global_coll.query(query_texts=[query_text], n_results=top_k)
@@ -146,6 +158,8 @@ class ChromaVectorStore(KnowledgeProvider):
         department: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Queries tenant isolated knowledge collection."""
+        if not self.collection:
+            return []
         where_filter = {"tenant_id": str(tenant_id)}
         if department:
             where_filter["department"] = str(department)
