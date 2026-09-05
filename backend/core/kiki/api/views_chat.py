@@ -6,16 +6,19 @@ Primary REST & SSE streaming endpoint passing incoming prompts through the AI Ke
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
+from rest_framework.authentication import SessionAuthentication
+from core.authentication import CustomJWTAuthentication
 from ..kernel import ai_kernel
 from ..logging import get_kiki_logger
 
 logger = get_kiki_logger("chat_api")
 
+
 class KikiChatView(APIView):
-    """POST /api/v2/kiki/chat/"""
-    permission_classes = []
-    authentication_classes = []
+    """POST /api/v2/kiki/chat/ and POST /api/kiki/chat/"""
+    authentication_classes = [CustomJWTAuthentication, SessionAuthentication]
+    permission_classes = [AllowAny]  # AllowAny at view level; TenantGuard securely enforces tenant validation
 
     def post(self, request):
         message = request.data.get("message", "").strip()
@@ -28,7 +31,8 @@ class KikiChatView(APIView):
             result = ai_kernel.process_request(
                 message=message,
                 request_user=request.user,
-                context_data=context_data
+                context_data=context_data,
+                request=request
             )
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:

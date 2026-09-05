@@ -13,8 +13,9 @@ Pipeline:
   6. EvidenceAggregator (Merges N Evidence objects & deduplicates citations)
   7. Return Clean REST API payload (Clean answer + clean structured citations array)
 """
+import re
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 from ..context import conversation_context_manager, session_store
 from ..capabilities.base import ExecutionPolicy
 from ..capabilities.registry import capability_registry
@@ -25,16 +26,56 @@ from ..telemetry import metrics_collector
 from ..config import kiki_settings
 from ..logging import get_kiki_logger
 
-GREETINGS = {"hi", "hello", "hey", "good morning", "good afternoon", "good evening", "thanks", "thank you", "okay", "ok", "bye", "goodbye"}
+
+def detect_conversational_intent(message: str) -> Optional[Tuple[str, str]]:
+    """
+    Detects smalltalk, greetings, acknowledgements, gratitude, and closures.
+    Returns (intent_name, reply_text) or None if business/ERP processing is needed.
+    """
+    if not message:
+        return None
+    raw = message.strip().lower()
+    # Normalize 3+ repeated characters (e.g. 'ohhhhh' -> 'oh', 'okokok' -> 'ok')
+    clean = re.sub(r'([a-z])\1{2,}', r'\1\1', raw)
+    clean = re.sub(r'\s+', ' ', clean).strip('!.,?:;~ ')
+
+    # 1. Gratitude
+    if re.search(r'^(thanks|thank\s*you|thx|ty|many\s*thanks|thank\s*u)(\s+(a\s*lot|so\s*much|very\s*much|kiki))?$', clean):
+        return "CONVERSATIONAL", "You're welcome! Let me know if you need any further assistance with your accounting, sales, inventory, or reports."
+
+    # 2. Acknowledgement / Affirmation / Smalltalk (e.g. "ohhhh okok", "okay", "got it", "cool", "alright")
+    if re.search(r'^(oh+[\s,]*)?(ok+|okay+|okok+|k+|got\s*it|alright|cool|nice|great|perfect|understood|noted|sure|fine|sounds\s*good|yep|yeah|yes)[\s!.,:;~]*$', clean):
+        return "CONVERSATIONAL", "Got it! Feel free to ask if you'd like to check any transactions, balances, or summaries."
+
+    # 3. Greetings
+    if re.search(r'^(hi+|hello+|hey+|good\s*(morning|afternoon|evening)|howdy|greetings|wassup|what\'?s\s*up|yo)(\s+(kiki|there|assistant))?$', clean):
+        return "CONVERSATIONAL", "Hello! I'm KIKI, your local AI assistant for FINPIXE ERP. How can I help you with your accounting, sales, inventory, or reports today?"
+
+    # 4. Closures
+    if re.search(r'^(bye|goodbye|see\s*you|cya|take\s*care)(\s+(kiki|all))?$', clean):
+        return "CONVERSATIONAL", "Goodbye! Have a great and productive day ahead."
+
+    # 5. Identity & Help
+    if re.search(r'^(who\s*are\s*you|what\s*can\s*you\s*do|help|what\s*is\s*kiki)$', clean):
+        return "CONVERSATIONAL", (
+            "I'm **KIKI**, your intelligent enterprise accounting assistant. You can ask me about:\n"
+            "• **Inventory**: Stock counts, live valuations, low-stock reorders\n"
+            "• **Sales & Purchases**: Invoice totals, supplier procurement, date-wise reports\n"
+            "• **Receivables & Payables**: Customer dues and supplier balances\n"
+            "• **GST Reports**: Output tax, Input Tax Credit (ITC), Net GST liability\n"
+            "• **Financials**: Cash/bank ledger balances and Profit & Loss statements"
+        )
+
+    return None
 
 
 class AIKernelOrchestrator:
     """Central AI Kernel Orchestrator Engine for KIKI 2027."""
 
-    def process_request(self, message: str, request_user, context_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    def process_request(self, message: str, request_user, context_data: Dict[str, Any] = None, request=None) -> Dict[str, Any]:
         """Process incoming chat request synchronously using V3 Orchestration Pipeline."""
         trace_id = f"trace_{uuid.uuid4().hex[:8]}"
-        tenant_context = tenant_guard.extract_context(request_user)
+        tenant_context = tenant_guard.extract_context(request_user, request=request)
         tenant_id = tenant_context["tenant_id"]
 
         logger = get_kiki_logger("ai_kernel", trace_id=trace_id, tenant_id=tenant_id)
@@ -42,20 +83,14 @@ class AIKernelOrchestrator:
 
         metrics_collector.increment_counter("total_requests")
 
-        # ── Conversational Greetings Fast-Path (No RAG Overhead) ─────────────────
-        clean_msg = message.strip().lower().rstrip("!.,")
-        if clean_msg in GREETINGS:
-            logger.info(f"[KERNEL V3] Greeting detected: '{clean_msg}'. Returning natural conversational reply.")
-            if clean_msg in {"thanks", "thank you"}:
-                reply = "You're welcome! Let me know if you need any further assistance with FINPIXE ERP or your documents."
-            elif clean_msg in {"bye", "goodbye"}:
-                reply = "Goodbye! Have a great day ahead."
-            else:
-                reply = "Hello! I'm KIKI 2027, your local AI assistant. How can I help you today?"
-
+        # ── Conversational Greetings & Smalltalk Fast-Path (No RAG / Tool Overhead) ─
+        conv_match = detect_conversational_intent(message)
+        if conv_match:
+            intent_type, reply = conv_match
+            logger.info(f"[KERNEL V3] Conversational intent detected ('{intent_type}'). Returning friendly reply.")
             return {
                 "id": trace_id,
-                "intent": "CONVERSATIONAL",
+                "intent": intent_type,
                 "domain": "General",
                 "reply": reply,
                 "citations": [],
