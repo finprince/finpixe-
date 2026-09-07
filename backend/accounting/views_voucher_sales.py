@@ -345,7 +345,12 @@ class VoucherSalesViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='send-email')
     def send_email(self, request, pk=None):
         invoice = self.get_object()
-        recipient_email = request.data.get('recipient_email') or invoice.customer_email
+        recipient_email = request.data.get('recipient_email')
+        if not recipient_email and invoice.customer_id:
+            from customerportal.models import CustomerMasterCustomer
+            cust = CustomerMasterCustomer.objects.filter(id=invoice.customer_id).first()
+            if cust and getattr(cust, 'email_address', None):
+                recipient_email = cust.email_address
         from .services.sales_invoice_mail_service import send_sales_invoice_email
         result = send_sales_invoice_email(
             invoice_id=invoice.id,

@@ -68,8 +68,8 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
     # Explicitly define to avoid "Not a valid string" error from ChoiceField/other weirdness
     reverse_charge = serializers.CharField(required=False, default='N', max_length=1)
     supporting_document = serializers.FileField(required=False, allow_null=True)
-    customer_email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    send_email_to_customer = serializers.BooleanField(required=False, default=False, write_only=True)
+
+
     
     # Explicitly define place_of_supply without max_length=2 to allow state names like "Tamil Nadu" 
     # to be passed to validate_place_of_supply, which will then map them to the 2-digit code.
@@ -79,7 +79,7 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
         model = VoucherSalesInvoiceDetails
         fields = [
             'id', 'tenant_id', 'date', 'sales_invoice_no', 'voucher_name', 'outward_slip_no',
-            'customer_name', 'customer_id', 'customer_branch', 'bill_to', 'ship_to', 'gstin', 'contact', 'customer_email', 'send_email_to_customer',
+            'customer_name', 'customer_id', 'customer_branch', 'bill_to', 'ship_to', 'gstin', 'contact',
             'tax_type', 'state_type', 'export_type', 'exchange_rate', 'supporting_document',
             'sales_order_no', 'place_of_supply', 'reverse_charge', 'invoice_type',
             'gst_export_type', 'port_code', 'shipping_bill_number', 'shipping_bill_date',
@@ -398,7 +398,7 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
         payment_data = validated_data.pop('payment_details', None)
         dispatch_data = validated_data.pop('dispatch_details', None)
         eway_bill_details_data = validated_data.pop('eway_bill_details', [])
-        should_send_email = validated_data.pop('send_email_to_customer', False)
+
         
         # Part 5: Wrap in Transaction
         with transaction.atomic():
@@ -501,18 +501,7 @@ class VoucherSalesInvoiceDetailsSerializer(BranchModelSerializerMixin, serialize
         except Exception as e:
             print(f"!!! Status Sync Error in Create: {str(e)}")
 
-        # Dispatch Email if requested
-        if should_send_email:
-            try:
-                from .services.sales_invoice_mail_service import send_sales_invoice_email
-                mail_res = send_sales_invoice_email(
-                    invoice_id=invoice.id,
-                    recipient_email=invoice.customer_email,
-                    sender_user=user
-                )
-                print(f"[SalesSerializer] Auto-email dispatch result: {mail_res}")
-            except Exception as mail_err:
-                print(f"[SalesSerializer] Auto-email dispatch error: {mail_err}")
+
 
         return invoice
 

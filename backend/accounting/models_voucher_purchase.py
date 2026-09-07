@@ -15,7 +15,7 @@ class VoucherPurchaseSupplierDetails(BaseModel):
     purchase_voucher_series = models.CharField(max_length=100, null=True, blank=True)
     purchase_voucher_no = models.CharField(max_length=100, null=True, blank=True)
     vendor_name = models.CharField(max_length=255)
-    vendor_email = models.EmailField(max_length=255, null=True, blank=True, help_text="Vendor Email for Purchase Voucher dispatch")
+
     vendor_basic_detail = models.ForeignKey(
         'vendors.VendorMasterBasicDetail',
         on_delete=models.RESTRICT,

@@ -2368,7 +2368,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                 ship_to: JSON.stringify(shipTo),
                 gstin,
                 contact,
-                customer_email: customerEmail || null,
+
                 send_email_to_customer: sendEmailToCustomer,
                 tax_type: taxType,
                 state_type: stateType,
@@ -2599,7 +2599,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
             const payload = {
                 date: formatDate(date), sales_invoice_no: salesInvoiceNo, voucher_name: voucherName, outward_slip_no: outwardSlipNo, outward_slip_id: outwardSlipId,
                 customer_name: resolvedCustomer ? (resolvedCustomer.customer_name || resolvedCustomer.name || '') : customerName, customer_id: customerId, customer_branch: customerBranch, bill_to: JSON.stringify(billTo), ship_to: JSON.stringify(shipTo), gstin, contact,
-                customer_email: customerEmail || null,
+
                 send_email_to_customer: sendEmailToCustomer,
                 tax_type: taxType,
                 state_type: stateType, export_type: exportType, exchange_rate: exchangeRate, supporting_document: supportingDocument,
@@ -3638,42 +3638,7 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                 )}
                             </div>
 
-                            {/* Row 3 Col 3: Customer Email & Auto-Dispatch Option */}
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Customer Email
-                                    </label>
-                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${sendEmailToCustomer ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}`}>
-                                        {sendEmailToCustomer ? 'Auto-Email ON' : 'Email OFF'}
-                                    </span>
-                                </div>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
-                                    <input
-                                        type="email"
-                                        value={customerEmail}
-                                        onChange={(e) => setCustomerEmail(e.target.value)}
-                                        placeholder={customerName ? "Customer email address" : "Select customer to auto-fill email"}
-                                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-[4px] focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                    />
-                                </div>
-                                <label className="flex items-start gap-2 p-2 bg-indigo-50/70 border border-indigo-100 rounded-[4px] cursor-pointer select-none hover:bg-indigo-100/60 transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={sendEmailToCustomer}
-                                        onChange={(e) => setSendEmailToCustomer(e.target.checked)}
-                                        className="w-4 h-4 mt-0.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                                    />
-                                    <span className="text-xs font-medium text-indigo-900 leading-tight">
-                                        Email Tax Invoice PDF &amp; documents to customer on create
-                                    </span>
-                                </label>
-                            </div>
+
                         </div>
 
 
@@ -6656,7 +6621,10 @@ const SalesVoucher: React.FC<SalesVoucherProps> = ({
                                         disabled={isSendingEmail}
                                         onClick={async () => {
                                             const defaultTarget = customerEmail || (postedVoucherData as any)?.customer_email || '';
-                                            const email = prompt('Confirm or enter recipient email address for Tax Invoice:', defaultTarget);
+                                            let email = defaultTarget;
+                                            if (!email) {
+                                                email = prompt('No customer email found. Please enter an email address manually:');
+                                            }
                                             if (!email) return;
                                             setIsSendingEmail(true);
                                             try {

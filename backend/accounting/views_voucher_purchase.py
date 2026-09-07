@@ -175,7 +175,7 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
         Accepts optional `recipient_email` in request data to override default vendor email.
         """
         voucher_obj = self.get_object()
-        recipient_email = request.data.get('recipient_email') or getattr(voucher_obj, 'vendor_email', None)
+        recipient_email = request.data.get('recipient_email')
         
         # Fallback to vendor basic detail email if not present
         if not recipient_email and hasattr(voucher_obj, 'vendor_basic_detail') and voucher_obj.vendor_basic_detail:
@@ -194,10 +194,7 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
                 recipient_email=recipient_email
             )
             if result.get('success'):
-                # Update voucher record with recipient email if changed
-                if recipient_email and recipient_email != getattr(voucher_obj, 'vendor_email', None):
-                    voucher_obj.vendor_email = recipient_email
-                    voucher_obj.save(update_fields=['vendor_email'])
+
                 return Response(result, status=status.HTTP_200_OK)
             else:
                 return Response(result, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -206,5 +203,9 @@ class VoucherPurchaseViewSet(viewsets.ModelViewSet):
                 {'success': False, 'message': f'Failed to send email: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+
+
 
 
