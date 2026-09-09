@@ -27,11 +27,20 @@ class NoteReminderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = NoteReminder.objects.filter(user=self.request.user).order_by('-created_at')
+        user = self.request.user
+        if not user or not getattr(user, 'is_authenticated', False):
+            return NoteReminder.objects.none()
+        user_id = getattr(user, 'id', None)
+        if user_id:
+            qs = NoteReminder.objects.filter(user_id=user_id).order_by('-created_at')
+        else:
+            qs = NoteReminder.objects.none()
         item_type = self.request.query_params.get('type')
         if item_type:
             qs = qs.filter(type=item_type)
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user_id = getattr(self.request.user, 'id', None)
+        serializer.save(user_id=user_id)
+
