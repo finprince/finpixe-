@@ -14,6 +14,8 @@ WORKDIR /app
 
 # Copy requirements and install
 COPY requirements.txt .
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install django==5.0.14 djangorestframework==3.16.1 pymysql PyMySQL gunicorn drf-spectacular python-dotenv
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
