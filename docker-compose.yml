@@ -6,31 +6,31 @@ services:
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
-      MYSQL_DATABASE: ${DB_NAME:-Finpixe_AI_Accounting}
+      MYSQL_DATABASE: ${DB_NAME:-ai_accounting2}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-Ulaganathan123}
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
-
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_PASSWORD:-Ulaganathan123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
+    env_file:
+      - ./backend/.env
     environment:
       - DB_HOST=db
-      - DB_NAME=${DB_NAME:-Finpixe_AI_Accounting}
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-ai_accounting2}
       - DB_USER=root
       - DB_PASSWORD=${DB_PASSWORD:-Ulaganathan123}
-      - REDIS_URL=
-      - DJANGO_SECRET=${DJANGO_SECRET}
-      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
     ports:
       - "8000:8000"
     depends_on:
@@ -45,11 +45,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    restart: always
     ports:
-      - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+      - "5173:5173"
     environment:
       - VITE_API_PROXY_TARGET=http://backend:8000
-      - VITE_PORT=${VITE_PORT:-5173}
+      - VITE_PORT=5173
     depends_on:
       - backend
 
@@ -57,3 +58,4 @@ volumes:
   mysql_data:
   static_volume:
   media_volume:
+
