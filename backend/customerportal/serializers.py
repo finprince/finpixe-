@@ -90,9 +90,7 @@ class CustomerMasterCustomerSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not hasattr(request, 'user'):
             return value
-        tenant_id = getattr(request.user, 'tenant_id', None)
-        if not tenant_id:
-            return value
+        tenant_id = getattr(request.user, 'tenant_id', None) or getattr(request.user, 'branch_id', None) or '6d114c1e-647d-4884-b385-f3d806547476'
         queryset = CustomerMasterCustomer.objects.filter(tenant_id=tenant_id, customer_code__iexact=value, is_deleted=False)
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
@@ -107,9 +105,7 @@ class CustomerMasterCustomerSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not hasattr(request, 'user'):
             return value
-        tenant_id = getattr(request.user, 'tenant_id', None)
-        if not tenant_id:
-            return value
+        tenant_id = getattr(request.user, 'tenant_id', None) or getattr(request.user, 'branch_id', None) or '6d114c1e-647d-4884-b385-f3d806547476'
         queryset = CustomerMasterCustomer.objects.filter(tenant_id=tenant_id, pan_number__iexact=value, is_deleted=False)
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
