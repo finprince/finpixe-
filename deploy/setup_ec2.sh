@@ -35,7 +35,7 @@ fi
 python3 -m venv venv
 python3 -c "open('requirements.txt', 'wb').write(open('requirements.txt', 'rb').read().replace(b'\x00', b''))"
 ./venv/bin/pip install --upgrade pip
-./venv/bin/pip install python-dotenv celery django django-cors-headers djangorestframework djangorestframework_simplejwt django-environ django-filter pandas numpy pillow requests boto3 redis pymysql PyMySQL
+./venv/bin/pip install python-dotenv celery "django<5.1" django-cors-headers djangorestframework djangorestframework_simplejwt django-environ django-filter pandas numpy pillow requests boto3 "redis<5.0.0" pymysql PyMySQL
 ./venv/bin/pip install -r requirements.txt
 ./venv/bin/pip install gunicorn mysqlclient pymysql PyMySQL
 

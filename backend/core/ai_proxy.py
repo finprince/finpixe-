@@ -29,7 +29,7 @@ from django.conf import settings
 from dotenv import load_dotenv
 
 # Ensure environment variables are loaded
-load_dotenv(override=True)
+load_dotenv(override=False)
 
 # ── PROVIDER CONFIGURATION ──
 AI_MODEL_NAME = os.getenv("MISTRAL_OCR_MODEL", "mistral-ocr-latest")

@@ -13,7 +13,7 @@ class SandboxGSTService:
     def __init__(self, client_id=None, client_secret=None):
         try:
             from dotenv import load_dotenv
-            load_dotenv(override=True)
+            load_dotenv(override=False)
         except Exception:
             pass
         self.client_id = client_id or os.environ.get('WHITEBOOKS_CLIENT_ID') or os.environ.get('SANDBOX_API_TEST_KEY')
