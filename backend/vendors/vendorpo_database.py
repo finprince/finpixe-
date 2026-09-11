@@ -10,6 +10,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _to_decimal(val) -> Decimal:
+    if val is None or val == '' or str(val).strip() == '':
+        return Decimal('0')
+    try:
+        return Decimal(str(val))
+    except Exception:
+        return Decimal('0')
+
+
 def generate_po_number(tenant_id: str, po_series_id: Optional[int] = None) -> str:
     """
     Generate next PO number based on series settings.
@@ -19,64 +28,60 @@ def generate_po_number(tenant_id: str, po_series_id: Optional[int] = None) -> st
     Returns:
         str: Generated PO number
     """
-    if po_series_id:
-        # Get series settings
-        query = """
-            SELECT prefix, current_number, digits, suffix
-            FROM vendor_master_posettings
-            WHERE id = %s AND tenant_id = %s
-        """
-        
-        with connection.cursor() as cursor:
-            cursor.execute(query, [po_series_id, tenant_id])
-            row = cursor.fetchone()
+    try:
+        if po_series_id:
+            # Get series settings
+            query = """
+                SELECT prefix, current_number, digits, suffix
+                FROM vendor_master_posettings
+                WHERE id = %s AND tenant_id = %s
+            """
             
-            if row:
-                prefix, current_number, digits, suffix = row
+            with connection.cursor() as cursor:
+                cursor.execute(query, [po_series_id, tenant_id])
+                row = cursor.fetchone()
                 
-                # Also check the actual max number already used in the DB for this prefix/suffix
-                # to avoid duplicates when the counter is out of sync
-                max_query = """
-                    SELECT COALESCE(
-                        MAX(CAST(SUBSTRING(po_number, %s, %s) AS UNSIGNED)), 
-                        0
-                    )
-                    FROM vendor_transaction_po
-                    WHERE tenant_id = %s 
-                      AND po_number LIKE %s
-                """
-                prefix_len = len(prefix) + 1   # 1-indexed for SUBSTRING
-                num_len = digits
-                like_pattern = f"{prefix}%{suffix}" if suffix else f"{prefix}%"
-                cursor.execute(max_query, [prefix_len, num_len, tenant_id, like_pattern])
-                max_in_db = cursor.fetchone()[0] or 0
-                
-                # Use whichever is larger — series counter or actual DB max
-                next_number = max(current_number, max_in_db) + 1
-                
-                # Update current number in series to stay in sync
-                update_query = """
-                    UPDATE vendor_master_posettings
-                    SET current_number = %s, updated_at = NOW()
-                    WHERE id = %s
-                """
-                cursor.execute(update_query, [next_number, po_series_id])
-                
-                # Format PO number
-                number_str = str(next_number).zfill(digits)
-                return f"{prefix}{number_str}{suffix}"
-    
-    # Fallback: generate simple sequential number based on actual DB max
-    query = """
-        SELECT COALESCE(MAX(CAST(SUBSTRING(po_number, 3) AS UNSIGNED)), 0) + 1
-        FROM vendor_transaction_po
-        WHERE tenant_id = %s AND po_number LIKE 'PO%%'
-    """
-    
-    with connection.cursor() as cursor:
-        cursor.execute(query, [tenant_id])
-        next_num = cursor.fetchone()[0]
-        return f"PO{str(next_num).zfill(6)}"
+                if row:
+                    prefix, current_number, digits, suffix = row
+                    max_query = """
+                        SELECT COALESCE(
+                            MAX(CAST(SUBSTRING(po_number, %s, %s) AS UNSIGNED)), 
+                            0
+                        )
+                        FROM vendor_transaction_po
+                        WHERE tenant_id = %s 
+                          AND po_number LIKE %s
+                    """
+                    prefix_len = len(prefix) + 1
+                    num_len = digits
+                    like_pattern = f"{prefix}%{suffix}" if suffix else f"{prefix}%"
+                    cursor.execute(max_query, [prefix_len, num_len, tenant_id, like_pattern])
+                    max_in_db = cursor.fetchone()[0] or 0
+                    next_number = max(current_number, max_in_db) + 1
+                    
+                    update_query = """
+                        UPDATE vendor_master_posettings
+                        SET current_number = %s, updated_at = NOW()
+                        WHERE id = %s
+                    """
+                    cursor.execute(update_query, [next_number, po_series_id])
+                    number_str = str(next_number).zfill(digits)
+                    return f"{prefix}{number_str}{suffix}"
+        
+        query = """
+            SELECT COALESCE(MAX(CAST(SUBSTRING(po_number, 3) AS UNSIGNED)), 0) + 1
+            FROM vendor_transaction_po
+            WHERE tenant_id = %s AND po_number LIKE 'PO%%'
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query, [tenant_id])
+            row = cursor.fetchone()
+            next_num = (row[0] if row else 1) or 1
+            return f"PO{str(next_num).zfill(6)}"
+    except Exception as e:
+        import time
+        logger.warning(f"Error generating PO number: {e}, falling back to timestamp")
+        return f"PO{int(time.time())}"
 
 
 def create_purchase_order(
@@ -95,10 +100,10 @@ def create_purchase_order(
         # Generate PO number
         po_number = generate_po_number(tenant_id, po_data.get('po_series_id'))
         
-        # Calculate totals from items
-        total_taxable_value = sum(Decimal(str(item.get('taxable_value', 0))) for item in items_data)
-        total_tax = sum(Decimal(str(item.get('gst_amount', 0))) for item in items_data)
-        total_value = sum(Decimal(str(item.get('invoice_value', 0))) for item in items_data)
+        # Calculate totals safely from items
+        total_taxable_value = sum(_to_decimal(item.get('taxable_value')) for item in items_data)
+        total_tax = sum(_to_decimal(item.get('gst_amount')) for item in items_data)
+        total_value = sum(_to_decimal(item.get('invoice_value')) for item in items_data)
         
         # Insert PO header
         po_query = """
