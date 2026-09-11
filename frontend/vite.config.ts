@@ -16,9 +16,13 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    optimizeDeps: {
+      include: ['country-state-city', 'react', 'react-dom', 'axios', 'lucide-react'],
+    },
     server: {
       port: port,
       host: '0.0.0.0',
+      allowedHosts: true,
       hmr: {
         overlay: false
       },
