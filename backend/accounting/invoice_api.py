@@ -44,7 +44,7 @@ class SalesInvoiceViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Create new invoice using flow layer"""
         try:
-            tenant_id = request.user.branch_id
+            tenant_id = request.user.tenant_id
             
             # Prepare data
             invoice_data = {
@@ -75,7 +75,7 @@ class SalesInvoiceViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         """Update invoice using flow layer"""
         try:
-            tenant_id = request.user.branch_id
+            tenant_id = request.user.tenant_id
             invoice_id = kwargs.get('pk')
             
             # Update via flow layer
@@ -92,7 +92,7 @@ class SalesInvoiceViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """Cancel invoice"""
         try:
-            tenant_id = request.user.branch_id
+            tenant_id = request.user.tenant_id
             invoice_id = kwargs.get('pk')
             
             # Cancel via flow layer

@@ -232,7 +232,7 @@ class VoucherSerializer(BranchModelSerializerMixin, serializers.ModelSerializer)
         voucher_type = validated_data.get('type')
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            validated_data['tenant_id'] = request.user.branch_id
+            validated_data['tenant_id'] = request.user.tenant_id
         if 'voucher_number' not in validated_data or not validated_data['voucher_number']:
             prefix_map = {'sales': 'SALES', 'purchase': 'PURCH', 'payment': 'PAY', 'receipt': 'REC', 'contra': 'CONTRA', 'journal': 'JV'}
             prefix = prefix_map.get(voucher_type, 'VCH')

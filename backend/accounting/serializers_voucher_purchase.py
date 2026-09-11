@@ -137,7 +137,7 @@ class VoucherPurchaseSupplierDetailsSerializer(serializers.ModelSerializer):  # 
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             self.fields['vendor_id'].queryset = VendorMasterBasicDetail.objects.filter(
-                tenant_id=request.user.branch_id
+                tenant_id=request.user.tenant_id
             )
 
     class Meta:

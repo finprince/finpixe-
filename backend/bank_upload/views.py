@@ -789,8 +789,8 @@ def _post_row_to_voucher(row: BankStatementTemp, request, tenant_id: str, alloca
     # Ensure tenant_id is on the user object for the serializer to find it
     if not hasattr(request.user, 'tenant_id') or not request.user.tenant_id:
         request.user.tenant_id = tenant_id
-    if not hasattr(request.user, 'branch_id') or not request.user.branch_id:
-        request.user.branch_id = tenant_id
+    if not hasattr(request.user, 'branch_id') or not request.user.tenant_id:
+        request.user.tenant_id = tenant_id
 
         from rest_framework.test import APIRequestFactory, force_authenticate
         factory = APIRequestFactory()

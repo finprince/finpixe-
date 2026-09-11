@@ -58,7 +58,7 @@ class MasterLedgerViewSet(BranchQuerysetMixin, viewsets.ModelViewSet):
             logger.info(f'📝 Creating ledger - Data: {request.data}')
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            tenant_id = request.user.branch_id
+            tenant_id = request.user.tenant_id
             if not tenant_id:
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied('Authentication with a valid Branch ID is required.')

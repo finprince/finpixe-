@@ -186,7 +186,7 @@ class CreateUserView(APIView):
                         'email': user.email,
                         'company_name': user.company_name,
                         'phone': user.phone,
-                        'tenant_id': user.branch_id,
+                        'tenant_id': user.tenant_id,
                         'selected_plan': user.selected_plan,
                     },
                 }, status=status.HTTP_201_CREATED)

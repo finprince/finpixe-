@@ -39,8 +39,8 @@ class RoleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter roles by tenant"""
         user = self.request.user
-        if user.branch_id:
-            return Role.objects.filter(tenant_id=user.branch_id).order_by('name')
+        if user.tenant_id:
+            return Role.objects.filter(tenant_id=user.tenant_id).order_by('name')
         return Role.objects.none()
     
     def perform_create(self, serializer):
@@ -124,9 +124,9 @@ class UserRoleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter user roles by tenant"""
         user = self.request.user
-        if user.branch_id:
+        if user.tenant_id:
             return UserRole.objects.filter(
-                tenant_id=user.branch_id
+                tenant_id=user.tenant_id
             ).select_related('user', 'role', 'assigned_by').order_by('-assigned_at')
         return UserRole.objects.none()
 
@@ -148,10 +148,10 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter users by tenant"""
         user = self.request.user
-        if user.branch_id:
+        if user.tenant_id:
             # Filter by tenant and exclude inactive users
             return User.objects.filter(
-                tenant_id=user.branch_id,
+                tenant_id=user.tenant_id,
                 is_superuser=False
             ).order_by('username')
         return User.objects.none()
@@ -177,9 +177,9 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     def all_users(self, request):
         """Get all distinct users from UserRole table"""
         user = request.user
-        if user.branch_id:
+        if user.tenant_id:
             all_users_info = UserRole.objects.filter(
-                tenant_id=user.branch_id
+                tenant_id=user.tenant_id
             ).values('username', 'phone').distinct()
             
             return Response([{
@@ -204,7 +204,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         # Get user's roles and combine permissions
         user_roles = UserRole.objects.filter(
             user=user,
-            tenant_id=user.branch_id,
+            tenant_id=user.tenant_id,
             role__is_active=True
         ).select_related('role')
         
@@ -239,7 +239,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         role_ids = request.data.get('role_ids', [])
         
         # Validate role IDs
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         roles = Role.objects.filter(id__in=role_ids, tenant_id=tenant_id)
         
         if len(roles) != len(role_ids):
@@ -282,7 +282,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         deleted_count = UserRole.objects.filter(
             user=user,
             role_id=role_id,
-            tenant_id=request.user.branch_id
+            tenant_id=request.user.tenant_id
         ).delete()[0]
         
         if deleted_count == 0:

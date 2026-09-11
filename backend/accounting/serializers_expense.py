@@ -75,7 +75,7 @@ class VoucherExpenseSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         tenant_id = None
         if request and hasattr(request, 'user') and hasattr(request.user, 'tenant_id'):
-            tenant_id = request.user.branch_id
+            tenant_id = request.user.tenant_id
             validated_data['tenant_id'] = tenant_id
 
         rows = validated_data.pop('expense_rows', [])

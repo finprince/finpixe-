@@ -850,7 +850,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
                         q_filter['transaction__date__month'] = month_num
             except Exception:
                 pass
-        advances = AdvanceAllocation.objects.filter(tenant_id=request.user.tenant_id if hasattr(request.user, 'tenant_id') else request.user.branch_id if hasattr(request.user, 'branch_id') else None, transaction__transaction_type='RECEIPT', amendment_date__isnull=True, **q_filter).select_related('transaction', 'pay_from_ledger')
+        advances = AdvanceAllocation.objects.filter(tenant_id=request.user.tenant_id if hasattr(request.user, 'tenant_id') else request.user.tenant_id if hasattr(request.user, 'branch_id') else None, transaction__transaction_type='RECEIPT', amendment_date__isnull=True, **q_filter).select_related('transaction', 'pay_from_ledger')
         data = []
         for adv in advances:
             t = adv.transaction
@@ -895,7 +895,7 @@ class GSTR1ViewSet(viewsets.ViewSet):
                         q_filter['transaction__date__month'] = month_num
             except Exception:
                 pass
-        user_tenant = request.user.tenant_id if hasattr(request.user, 'tenant_id') else request.user.branch_id if hasattr(request.user, 'branch_id') else None
+        user_tenant = request.user.tenant_id if hasattr(request.user, 'tenant_id') else request.user.tenant_id if hasattr(request.user, 'branch_id') else None
         advances = AdvanceAllocation.objects.filter(tenant_id=user_tenant, transaction__transaction_type='RECEIPT', gst_registered='Yes', amendment_date__isnull=False, **q_filter).select_related('transaction', 'pay_from_ledger')
         data = []
         for adv in advances:

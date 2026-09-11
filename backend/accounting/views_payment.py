@@ -27,8 +27,8 @@ class PaymentVoucherViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = self.queryset
-        if hasattr(user, 'tenant_id') and user.branch_id:
-            qs = qs.filter(tenant_id=user.branch_id)
+        if hasattr(user, 'tenant_id') and user.tenant_id:
+            qs = qs.filter(tenant_id=user.tenant_id)
         pay_to_ledger = self.request.query_params.get('pay_to_ledger')
         if pay_to_ledger:
             from django.db.models import Q
@@ -277,8 +277,8 @@ class PaymentVoucherViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if hasattr(user, 'tenant_id') and user.branch_id:
-            serializer.save(tenant_id=user.branch_id)
+        if hasattr(user, 'tenant_id') and user.tenant_id:
+            serializer.save(tenant_id=user.tenant_id)
         else:
             serializer.save()
 

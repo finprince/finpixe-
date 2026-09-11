@@ -151,7 +151,7 @@ class DirectRegisterView(APIView):
                         'email': user.email,
                         'company_name': user.company_name,
                         'phone': user.phone,
-                        'tenant_id': user.branch_id,
+                        'tenant_id': user.tenant_id,
                         'selected_plan': user.selected_plan,
                     },
                     'permissions': permissions

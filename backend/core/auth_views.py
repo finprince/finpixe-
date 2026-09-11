@@ -229,7 +229,7 @@ class MeView(APIView):
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'tenant_id': user.branch_id,
+            'tenant_id': user.tenant_id,
             'company_name': user.company_name,
             'user_role': getattr(user, 'role', 'BRANCH_USER'),
             'selected_plan': getattr(user, 'selected_plan', 'Free'),
@@ -331,15 +331,15 @@ class SwitchBranchView(APIView):
             pass
         elif role == 'COMPANY_ADMIN':
             # Company layer removed - COMPANY_ADMIN can access any branch under their tenant
-            if str(user.branch_id) != str(target_tenant_id):
+            if str(user.tenant_id) != str(target_tenant_id):
                 return Response({'error': 'Unauthorized: Branch does not match your authorization scope'}, status=status.HTTP_403_FORBIDDEN)
         else:
             # Branch users cannot switch
-            if str(user.branch_id) != str(target_tenant_id):
+            if str(user.tenant_id) != str(target_tenant_id):
                 return Response({'error': 'Unauthorized: Branch users cannot switch branches'}, status=status.HTTP_403_FORBIDDEN)
 
         # 3. Apply Switch (Update active tenant_id in Session/DB)
-        user.branch_id = target_tenant_id
+        user.tenant_id = target_tenant_id
         user.save(update_fields=['tenant_id'])
 
         # 4. Generate New Tokens with updated context

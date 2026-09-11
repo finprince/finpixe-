@@ -144,7 +144,7 @@ class CleanOCRStagingView(views.APIView):
         voucher_type = request.data.get('voucher_type', 'PURCHASE')
         upload_type = request.data.get('upload_type', '').strip().upper() or 'UNKNOWN'
         upload_session_id = request.data.get('upload_session_id') or request.query_params.get('upload_session_id')
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         logger.info(f'[SESSION_TRACE_UPLOAD] session={upload_session_id} tenant={tenant_id} voucher_type={voucher_type} file_count={len(files)}')
         from core.sqs import QueueService
         queue = QueueService()
@@ -770,20 +770,20 @@ class CleanOCRStagingView(views.APIView):
             sections = updated_data.get('sections', {})
             inv_no = sections.get('supplier_details', {}).get('supplier_invoice_no') or updated_data.get('supplier_invoice_no') or updated_data.get('invoice_no')
             gstin_val = sections.get('supplier_details', {}).get('gstin') or updated_data.get('gstin')
-            query = InvoiceTempOCR.objects.filter(upload_session_id=session_id, tenant_id=request.user.branch_id)
+            query = InvoiceTempOCR.objects.filter(upload_session_id=session_id, tenant_id=request.user.tenant_id)
             if inv_no:
                 query = query.filter(supplier_invoice_no__iexact=inv_no)
             if gstin_val:
                 query = query.filter(gstin__iexact=gstin_val)
             record = query.first()
             if not record:
-                record = InvoiceTempOCR.objects.filter(upload_session_id=session_id, tenant_id=request.user.branch_id).first()
+                record = InvoiceTempOCR.objects.filter(upload_session_id=session_id, tenant_id=request.user.tenant_id).first()
         else:
             record = None
             if str(file_hash).isdigit():
-                record = InvoiceTempOCR.objects.filter(id=int(file_hash), tenant_id=request.user.branch_id).first()
+                record = InvoiceTempOCR.objects.filter(id=int(file_hash), tenant_id=request.user.tenant_id).first()
             if not record:
-                record = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=request.user.branch_id).first()
+                record = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=request.user.tenant_id).first()
         if not record:
             return Response({'error': 'File not found'}, status=404)
         
@@ -921,9 +921,9 @@ class CleanOCRStagingView(views.APIView):
         if not file_hash:
             return Response({'error': 'Id or file_hash required'}, status=400)
         if str(file_hash).isdigit():
-            deleted, _ = InvoiceTempOCR.objects.filter(id=int(file_hash), tenant_id=request.user.branch_id).delete()
+            deleted, _ = InvoiceTempOCR.objects.filter(id=int(file_hash), tenant_id=request.user.tenant_id).delete()
         else:
-            deleted, _ = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=request.user.branch_id).delete()
+            deleted, _ = InvoiceTempOCR.objects.filter(file_hash=file_hash, tenant_id=request.user.tenant_id).delete()
         return Response({'success': bool(deleted)})
 
 class OCRStagingMatchItemView(views.APIView):
@@ -1079,7 +1079,7 @@ class PipelineStatusSSEView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, session_id):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         from core.observability import observability, metrics
 
         def event_stream():
@@ -1151,7 +1151,7 @@ class S3UploadPolicyView(views.APIView):
 
     def post(self, request):
         file_name = request.data.get('file_name')
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         if not file_name:
             return Response({'error': 'file_name required'}, status=400)
         from core.storage import StorageService
@@ -1172,7 +1172,7 @@ class OCRJobStatusView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, job_id):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         try:
             job = OCRJob.objects.get(id=job_id, tenant_id=tenant_id)
             total = job.total_files
@@ -1213,7 +1213,7 @@ class OCRStagingFinalizeView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         upload_session_id = request.data.get('upload_session_id')
         logger.info(f'[FINALIZE_ENQUEUE_START] session={upload_session_id} tenant={tenant_id} source=API')
         logger.info(f'[FINALIZE_START] session={upload_session_id} tenant={tenant_id}')
@@ -1381,7 +1381,7 @@ class OCRStagingCancelView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         session_id = request.data.get('session_id')
         if not session_id:
             return Response({'error': 'session_id required'}, status=400)
@@ -1409,7 +1409,7 @@ class OCRStagingRescanView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         file_hash = request.data.get('file_hash')
         if not file_hash:
             return Response({'error': 'file_hash required'}, status=400)
@@ -1454,7 +1454,7 @@ class OCRStagingRescanUploadView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         old_hash = request.data.get('file_hash')
         uploaded_file = request.FILES.get('file')
         if not old_hash or not uploaded_file:
@@ -1507,7 +1507,7 @@ class ZohoAdapterView(views.APIView):
         data = request.data
         if not data:
             return Response({'error': 'No data provided'}, status=status.HTTP_400_BAD_REQUEST)
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         session_id = data.get('session_id') or f'exp_{int(time.time())}'
         from .models import ExportTask
         task = ExportTask.objects.create(session_id=session_id, tenant_id=tenant_id, export_type='ZOHO', status='PENDING')
@@ -1664,7 +1664,7 @@ class OCRStagingRowRescanView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         record = InvoiceTempOCR.objects.filter(pk=pk, tenant_id=tenant_id).first()
         if not record:
             return Response({'error': 'Record not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -1711,7 +1711,7 @@ class OCRStagingSessionRescanView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, session_id):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         records = list(InvoiceTempOCR.objects.filter(upload_session_id=session_id, tenant_id=tenant_id))
         if not records:
             return Response({'error': 'No records found for session'}, status=status.HTTP_404_NOT_FOUND)
@@ -1771,7 +1771,7 @@ class OCRStagingCorrectGSTView(CleanOCRStagingView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         try:
             record = InvoiceTempOCR.objects.get(id=pk, tenant_id=tenant_id)
         except InvoiceTempOCR.DoesNotExist:

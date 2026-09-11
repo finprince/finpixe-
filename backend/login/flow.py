@@ -127,13 +127,13 @@ def authenticate_user(email, username, password, ip_address='unknown'):
         'refresh':       str(refresh),
         'username':      user.username,
         'email':         getattr(user, 'email', ''),
-        'tenant_id':     user.branch_id,
+        'tenant_id':     user.tenant_id,
         'company_name':  getattr(user, 'company_name', ''),
         'selected_plan': getattr(user, 'selected_plan', 'Free'),
     }
 
     logger.info(
-        f"✅ LOGIN SUCCESS | Branch: {user.branch_id} | User: {user.username} | "
+        f"✅ LOGIN SUCCESS | Branch: {user.tenant_id} | User: {user.username} | "
         f"IP: {ip_address} | Time: {timezone.localtime().strftime('%Y-%m-%d %H:%M:%S')}"
     )
 

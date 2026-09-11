@@ -46,7 +46,7 @@ class ReceiptVoucherItemSerializer(SafeModelSerializerMixin, serializers.ModelSe
 
     def validate_customer(self, value):
         request = self.context.get('request')
-        tenant_id = request.user.branch_id if request and hasattr(request.user, 'tenant_id') else None
+        tenant_id = request.user.tenant_id if request and hasattr(request.user, 'tenant_id') else None
         if value and (not isinstance(value, MasterLedger)):
             ledger = _resolve_ledger(value, tenant_id)
             if ledger:
@@ -149,7 +149,7 @@ class ReceiptVoucherSerializer(SafeModelSerializerMixin, serializers.ModelSerial
         from django.db import transaction as db_transaction
         from accounting.models import AdvanceAllocation, PendingTransaction
         request = self.context.get('request')
-        tenant_id = request.user.branch_id if request and hasattr(request.user, 'tenant_id') else None
+        tenant_id = request.user.tenant_id if request and hasattr(request.user, 'tenant_id') else None
         items_data = validated_data.pop('items', [])
         receive_in_raw = validated_data.pop('receive_in', None)
         customer_raw = validated_data.pop('customer', None)

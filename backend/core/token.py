@@ -3,6 +3,7 @@ from rest_framework import serializers
 from django.conf import settings
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    email = serializers.EmailField(required=True)
 
     @classmethod
     def get_token(cls, user):
@@ -21,7 +22,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # 2. Add Branch Info (Company layer removed)
         from .models import Branch
-        tenant = Branch.objects.filter(id=user.branch_id).first()
+        tenant = Branch.objects.filter(id=user.tenant_id).first()
         if tenant:
             token['branch_name'] = tenant.name
             token['company_name'] = getattr(user, 'company_name', '') or tenant.name
@@ -73,7 +74,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['tenant_id'] = getattr(user, 'tenant_id', '')
         data['role'] = getattr(user, 'role', 'BRANCH_USER')
 
-        branch = Branch.objects.filter(id=user.branch_id).first()
+        branch = Branch.objects.filter(id=user.tenant_id).first()
         if branch:
             data['branch_name'] = branch.name
             data['company_name'] = getattr(user, 'company_name', '') or branch.name

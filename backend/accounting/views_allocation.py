@@ -12,7 +12,7 @@ class VoucherAllocationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        tenant_id = self.request.user.branch_id if hasattr(self.request.user, 'branch_id') else None
+        tenant_id = self.request.user.tenant_id if hasattr(self.request.user, 'branch_id') else None
         qs = super().get_queryset()
         if tenant_id:
             qs = qs.filter(tenant_id=tenant_id)
@@ -29,5 +29,5 @@ class VoucherAllocationViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        tenant_id = self.request.user.branch_id if hasattr(self.request.user, 'branch_id') else None
+        tenant_id = self.request.user.tenant_id if hasattr(self.request.user, 'branch_id') else None
         serializer.save(tenant_id=tenant_id)

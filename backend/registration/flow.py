@@ -103,7 +103,7 @@ def register_user(registration_data, master=None):
                 'company_name': user.company_name,
                 'phone': user.phone,
                 'state': state,
-                'tenant_id': user.branch_id,
+                'tenant_id': user.tenant_id,
                 'selected_plan': user.selected_plan,
             },
         }

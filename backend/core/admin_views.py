@@ -45,7 +45,7 @@ class AdminSubscriptionsView(APIView):
                 'subscriptionEndDate': end_date.isoformat(),
                 'uploadsUsed': 0,  # TODO: Track actual uploads
                 'totalUploads': 1000,  # Default limit
-                'tenantId': user.branch_id if hasattr(user, 'tenant_id') else 'N/A',
+                'tenantId': user.tenant_id if hasattr(user, 'tenant_id') else 'N/A',
             })
         
         return Response(subscriptions)

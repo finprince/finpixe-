@@ -10,8 +10,8 @@ class VoucherExpenseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if hasattr(user, 'tenant_id') and user.branch_id:
-            return self.queryset.filter(tenant_id=user.branch_id)
+        if hasattr(user, 'tenant_id') and user.tenant_id:
+            return self.queryset.filter(tenant_id=user.tenant_id)
         return self.queryset
 
     def update(self, request, *args, **kwargs):
@@ -35,8 +35,8 @@ class VoucherExpenseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if hasattr(user, 'tenant_id') and user.branch_id:
-            serializer.save(tenant_id=user.branch_id)
+        if hasattr(user, 'tenant_id') and user.tenant_id:
+            serializer.save(tenant_id=user.tenant_id)
         else:
             serializer.save()
 

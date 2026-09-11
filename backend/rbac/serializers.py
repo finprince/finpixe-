@@ -61,7 +61,7 @@ class RoleSerializer(serializers.ModelSerializer):
         """Create role with tenant_id from request"""
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            validated_data['tenant_id'] = request.user.branch_id
+            validated_data['tenant_id'] = request.user.tenant_id
         return super().create(validated_data)
 
 
@@ -84,7 +84,7 @@ class UserRoleSerializer(serializers.ModelSerializer):
         """Create user role assignment with tenant_id and assigned_by"""
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            validated_data['tenant_id'] = request.user.branch_id
+            validated_data['tenant_id'] = request.user.tenant_id
             validated_data['assigned_by'] = request.user
         return super().create(validated_data)
 
@@ -170,7 +170,7 @@ class CreateUserWithRoleSerializer(serializers.Serializer):
         """Check if username already exists within the tenant"""
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            tenant_id = request.user.branch_id
+            tenant_id = request.user.tenant_id
             if User.objects.filter(username=value, tenant_id=tenant_id).exists():
                 raise serializers.ValidationError("Username already exists in this organization")
         return value
@@ -181,7 +181,7 @@ class CreateUserWithRoleSerializer(serializers.Serializer):
         if not request or not hasattr(request, 'user'):
             return value
         
-        tenant_id = request.user.branch_id
+        tenant_id = request.user.tenant_id
         for role_id in value:
             if not Role.objects.filter(id=role_id, tenant_id=tenant_id).exists():
                 raise serializers.ValidationError(
