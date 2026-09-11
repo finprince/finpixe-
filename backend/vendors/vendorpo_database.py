@@ -10,6 +10,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+from datetime import date, datetime
+
 def _to_decimal(val) -> Decimal:
     if val is None or val == '' or str(val).strip() == '':
         return Decimal('0')
@@ -17,6 +19,46 @@ def _to_decimal(val) -> Decimal:
         return Decimal(str(val))
     except Exception:
         return Decimal('0')
+
+
+def _parse_date(val):
+    if not val or not str(val).strip():
+        return None
+    val_str = str(val).strip()
+    if 'T' in val_str:
+        val_str = val_str.split('T')[0]
+    for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%Y/%m/%d', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(val_str, fmt).date()
+        except Exception:
+            pass
+    return None
+
+
+def _validate_vendor_id(vendor_id):
+    if not vendor_id:
+        return None
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM vendor_master_vendorcreation_basicdetail WHERE id = %s", [vendor_id])
+            if cursor.fetchone():
+                return vendor_id
+    except Exception:
+        pass
+    return None
+
+
+def _validate_po_series_id(series_id):
+    if not series_id:
+        return None
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM vendor_master_posettings WHERE id = %s", [series_id])
+            if cursor.fetchone():
+                return series_id
+    except Exception:
+        pass
+    return None
 
 
 def generate_po_number(tenant_id: str, po_series_id: Optional[int] = None) -> str:
@@ -97,19 +139,25 @@ def create_purchase_order(
         int: The ID of the created PO
     """
     with transaction.atomic():
+        po_series_id = _validate_po_series_id(po_data.get('po_series_id'))
+        vendor_id = _validate_vendor_id(po_data.get('vendor_id'))
+        po_date = _parse_date(po_data.get('po_date')) or date.today()
+        receive_by = _parse_date(po_data.get('receive_by'))
+
         # Generate PO number
-        po_number = generate_po_number(tenant_id, po_data.get('po_series_id'))
+        po_number = generate_po_number(tenant_id, po_series_id)
         
         # Calculate totals safely from items
-        total_taxable_value = sum(_to_decimal(item.get('taxable_value')) for item in items_data)
-        total_tax = sum(_to_decimal(item.get('gst_amount')) for item in items_data)
-        total_value = sum(_to_decimal(item.get('invoice_value')) for item in items_data)
+        total_taxable_value = sum(_to_decimal(item.get('taxable_value') or item.get('taxableValue')) for item in items_data)
+        total_tax = sum(_to_decimal(item.get('gst_amount') or item.get('totalTax')) for item in items_data)
+        total_value = sum(_to_decimal(item.get('invoice_value') or item.get('netValue')) for item in items_data)
         
         # Insert PO header
         po_query = """
             INSERT INTO vendor_transaction_po (
                 tenant_id,
                 po_number,
+                po_date,
                 po_series_id,
                 vendor_basic_detail_id,
                 vendor_name,
@@ -134,15 +182,16 @@ def create_purchase_order(
                 created_by,
                 created_at,
                 updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
         """
         
         with connection.cursor() as cursor:
             cursor.execute(po_query, [
                 tenant_id,
                 po_number,
-                po_data.get('po_series_id'),
-                po_data.get('vendor_id'),
+                po_date,
+                po_series_id,
+                vendor_id,
                 po_data.get('vendor_name'),
                 po_data.get('branch'),
                 po_data.get('address_line1'),
@@ -154,7 +203,7 @@ def create_purchase_order(
                 po_data.get('pincode'),
                 po_data.get('email_address'),
                 po_data.get('contract_no'),
-                po_data.get('receive_by'),
+                receive_by,
                 po_data.get('receive_at'),
                 po_data.get('delivery_terms'),
                 total_taxable_value,
@@ -197,14 +246,14 @@ def create_purchase_order(
                         item.get('item_code'),
                         item.get('item_name'),
                         item.get('supplier_item_code'),
-                        item.get('quantity', 0),
-                        item.get('uom'),
-                        item.get('negotiated_rate', 0),
-                        item.get('final_rate', 0),
-                        item.get('taxable_value', 0),
-                        item.get('gst_rate', 0),
-                        item.get('gst_amount', 0),
-                        item.get('invoice_value', 0),
+                        _to_decimal(item.get('quantity')),
+                        item.get('uom') or item.get('uqc') or 'PCS',
+                        _to_decimal(item.get('negotiated_rate') or item.get('basePrice')),
+                        _to_decimal(item.get('final_rate') or item.get('finalRate')),
+                        _to_decimal(item.get('taxable_value') or item.get('taxableValue')),
+                        _to_decimal(item.get('gst_rate') or item.get('gstRate')),
+                        _to_decimal(item.get('gst_amount')),
+                        _to_decimal(item.get('invoice_value') or item.get('netValue')),
                         1  # is_active
                     ])
             
@@ -361,13 +410,18 @@ def update_purchase_order(
     Update an existing purchase order with items
     """
     with transaction.atomic():
-        total_taxable_value = sum(Decimal(str(item.get('taxable_value', 0))) for item in items_data)
-        total_tax = sum(Decimal(str(item.get('gst_amount', 0))) for item in items_data)
-        total_value = sum(Decimal(str(item.get('invoice_value', 0))) for item in items_data)
+        vendor_id = _validate_vendor_id(po_data.get('vendor_id'))
+        po_date = _parse_date(po_data.get('po_date')) or date.today()
+        receive_by = _parse_date(po_data.get('receive_by'))
+
+        total_taxable_value = sum(_to_decimal(item.get('taxable_value') or item.get('taxableValue')) for item in items_data)
+        total_tax = sum(_to_decimal(item.get('gst_amount') or item.get('totalTax')) for item in items_data)
+        total_value = sum(_to_decimal(item.get('invoice_value') or item.get('netValue')) for item in items_data)
         
         update_query = """
             UPDATE vendor_transaction_po SET
                 vendor_basic_detail_id = %s,
+                po_date = %s,
                 vendor_name = %s,
                 branch = %s,
                 address_line1 = %s,
@@ -392,7 +446,8 @@ def update_purchase_order(
         
         with connection.cursor() as cursor:
             cursor.execute(update_query, [
-                po_data.get('vendor_id'),
+                vendor_id,
+                po_date,
                 po_data.get('vendor_name'),
                 po_data.get('branch'),
                 po_data.get('address_line1'),
@@ -404,7 +459,7 @@ def update_purchase_order(
                 po_data.get('pincode'),
                 po_data.get('email_address'),
                 po_data.get('contract_no'),
-                po_data.get('receive_by'),
+                receive_by,
                 po_data.get('receive_at'),
                 po_data.get('delivery_terms'),
                 total_taxable_value,
@@ -416,7 +471,7 @@ def update_purchase_order(
             ])
             
             # Delete old items
-            cursor.execute("DELETE FROM vendor_transaction_po_items WHERE po_id = %s AND tenant_id = %s", [po_id, tenant_id])
+            cursor.execute("DELETE FROM vendor_transaction_po_items WHERE po_id = %s", [po_id])
             
             # Insert new items
             if items_data:
@@ -424,8 +479,8 @@ def update_purchase_order(
                     INSERT INTO vendor_transaction_po_items (
                         tenant_id, po_id, item_code, item_name, supplier_item_code,
                         quantity, uom, negotiated_rate, final_rate, taxable_value,
-                        gst_rate, gst_amount, invoice_value, created_at, updated_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                        gst_rate, gst_amount, invoice_value, is_active, created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, NOW(), NOW())
                 """
                 for item in items_data:
                     cursor.execute(item_query, [
@@ -434,14 +489,14 @@ def update_purchase_order(
                         item.get('item_code'),
                         item.get('item_name'),
                         item.get('supplier_item_code'),
-                        item.get('quantity', 0),
-                        item.get('uom', 'PCS'),
-                        item.get('negotiated_rate', 0),
-                        item.get('final_rate', 0),
-                        item.get('taxable_value', 0),
-                        item.get('gst_rate', 0),
-                        item.get('gst_amount', 0),
-                        item.get('invoice_value', 0)
+                        _to_decimal(item.get('quantity')),
+                        item.get('uom') or item.get('uqc') or 'PCS',
+                        _to_decimal(item.get('negotiated_rate') or item.get('basePrice')),
+                        _to_decimal(item.get('final_rate') or item.get('finalRate')),
+                        _to_decimal(item.get('taxable_value') or item.get('taxableValue')),
+                        _to_decimal(item.get('gst_rate') or item.get('gstRate')),
+                        _to_decimal(item.get('gst_amount')),
+                        _to_decimal(item.get('invoice_value') or item.get('netValue'))
                     ])
         return True
 

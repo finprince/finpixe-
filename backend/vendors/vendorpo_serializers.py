@@ -83,7 +83,7 @@ class VendorPOCreateSerializer(serializers.Serializer):
     """
     # PO Header fields
     po_series_id = serializers.IntegerField(required=False, allow_null=True)
-    po_date = serializers.DateField(required=False, allow_null=True)
+    po_date = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     vendor_id = serializers.IntegerField(required=False, allow_null=True)
     vendor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     branch = serializers.CharField(max_length=200, required=False, allow_blank=True)
@@ -96,7 +96,7 @@ class VendorPOCreateSerializer(serializers.Serializer):
     pincode = serializers.CharField(max_length=20, required=False, allow_blank=True)
     email_address = serializers.EmailField(max_length=255, required=False, allow_blank=True)
     contract_no = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    receive_by = serializers.DateField(required=False, allow_null=True)
+    receive_by = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     receive_at = serializers.CharField(max_length=200, required=False, allow_blank=True)
     delivery_terms = serializers.CharField(required=False, allow_blank=True)
     
