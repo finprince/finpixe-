@@ -11,6 +11,9 @@ RUN npm install
 # Copy project files
 COPY . .
 
+# Allocate Node memory for build
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
 # Build production bundle
 RUN npm run build
 

@@ -45,7 +45,10 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: './dist',
-      emptyOutDir: true
+      emptyOutDir: true,
+      sourcemap: false,
+      minify: 'esbuild',
+      chunkSizeWarningLimit: 2000,
     }
   }
 })
