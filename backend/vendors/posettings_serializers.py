@@ -47,6 +47,8 @@ class VendorMasterPOSettingsCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating VendorMasterPOSettings.
     """
+    prefix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    suffix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
     category = serializers.PrimaryKeyRelatedField(
         queryset=VendorMasterCategory.objects.all(),
         required=False,
@@ -87,19 +89,21 @@ class VendorMasterPOSettingsCreateSerializer(serializers.ModelSerializer):
         """Validate prefix length"""
         if value and len(value) > 50:
             raise serializers.ValidationError("Prefix cannot exceed 50 characters")
-        return value
+        return value if value is not None else ''
     
     def validate_suffix(self, value):
         """Validate suffix length"""
         if value and len(value) > 50:
             raise serializers.ValidationError("Suffix cannot exceed 50 characters")
-        return value
+        return value if value is not None else ''
 
 
 class VendorMasterPOSettingsUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating VendorMasterPOSettings.
     """
+    prefix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    suffix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
     category = serializers.PrimaryKeyRelatedField(
         queryset=VendorMasterCategory.objects.all(),
         required=False,

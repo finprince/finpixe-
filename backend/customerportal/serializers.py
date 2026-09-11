@@ -33,6 +33,9 @@ class CustomerMasterCategorySerializer(serializers.ModelSerializer):
 
 class CustomerMastersSalesQuotationSerializer(serializers.ModelSerializer):
     """Serializer for Customer Masters Sales Quotation Series"""
+    prefix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    suffix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    customer_category = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
 
     class Meta:
         model = CustomerMastersSalesQuotation
@@ -41,6 +44,9 @@ class CustomerMastersSalesQuotationSerializer(serializers.ModelSerializer):
 
 class CustomerMastersSalesOrderSerializer(serializers.ModelSerializer):
     """Serializer for Customer Masters Sales Order Series"""
+    prefix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    suffix = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    customer_category = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
 
     class Meta:
         model = CustomerMastersSalesOrder
