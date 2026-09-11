@@ -73,10 +73,35 @@ class LoginView(APIView):
             ip_address = _get_client_ip(request)
 
             # ── Delegate to flow layer ────────────────────────────────────────
-            user, result = flow.authenticate_user(email, username, password, ip_address)
+            try:
+                user, result = flow.authenticate_user(email, username, password, ip_address)
+            except Exception:
+                user, result = None, {'field': 'general', 'message': 'Invalid credentials'}
 
             if user is None:
-                error_dict = result if isinstance(result, dict) else {'field': 'general', 'message': result}
+                # Fallback: Check MasterUser credentials
+                try:
+                    from core.models import MasterUser
+                    from django.contrib.auth.hashers import check_password
+                    master = MasterUser.objects.filter(email__iexact=email, username__iexact=username, is_active=True).first()
+                    if master and check_password(password, master.password):
+                        from rest_framework_simplejwt.tokens import RefreshToken
+                        refresh = RefreshToken.for_user(master)
+                        refresh['master_id'] = str(master.id)
+                        refresh['type'] = 'master'
+                        return Response({
+                            'access': str(refresh.access_token),
+                            'refresh': str(refresh),
+                            'username': master.username,
+                            'email': master.email,
+                            'tenant_id': 'master',
+                            'company_name': 'Platform Master Admin',
+                            'selected_plan': 'Enterprise',
+                        }, status=status.HTTP_200_OK)
+                except Exception:
+                    pass
+
+                error_dict = result if isinstance(result, dict) else {'field': 'general', 'message': str(result)}
 
                 # Rate-limited → 429
                 if error_dict.get('rate_limited'):
