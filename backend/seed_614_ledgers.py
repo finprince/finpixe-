@@ -1,0 +1,656 @@
+import os
+import sys
+import csv
+import django
+
+sys.path.insert(0, '.')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+django.setup()
+
+from accounting.models import MasterHierarchyRaw
+
+CSV_DATA = """type_of_business_1,financial_reporting_1,major_group_1,group_1,sub_group_1_1,sub_group_2_1,sub_group_3_1,ledger_1,I,J,K,L,M,N,O,P,code
+Company,Balance Sheet,Owners'  Funds,Share capital,Equity Share Capital,-,-,-,2,1,1,1,1,0,0,0,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Share capital,Preference Share Capital,-,-,-,2,1,1,1,2,0,0,0,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Reserves and surplus,General Reserves,-,-,-,2,1,1,2,1,0,0,0,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Reserves and surplus,Revaluation Reserves,-,-,-,2,1,1,2,2,0,0,0,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Reserves and surplus,Surplus,,,Profit and Losss account,2,1,1,2,3,0,0,1,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Reserves and surplus,Other  Capital reserves,,,,2,1,1,2,4,0,0,0,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Reserves and surplus,Other Revenue Reserves,,,,2,1,1,2,5,0,0,0,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Reserves and surplus,,-,-,Securities Premium,2,1,1,2,0,0,0,1,201010000000000.0
+Company,Balance Sheet,Owners'  Funds,Money received against share warrants,-,-,-,-,2,1,1,3,0,0,0,0,201010000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Term loans,-,2,1,2,1,1,1,1,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Other loans/ Facilities,,2,1,2,1,1,1,2,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Longterm Loans from Related Parties (Secured),,,2,1,2,1,1,2,0,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term Loans from other parties (Secured),Term Loans,,2,1,2,1,1,3,1,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long term loans from other parties (Secured),Other loans/ Facilities,,2,1,2,1,1,4,1,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term loans From Banks (unsecured),-,-,2,1,2,1,2,1,0,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Longterm Loans from Related Parties (unsecured),-,-,2,1,2,1,2,2,0,0,201020000000000.0
+Company,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term Loans from other parties (unsecured),-,-,2,1,2,1,2,3,0,0,201020000000000.0
+Company,Balance Sheet,Liability,Other Long-term liabilities,-,-,-,-,2,1,2,2,0,0,0,0,201020000000000.0
+Company,Balance Sheet,Liability,Deferred tax liabilities (Net),-,-,-,Deffered Tax Liability,2,1,2,3,0,0,0,1,201020000000000.0
+Company,Balance Sheet,Liability,Long-term provisions,-,-,-,-,2,1,2,4,0,0,0,0,201020000000000.0
+Company,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term loans From Banks (secured),-,-,2,1,2,5,1,1,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),shortterm Loans from Related Parties (secured),,,2,1,2,5,1,2,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term Loans from other parties (secured),,,2,1,2,5,1,3,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term loans From Banks (unsecured),,,2,1,2,5,2,1,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),shortterm Loans from Related Parties (unsecured),,,2,1,2,5,2,2,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term Loans from other parties (unsecured),,,2,1,2,5,2,3,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Interest accrued,-,-,-,2,1,2,6,1,0,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Bank OD/CC Accounts,-,-,-,2,1,2,6,2,0,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,GST Payable,-,-,-,2,1,2,6,3,0,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Input Tax Credit Ledger,2,1,2,6,5,1,0,1,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Output Tax Liability Ledger,2,1,2,6,5,1,0,2,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,,,2,1,2,6,5,1,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),Advance Tax,-,-,2,1,2,7,1,1,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Deducted at Source Payable,-,TDS payable,2,1,2,6,5,2,0,1,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Collected at Source Payable,-,TCS payable,2,1,2,6,5,2,0,2,201021000000000.0
+Company,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),TDS & TCS Receivable,-,-,2,1,2,7,1,2,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,Dividend Payable,-,-,-,2,1,2,6,6,0,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Other current liabilities,others,-,-,-,2,1,2,6,7,0,0,0,201021000000000.0
+Company,Balance Sheet,Liability,Short-term provisions,-,-,-,-,2,1,2,8,0,0,0,0,201021000000000.0
+Company,Balance Sheet,Asset,"Property, Plant & Equipment",Tangible assets,-,-,-,2,1,3,1,1,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible Assets,-,-,-,2,1,3,1,2,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,"Property, Plant & Equipment",Capital work-in-progress,-,-,-,2,1,3,1,3,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible assets under development,-,-,-,2,1,3,1,4,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments in Other Entities,-,-,-,2,1,3,2,1,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments in preference shares ,-,-,-,2,1,3,2,2,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments in equity instruments,-,-,-,2,1,3,2,3,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments in government or trust securities ,-,-,-,2,1,3,2,4,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments in debentures or bonds ,-,-,-,2,1,3,2,5,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments in mutual funds ,-,-,-,2,1,3,2,6,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Investments property,-,-,-,2,1,3,2,7,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Non-current investments,Other Non current investment,-,-,-,2,1,3,2,8,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Deferred tax assets (net),-,-,-,Deffered tax Asset,2,1,3,3,0,0,0,1,201030000000000.0
+Company,Balance Sheet,Asset,Long Term Loans and Advances,-,-,-,-,2,1,3,4,0,0,0,0,201030000000000.0
+Company,Balance Sheet,Asset,Other non-current assets,-,-,-,-,2,1,3,5,0,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments in Other Entities,-,-,-,2,1,3,6,1,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments in preference shares ,-,-,-,2,1,3,6,2,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments in equity instruments,-,-,-,2,1,3,6,3,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments in government or trust securities ,-,-,-,2,1,3,6,4,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments in debentures or bonds ,-,-,-,2,1,3,6,5,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments in mutual funds ,-,-,-,2,1,3,6,6,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Investments property,-,-,-,2,1,3,6,7,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Current investments,Others,-,-,-,2,1,3,6,8,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Cash and cash equivalents,Cash,-,-,-,2,1,3,7,1,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Cash and cash equivalents,In Bank accounts,-,-,-,2,1,3,7,2,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Cash and cash equivalents,Others,,,,2,1,3,7,3,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Short Term Loans and Advances ,-,-,-,-,2,1,3,8,0,0,0,0,201031000000000.0
+Company,Balance Sheet,Asset,Other current assets,-,-,-,-,2,1,3,9,0,0,0,0,201031000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Nil rated,2,2,1,1,1,1,1,1,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Exempted,2,2,1,1,1,1,1,2,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Taxable,2,2,1,1,1,1,1,3,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Nil rated,2,2,1,1,2,1,1,1,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Exempted,2,2,1,1,2,1,1,2,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Taxable,2,2,1,1,2,1,1,3,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Nil rated,2,2,1,1,1,1,2,1,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Exempted,2,2,1,1,1,1,2,2,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services -Taxable,2,2,1,1,1,1,2,3,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Exempted,2,2,1,1,2,1,2,1,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Nil rated,2,2,1,1,2,1,2,2,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Taxable,2,2,1,1,2,1,2,3,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service - Nil rated,2,2,1,1,3,1,1,1,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Exempted,2,2,1,1,3,1,1,2,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  with payment of Tax,2,2,1,1,3,1,1,3,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Without payment of tax,2,2,1,1,3,1,1,4,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods - Nil rated,2,2,1,1,2,1,3,1,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Exempted,2,2,1,1,2,1,3,2,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  with payment of Tax,2,2,1,1,2,1,3,3,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Without payment of tax,2,2,1,1,2,1,3,4,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Services,Non-GST Sales - Services ,-,-,2,2,1,1,1,2,0,0,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,Non-GST Sales - Goods,-,-,2,2,1,1,2,2,0,0,202010000000000.0
+Company,Profit & Loss Account,Income,Revenue from operations,-,-,-,MSME Interest Income,2,2,1,1,0,0,0,1,202010000000000.0
+Company,Profit & Loss Account,Income,Other Income,Interest Income,-,-,-,2,2,1,2,1,0,0,0,202010000000000.0
+Company,Profit & Loss Account,Income,Other Income,Dividend Income,-,-,-,2,2,1,2,2,0,0,0,202010000000000.0
+Company,Profit & Loss Account,Income,Other Income,Net gain on fair value changes,-,-,-,2,2,1,2,3,0,0,0,202010000000000.0
+Company,Profit & Loss Account,Income,Other Income,Net gain on derecognition of financial instruments under amortised cost category,-,-,-,2,2,1,2,4,0,0,0,202010000000000.0
+Company,Profit & Loss Account,Income,Other Income,Others,-,-,-,2,2,1,2,5,0,0,0,202010000000000.0
+Company,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,-,-,-,2,2,2,1,0,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,Raw Material,-,-,2,2,2,1,1,1,1,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stores and spares,-,-,2,2,2,1,1,1,2,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,packing material,-,-,2,2,2,1,1,1,3,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stock in trade,-,-,2,2,2,1,1,1,4,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,"Changes in Inventories of finished goods, stock-in-trade and work-in- progress",-,-,-,-,2,2,2,2,0,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Salary,-,-,-,2,2,2,3,1,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Bonus,-,-,-,2,2,2,3,2,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Wages,-,-,-,2,2,2,3,3,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Staff welfare expenses,-,-,-,2,2,2,3,4,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Incentives,,,,2,2,2,3,5,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Others,,,,2,2,2,3,6,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Finance Costs,Interest on bank loan,-,-,-,2,2,2,4,1,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Finance costs,Interest on other loans,-,-,-,2,2,2,5,1,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Finance Costs,Other borrowing costs,-,-,-,2,2,2,4,2,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,Finance Costs,Impairment on financial instruments,-,-,-,2,2,2,4,3,0,0,0,202020000000000.0
+Company,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Depreciation expense,2,2,2,6,0,0,0,1,202021000000000.0
+Company,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Amortization expense,2,2,2,6,0,0,0,2,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,Fees and commission expense,-,-,-,2,2,2,7,1,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,Net loss on fair value changes,-,-,-,2,2,2,7,2,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,Net loss on derecognition of financial instruments under amortised cost category,-,-,-,2,2,2,7,3,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rent,2,2,2,7,0,0,0,1,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Electricity,2,2,2,7,0,0,0,2,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,Repairs & Maintenance,-,-,-,2,2,2,7,4,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Insurance,2,2,2,7,0,0,0,3,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Processing / Labour charges,2,2,2,7,0,0,0,4,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Travelling, Conveyance & Boarding",2,2,2,7,0,0,0,5,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Auditor's remuneration,2,2,2,7,0,0,0,6,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Printing & Stationery,2,2,2,7,0,0,0,7,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Advertisement expense,2,2,2,7,0,0,0,8,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission,2,2,2,7,0,0,0,9,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Legal and Professional Charges,2,2,2,7,0,0,0,10,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Miscellaneous expenses,2,2,2,7,0,0,0,11,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Fuel expenses,2,2,2,7,0,0,0,12,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Communication expenses,2,2,2,7,0,0,0,13,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Freight, clearing and forwarding",2,2,2,7,0,0,0,14,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission and brokerage,2,2,2,7,0,0,0,15,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Roc Fees,2,2,2,7,0,0,0,16,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,GST and VAT payments,2,2,2,7,0,0,0,17,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Donations,2,2,2,7,0,0,0,18,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Bad debts written off,2,2,2,7,0,0,0,19,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"IT, Internet & server maintenance expenses",2,2,2,7,0,0,0,20,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Business & Sales promotion expenses,2,2,2,7,0,0,0,21,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Gain,2,2,2,7,0,0,0,22,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Loss,2,2,2,7,0,0,0,23,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Office Maintenance,2,2,2,7,0,0,0,24,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Round off ,2,2,2,7,0,0,0,25,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rebates and discounts,2,2,2,7,0,0,0,26,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Consumption of stores and spare parts,2,2,2,7,0,0,0,27,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Licences and taxes, excluding, taxes on income",2,2,2,7,0,0,0,28,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Loss on sale of assets,2,2,2,7,0,0,0,29,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Statutory fee, interest & penalty",2,2,2,7,0,0,0,30,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,Director's Remuneration,-,-,-,2,2,2,7,5,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,MSME Interest Expense,2,2,2,7,0,0,0,31,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,Dividend to Shareholders,-,-,,2,2,2,7,6,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Other expenses,-,-,-,,2,2,2,7,0,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Current tax,2,2,2,8,0,0,0,1,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Excess/short provision of tax relating to earlier year,2,2,2,8,0,0,0,2,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,-,2,2,2,8,1,0,0,0,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Expense,2,2,2,8,1,1,0,1,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Income,2,2,2,8,1,1,0,2,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Liability Reversal,2,2,2,8,1,1,0,3,202021000000000.0
+Company,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Income Reversal,2,2,2,8,1,1,0,4,202021000000000.0
+LLP/Partnership,Balance Sheet,Owners'  Funds,Partners'  Capital Contribution,-,-,-,-,3,1,1,1,0,0,0,0,301010000000000.0
+LLP/Partnership,Balance Sheet,Owners'  Funds,Partners' Current Account,-,-,-,-,3,1,1,2,0,0,0,0,301010000000000.0
+LLP/Partnership,Balance Sheet,Owners'  Funds,Reserves & Surplus,Capital Reserve,-,-,-,3,1,1,3,1,0,0,0,301010000000000.0
+LLP/Partnership,Balance Sheet,Owners'  Funds,Reserves & Surplus,Revaluation Reserve,-,-,-,3,1,1,3,2,0,0,0,301010000000000.0
+LLP/Partnership,Balance Sheet,Owners'  Funds,Reserves & Surplus,Undistributed Surplus ,-,-,-,3,1,1,3,3,0,0,0,301010000000000.0
+LLP/Partnership,Balance Sheet,Owners'  Funds,Reserves and surplus,-,-,-,Profit & Loss Account,3,1,1,4,0,0,0,1,301010000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Term loans,-,3,1,2,1,1,1,1,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Other loans/ Facilities,,3,1,2,1,1,1,2,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Longterm Loans from Related Parties (Secured),,,3,1,2,1,1,2,0,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term Loans from other parties (Secured),Term Loans,,3,1,2,1,1,3,1,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long term loans from other parties (Secured),Other loans/ Facilities,,3,1,2,1,1,4,1,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term loans From Banks (unsecured),-,-,3,1,2,1,2,1,0,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Longterm Loans from Related Parties (unsecured),-,-,3,1,2,1,2,2,0,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term Loans from other parties (unsecured),-,-,3,1,2,1,2,3,0,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other Long-term liabilities,-,-,-,-,3,1,2,2,0,0,0,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Deferred tax liabilities (Net),-,-,-,Deffered Tax Liability,3,1,2,3,0,0,0,1,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Long-term provisions,-,-,-,-,3,1,2,4,0,0,0,0,301020000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term loans From Banks (secured),-,-,3,1,2,5,1,1,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),shortterm Loans from Related Parties (secured),,,3,1,2,5,1,2,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term Loans from other parties (secured),,,3,1,2,5,1,3,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term loans From Banks (unsecured),,,3,1,2,5,2,1,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),shortterm Loans from Related Parties (unsecured),,,3,1,2,5,2,2,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term Loans from other parties (unsecured),,,3,1,2,5,2,3,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Interest accrued,-,-,-,3,1,2,6,1,0,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Bank OD/CC Accounts,-,-,-,3,1,2,6,2,0,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,GST Payable,-,-,-,3,1,2,6,3,0,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Input Tax Credit Ledger,3,1,2,6,5,1,0,1,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Output Tax Liability Ledger,3,1,2,6,5,1,0,2,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,,,3,1,2,6,5,1,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),Advance Tax,-,-,3,1,2,7,1,1,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),TDS & TCS Receivable,-,-,3,1,2,7,1,2,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,others,-,-,-,3,1,2,6,6,0,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Deducted at Source Payable,-,TDS payable,3,1,2,6,5,2,0,1,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Collected at Source Payable,-,TCS payable,3,1,2,6,5,2,0,2,301021000000000.0
+LLP/Partnership,Balance Sheet,Liability,Short-term provisions,-,-,-,-,3,1,2,8,0,0,0,0,301021000000000.0
+LLP/Partnership,Balance Sheet,Asset,"Property, Plant & Equipment",Tangible assets,-,-,-,3,1,3,1,1,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible Assets,-,-,-,3,1,3,1,2,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,"Property, Plant & Equipment",Capital work-in-progress,-,-,-,3,1,3,1,3,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible assets under development,-,-,-,3,1,3,1,4,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments in Other Entities,-,-,-,3,1,3,2,1,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments in preference shares ,-,-,-,3,1,3,2,2,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments in equity instruments,-,-,-,3,1,3,2,3,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments in government or trust securities ,-,-,-,3,1,3,2,4,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments in debentures or bonds ,-,-,-,3,1,3,2,5,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments in mutual funds ,-,-,-,3,1,3,2,6,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Investments property,-,-,-,3,1,3,2,7,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Non-current investments,Other Non current investment,-,-,-,3,1,3,2,8,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Deferred tax assets (net),-,-,-,Deffered tax Asset,3,1,3,3,0,0,0,1,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Long Term Loans and Advances,-,-,-,-,3,1,3,4,0,0,0,0,301030000000000.0
+LLP/Partnership,Balance Sheet,Asset,Other non-current assets,-,-,-,-,3,1,3,5,0,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments in Other Entities,-,-,-,3,1,3,6,1,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments in preference shares ,-,-,-,3,1,3,6,2,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments in equity instruments,-,-,-,3,1,3,6,3,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments in government or trust securities ,-,-,-,3,1,3,6,4,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments in debentures or bonds ,-,-,-,3,1,3,6,5,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments in mutual funds ,-,-,-,3,1,3,6,6,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Investments property,-,-,-,3,1,3,6,7,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Current investments,Others,-,-,-,3,1,3,6,8,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Cash and cash equivalents,Cash,-,-,-,3,1,3,7,1,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Cash and cash equivalents,In Bank accounts,-,-,-,3,1,3,7,2,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Cash and cash equivalents,Others,,,,3,1,3,7,3,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Short Term Loans and Advances ,-,-,-,-,3,1,3,8,0,0,0,0,301031000000000.0
+LLP/Partnership,Balance Sheet,Asset,Other current assets,-,-,-,-,3,1,3,9,0,0,0,0,301031000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Nil rated,3,2,1,1,1,1,1,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Exempted,3,2,1,1,1,1,1,2,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Taxable,3,2,1,1,1,1,1,3,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Nil rated,3,2,1,1,2,1,1,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Exempted,3,2,1,1,2,1,1,2,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Taxable,3,2,1,1,2,1,1,3,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Nil rated,3,2,1,1,1,1,2,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Exempted,3,2,1,1,1,1,2,2,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services -Taxable,3,2,1,1,1,1,2,3,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Exempted,3,2,1,1,2,1,2,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Nil rated,3,2,1,1,2,1,2,2,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Taxable,3,2,1,1,2,1,2,3,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service - Nil rated,3,2,1,1,3,1,1,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Exempted,3,2,1,1,3,1,1,2,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  with payment of Tax,3,2,1,1,3,1,1,3,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Without payment of tax,3,2,1,1,3,1,1,4,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods - Nil rated,3,2,1,1,2,1,3,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Exempted,3,2,1,1,2,1,3,2,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  with payment of Tax,3,2,1,1,2,1,3,3,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Without payment of tax,3,2,1,1,2,1,3,4,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Services,Non-GST Sales - Services ,-,-,3,2,1,1,1,2,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,Non-GST Sales - Goods,-,-,3,2,1,1,2,2,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Revenue from operations,-,-,-,MSME Interest Income,3,2,1,1,0,0,0,1,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Other Income,Interest Income,-,-,-,3,2,1,2,1,0,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Other Income,Dividend Income,-,-,-,3,2,1,2,2,0,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Other Income,Net gain on fair value changes,-,-,-,3,2,1,2,3,0,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Other Income,Net gain on derecognition of financial instruments under amortised cost category,-,-,-,3,2,1,2,4,0,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Income,Other Income,Others,-,-,-,3,2,1,2,5,0,0,0,302010000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,-,-,-,3,2,2,1,0,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,Raw Material,-,-,2,2,2,1,1,1,1,0,202020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stores and spares,-,-,2,2,2,1,1,1,2,0,202020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,packing material,-,-,2,2,2,1,1,1,3,0,202020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stock in trade,-,-,2,2,2,1,1,1,4,0,202020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,"Changes in Inventories of finished goods, stock-in-trade and work-in- progress",-,-,-,-,3,2,2,2,0,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Salary,-,-,-,3,2,2,3,1,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Bonus,-,-,-,3,2,2,3,2,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Wages,-,-,-,3,2,2,3,3,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Staff welfare expenses,-,-,-,3,2,2,3,4,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Incentives,,,,3,2,2,3,5,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Others,,,,3,2,2,3,6,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Finance Costs,Interest on bank loan,-,-,-,3,2,2,4,1,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Finance costs,Interest on other loans,-,-,-,3,2,2,5,1,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Finance Costs,Other borrowing costs,-,-,-,3,2,2,4,2,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Finance Costs,Impairment on financial instruments,-,-,-,3,2,2,4,3,0,0,0,302020000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Depreciation expense,3,2,2,6,0,0,0,1,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Amortization expense,3,2,2,6,0,0,0,2,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,Fees and commission expense,-,-,-,3,2,2,7,1,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,Net loss on fair value changes,-,-,-,3,2,2,7,2,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,Net loss on derecognition of financial instruments under amortised cost category,-,-,-,3,2,2,7,3,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rent,3,2,2,7,0,0,0,1,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Electricity,3,2,2,7,0,0,0,2,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,Repairs & Maintenance,-,-,-,3,2,2,7,4,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Insurance,3,2,2,7,0,0,0,3,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Processing / Labour charges,3,2,2,7,0,0,0,4,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Travelling, Conveyance & Boarding",3,2,2,7,0,0,0,5,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Auditor's remuneration,3,2,2,7,0,0,0,6,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Printing & Stationery,3,2,2,7,0,0,0,7,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Advertisement expense,3,2,2,7,0,0,0,8,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission,3,2,2,7,0,0,0,9,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Legal and Professional Charges,3,2,2,7,0,0,0,10,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Miscellaneous expenses,3,2,2,7,0,0,0,11,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Fuel expenses,3,2,2,7,0,0,0,12,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Communication expenses,3,2,2,7,0,0,0,13,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Freight, clearing and forwarding",3,2,2,7,0,0,0,14,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission and brokerage,3,2,2,7,0,0,0,15,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Roc Fees,3,2,2,7,0,0,0,16,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,GST and VAT payments,3,2,2,7,0,0,0,17,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Donations,3,2,2,7,0,0,0,18,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Bad debts written off,3,2,2,7,0,0,0,19,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"IT, Internet & server maintenance expenses",3,2,2,7,0,0,0,20,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Business & Sales promotion expenses,3,2,2,7,0,0,0,21,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Gain,3,2,2,7,0,0,0,22,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Loss,3,2,2,7,0,0,0,23,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Office Maintenance,3,2,2,7,0,0,0,24,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Round off ,3,2,2,7,0,0,0,25,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rebates and discounts,3,2,2,7,0,0,0,26,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Consumption of stores and spare parts,3,2,2,7,0,0,0,27,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Licences and taxes, excluding, taxes on income",3,2,2,7,0,0,0,28,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Loss on sale of assets,3,2,2,7,0,0,0,29,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Statutory fee, interest & penalty",3,2,2,7,0,0,0,30,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,Partner's Remuneration,-,-,-,3,2,2,7,5,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,MSME Interest Expense,3,2,2,7,0,0,0,31,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,Interest on Capital contributed by partners,-,-,,3,2,2,7,6,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Other expenses,-,-,-,,3,2,2,7,0,0,0,0,302021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Current tax,2,2,2,8,0,0,0,1,202021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Excess/short provision of tax relating to earlier year,2,2,2,8,0,0,0,2,202021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,-,2,2,2,8,1,0,0,0,202021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Expense,2,2,2,8,1,1,0,1,202021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Income,2,2,2,8,1,1,0,2,202021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Liability Reversal,2,2,2,8,1,1,0,3,202021000000000.0
+LLP/Partnership,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Income Reversal,2,2,2,8,1,1,0,4,202021000000000.0
+Non-Profit Organization,Balance Sheet,NPO Funds,Unrestricted Funds,Corpus Funds,-,-,-,4,1,1,1,1,0,0,0,401010000000000.0
+Non-Profit Organization,Balance Sheet,NPO Funds,Unrestricted Funds,General Funds,-,-,-,4,1,1,1,2,0,0,0,401010000000000.0
+Non-Profit Organization,Balance Sheet,NPO Funds,Restricted Funds,General Funds,-,-,-,4,1,1,2,1,0,0,0,401010000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Term loans,-,4,1,2,1,1,1,1,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Other loans/ Facilities,,4,1,2,1,1,1,2,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Longterm Loans from Related Parties (Secured),,,4,1,2,1,1,2,0,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term Loans from other parties (Secured),Term Loans,,4,1,2,1,1,3,1,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long term loans from other parties (Secured),Other loans/ Facilities,,4,1,2,1,1,4,1,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term loans From Banks (unsecured),-,-,4,1,2,1,2,1,0,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Longterm Loans from Related Parties (unsecured),-,-,4,1,2,1,2,2,0,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term Loans from other parties (unsecured),-,-,4,1,2,1,2,3,0,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other Long-term liabilities,-,-,-,-,4,1,2,2,0,0,0,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Deferred tax liabilities (Net),-,-,-,Deffered Tax Liability,4,1,2,3,0,0,0,1,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Long-term provisions,-,-,-,-,4,1,2,4,0,0,0,0,401020000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term loans From Banks (secured),-,-,4,1,2,5,1,1,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),shortterm Loans from Related Parties (secured),,,4,1,2,5,1,2,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term Loans from other parties (secured),,,4,1,2,5,1,3,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term loans From Banks (unsecured),,,4,1,2,5,2,1,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),shortterm Loans from Related Parties (unsecured),,,4,1,2,5,2,2,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term Loans from other parties (unsecured),,,4,1,2,5,2,3,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Interest accrued,-,-,-,4,1,2,6,1,0,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Bank OD/CC Accounts,-,-,-,4,1,2,6,2,0,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,GST Payable,-,-,-,4,1,2,6,3,0,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Input Tax Credit Ledger,4,1,2,6,5,1,0,1,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Output Tax Liability Ledger,4,1,2,6,5,1,0,2,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,,,4,1,2,6,5,1,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),Advance Tax,-,-,4,1,2,7,1,1,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),TDS & TCS Receivable,-,-,4,1,2,7,1,2,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Dividend Payable,-,-,-,4,1,2,6,6,0,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,others,-,-,-,4,1,2,6,7,0,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Short-term provisions,-,-,-,-,4,1,2,8,0,0,0,0,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Deducted at Source Payable,-,TDS payable,4,1,2,6,5,2,0,1,401021000000000.0
+Non-Profit Organization,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Collected at Source Payable,-,TCS payable,4,1,2,6,5,2,0,2,401021000000000.0
+Non-Profit Organization,Balance Sheet,Asset,"Property, Plant & Equipment",Tangible assets,-,-,-,4,1,3,1,1,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible Assets,-,-,-,4,1,3,1,2,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,"Property, Plant & Equipment",Capital work-in-progress,-,-,-,4,1,3,1,3,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible assets under development,-,-,-,4,1,3,1,4,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments in Other Entities,-,-,-,4,1,3,2,1,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments in preference shares ,-,-,-,4,1,3,2,2,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments in equity instruments,-,-,-,4,1,3,2,3,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments in government or trust securities ,-,-,-,4,1,3,2,4,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments in debentures or bonds ,-,-,-,4,1,3,2,5,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments in mutual funds ,-,-,-,4,1,3,2,6,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Investments property,-,-,-,4,1,3,2,7,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Non-current investments,Other Non current investment,-,-,-,4,1,3,2,8,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Deferred tax assets (net),-,-,-,Deffered tax Asset,4,1,3,3,0,0,0,1,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Long Term Loans and Advances,-,-,-,-,4,1,3,4,0,0,0,0,401030000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Other non-current assets,-,-,-,-,4,1,3,5,0,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments in Other Entities,-,-,-,4,1,3,6,1,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments in preference shares ,-,-,-,4,1,3,6,2,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments in equity instruments,-,-,-,4,1,3,6,3,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments in government or trust securities ,-,-,-,4,1,3,6,4,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments in debentures or bonds ,-,-,-,4,1,3,6,5,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments in mutual funds ,-,-,-,4,1,3,6,6,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Investments property,-,-,-,4,1,3,6,7,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Current investments,Others,-,-,-,4,1,3,6,8,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Cash and cash equivalents,Cash,-,-,-,4,1,3,7,1,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Cash and cash equivalents,In Bank accounts,-,-,-,4,1,3,7,2,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Cash and cash equivalents,Others,,,,4,1,3,7,3,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Short Term Loans and Advances ,-,-,-,-,4,1,3,8,0,0,0,0,401031000000000.0
+Non-Profit Organization,Balance Sheet,Asset,Other current assets,-,-,-,-,4,1,3,9,0,0,0,0,401031000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Donations and Grants,-,-,-,4,2,1,1,1,0,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Nil rated,4,2,1,1,2,1,1,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Exempted,4,2,1,1,2,1,1,2,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Taxable,4,2,1,1,2,1,1,3,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Nil rated,4,2,1,1,3,1,1,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Exempted,4,2,1,1,3,1,1,2,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Taxable,4,2,1,1,3,1,1,3,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Nil rated,4,2,1,1,2,1,2,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Exempted,4,2,1,1,2,1,2,2,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services -Taxable,4,2,1,1,2,1,2,3,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Exempted,4,2,1,1,3,1,2,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Nil rated,4,2,1,1,3,1,2,2,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Taxable,4,2,1,1,3,1,2,3,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service - Nil rated,4,2,1,1,4,1,1,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Exempted,4,2,1,1,4,1,1,2,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  with payment of Tax,4,2,1,1,4,1,1,3,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Without payment of tax,4,2,1,1,4,1,1,4,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods - Nil rated,4,2,1,1,3,1,3,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Exempted,4,2,1,1,3,1,3,2,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  with payment of Tax,4,2,1,1,3,1,3,3,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Without payment of tax,4,2,1,1,3,1,3,4,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Services,Non-GST Sales - Services ,-,-,4,2,1,1,2,2,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,Non-GST Sales - Goods,-,-,4,2,1,1,3,2,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Revenue from operations,-,-,-,MSME Interest Income,4,2,1,1,0,0,0,1,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Other Income,Interest Income,-,-,-,4,2,1,2,1,0,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Other Income,Dividend Income,-,-,-,4,2,1,2,2,0,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Other Income,Net gain on fair value changes,-,-,-,4,2,1,2,3,0,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Other Income,Net gain on derecognition of financial instruments under amortised cost category,-,-,-,4,2,1,2,4,0,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Income,Other Income,Others,-,-,-,4,2,1,2,5,0,0,0,402010000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,-,-,-,4,2,2,1,0,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,Raw Material,-,-,2,2,2,1,1,1,1,0,202020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stores and spares,-,-,2,2,2,1,1,1,2,0,202020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,packing material,-,-,2,2,2,1,1,1,3,0,202020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stock in trade,-,-,2,2,2,1,1,1,4,0,202020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,"Changes in Inventories of finished goods, stock-in-trade and work-in- progress",-,-,-,-,4,2,2,2,0,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Salary,-,-,-,4,2,2,3,1,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Bonus,-,-,-,4,2,2,3,2,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Wages,-,-,-,4,2,2,3,3,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Staff welfare expenses,-,-,-,4,2,2,3,4,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Incentives,,,,4,2,2,3,5,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Others,,,,4,2,2,3,6,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Finance Costs,Interest on bank loan,-,-,-,4,2,2,4,1,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Finance costs,Interest on other loans,-,-,-,4,2,2,5,1,0,0,0,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Finance Costs,Other borrowing costs,-,-,-,4,2,2,4,2,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Finance Costs,Impairment on financial instruments,-,-,-,4,2,2,4,3,0,0,0,402020000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Depreciation expense,4,2,2,6,0,0,0,1,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Amortization expense,4,2,2,6,0,0,0,2,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,Fees and commission expense,-,-,-,4,2,2,7,1,0,0,0,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,Net loss on fair value changes,-,-,-,4,2,2,7,2,0,0,0,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,Net loss on derecognition of financial instruments under amortised cost category,-,-,-,4,2,2,7,3,0,0,0,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rent,4,2,2,7,0,0,0,1,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Electricity,4,2,2,7,0,0,0,2,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,Repairs & Maintenance,-,-,-,4,2,2,7,4,0,0,0,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Insurance,4,2,2,7,0,0,0,3,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Processing / Labour charges,4,2,2,7,0,0,0,4,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Travelling, Conveyance & Boarding",4,2,2,7,0,0,0,5,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Auditor's remuneration,4,2,2,7,0,0,0,6,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Printing & Stationery,4,2,2,7,0,0,0,7,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Advertisement expense,4,2,2,7,0,0,0,8,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission,4,2,2,7,0,0,0,9,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Legal and Professional Charges,4,2,2,7,0,0,0,10,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Miscellaneous expenses,4,2,2,7,0,0,0,11,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Fuel expenses,4,2,2,7,0,0,0,12,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Communication expenses,4,2,2,7,0,0,0,13,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Freight, clearing and forwarding",4,2,2,7,0,0,0,14,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission and brokerage,4,2,2,7,0,0,0,15,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Roc Fees,4,2,2,7,0,0,0,16,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,GST and VAT payments,4,2,2,7,0,0,0,17,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Donations,4,2,2,7,0,0,0,18,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Bad debts written off,4,2,2,7,0,0,0,19,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"IT, Internet & server maintenance expenses",4,2,2,7,0,0,0,20,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Business & Sales promotion expenses,4,2,2,7,0,0,0,21,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Gain,4,2,2,7,0,0,0,22,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Loss,4,2,2,7,0,0,0,23,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Office Maintenance,4,2,2,7,0,0,0,24,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Round off ,4,2,2,7,0,0,0,25,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rebates and discounts,4,2,2,7,0,0,0,26,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Consumption of stores and spare parts,4,2,2,7,0,0,0,27,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Licences and taxes, excluding, taxes on income",4,2,2,7,0,0,0,28,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Loss on sale of assets,4,2,2,7,0,0,0,29,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Statutory fee, interest & penalty",4,2,2,7,0,0,0,30,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,MSME Interest Expense,4,2,2,7,0,0,0,31,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Other expenses,-,-,-,,4,2,2,7,0,0,0,0,402021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Current tax,2,2,2,8,0,0,0,1,202021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Excess/short provision of tax relating to earlier year,2,2,2,8,0,0,0,2,202021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,-,2,2,2,8,1,0,0,0,202021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Expense,2,2,2,8,1,1,0,1,202021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Income,2,2,2,8,1,1,0,2,202021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Liability Reversal,2,2,2,8,1,1,0,3,202021000000000.0
+Non-Profit Organization,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Income Reversal,2,2,2,8,1,1,0,4,202021000000000.0
+All other entities,Balance Sheet,Owners'  Funds,Owners' Capital Account,-,-,-,-,1,1,1,1,0,0,0,0,101010000000000.0
+All other entities,Balance Sheet,Owners'  Funds,Reserves and surplus,-,-,-,-,1,1,1,2,0,0,0,0,101010000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Term loans,-,1,1,2,1,1,1,1,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term loans From Banks (Secured),Other loans/ Facilities,,1,1,2,1,1,1,2,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Longterm Loans from Related Parties (Secured),,,1,1,2,1,1,2,0,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long Term Loans from other parties (Secured),Term Loans,,1,1,2,1,1,3,1,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Secured Loans,Long term loans from other parties (Secured),Other loans/ Facilities,,1,1,2,1,1,4,1,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term loans From Banks (unsecured),-,-,1,1,2,1,2,1,0,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Longterm Loans from Related Parties (unsecured),-,-,1,1,2,1,2,2,0,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term borrowings,Unsecured Loans,Long Term Loans from other parties (unsecured),-,-,1,1,2,1,2,3,0,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Other Long-term liabilities,-,-,-,-,1,1,2,2,0,0,0,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Deferred tax liabilities (Net),-,-,-,Deffered Tax Liability,1,1,2,3,0,0,0,1,101020000000000.0
+All other entities,Balance Sheet,Liability,Long-term provisions,-,-,-,-,1,1,2,4,0,0,0,0,101020000000000.0
+All other entities,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term loans From Banks (secured),-,-,1,1,2,5,1,1,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),shortterm Loans from Related Parties (secured),,,1,1,2,5,1,2,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Short-term borrowings,Secured Loans (Short term),short Term Loans from other parties (secured),,,1,1,2,5,1,3,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term loans From Banks (unsecured),,,1,1,2,5,2,1,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),shortterm Loans from Related Parties (unsecured),,,1,1,2,5,2,2,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Short-term borrowings,Unsecured Loans (Short term),short Term Loans from other parties (unsecured),,,1,1,2,5,2,3,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Interest accrued,-,-,-,1,1,2,6,1,0,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Bank OD/CC Accounts,-,-,-,1,1,2,6,2,0,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,GST Payable,-,-,-,1,1,2,6,3,0,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Input Tax Credit Ledger,1,1,2,6,5,1,0,1,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,-,Output Tax Liability Ledger,1,1,2,6,5,1,0,2,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),GST,,,1,1,2,6,5,1,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),Advance Tax,-,-,1,1,2,7,1,1,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current assets,Duties & Taxes (Asset),TDS & TCS Receivable,-,-,1,1,2,7,1,2,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Dividend Payable,-,-,-,1,1,2,6,6,0,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,others,-,-,-,1,1,2,6,7,0,0,0,101021000000000.0
+All other entities,Balance Sheet,Liability,Short-term provisions,-,-,-,-,1,1,2,8,0,0,0,0,101021000000000.0
+All other entities,Balance Sheet,Asset,"Property, Plant & Equipment",Tangible assets,-,-,-,1,1,3,1,1,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible Assets,-,-,-,1,1,3,1,2,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Deducted at Source Payable,-,TDS payable,1,1,2,6,5,2,0,1,101021000000000.0
+All other entities,Balance Sheet,Liability,Other current liabilities,Duties & Taxes (Liability),Tax Collected at Source Payable,-,TCS payable,1,1,2,6,5,2,0,2,101021000000000.0
+All other entities,Balance Sheet,Asset,"Property, Plant & Equipment",Capital work-in-progress,-,-,-,1,1,3,1,3,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,"Property, Plant & Equipment",Intangible assets under development,-,-,-,1,1,3,1,4,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments in Other Entities,-,-,-,1,1,3,2,1,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments in preference shares ,-,-,-,1,1,3,2,2,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments in equity instruments,-,-,-,1,1,3,2,3,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments in government or trust securities ,-,-,-,1,1,3,2,4,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments in debentures or bonds ,-,-,-,1,1,3,2,5,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments in mutual funds ,-,-,-,1,1,3,2,6,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Investments property,-,-,-,1,1,3,2,7,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Non-current investments,Other Non current investment,-,-,-,1,1,3,2,8,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Deferred tax assets (net),-,-,-,Deffered tax Asset,1,1,3,3,0,0,0,1,101030000000000.0
+All other entities,Balance Sheet,Asset,Long Term Loans and Advances,-,-,-,-,1,1,3,4,0,0,0,0,101030000000000.0
+All other entities,Balance Sheet,Asset,Other non-current assets,-,-,-,-,1,1,3,5,0,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments in Other Entities,-,-,-,1,1,3,6,1,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments in preference shares ,-,-,-,1,1,3,6,2,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments in equity instruments,-,-,-,1,1,3,6,3,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments in government or trust securities ,-,-,-,1,1,3,6,4,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments in debentures or bonds ,-,-,-,1,1,3,6,5,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments in mutual funds ,-,-,-,1,1,3,6,6,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Investments property,-,-,-,1,1,3,6,7,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Current investments,Others,-,-,-,1,1,3,6,8,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Cash and cash equivalents,Cash,-,-,-,1,1,3,7,1,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Cash and cash equivalents,In Bank accounts,-,-,-,1,1,3,7,2,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Cash and cash equivalents,Others,,,,1,1,3,7,3,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Short Term Loans and Advances ,-,-,-,-,1,1,3,8,0,0,0,0,101031000000000.0
+All other entities,Balance Sheet,Asset,Other current assets,-,-,-,-,1,1,3,9,0,0,0,0,101031000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Nil rated,1,2,1,1,1,1,1,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Exempted,1,2,1,1,1,1,1,2,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Local Sales - Services,Local Sale of Services - Taxable,1,2,1,1,1,1,1,3,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Nil rated,1,2,1,1,2,1,1,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Exempted,1,2,1,1,2,1,1,2,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Local Sales - Goods,Local Sale of Goods - Taxable,1,2,1,1,2,1,1,3,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Nil rated,1,2,1,1,1,1,2,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services - Exempted,1,2,1,1,1,1,2,2,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,GST Sales - Services,Inter-state Sales - Services,Inter-state Sale of Services -Taxable,1,2,1,1,1,1,2,3,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Exempted,1,2,1,1,2,1,2,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Nil rated,1,2,1,1,2,1,2,2,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Inter-state Sales - Goods,Inter-state Sale of Goods - Taxable,1,2,1,1,2,1,2,3,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service - Nil rated,1,2,1,1,3,1,1,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Exempted,1,2,1,1,3,1,1,2,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  with payment of Tax,1,2,1,1,3,1,1,3,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Service,GST Sales - Service,Export of Service,Export of Service -  Without payment of tax,1,2,1,1,3,1,1,4,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods - Nil rated,1,2,1,1,2,1,3,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Exempted,1,2,1,1,2,1,3,2,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  with payment of Tax,1,2,1,1,2,1,3,3,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,GST Sales - Goods,Export of Goods,Export of goods -  Without payment of tax,1,2,1,1,2,1,3,4,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Services,Non-GST Sales - Services ,-,-,1,2,1,1,1,2,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,Sale of Goods,Non-GST Sales - Goods,-,-,1,2,1,1,2,2,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Income,Revenue from operations,-,-,-,MSME Interest Income,1,2,1,1,0,0,0,1,102010000000000.0
+All other entities,Profit & Loss Account,Income,Other Income,Interest Income,-,-,-,1,2,1,2,1,0,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Income,Other Income,Dividend Income,-,-,-,1,2,1,2,2,0,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Income,Other Income,Net gain on fair value changes,-,-,-,1,2,1,2,3,0,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Income,Other Income,Net gain on derecognition of financial instruments under amortised cost category,-,-,-,1,2,1,2,4,0,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Income,Other Income,Others,-,-,-,1,2,1,2,5,0,0,0,102010000000000.0
+All other entities,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,-,-,-,1,2,2,1,0,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,Raw Material,-,-,2,2,2,1,1,1,1,0,202020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stores and spares,-,-,2,2,2,1,1,1,2,0,202020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,packing material,-,-,2,2,2,1,1,1,3,0,202020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Cost of materials consumed,Purchase,stock in trade,-,-,2,2,2,1,1,1,4,0,202020000000000.0
+All other entities,Profit & Loss Account,Expenditure,"Changes in Inventories of finished goods, stock-in-trade and work-in- progress",-,-,-,-,1,2,2,2,0,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Salary,-,-,-,1,2,2,3,1,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Bonus,-,-,-,1,2,2,3,2,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Wages,-,-,-,1,2,2,3,3,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Staff welfare expenses,-,-,-,1,2,2,3,4,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Incentives,,,,1,2,2,3,5,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Employee Benefits Expenses,Others,,,,1,2,2,3,6,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Finance Costs,Interest on bank loan,-,-,-,1,2,2,4,1,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Finance costs,Interest on other loans,-,-,-,1,2,2,5,1,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Finance Costs,Other borrowing costs,-,-,-,1,2,2,4,2,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,Finance Costs,Impairment on financial instruments,-,-,-,1,2,2,4,3,0,0,0,102020000000000.0
+All other entities,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Depreciation expense,1,2,2,6,0,0,0,1,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,"Depreciation, amortization and impairment",-,-,-,Amortization expense,1,2,2,6,0,0,0,2,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,Fees and commission expense,-,-,-,1,2,2,7,1,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,Net loss on fair value changes,-,-,-,1,2,2,7,2,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,Net loss on derecognition of financial instruments under amortised cost category,-,-,-,1,2,2,7,3,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rent,1,2,2,7,0,0,0,1,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Electricity,1,2,2,7,0,0,0,2,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,Repairs & Maintenance,-,-,-,1,2,2,7,4,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Insurance,1,2,2,7,0,0,0,3,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Processing / Labour charges,1,2,2,7,0,0,0,4,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Travelling, Conveyance & Boarding",1,2,2,7,0,0,0,5,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Auditor's remuneration,1,2,2,7,0,0,0,6,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Printing & Stationery,1,2,2,7,0,0,0,7,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Advertisement expense,1,2,2,7,0,0,0,8,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission,1,2,2,7,0,0,0,9,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Legal and Professional Charges,1,2,2,7,0,0,0,10,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Miscellaneous expenses,1,2,2,7,0,0,0,11,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Fuel expenses,1,2,2,7,0,0,0,12,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Communication expenses,1,2,2,7,0,0,0,13,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Freight, clearing and forwarding",1,2,2,7,0,0,0,14,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Commission and brokerage,1,2,2,7,0,0,0,15,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Roc Fees,1,2,2,7,0,0,0,16,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,GST and VAT payments,1,2,2,7,0,0,0,17,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Donations,1,2,2,7,0,0,0,18,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Bad debts written off,1,2,2,7,0,0,0,19,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"IT, Internet & server maintenance expenses",1,2,2,7,0,0,0,20,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Business & Sales promotion expenses,1,2,2,7,0,0,0,21,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Gain,1,2,2,7,0,0,0,22,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Exchange Loss,1,2,2,7,0,0,0,23,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Office Maintenance,1,2,2,7,0,0,0,24,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Round off ,1,2,2,7,0,0,0,25,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Rebates and discounts,1,2,2,7,0,0,0,26,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Consumption of stores and spare parts,1,2,2,7,0,0,0,27,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Licences and taxes, excluding, taxes on income",1,2,2,7,0,0,0,28,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,Loss on sale of assets,1,2,2,7,0,0,0,29,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,"Statutory fee, interest & penalty",1,2,2,7,0,0,0,30,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,Director's Remuneration,-,-,-,1,2,2,7,5,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,MSME Interest Expense,1,2,2,7,0,0,0,31,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,Dividend to Shareholders,-,-,,1,2,2,7,6,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Other expenses,-,-,-,,1,2,2,7,0,0,0,0,102021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Current tax,2,2,2,8,0,0,0,1,202021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,-,-,-,Excess/short provision of tax relating to earlier year,2,2,2,8,0,0,0,2,202021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,-,2,2,2,8,1,0,0,0,202021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Expense,2,2,2,8,1,1,0,1,202021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax Income,2,2,2,8,1,1,0,2,202021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Liability Reversal,2,2,2,8,1,1,0,3,202021000000000.0
+All other entities,Profit & Loss Account,Expenditure,Tax expense,Deferred tax charge/(benefit),-,-,Deferred Tax – Income Reversal,2,2,2,8,1,1,0,4,202021000000000.0
+"""
+
+def seed():
+    print("Starting import of 614 master hierarchy ledgers into master_hierarchy_raw...")
+    MasterHierarchyRaw.objects.all().delete()
+    reader = csv.DictReader(CSV_DATA.splitlines())
+    instances = []
+    for row in reader:
+        if not any(row.values()):
+            continue
+        def val(h1, h2):
+            v = row.get(h1) or row.get(h2)
+            return None if not v or v.strip() == '' or v.strip() == '-' else v.strip()
+            
+        instances.append(MasterHierarchyRaw(
+            type_of_business_1=val('Type of Business', 'type_of_business_1'),
+            financial_reporting_1=val('Financial Reporting', 'financial_reporting_1'),
+            major_group_1=val('Major Group', 'major_group_1'),
+            group_1=val('Group', 'group_1'),
+            sub_group_1_1=val('Sub-group 1', 'sub_group_1_1'),
+            sub_group_2_1=val('Sub-group 2', 'sub_group_2_1'),
+            sub_group_3_1=val('Sub-group 3', 'sub_group_3_1'),
+            ledger_1=val('Ledgers', 'ledger_1'),
+            code=val('Code', 'code')
+        ))
+    MasterHierarchyRaw.objects.bulk_create(instances, batch_size=1000)
+    print(f"SUCCESS! Imported {MasterHierarchyRaw.objects.count()} rows into master_hierarchy_raw!")
+
+if __name__ == '__main__':
+    seed()
