@@ -28,7 +28,7 @@ if not exist "venv" (
     exit /b
 )
 call venv\Scripts\activate
-start "Django Backend" python manage.py runserver 8000
+start "Django Backend" python manage.py runserver 0.0.0.0:8000
 cd /d ..
 
 :: 2. Start Frontend (Vite)
@@ -52,4 +52,3 @@ echo Frontend: http://localhost:5173
 echo Backend:  http://localhost:8000
 echo.
 echo ===========================================
-pause

@@ -32,19 +32,20 @@ def import_hierarchy_csv(csv_path):
             # Map CSV headers to Django Model fields
             # The CSV headers are: Type of Business, Financial Reporting, Major Group, Group, Sub-group 1, Sub-group 2, Sub-group 3, Ledgers, Code
             
-            def clean(val):
-                return None if not val or val.strip() == '' or val.strip() == '-' else val.strip()
+            def val(h1, h2):
+                v = row.get(h1) or row.get(h2)
+                return None if not v or v.strip() == '' or v.strip() == '-' else v.strip()
 
             instance = MasterHierarchyRaw(
-                type_of_business_1=clean(row.get('Type of Business')),
-                financial_reporting_1=clean(row.get('Financial Reporting')),
-                major_group_1=clean(row.get('Major Group')),
-                group_1=clean(row.get('Group')),
-                sub_group_1_1=clean(row.get('Sub-group 1')),
-                sub_group_2_1=clean(row.get('Sub-group 2')),
-                sub_group_3_1=clean(row.get('Sub-group 3')),
-                ledger_1=clean(row.get('Ledgers')),
-                code=clean(row.get('Code'))
+                type_of_business_1=val('Type of Business', 'type_of_business_1'),
+                financial_reporting_1=val('Financial Reporting', 'financial_reporting_1'),
+                major_group_1=val('Major Group', 'major_group_1'),
+                group_1=val('Group', 'group_1'),
+                sub_group_1_1=val('Sub-group 1', 'sub_group_1_1'),
+                sub_group_2_1=val('Sub-group 2', 'sub_group_2_1'),
+                sub_group_3_1=val('Sub-group 3', 'sub_group_3_1'),
+                ledger_1=val('Ledgers', 'ledger_1'),
+                code=val('Code', 'code')
             )
             instances.append(instance)
             
@@ -54,5 +55,14 @@ def import_hierarchy_csv(csv_path):
     print("Import completed successfully!")
 
 if __name__ == "__main__":
-    csv_file_path = r"C:\Users\subik\Downloads\ledger_list_final_v7.csv"
+    candidates = [
+        os.path.join(backend_dir, "ledgers.csv"),
+        os.path.join(backend_dir, "ledger_list_final_v7.csv"),
+        "/app/ledgers.csv",
+        "/app/ledger_list_final_v7.csv",
+        r"C:\Users\subik\Downloads\ledgers.csv",
+        r"C:\Users\subik\Downloads\ledger_list_final_v7.csv",
+    ]
+    csv_file_path = next((p for p in candidates if os.path.exists(p)), candidates[0])
     import_hierarchy_csv(csv_file_path)
+

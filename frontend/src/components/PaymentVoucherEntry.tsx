@@ -54,8 +54,8 @@ export const PaymentVoucherEntry: React.FC<PaymentVoucherEntryProps> = ({ onCanc
         const fetchData = async () => {
             try {
                 const [voucherTypesRes, ledgersRes] = await Promise.all([
-                    fetch('http://localhost:8000/api/masters/voucher-configurations/', { credentials: 'include' }),
-                    fetch('http://localhost:8000/api/masters/ledgers/', { credentials: 'include' })
+                    fetch('/api/masters/voucher-configurations/', { credentials: 'include' }),
+                    fetch('/api/masters/ledgers/', { credentials: 'include' })
                 ]);
 
                 if (voucherTypesRes.ok) {
@@ -119,7 +119,7 @@ export const PaymentVoucherEntry: React.FC<PaymentVoucherEntryProps> = ({ onCanc
     const fetchUntaggedTransactions = async (ledgerId: number) => {
         try {
             // TODO: Replace with actual API endpoint
-            const response = await fetch(`http://localhost:8000/api/vouchers/untagged-transactions/?ledger_id=${ledgerId}`, {
+            const response = await fetch(`/api/vouchers/untagged-transactions/?ledger_id=${ledgerId}`, {
                 credentials: 'include'
             });
 

@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: port,
       host: '0.0.0.0',
+      hmr: {
+        overlay: false
+      },
       proxy: {
         '/api': {
           target: apiTarget,

@@ -55,4 +55,3 @@ echo ===========================================
 echo.
 echo To start the system, run: restart_servers.bat
 echo.
-pause
