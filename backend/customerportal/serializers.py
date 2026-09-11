@@ -358,6 +358,13 @@ class CustomerMasterLongTermContractBasicDetailSerializer(serializers.ModelSeria
     terms_conditions = CustomerMasterLongTermContractTermsConditionSerializer(read_only=True)
     branch_name = serializers.SerializerMethodField()
 
+    contract_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    customer_id = serializers.IntegerField(required=False, allow_null=True)
+    customer_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    contract_type = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='Rate Contract')
+    contract_validity_from = serializers.DateField(required=False, allow_null=True)
+    contract_validity_to = serializers.DateField(required=False, allow_null=True)
+
     class Meta:
         model = CustomerMasterLongTermContractBasicDetail
         fields = [

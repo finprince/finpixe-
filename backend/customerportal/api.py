@@ -598,16 +598,12 @@ class CustomerMasterLongTermContractViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter contracts by tenant"""
-        user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        if tenant_id:
-            return CustomerMasterLongTermContractBasicDetail.objects.filter(tenant_id=tenant_id, is_deleted=False)
-        return CustomerMasterLongTermContractBasicDetail.objects.none()
+        tenant_id = _get_tenant_id(self.request)
+        return CustomerMasterLongTermContractBasicDetail.objects.filter(tenant_id=tenant_id, is_deleted=False)
     
     def create(self, request, *args, **kwargs):
-        """Override create to add logging for debugging 400 errors"""
+        """Override create to add logging for debugging 400/500 errors"""
         logger.info(f"Received Long-term Contract creation request")
-        # logger.debug(f"Request data: {request.data}")
         
         try:
             serializer = self.get_serializer(data=request.data)
@@ -632,25 +628,27 @@ class CustomerMasterLongTermContractViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set tenant_id and created_by when creating"""
         user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
+        tenant_id = _get_tenant_id(self.request)
         
-        if not tenant_id:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({'error': 'User does not have a tenant_id. Please contact administrator.'})
+        contract_number = serializer.validated_data.get('contract_number')
+        if not contract_number or not str(contract_number).strip():
+            import time
+            contract_number = f"CNT-{int(time.time())}"
         
         basic_detail = serializer.save(
             tenant_id=tenant_id,
-            created_by=user.username if hasattr(user, 'username') else None
+            contract_number=contract_number,
+            created_by=user.username if hasattr(user, 'username') else 'system'
         )
         self._save_related_data(basic_detail, tenant_id, user)
 
     def perform_update(self, serializer):
         """Set updated_by and update related data when updating"""
         user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
+        tenant_id = _get_tenant_id(self.request)
         
         basic_detail = serializer.save(
-            updated_by=user.username if hasattr(user, 'username') else None
+            updated_by=user.username if hasattr(user, 'username') else 'system'
         )
         self._save_related_data(basic_detail, tenant_id, user)
 
@@ -679,7 +677,7 @@ class CustomerMasterLongTermContractViewSet(viewsets.ModelViewSet):
                         price_min=product.get('price_min'),
                         price_max=product.get('price_max'),
                         acceptable_price_deviation=product.get('acceptable_price_deviation'),
-                        created_by=user.username if hasattr(user, 'username') else None
+                        created_by=user.username if hasattr(user, 'username') else 'system'
                     )
         
         # Save terms & conditions
@@ -696,7 +694,7 @@ class CustomerMasterLongTermContractViewSet(viewsets.ModelViewSet):
                     'termination_clause': terms_data.get('termination_clause'),
                     'dispute_terms': terms_data.get('dispute_terms'),
                     'others': terms_data.get('others'),
-                    'created_by': user.username if hasattr(user, 'username') else None
+                    'created_by': user.username if hasattr(user, 'username') else 'system'
                 }
             )
 
@@ -715,16 +713,13 @@ class CustomerTransactionSalesQuotationGeneralViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerTransactionSalesQuotationGeneralSerializer
     
     def get_queryset(self):
-        user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        if tenant_id:
-            return CustomerTransactionSalesQuotationGeneral.objects.filter(tenant_id=tenant_id).order_by('-created_at')
-        return CustomerTransactionSalesQuotationGeneral.objects.none()
+        tenant_id = _get_tenant_id(self.request)
+        return CustomerTransactionSalesQuotationGeneral.objects.filter(tenant_id=tenant_id).order_by('-created_at')
     
     def perform_create(self, serializer):
         user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        created_by = getattr(user, 'full_name', user.username)
+        tenant_id = _get_tenant_id(self.request)
+        created_by = getattr(user, 'full_name', getattr(user, 'username', 'system'))
         serializer.save(tenant_id=tenant_id, created_by=created_by)
 
 
@@ -734,16 +729,13 @@ class CustomerTransactionSalesQuotationSpecificViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerTransactionSalesQuotationSpecificSerializer
     
     def get_queryset(self):
-        user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        if tenant_id:
-            return CustomerTransactionSalesQuotationSpecific.objects.filter(tenant_id=tenant_id).order_by('-created_at')
-        return CustomerTransactionSalesQuotationSpecific.objects.none()
+        tenant_id = _get_tenant_id(self.request)
+        return CustomerTransactionSalesQuotationSpecific.objects.filter(tenant_id=tenant_id).order_by('-created_at')
     
     def perform_create(self, serializer):
         user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        created_by = getattr(user, 'full_name', user.username)
+        tenant_id = _get_tenant_id(self.request)
+        created_by = getattr(user, 'full_name', getattr(user, 'username', 'system'))
         serializer.save(tenant_id=tenant_id, created_by=created_by)
 
 
@@ -753,11 +745,7 @@ class CustomerTransactionSalesOrderViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerTransactionSalesOrderSerializer
     
     def get_queryset(self):
-        user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        if not tenant_id:
-            return CustomerTransactionSalesOrderBasicDetails.objects.none()
-            
+        tenant_id = _get_tenant_id(self.request)
         queryset = CustomerTransactionSalesOrderBasicDetails.objects.filter(tenant_id=tenant_id, is_deleted=False)
         
         # Status filtering
@@ -776,8 +764,8 @@ class CustomerTransactionSalesOrderViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         user = self.request.user
-        tenant_id = getattr(user, 'tenant_id', None)
-        created_by = getattr(user, 'full_name', user.username)
+        tenant_id = _get_tenant_id(self.request)
+        created_by = getattr(user, 'full_name', getattr(user, 'username', 'system'))
         
         # Auto-increment logic
         so_series_name = self.request.data.get('so_series_name')
@@ -830,8 +818,7 @@ class SalesCustomerCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_tenant_id(self):
-        user = self.request.user
-        return getattr(user, 'tenant_id', None)
+        return _get_tenant_id(self.request)
 
     def get_username(self):
         return getattr(self.request.user, 'username', 'system')

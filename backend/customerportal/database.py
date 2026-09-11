@@ -660,13 +660,13 @@ class CustomerMasterLongTermContractBasicDetail(models.Model):
     tenant_id = models.CharField(max_length=36, db_index=True)
     
     # Basic Contract Information
-    contract_number = models.CharField(max_length=50)
-    customer_id = models.IntegerField(db_index=True, help_text='Reference to customer')
-    customer_name = models.CharField(max_length=255, help_text='Customer name for display')
+    contract_number = models.CharField(max_length=50, null=True, blank=True)
+    customer_id = models.IntegerField(db_index=True, null=True, blank=True, help_text='Reference to customer')
+    customer_name = models.CharField(max_length=255, null=True, blank=True, help_text='Customer name for display')
     branch_id = models.IntegerField(null=True, blank=True, help_text='Reference to branch')
-    contract_type = models.CharField(max_length=50, choices=CONTRACT_TYPES)
-    contract_validity_from = models.DateField()
-    contract_validity_to = models.DateField()
+    contract_type = models.CharField(max_length=50, choices=CONTRACT_TYPES, null=True, blank=True)
+    contract_validity_from = models.DateField(null=True, blank=True)
+    contract_validity_to = models.DateField(null=True, blank=True)
     contract_document = models.CharField(max_length=500, null=True, blank=True, help_text='File path to uploaded contract document')
     
     # Billing Automation
