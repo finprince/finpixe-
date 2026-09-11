@@ -31,16 +31,20 @@ class NoteReminderViewSet(viewsets.ModelViewSet):
         if not user or not getattr(user, 'is_authenticated', False):
             return NoteReminder.objects.none()
         user_id = getattr(user, 'id', None)
-        if user_id:
-            qs = NoteReminder.objects.filter(user_id=user_id).order_by('-created_at')
-        else:
-            qs = NoteReminder.objects.none()
-        item_type = self.request.query_params.get('type')
-        if item_type:
-            qs = qs.filter(type=item_type)
-        return qs
+        if not user_id:
+            return NoteReminder.objects.none()
+        try:
+            qs = NoteReminder.objects.filter(user_id=str(user_id)).order_by('-created_at')
+            item_type = self.request.query_params.get('type')
+            if item_type:
+                qs = qs.filter(type=item_type)
+            # Evaluate first record safely
+            _ = list(qs[:1])
+            return qs
+        except Exception:
+            return NoteReminder.objects.none()
 
     def perform_create(self, serializer):
-        user_id = getattr(self.request.user, 'id', None)
+        user_id = str(getattr(self.request.user, 'id', ''))
         serializer.save(user_id=user_id)
 
