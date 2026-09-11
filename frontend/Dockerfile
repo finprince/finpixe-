@@ -11,9 +11,12 @@ RUN npm install
 # Copy project files
 COPY . .
 
+# Build production bundle
+RUN npm run build
+
 # Use environment variable for port
 ENV VITE_PORT=5173
 EXPOSE 5173
 
-# Standard dev command
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Serve production preview
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
