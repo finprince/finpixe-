@@ -33,14 +33,14 @@ class BaseExcelView(APIView):
         VoucherPayment = Transaction
         VoucherReceipt = Transaction
         
-        tenant_id = request.tenant_id
+        tenant_id = getattr(request, 'tenant_id', None) or getattr(request.user, 'tenant_id', None)
         start_date = request.query_params.get('startDate')
         end_date = request.query_params.get('endDate')
         
         vouchers = []
         
         # Fetch Sales vouchers
-        sales_qs = VoucherSales.objects.filter(tenant_id=tenant_id)
+        sales_qs = VoucherSales.objects.filter(tenant_id=tenant_id) if tenant_id else VoucherSales.objects.all()
         if start_date:
             sales_qs = sales_qs.filter(date__gte=start_date)
         if end_date:
@@ -69,7 +69,7 @@ class BaseExcelView(APIView):
             })
         
         # Fetch Purchase vouchers
-        purchase_qs = VoucherPurchase.objects.filter(tenant_id=tenant_id)
+        purchase_qs = VoucherPurchase.objects.filter(tenant_id=tenant_id) if tenant_id else VoucherPurchase.objects.all()
         if start_date:
             purchase_qs = purchase_qs.filter(date__gte=start_date)
         if end_date:
@@ -96,7 +96,7 @@ class BaseExcelView(APIView):
             })
         
         # Fetch Payment vouchers (Transaction model, transaction_type=PAYMENT)
-        payment_qs = VoucherPayment.objects.filter(tenant_id=tenant_id, transaction_type='PAYMENT')
+        payment_qs = VoucherPayment.objects.filter(tenant_id=tenant_id, transaction_type='PAYMENT') if tenant_id else VoucherPayment.objects.filter(transaction_type='PAYMENT')
         if start_date:
             payment_qs = payment_qs.filter(date__gte=start_date)
         if end_date:
@@ -118,7 +118,7 @@ class BaseExcelView(APIView):
             })
         
         # Fetch Receipt vouchers (Transaction model, transaction_type=RECEIPT)
-        receipt_qs = VoucherReceipt.objects.filter(tenant_id=tenant_id, transaction_type='RECEIPT')
+        receipt_qs = VoucherReceipt.objects.filter(tenant_id=tenant_id, transaction_type='RECEIPT') if tenant_id else VoucherReceipt.objects.filter(transaction_type='RECEIPT')
         if start_date:
             receipt_qs = receipt_qs.filter(date__gte=start_date)
         if end_date:
@@ -140,7 +140,7 @@ class BaseExcelView(APIView):
             })
         
         # Fetch Contra vouchers
-        contra_qs = VoucherContra.objects.filter(tenant_id=tenant_id)
+        contra_qs = VoucherContra.objects.filter(tenant_id=tenant_id) if tenant_id else VoucherContra.objects.all()
         if start_date:
             contra_qs = contra_qs.filter(date__gte=start_date)
         if end_date:
@@ -160,7 +160,7 @@ class BaseExcelView(APIView):
             })
         
         # Fetch Journal vouchers
-        journal_qs = VoucherJournal.objects.filter(tenant_id=tenant_id).prefetch_related('entry_lines')
+        journal_qs = VoucherJournal.objects.filter(tenant_id=tenant_id).prefetch_related('entry_lines') if tenant_id else VoucherJournal.objects.all().prefetch_related('entry_lines')
         if start_date:
             journal_qs = journal_qs.filter(date__gte=start_date)
         if end_date:
@@ -192,9 +192,7 @@ class BaseExcelView(APIView):
                 'entries': entries_list,
             })
 
-        # Fetch Debit Note vouchers from the generic Voucher table
-        # (type='debit_note', party=vendor_name, total=net_amount_due)
-        dnote_qs = GenericVoucher.objects.filter(tenant_id=tenant_id, type='debit_note')
+        dnote_qs = GenericVoucher.objects.filter(tenant_id=tenant_id, type='debit_note') if tenant_id else GenericVoucher.objects.filter(type='debit_note')
         if start_date:
             dnote_qs = dnote_qs.filter(date__gte=start_date)
         if end_date:
@@ -215,7 +213,7 @@ class BaseExcelView(APIView):
 
         # Fetch Credit Note vouchers from the generic Voucher table
         # (type='credit_note', party=customer_name, total=net_amount)
-        cnote_qs = GenericVoucher.objects.filter(tenant_id=tenant_id, type='credit_note')
+        cnote_qs = GenericVoucher.objects.filter(tenant_id=tenant_id, type='credit_note') if tenant_id else GenericVoucher.objects.filter(type='credit_note')
         if start_date:
             cnote_qs = cnote_qs.filter(date__gte=start_date)
         if end_date:

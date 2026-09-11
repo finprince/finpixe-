@@ -53,12 +53,14 @@ class IsBranchMember(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
             
-        # 0. BLOCK Master Admin (Platform Level) from company APIs
+        # Allow Master Admin (Platform Level) to access views
         MasterUser = apps.get_model('core', 'MasterUser')
-        if isinstance(request.user, MasterUser):
-            return False
+        if isinstance(request.user, MasterUser) or getattr(request.user, 'is_superuser', False):
+            return True
             
         tenant_id = getattr(request.user, 'tenant_id', None)
+        if tenant_id is None:
+            tenant_id = getattr(request, 'tenant_id', None)
         if tenant_id is None:
             return False
             
