@@ -49,26 +49,40 @@ def validate_dependencies():
     logger.info("[CLUSTER_MISTRAL_CHECK] Mistral API Key confirmed. Compute offloaded to Cloud.")
 
     # A. Redis
+    import socket
+    redis_reachable = False
+    s = socket.socket()
+    s.settimeout(1)
+    try:
+        s.connect(('127.0.0.1', int(os.getenv('REDIS_PORT', '6379'))))
+        redis_reachable = True
+        logger.info("[DEPENDENCY_VALID] Redis port 6379 is REACHABLE.")
+    except Exception:
+        pass
+    finally:
+        s.close()
+
     try:
         import redis
         redis_url = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', '6379')}/0"
-        r = redis.Redis.from_url(redis_url, decode_responses=True)
-        r.ping()
-        logger.info("[DEPENDENCY_VALID] Redis is UP.")
-    except Exception as e:
-        logger.info(f"[REDIS_AUTOSTART] Redis not running. Auto-starting local redis_server.py emulator...")
-        try:
+        
+        if not redis_reachable:
+            logger.info(f"[REDIS_AUTOSTART] Redis not running. Auto-starting local redis_server.py emulator...")
             kwargs = {}
             if os.name == 'nt':
                 kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW
             subprocess.Popen([sys.executable, os.path.join(current_dir, "redis_server.py")], cwd=current_dir, **kwargs)
             time.sleep(2)
-            r = redis.Redis.from_url(redis_url, decode_responses=True)
-            r.ping()
-            logger.info("[DEPENDENCY_VALID] Redis emulator started successfully and is UP.")
-        except Exception as ex:
-            logger.error(f"[DEPENDENCY_FAILED] Redis connectivity check failed: {ex}")
-            return False
+        
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+        r.ping()
+        logger.info("[DEPENDENCY_VALID] Redis is UP and pingable.")
+    except ImportError:
+        logger.error("[DEPENDENCY_FAILED] 'redis' python package is not installed. Please pip install redis.")
+        return False
+    except Exception as e:
+        logger.error(f"[DEPENDENCY_FAILED] Redis connectivity check failed: {e}")
+        return False
 
     # Clear stale worker locks from previous cluster runs so new workers can acquire them
     try:
